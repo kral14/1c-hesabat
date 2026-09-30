@@ -314,3 +314,24 @@ body {
 @keyframes spin {
   to { transform: rotate(360deg); }
 }
+
+.btn-cancel-loading {
+  margin-top: 8px;
+  padding: 4px 14px;
+  background: #fdf2f2;
+  border: 1px solid #d32f2f;
+  border-radius: 2px;
+  color: #c62828;
+  font-size: 11px;
+  font-weight: bold;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  outline: none;
+}
+
+.btn-cancel-loading:hover {
+  background: #ffebee;
+  border-color: #b71c1c;
+  color: #b71c1c;
+}
+

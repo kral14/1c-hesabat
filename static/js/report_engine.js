@@ -41,6 +41,30 @@ const ReportEngine = {
     return `${months[m - 1] || ""} ${y} г.`;
   },
 
+  abortController: null,
+
+  cancelReport() {
+    console.log("[REPORT CANCEL] User triggered Pause / Cancel operation.");
+    if (this.abortController) {
+      try {
+        this.abortController.abort();
+      } catch (e) {}
+      this.abortController = null;
+    }
+    this.isExecuting = false;
+    const loadingOverlay = document.getElementById("loadingOverlay");
+    if (loadingOverlay) loadingOverlay.style.display = "none";
+
+    const emptyText = document.getElementById("sheetEmptyText");
+    if (emptyText) {
+      emptyText.innerHTML = `
+        <span style="color: #b71c1c; font-weight: bold; font-size: 13px;">⏹ Sorğu istifadəçi tərəfindən dayandırıldı (Pause).</span><br><br>
+        <span style="color: #666; font-size: 11px;">1C serverinə qoşulma mümkün olmadıqda və ya gözləmək istəmədikdə <strong>Pause</strong> düyməsi ilə prosesi dərhal dayandıra bilərsiniz.</span><br><br>
+        <button class="btn-1c primary" onclick="onActionFormirovat()" style="padding: 4px 14px; font-weight: bold;">Yenidən yoxla (F5)</button>
+      `;
+    }
+  },
+
   async runReport() {
     if (this.isExecuting) return;
     this.isExecuting = true;
@@ -49,6 +73,8 @@ const ReportEngine = {
     const loadingText = document.getElementById("loadingText");
     if (loadingOverlay) loadingOverlay.style.display = "flex";
     if (loadingText) loadingText.textContent = "1C: Məlumatlar sorğulanır və cədvəl qurulur...";
+
+    this.abortController = new AbortController();
 
     try {
       const config = SettingsModal.getConfig();
@@ -70,7 +96,8 @@ const ReportEngine = {
       const res = await fetch("/api/universal_report", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload)
+        body: JSON.stringify(payload),
+        signal: this.abortController.signal
       });
 
       const data = await res.json();
@@ -83,14 +110,23 @@ const ReportEngine = {
       this.renderReport(data, config);
 
     } catch (err) {
+      if (err.name === "AbortError") {
+        console.log("[REPORT ABORTED] 1C report fetch successfully aborted.");
+        return;
+      }
       console.error("1C Hesabat Xətası:", err);
       const emptyText = document.getElementById("sheetEmptyText");
       if (emptyText) {
-        emptyText.innerHTML = `<span style="color: #c00000; font-weight: bold;">Xəta: ${escapeHtml(err.message)}</span><br><br>Yenidən yoxlamaq üçün [Сформировать] basın.`;
+        emptyText.innerHTML = `
+          <span style="color: #c00000; font-weight: bold;">1C Server Xətası: ${escapeHtml(err.message)}</span><br><br>
+          <span style="color: #666; font-size: 11px;">Serverə qoşulma mümkün olmadı (evdən qoşulduqda VPN və ya 1C server əlaqəsini yoxlayın).</span><br><br>
+          <button class="btn-1c primary" onclick="onActionFormirovat()" style="padding: 4px 14px; font-weight: bold;">Yenidən yoxla (F5)</button>
+        `;
       }
     } finally {
       if (loadingOverlay) loadingOverlay.style.display = "none";
       this.isExecuting = false;
+      this.abortController = null;
     }
   },
 

@@ -1078,3 +1078,9 @@ function toggleMdiMenu(e, menuId) {
     parent.classList.add("open");
   }
 }
+
+// Global Window Export
+window.MdiManager = MdiManager;
+if (typeof module !== "undefined" && module.exports) {
+  module.exports = MdiManager;
+}

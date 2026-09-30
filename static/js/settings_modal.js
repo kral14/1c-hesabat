@@ -144,8 +144,9 @@ function toggleSettingsMinimize() {
 
 // Open / Close Settings Window (Full MDI Child Window - No blocking overlay!)
 function openSettingsModal(e) {
-  if (e && typeof e.stopPropagation === "function") {
-    e.stopPropagation();
+  if (e) {
+    if (typeof e.stopPropagation === "function") e.stopPropagation();
+    if (typeof e.preventDefault === "function") e.preventDefault();
   }
   console.log("[SETTINGS OPEN] Opening Settings dialog window");
   const win = document.getElementById("settingsWindowModal");
@@ -170,15 +171,18 @@ function openSettingsModal(e) {
       win.style.top = `${top}px`;
     }
 
-    if (window.MdiManager) {
-      MdiManager.activateWindow("settingsWindowModal", {
+    const mdi = window.MdiManager || (typeof MdiManager !== "undefined" ? MdiManager : null);
+    if (mdi && typeof mdi.activateWindow === "function") {
+      mdi.activateWindow("settingsWindowModal", {
         title: "Настройка: Товары на складах",
-        icon: "⚙️"
+        icon: "⚙️",
+        closeFn: () => closeSettingsModal()
       });
     } else {
       win.style.display = "flex";
       win.classList.remove("minimized");
       win.classList.add("active");
+      win.style.zIndex = 9999;
     }
 
     try { syncDateInputsFromTop(); } catch(e) { console.warn("syncDateInputsFromTop error:", e); }
@@ -193,8 +197,9 @@ function closeSettingsModal(e) {
     e.stopPropagation();
   }
   console.log("[SETTINGS CLOSE] Closing Settings dialog window");
-  if (window.MdiManager) {
-    MdiManager.closeWindow("settingsWindowModal");
+  const mdi = window.MdiManager || (typeof MdiManager !== "undefined" ? MdiManager : null);
+  if (mdi && typeof mdi.closeWindow === "function") {
+    mdi.closeWindow("settingsWindowModal");
   } else {
     const win = document.getElementById("settingsWindowModal");
     if (win) {

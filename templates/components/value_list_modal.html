@@ -4,7 +4,7 @@
      ======================================================== -->
 
 <div id="valueListModalOverlay" class="modal-overlay-1c">
-  <div class="settings-window" id="valueListWindowModal" style="width: 480px; height: 440px; max-width: 95vw; max-height: 90vh;" onmousedown="MdiManager.bringModalToFront(document.getElementById('valueListModalOverlay'))">
+  <div class="settings-window" id="valueListWindowModal" tabindex="0" onkeydown="ValueListModal.handleKeydown(event)" style="width: 480px; height: 440px; max-width: 95vw; max-height: 90vh; outline: none;" onmousedown="MdiManager.bringModalToFront(document.getElementById('valueListModalOverlay'))">
     
     <!-- Title Bar -->
     <div class="settings-header" ondblclick="ValueListModal.toggleMaximize()">
@@ -26,8 +26,8 @@
         <span style="font-size: 11px; color: #222; font-weight: 500;">Список значений...</span>
         
         <div style="display: flex; align-items: center; gap: 3px;">
-          <!-- [+] Add -->
-          <button class="box-tool-btn" onclick="ValueListModal.openCatalogForNew()" title="Soraqçadan yeni element/qrup əlavə et (+)">
+          <!-- [+] Add Row (Yeni sətir əlavə et) -->
+          <button class="box-tool-btn" onclick="ValueListModal.addNewRow()" title="Yeni sətir əlavə et (+ və ya Ins)">
             <span style="color: #2b7814; font-weight: bold; font-size: 13px;">➕</span>
           </button>
           <!-- Duplicate -->
@@ -35,11 +35,11 @@
             <span style="color: #004080; font-size: 11px;">📋</span>
           </button>
           <!-- Edit -->
-          <button class="box-tool-btn" onclick="ValueListModal.editSelected()" title="Dəyişdir">
+          <button class="box-tool-btn" onclick="ValueListModal.editSelected()" title="Dəyişdir (F2)">
             <span style="color: #107c10; font-size: 11px;">✏️</span>
           </button>
           <!-- Delete [x] -->
-          <button class="box-tool-btn" onclick="ValueListModal.removeSelected()" title="Sil">
+          <button class="box-tool-btn" onclick="ValueListModal.removeSelected()" title="Sil (Del)">
             <span style="color: #c00000; font-weight: bold; font-size: 12px;">✖</span>
           </button>
           <!-- Save / Clear -->

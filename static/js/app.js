@@ -4,14 +4,30 @@
    ======================================================== */
 
 document.addEventListener("DOMContentLoaded", async () => {
-  // 1. Initialize Subsystems safely
+  // 1. Initialize Subsystems safely (MdiManager MUST be first for window registry)
+  try { MdiManager.init(); } catch (e) { console.error("MdiManager init error:", e); }
   try { SessionManager.init(); } catch (e) { console.error("SessionManager init error:", e); }
   try { await SettingsModal.init(); } catch (e) { console.error("SettingsModal init error:", e); }
   try { await SettingsPresets.init(); } catch (e) { console.error("SettingsPresets init error:", e); }
-  try { MdiManager.init(); } catch (e) { console.error("MdiManager init error:", e); }
 
-  // 2. Global Hotkey bindings (1C Style: F5 runs report, Ctrl+N opens new window)
+  // 2. Global Hotkey bindings (F5: Formirovat, Ctrl+N: New Window, Pause/Break: Stop Loading)
   document.addEventListener("keydown", (e) => {
+    // PAUSE / BREAK KEY -> Stop & cancel any active loading immediately
+    if (e.key === "Pause" || e.code === "Pause" || e.key === "Break" || e.code === "PauseBreak") {
+      e.preventDefault();
+      e.stopPropagation();
+      console.log("[KEYBOARD PAUSE] Pause key pressed! Cancelling ongoing 1C operation...");
+      if (window.ReportEngine && typeof ReportEngine.cancelReport === "function") {
+        ReportEngine.cancelReport();
+      }
+      if (window.CatalogSelector && typeof CatalogSelector.cancel === "function") {
+        CatalogSelector.cancel();
+      }
+      const overlay = document.getElementById("loadingOverlay");
+      if (overlay) overlay.style.display = "none";
+      return;
+    }
+
     if (e.key === "F5") {
       e.preventDefault();
       onActionFormirovat();
@@ -19,7 +35,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       e.preventDefault();
       MdiManager.createNewReportWindow();
     }
-  });
+  }, true);
 
   // 3. Close actions dropdown when clicking outside
   document.addEventListener("click", (e) => {

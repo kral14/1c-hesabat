@@ -19,9 +19,12 @@
 <body>
 
   <!-- 1C Loading Overlay -->
-  <div id="loadingOverlay" class="loading-box-1c">
+  <div id="loadingOverlay" class="loading-box-1c" style="display: none; flex-direction: column; align-items: center; justify-content: center; gap: 8px;">
     <div class="spinner-1c"></div>
-    <div id="loadingText">1C: Məlumatlar emal olunur...</div>
+    <div id="loadingText" style="font-weight: 500;">1C: Məlumatlar emal olunur...</div>
+    <button id="btnCancelLoading" class="btn-cancel-loading" onclick="if(window.ReportEngine) ReportEngine.cancelReport(); document.getElementById('loadingOverlay').style.display='none';" title="Sorğunu dayandır (Klaviatura: Pause)">
+      ⏹ Dayandır (Pause)
+    </button>
   </div>
 
   <!-- Main 1C Desktop MDI Container -->
@@ -273,35 +276,22 @@
       <div class="mdi-taskbar-tabs" id="mdiTaskbarTabs">
         <!-- Dynamically rendered tabs for each open window -->
       </div>
-      <div class="mdi-taskbar-status">
-        <div class="mdi-status-pill" id="statusBarPresetBadge" style="color: #1565c0; font-weight: bold;">
-          <span>🏷️ Настройка: KRAFT</span>
-        </div>
-        <div class="mdi-status-pill" onclick="openLoginModal()" style="cursor: pointer;" title="Aktiv 1C bazası">
-          <span class="dot-green"></span>
-          <span id="statusBarBaseName">Test1C / Aztrade_test3</span>
-        </div>
-        <div class="mdi-status-pill">
-          <span style="color: #004080;">👤</span>
-          <span id="statusBarUserName">Nesib</span>
-        </div>
-      </div>
     </div>
 
   </div>
 
   <!-- 1C Modular JavaScript Subsystems -->
-  <script src="/static/js/session.js?v=3.9"></script>
-  <script src="/static/js/catalog_selector.js?v=3.9"></script>
-  <script src="/static/js/value_list_modal.js?v=3.9"></script>
-  <script src="/static/js/operation_type_modal.js?v=3.9"></script>
-  <script src="/static/js/field_selector.js?v=3.9"></script>
-  <script src="/static/js/calendar_picker.js?v=3.9"></script>
-  <script src="/static/js/settings_modal.js?v=3.9"></script>
-  <script src="/static/js/settings_presets.js?v=3.9"></script>
-  <script src="/static/js/report_engine.js?v=3.9"></script>
-  <script src="/static/js/mdi_manager.js?v=3.9"></script>
-  <script src="/static/js/app.js?v=3.9"></script>
+  <script src="/static/js/mdi_manager.js?v=4.0"></script>
+  <script src="/static/js/session.js?v=4.0"></script>
+  <script src="/static/js/catalog_selector.js?v=4.0"></script>
+  <script src="/static/js/value_list_modal.js?v=4.0"></script>
+  <script src="/static/js/operation_type_modal.js?v=4.0"></script>
+  <script src="/static/js/field_selector.js?v=4.0"></script>
+  <script src="/static/js/calendar_picker.js?v=4.0"></script>
+  <script src="/static/js/settings_modal.js?v=4.0"></script>
+  <script src="/static/js/settings_presets.js?v=4.0"></script>
+  <script src="/static/js/report_engine.js?v=4.0"></script>
+  <script src="/static/js/app.js?v=4.0"></script>
 
 </body>
 </html>

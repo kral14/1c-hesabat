@@ -65,17 +65,19 @@ const CatalogSelector = {
     console.log(`[CATALOG OPEN] catalog="${this.currentCatalog}", podborMode=${this.podborMode}, multiSelect=${this.multiSelect}`);
 
     // MDI Window registration & activation
-    if (window.MdiManager) {
-      let winObj = MdiManager.windows["catalogWindowModal"];
+    const mdi = window.MdiManager || (typeof MdiManager !== "undefined" ? MdiManager : null);
+    if (mdi && typeof mdi.activateWindow === "function") {
+      let winObj = mdi.windows["catalogWindowModal"];
       if (!winObj) {
-        MdiManager.registerWindow("catalogWindowModal", {
+        mdi.registerWindow("catalogWindowModal", {
           title: fullTitle,
           icon: catIcon,
           element: win,
           isDefault: true,
-          isDialog: true
+          isDialog: true,
+          closeFn: () => CatalogSelector.close()
         });
-        winObj = MdiManager.windows["catalogWindowModal"];
+        winObj = mdi.windows["catalogWindowModal"];
       } else {
         winObj.title = fullTitle;
         winObj.icon = catIcon;
@@ -96,13 +98,28 @@ const CatalogSelector = {
         win.style.top = `${top}px`;
       }
 
-      MdiManager.activateWindow("catalogWindowModal", {
+      mdi.activateWindow("catalogWindowModal", {
         title: fullTitle,
-        icon: catIcon
+        icon: catIcon,
+        closeFn: () => CatalogSelector.close()
       });
     } else {
       win.style.display = "flex";
       win.classList.remove("minimized");
+      win.classList.add("active");
+    }
+
+    // Ensure catalogWindowModal is visually in front of any active overlay (e.g. valueListModalOverlay)
+    const valOverlay = document.getElementById("valueListModalOverlay");
+    if (valOverlay) {
+      const overZ = parseInt(valOverlay.style.zIndex) || 100;
+      const curZ = parseInt(win.style.zIndex) || 100;
+      if (curZ <= overZ) {
+        win.style.zIndex = overZ + 15;
+        if (mdi && mdi.topZIndex <= overZ + 15) {
+          mdi.topZIndex = overZ + 15;
+        }
+      }
     }
 
     // Load Folders & Items
@@ -143,6 +160,19 @@ const CatalogSelector = {
     }
   },
 
+  abortController: null,
+
+  cancel() {
+    if (this.abortController) {
+      try { this.abortController.abort(); } catch (e) {}
+      this.abortController = null;
+    }
+    const itemsBody = document.getElementById("catalogItemsBody");
+    if (itemsBody) {
+      itemsBody.innerHTML = `<tr><td colspan="6" style="text-align: center; color: #b71c1c; padding: 20px;">⏹ Sorğu dayandırıldı (Pause).</td></tr>`;
+    }
+  },
+
   async loadCatalogData(searchQuery = "") {
     const treeList = document.getElementById("catalogTreeList");
     const itemsBody = document.getElementById("catalogItemsBody");
@@ -150,6 +180,11 @@ const CatalogSelector = {
     if (itemsBody) {
       itemsBody.innerHTML = `<tr><td colspan="6" style="text-align: center; color: #888; padding: 20px;">1C: Məlumatlar yüklənir...</td></tr>`;
     }
+
+    if (this.abortController) {
+      try { this.abortController.abort(); } catch (e) {}
+    }
+    this.abortController = new AbortController();
 
     try {
       const creds = SessionManager.getCredentials();
@@ -163,7 +198,8 @@ const CatalogSelector = {
       const res = await fetch("/api/catalog_data", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload)
+        body: JSON.stringify(payload),
+        signal: this.abortController.signal
       });
 
       const data = await res.json();
@@ -175,9 +211,15 @@ const CatalogSelector = {
       this.renderItems(data.items || []);
 
     } catch (err) {
+      if (err.name === "AbortError") {
+        console.log("[CATALOG ABORTED] Catalog data fetch aborted.");
+        return;
+      }
       if (itemsBody) {
         itemsBody.innerHTML = `<tr><td colspan="6" style="color: red; padding: 20px; text-align: center;">Xəta: ${err.message}</td></tr>`;
       }
+    } finally {
+      this.abortController = null;
     }
   },
 
