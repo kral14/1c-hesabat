@@ -1,0 +1,572 @@
+<!-- ========================================================
+     1C:ENTERPRISE UNIVERSAL REPORT - SETTINGS MODAL DIALOG
+     settings_dialog.html (Screenshot 3 + Maximize/Minimize)
+     ======================================================== -->
+
+<div class="mdi-window" id="settingsWindowModal" style="display: none; top: 35px; left: 60px; width: 920px; height: 600px; min-width: 620px; min-height: 420px;" onmousedown="MdiManager.activateWindow('settingsWindowModal')">
+  
+  <!-- Window Header with Maximize, Minimize, Close -->
+  <div class="mdi-window-header" ondblclick="MdiManager.toggleMaximize('settingsWindowModal')">
+    <div class="mdi-win-title-left">
+      <span class="mdi-win-icon">⚙️</span>
+      <span class="mdi-win-title-text" id="settingsDialogTitle">Настройка: Товары на складах</span>
+      <span id="settingsDialogActivePresetBadge" style="display: none; background: #2e7d32; color: #fff; padding: 1px 6px; border-radius: 2px; font-size: 10px; font-weight: bold; margin-left: 6px;"></span>
+    </div>
+    <div class="mdi-win-controls">
+      <button class="mdi-win-btn mdi-win-btn-min" title="Qatla" onclick="MdiManager.minimizeWindow('settingsWindowModal')" onmousedown="event.stopPropagation()">_</button>
+      <button class="mdi-win-btn mdi-win-btn-max" title="Böyüt / Bərpa et" onclick="MdiManager.toggleMaximize('settingsWindowModal')" onmousedown="event.stopPropagation()">□</button>
+      <button class="mdi-win-btn mdi-win-btn-close" title="Bağla" onclick="closeSettingsModal(event)" onmousedown="event.stopPropagation()">✕</button>
+    </div>
+  </div>
+
+  <!-- Window Body -->
+  <div class="mdi-window-body" style="background-color: #f7f6f0; display: flex; flex-direction: column;">
+    <div class="settings-body" style="flex: 1; padding: 8px 10px; display: flex; flex-direction: column; gap: 8px; overflow-y: auto;">
+      
+      <!-- Top Section: Period & Parameters -->
+      <div class="settings-top-section">
+        
+        <!-- Period Row -->
+        <div class="settings-period-row">
+          <span style="font-weight: bold; color: #333;">Период с:</span>
+          <div class="period-input-wrapper">
+            <input type="text" id="dlgStartDateInput" class="period-input-1c" value="01.09.2026" onchange="syncDateInputsFromDlg()">
+            <button class="period-cal-btn" onclick="pickDate('dlgStartDateInput', this)">📅</button>
+          </div>
+
+          <span style="font-weight: bold; color: #333;">по:</span>
+          <div class="period-input-wrapper">
+            <input type="text" id="dlgEndDateInput" class="period-input-1c" value="30.09.2026" onchange="syncDateInputsFromDlg()">
+            <button class="period-cal-btn" onclick="pickDate('dlgEndDateInput', this)">📅</button>
+          </div>
+
+          <button class="period-more-btn" onclick="openPeriodSelectDialog(this)" title="Dövr">...</button>
+        </div>
+
+        <!-- Parameters Checkboxes -->
+        <div class="settings-params-row">
+          <div class="settings-params-title">Параметры</div>
+          <div class="settings-checkboxes-group">
+            <label class="checkbox-1c-label">
+              <input type="checkbox" id="chkNegativeRed" checked>
+              <span>Отрицательное красным</span>
+            </label>
+
+            <label class="checkbox-1c-label">
+              <input type="checkbox" id="chkShowGrandTotals" checked>
+              <span>Выводить общие итоги</span>
+            </label>
+
+            <label class="checkbox-1c-label">
+              <input type="checkbox" id="chkShowDetails">
+              <span>Выводить детальные записи</span>
+            </label>
+
+            <label class="checkbox-1c-label">
+              <input type="checkbox" id="chkUseProperties" checked>
+              <span>Использовать свойства и категории</span>
+            </label>
+          </div>
+
+          <!-- Price Type Selector (Тип цен) - Multi-select -->
+          <div style="display: flex; align-items: center; gap: 8px; margin-top: 8px; padding-top: 6px; border-top: 1px dotted #ccc; font-size: 11px; position: relative;">
+            <span style="font-weight: bold; color: #222; white-space: nowrap;">Типы цен:</span>
+            <div id="priceTypeDropdownContainer" style="position: relative; flex: 1; max-width: 440px;">
+              <div id="priceTypeDropdownBtn" onclick="togglePriceTypeDropdown(event)" style="display: flex; align-items: center; justify-content: space-between; height: 22px; padding: 1px 6px; border: 1px solid #7f9db9; background: #fff; border-radius: 2px; cursor: pointer; user-select: none;">
+                <span id="priceTypeSummary" style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 11px; color: #111;">20</span>
+                <span style="font-size: 9px; color: #555; margin-left: 6px;">▼</span>
+              </div>
+              <div id="priceTypeDropdownMenu" style="display: none; position: absolute; top: 25px; left: 0; width: 100%; min-width: 320px; max-height: 240px; background: #fff; border: 1px solid #7f9db9; box-shadow: 0 4px 12px rgba(0,0,0,0.2); z-index: 1050; border-radius: 2px; padding: 6px; box-sizing: border-box;">
+                <div style="display: flex; gap: 4px; padding-bottom: 5px; border-bottom: 1px solid #ddd; margin-bottom: 5px;">
+                  <input type="text" id="priceTypeSearch" placeholder="Axtarış..." oninput="filterPriceTypesList(this.value)" style="flex: 1; height: 20px; font-size: 11px; padding: 1px 6px; border: 1px solid #aaa; border-radius: 2px;">
+                  <button type="button" onclick="selectAllPriceTypes(true)" style="font-size: 10px; padding: 1px 6px; cursor: pointer; background: #ece9d8; border: 1px solid #7f9db9;">Hamısı</button>
+                  <button type="button" onclick="selectAllPriceTypes(false)" style="font-size: 10px; padding: 1px 6px; cursor: pointer; background: #ece9d8; border: 1px solid #7f9db9;">Təmizlə</button>
+                </div>
+                <div id="priceTypesListContainer" style="max-height: 180px; overflow-y: auto; display: flex; flex-direction: column; gap: 3px;">
+                  <!-- Dynamically populated from /api/price_types -->
+                  <label class="price-type-option" style="display: flex; align-items: center; gap: 6px; padding: 2px 4px; cursor: pointer; font-size: 11px;">
+                    <input type="checkbox" value="20" checked onchange="onPriceTypeSelectionChange()">
+                    <span>20</span>
+                  </label>
+                  <label class="price-type-option" style="display: flex; align-items: center; gap: 6px; padding: 2px 4px; cursor: pointer; font-size: 11px;">
+                    <input type="checkbox" value="Себестоимость" onchange="onPriceTypeSelectionChange()">
+                    <span>Себестоимость</span>
+                  </label>
+                </div>
+              </div>
+            </div>
+            <input type="hidden" id="dlgPriceTypeSelect" value="20">
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Middle 3-Column Section: Показатели | Группировки строк | Группировки колонок -->
+      <div class="settings-middle-grid">
+        
+        <!-- 1. Box: Показатели (Indicators) -->
+        <div class="settings-box">
+          <div class="settings-box-header">
+            <span class="settings-box-title">Показатели</span>
+            <div class="settings-box-toolbar">
+              <button class="box-tool-btn" onclick="checkAllIndicators(true)" title="Hamısını seç">➕</button>
+              <button class="box-tool-btn" onclick="checkAllIndicators(false)" title="Təmizlə">✖</button>
+              <button class="box-tool-btn" title="Yuxarı">▲</button>
+              <button class="box-tool-btn" title="Aşağı">▼</button>
+            </div>
+          </div>
+          <div class="settings-box-content">
+            <ul class="indicators-tree">
+              
+              <!-- Group: Представление -->
+              <li class="tree-node-group">
+                <div class="tree-node-header" onclick="toggleTreeNode(this)">
+                  <span>📁</span>
+                  <span>Представление</span>
+                </div>
+                <ul class="tree-node-children">
+                  <li class="tree-child-item">
+                    <input type="checkbox" id="indBarcodeUnit" checked>
+                    <label for="indBarcodeUnit">Штрихкод (ədəd / шт)</label>
+                  </li>
+                  <li class="tree-child-item">
+                    <input type="checkbox" id="indBarcodeBox" checked>
+                    <label for="indBarcodeBox">Штрихкод (qutu / кор)</label>
+                  </li>
+                  <li class="tree-child-item">
+                    <input type="checkbox" id="indBarcodeBlock">
+                    <label for="indBarcodeBlock">Штрихкод (blok / упак)</label>
+                  </li>
+                </ul>
+              </li>
+
+              <!-- Group: Количество (в базовых единицах) -->
+              <li class="tree-node-group">
+                <div class="tree-node-header" onclick="toggleTreeNode(this)">
+                  <span>📁</span>
+                  <span>Количество (в базовых единицах)</span>
+                </div>
+                <ul class="tree-node-children" style="display: none;">
+                  <li class="tree-child-item">
+                    <input type="checkbox" id="indBaseStart">
+                    <label for="indBaseStart">Начальный остаток</label>
+                  </li>
+                  <li class="tree-child-item">
+                    <input type="checkbox" id="indBaseIn">
+                    <label for="indBaseIn">Приход</label>
+                  </li>
+                  <li class="tree-child-item">
+                    <input type="checkbox" id="indBaseOut">
+                    <label for="indBaseOut">Расход</label>
+                  </li>
+                  <li class="tree-child-item">
+                    <input type="checkbox" id="indBaseEnd">
+                    <label for="indBaseEnd">Конечный остаток</label>
+                  </li>
+                </ul>
+              </li>
+
+              <!-- Group: Количество -->
+              <li class="tree-node-group">
+                <div class="tree-node-header" onclick="toggleTreeNode(this)">
+                  <span>📂</span>
+                  <span style="font-weight: bold;">Количество</span>
+                </div>
+                <ul class="tree-node-children">
+                  <li class="tree-child-item">
+                    <input type="checkbox" id="indQtyStart" checked>
+                    <label for="indQtyStart">Начальный остаток</label>
+                  </li>
+                  <li class="tree-child-item">
+                    <input type="checkbox" id="indQtyIn" checked>
+                    <label for="indQtyIn">Приход</label>
+                  </li>
+                  <li class="tree-child-item">
+                    <input type="checkbox" id="indQtyOut" checked>
+                    <label for="indQtyOut">Расход</label>
+                  </li>
+                  <li class="tree-child-item">
+                    <input type="checkbox" id="indQtyEnd" checked>
+                    <label for="indQtyEnd">Конечный остаток</label>
+                  </li>
+                  <li class="tree-child-item">
+                    <input type="checkbox" id="indQtyTurnover">
+                    <label for="indQtyTurnover">Оборот</label>
+                  </li>
+                </ul>
+              </li>
+
+              <!-- Group: Цена и Стоимость -->
+              <li class="tree-node-group">
+                <div class="tree-node-header" onclick="toggleTreeNode(this)">
+                  <span>📂</span>
+                  <span style="font-weight: bold; color: #004080;">Цена и Стоимость</span>
+                </div>
+                <ul class="tree-node-children">
+                  <li class="tree-child-item">
+                    <input type="checkbox" id="indShowPrice" checked>
+                    <label for="indShowPrice" style="font-weight: 500;">Цена (1 ədədin qiyməti)</label>
+                  </li>
+                  <li class="tree-child-item">
+                    <input type="checkbox" id="indShowSum" checked>
+                    <label for="indShowSum" style="font-weight: 500;">Сумма (Конечный остаток)</label>
+                  </li>
+                </ul>
+              </li>
+
+            </ul>
+          </div>
+        </div>
+
+        <!-- 2. Box: Группировки строк (Row Groupings - Screenshot 1 & 3) -->
+        <div class="settings-box">
+          <div class="settings-box-header">
+            <span class="settings-box-title">Группировки строк</span>
+            <div class="settings-box-toolbar">
+              <button class="box-tool-btn btn-purple-plus" onclick="openFieldSelectorForRowGrouping()" title="Добавить группировку">+</button>
+              <button class="box-tool-btn btn-red-del" onclick="removeSelectedRowGrouping()" title="Удалить">✕</button>
+              <button class="box-tool-btn" onclick="moveRowGroupingUp()" title="Переместить вверх">▲</button>
+              <button class="box-tool-btn" onclick="moveRowGroupingDown()" title="Переместить вниз">▼</button>
+            </div>
+          </div>
+          <div class="settings-box-content">
+            <table class="groupings-table" id="rowGroupingsTable">
+              <thead>
+                <tr>
+                  <th>Группировки строк</th>
+                  <th style="width: 85px;">Тип</th>
+                </tr>
+              </thead>
+              <tbody id="rowGroupingsBody">
+                <tr class="selected" onclick="selectGroupingRow(this)" ondblclick="editRowGroupingField(this.querySelector('.grouping-btn-pick'))">
+                  <td>
+                    <div class="grouping-cell-wrap">
+                      <span class="grouping-field-name">Склад</span>
+                      <button class="grouping-btn-pick" onclick="editRowGroupingField(this)" title="Выбрать поле...">...</button>
+                    </div>
+                  </td>
+                  <td>
+                    <select class="grouping-type-sel">
+                      <option value="Элементы" selected>Элементы</option>
+                      <option value="Иерархия">Иерархия</option>
+                      <option value="Без групп">Без групп</option>
+                    </select>
+                  </td>
+                </tr>
+                <tr onclick="selectGroupingRow(this)" ondblclick="editRowGroupingField(this.querySelector('.grouping-btn-pick'))">
+                  <td>
+                    <div class="grouping-cell-wrap">
+                      <span class="grouping-field-name">Номенклатура</span>
+                      <button class="grouping-btn-pick" onclick="editRowGroupingField(this)" title="Выбрать поле...">...</button>
+                    </div>
+                  </td>
+                  <td>
+                    <select class="grouping-type-sel">
+                      <option value="Элементы" selected>Элементы</option>
+                      <option value="Иерархия">Иерархия</option>
+                      <option value="Без групп">Без групп</option>
+                    </select>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Transfer Arrows between Row & Column Groupings -->
+        <div class="transfer-arrows-col">
+          <button class="transfer-arrow-btn" onclick="moveGroupingToColumns()" title="В группировки колонок">▶</button>
+          <button class="transfer-arrow-btn" onclick="moveGroupingToRows()" title="В группировки строк">◀</button>
+        </div>
+
+        <!-- 3. Box: Группировки колонок (Column Groupings) -->
+        <div class="settings-box">
+          <div class="settings-box-header">
+            <span class="settings-box-title">Группировки колонок</span>
+            <div class="settings-box-toolbar">
+              <button class="box-tool-btn btn-purple-plus" onclick="openFieldSelectorForColGrouping()" title="Добавить группировку">+</button>
+              <button class="box-tool-btn btn-red-del" onclick="removeSelectedColGrouping()" title="Удалить">✕</button>
+              <button class="box-tool-btn" onclick="moveColGroupingUp()" title="Переместить вверх">▲</button>
+              <button class="box-tool-btn" onclick="moveColGroupingDown()" title="Переместить вниз">▼</button>
+            </div>
+          </div>
+          <div class="settings-box-content">
+            <table class="groupings-table" id="colGroupingsTable">
+              <thead>
+                <tr>
+                  <th>Группировки колонок</th>
+                  <th style="width: 85px;">Тип</th>
+                </tr>
+              </thead>
+              <tbody id="colGroupingsBody">
+                <!-- Column groupings can be added via '+' -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Bottom Section: Отборы (Filters Table) -->
+      <div class="settings-filters-section">
+        <div class="settings-box-header">
+          <span class="settings-box-title">Отборы</span>
+          <div class="settings-box-toolbar">
+            <button class="box-tool-btn" onclick="addFilterRow()" title="Yeni süzgəc sahəsi əlavə et">➕</button>
+            <button class="box-tool-btn" onclick="removeSelectedFilterRow()" title="Seçilmiş süzgəci sil">✖</button>
+            <button class="box-tool-btn" onclick="clearAllFilters()" title="Bütün süzgəcləri təmizlə">📄</button>
+            <button class="box-tool-btn" onclick="saveFiltersPreset()" title="Süzgəcləri yadda saxla">📁</button>
+          </div>
+        </div>
+
+        <div class="filters-table-container">
+          <table class="filters-table" id="filtersTable">
+            <thead>
+              <tr>
+                <th class="col-check">✔</th>
+                <th class="col-field">Поле</th>
+                <th class="col-comp">Тип сравнения</th>
+                <th class="col-val">Значение</th>
+              </tr>
+            </thead>
+            <tbody id="filtersTableBody">
+              
+              <!-- Filter Row 1: Склад -->
+              <tr onclick="highlightFilterRow(this)">
+                <td style="text-align: center;"><input type="checkbox" class="filter-chk"></td>
+                <td>
+                  <select class="filter-field-sel" onchange="onFilterFieldChange(this)">
+                    <option value="Склад" selected>Склад</option>
+                    <option value="Номенклатура">Номенклатура</option>
+                    <option value="Номенклатура.Номенклатурная группа">Номенклатура.Номенклатурная группа</option>
+                    <option value="Качество">Качество</option>
+                    <option value="КоличествоКонечныйОстаток">КоличествоКонечныйОстаток</option>
+                    <option value="КоличествоРасход">КоличествоРасход</option>
+                    <option value="Регистратор.Вид операции">Регистратор.Вид операции</option>
+                    <option value="Регистратор.Ответственный">Регистратор.Ответственный</option>
+                  </select>
+                </td>
+                <td>
+                  <select class="filter-comp-sel">
+                    <option value="in_list" selected>В группе из списка</option>
+                    <option value="equal">Равно</option>
+                    <option value="not_equal">Не равно</option>
+                    <option value="contains">Содержит</option>
+                    <option value="less">Меньше</option>
+                    <option value="greater">Больше</option>
+                  </select>
+                </td>
+                <td>
+                  <div class="filter-value-cell-wrap">
+                    <input type="text" class="filter-val-input" value="" placeholder="Anbar seç...">
+                    <button class="filter-btn-pick" onclick="openCatalogForFilterRow(this)" title="Soraqçadan seç...">...</button>
+                  </div>
+                </td>
+              </tr>
+
+              <!-- Filter Row 2: Номенклатура -->
+              <tr onclick="highlightFilterRow(this)">
+                <td style="text-align: center;"><input type="checkbox" class="filter-chk"></td>
+                <td>
+                  <select class="filter-field-sel" onchange="onFilterFieldChange(this)">
+                    <option value="Склад">Склад</option>
+                    <option value="Номенклатура" selected>Номенклатура</option>
+                    <option value="Номенклатура.Номенклатурная группа">Номенклатура.Номенклатурная группа</option>
+                    <option value="Качество">Качество</option>
+                    <option value="КоличествоКонечныйОстаток">КоличествоКонечныйОстаток</option>
+                  </select>
+                </td>
+                <td>
+                  <select class="filter-comp-sel">
+                    <option value="in_list" selected>В группе из списка</option>
+                    <option value="equal">Равно</option>
+                    <option value="not_equal">Не равно</option>
+                    <option value="contains">Содержит</option>
+                  </select>
+                </td>
+                <td>
+                  <div class="filter-value-cell-wrap">
+                    <input type="text" class="filter-val-input" value="" placeholder="Məhsul seç...">
+                    <button class="filter-btn-pick" onclick="openCatalogForFilterRow(this)" title="Məhsul soraqçasını aç...">...</button>
+                  </div>
+                </td>
+              </tr>
+
+              <!-- Filter Row 3: Номенклатура.Номенклатурная группа -->
+              <tr onclick="highlightFilterRow(this)">
+                <td style="text-align: center;"><input type="checkbox" class="filter-chk"></td>
+                <td>
+                  <select class="filter-field-sel" onchange="onFilterFieldChange(this)">
+                    <option value="Номенклатура.Номенклатурная группа" selected>Номенклатура.Номенклатурная группа</option>
+                    <option value="Склад">Склад</option>
+                    <option value="Номенклатура">Номенклатура</option>
+                    <option value="Качество">Качество</option>
+                  </select>
+                </td>
+                <td>
+                  <select class="filter-comp-sel">
+                    <option value="in_list" selected>В группе из списка</option>
+                    <option value="equal">Равно</option>
+                  </select>
+                </td>
+                <td>
+                  <div class="filter-value-cell-wrap">
+                    <input type="text" class="filter-val-input" value="" placeholder="Qrup seç...">
+                    <button class="filter-btn-pick" onclick="openCatalogForFilterRow(this)" title="Soraqçadan seç...">...</button>
+                  </div>
+                </td>
+              </tr>
+
+              <!-- Filter Row 4: Качество -->
+              <tr onclick="highlightFilterRow(this)">
+                <td style="text-align: center;"><input type="checkbox" class="filter-chk"></td>
+                <td>
+                  <select class="filter-field-sel" onchange="onFilterFieldChange(this)">
+                    <option value="Качество" selected>Качество</option>
+                    <option value="Склад">Склад</option>
+                    <option value="Номенклатура">Номенклатура</option>
+                  </select>
+                </td>
+                <td>
+                  <select class="filter-comp-sel">
+                    <option value="equal" selected>Равно</option>
+                    <option value="not_equal">Не равно</option>
+                  </select>
+                </td>
+                <td>
+                  <div class="filter-value-cell-wrap">
+                    <input type="text" class="filter-val-input" value="" placeholder="Keyfiyyət...">
+                    <button class="filter-btn-pick" onclick="openQualitySelect(this)" title="Seç...">...</button>
+                  </div>
+                </td>
+              </tr>
+
+              <!-- Filter Row 5: КоличествоКонечныйОстаток -->
+              <tr onclick="highlightFilterRow(this)">
+                <td style="text-align: center;"><input type="checkbox" class="filter-chk"></td>
+                <td>
+                  <select class="filter-field-sel" onchange="onFilterFieldChange(this)">
+                    <option value="КоличествоКонечныйОстаток" selected>КоличествоКонечныйОстаток</option>
+                    <option value="КоличествоНачальныйОстаток">КоличествоНачальныйОстаток</option>
+                    <option value="КоличествоПриход">КоличествоПриход</option>
+                    <option value="КоличествоРасход">КоличествоРасход</option>
+                  </select>
+                </td>
+                <td>
+                  <select class="filter-comp-sel">
+                    <option value="less" selected>Меньше</option>
+                    <option value="less_or_equal">Меньше или равно</option>
+                    <option value="equal">Равно</option>
+                    <option value="greater">Больше</option>
+                    <option value="not_equal">Не равно</option>
+                  </select>
+                </td>
+                <td>
+                  <div class="filter-value-cell-wrap">
+                    <input type="text" class="filter-val-input" value="" placeholder="Say...">
+                  </div>
+                </td>
+              </tr>
+
+              <!-- Filter Row 6: КоличествоРасход -->
+              <tr onclick="highlightFilterRow(this)">
+                <td style="text-align: center;"><input type="checkbox" class="filter-chk"></td>
+                <td>
+                  <select class="filter-field-sel" onchange="onFilterFieldChange(this)">
+                    <option value="КоличествоРасход" selected>КоличествоРасход</option>
+                    <option value="КоличествоКонечныйОстаток">КоличествоКонечныйОстаток</option>
+                  </select>
+                </td>
+                <td>
+                  <select class="filter-comp-sel">
+                    <option value="equal" selected>Равно</option>
+                    <option value="greater">Больше</option>
+                    <option value="less">Меньше</option>
+                  </select>
+                </td>
+                <td>
+                  <div class="filter-value-cell-wrap">
+                    <input type="text" class="filter-val-input" value="" placeholder="Say...">
+                  </div>
+                </td>
+              </tr>
+
+              <!-- Filter Row 7: Регистратор.Вид операции -->
+              <tr onclick="highlightFilterRow(this)">
+                <td style="text-align: center;"><input type="checkbox" class="filter-chk"></td>
+                <td>
+                  <select class="filter-field-sel" onchange="onFilterFieldChange(this)">
+                    <option value="Регистратор.Вид операции" selected>Регистратор.Вид операции</option>
+                    <option value="Регистратор.Ответственный">Регистратор.Ответственный</option>
+                  </select>
+                </td>
+                <td>
+                  <select class="filter-comp-sel">
+                    <option value="in_list" selected>В группе из списка</option>
+                    <option value="equal">Равно</option>
+                    <option value="not_equal">Не равно</option>
+                  </select>
+                </td>
+                <td>
+                  <div class="filter-value-cell-wrap">
+                    <input type="text" class="filter-val-input" value="" placeholder="Əməliyyat növü...">
+                    <button class="filter-btn-pick" onclick="openCatalogForFilterRow(this)" title="Əməliyyat növünü seç (F4)...">...</button>
+                  </div>
+                </td>
+              </tr>
+
+              <!-- Filter Row 8: Регистратор.Ответственный -->
+              <tr onclick="highlightFilterRow(this)">
+                <td style="text-align: center;"><input type="checkbox" class="filter-chk"></td>
+                <td>
+                  <select class="filter-field-sel" onchange="onFilterFieldChange(this)">
+                    <option value="Регистратор.Ответственный" selected>Регистратор.Ответственный</option>
+                    <option value="Регистратор.Вид операции">Регистратор.Вид операции</option>
+                  </select>
+                </td>
+                <td>
+                  <select class="filter-comp-sel">
+                    <option value="not_equal" selected>Не равно</option>
+                    <option value="equal">Равно</option>
+                    <option value="in_list">В группе из списка</option>
+                  </select>
+                </td>
+                <td>
+                  <div class="filter-value-cell-wrap">
+                    <input type="text" class="filter-val-input" value="" placeholder="Məsul şəxs...">
+                    <button class="filter-btn-pick" onclick="openCatalogForFilterRow(this)" title="İstifadəçi seç (F4)...">...</button>
+                  </div>
+                </td>
+              </tr>
+
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Window Footer -->
+    <div class="settings-footer">
+      <div class="settings-footer-left">
+        <label class="checkbox-1c-label">
+          <input type="checkbox" id="chkAdvancedSettings">
+          <span>Расширенная настройка</span>
+        </label>
+      </div>
+
+      <div class="settings-footer-right">
+        <button class="btn-1c primary" onclick="applySettingsAndGenerate()">
+          <span style="color: #107c10; font-size: 10px;">▶</span>
+          <span>Сформировать</span>
+        </button>
+        <button class="btn-1c" onclick="applySettingsAndClose()" style="min-width: 60px;">
+          <span>OK</span>
+        </button>
+        <button class="btn-1c" onclick="closeSettingsModal()" style="min-width: 60px;">
+          <span>Отмена</span>
+        </button>
+      </div>
+    </div>
+  </div>
+</div>

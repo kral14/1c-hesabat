@@ -1,0 +1,127 @@
+<!-- ========================================================
+     1C:ENTERPRISE UNIVERSAL REPORT - SPREADSHEET SHEET
+     report_sheet.html (Screenshot 1)
+     ======================================================== -->
+
+<div class="report-viewport" id="reportViewport">
+  
+  <!-- Empty Initial Prompt (before report is run) -->
+  <div id="sheetEmptyState" class="sheet-empty-placeholder">
+    <div class="sheet-empty-icon">📊</div>
+    <div style="font-size: 14px; font-weight: bold; margin-bottom: 6px; color: #333;">Hesabat formalasdırılmayıb</div>
+    <div class="sheet-empty-hint">
+      Yuxarı alətlər panelində <b>▶ Сформировать</b> düyməsinə basın və ya fərdi süzgəcləri və göstəriciləri tənzimləmək üçün <b>Настройка...</b> pəncərəsini açın.
+    </div>
+    <div style="margin-top: 14px; display: flex; gap: 8px;">
+      <button class="btn-1c primary" onclick="onActionFormirovat()" style="padding: 4px 14px; height: 26px;">
+        <span style="color: #107c10; font-size: 11px;">▶</span>
+        <span>Сформировать</span>
+      </button>
+      <button class="btn-1c" onclick="openSettingsModal(event)" style="padding: 4px 14px; height: 26px;">
+        <span>⚙️ Настройка...</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- Active 1C Report Sheet Content Container -->
+  <div id="sheetContentContainer" style="display: none;">
+    
+    <!-- 1C Report Metadata Summary Header (from Screenshot 1) -->
+    <div class="sheet-meta-block" id="sheetMetaBlock">
+      <div class="sheet-title" id="sheetMetaTitle">Товары на складах</div>
+      <div class="sheet-period" id="sheetMetaPeriod">Период: Сентябрь 2026 г.</div>
+      <div class="sheet-meta-line" id="sheetMetaIndicators">
+        <span class="sheet-meta-label">Показатели:</span>
+        <span id="sheetMetaIndicatorsText">Количество(Начальный остаток, Приход, Расход, Конечный остаток);</span>
+      </div>
+      <div class="sheet-meta-line" id="sheetMetaGroupings">
+        <span class="sheet-meta-label">Группировки строк:</span>
+        <span id="sheetMetaGroupingsText">Склад (Элементы); Номенклатура (Элементы); Документ движения (регистратор) (Элементы);</span>
+      </div>
+      <div class="sheet-meta-line" id="sheetMetaFilters">
+        <span class="sheet-meta-label">Отборы:</span>
+        <div class="sheet-meta-sub" id="sheetMetaFiltersText">КоличествоКонечныйОстаток Меньше 0;</div>
+      </div>
+      <div class="sheet-meta-line" id="sheetMetaExtraFields">
+        <span class="sheet-meta-label">Дополнительные поля:</span>
+        <div class="sheet-meta-sub">
+          Номенклатура.Код (Отдельно, Перед группировкой);<br>
+          Номенклатура.Артикул (Отдельно, Перед группировкой);<br>
+          Регистратор.Номер (Отдельно, После группировки);<br>
+          Номенклатура.С вход (Отдельно, После группировки);
+        </div>
+      </div>
+      <div class="sheet-meta-line" id="sheetMetaSorting">
+        <span class="sheet-meta-label">Сортировка:</span>
+        <span id="sheetMetaSortingText">Склад (По возрастанию); Номенклатура (По возрастанию); Документ движения (регистратор) (По возрастанию);</span>
+      </div>
+    </div>
+
+    <!-- 1C Table Spreadsheet Document with Left Outline Gutter Bar (Screenshot 4) -->
+    <div class="sheet-main-layout" style="display: flex; align-items: stretch;">
+      
+      <!-- Left Outline Gutter Bar (Screenshot 4) -->
+      <div class="sheet-gutter-bar" id="sheetGutterBar">
+        <div class="gutter-level-buttons" id="gutterLevelButtons">
+          <button class="gutter-lvl-btn" id="btnGutterLvl1" onclick="ReportEngine.setGroupLevel(1)" title="Свернуть до уровня 1 (Склад)">1</button>
+          <button class="gutter-lvl-btn active" id="btnGutterLvl2" onclick="ReportEngine.setGroupLevel(2)" title="Развернуть до уровня 2 (Номенклатура)">2</button>
+          <button class="gutter-lvl-btn" id="btnGutterLvl3" onclick="ReportEngine.setGroupLevel(3)" title="Развернуть до уровня 3 (Документы)" style="display: none;">3</button>
+        </div>
+        <div class="gutter-tree-track" id="gutterTreeTrack">
+          <!-- Tree lines dynamically aligned to row heights -->
+        </div>
+      </div>
+
+      <!-- Main Spreadsheet Grid -->
+      <div class="sheet-table-wrap">
+        <table class="sheet-table" id="sheetReportTable" oncontextmenu="openReportContextMenu(event)">
+          <thead id="sheetTableHead">
+            <!-- Dynamically populated or rendered -->
+          </thead>
+          <tbody id="sheetTableBody">
+            <!-- Dynamically populated rows with tree collapse/expand -->
+          </tbody>
+          <tfoot id="sheetTableFoot">
+            <!-- Total row -->
+          </tfoot>
+        </table>
+      </div>
+
+    </div>
+
+  </div>
+
+  <!-- 1C Authentic Context Menu on Table Right-Click (Screenshot 4) -->
+  <div id="reportContextMenu" class="context-menu-1c">
+    <div class="cm-item disabled"><span class="cm-icon">✂️</span><span>Вырезать</span><span class="cm-shortcut">Ctrl+X</span></div>
+    <div class="cm-item" onclick="ReportEngine.copyTableSelection()"><span class="cm-icon">📋</span><span>Копировать</span><span class="cm-shortcut">Ctrl+C</span></div>
+    <div class="cm-item disabled"><span class="cm-icon">📥</span><span>Вставить</span><span class="cm-shortcut">Ctrl+V</span></div>
+    <div class="cm-separator"></div>
+    <div class="cm-item disabled"><span>Специальная вставка...</span></div>
+    <div class="cm-item" onclick="ReportEngine.selectAllTable()"><span class="cm-icon"></span><span>Выделить все</span><span class="cm-shortcut">Ctrl+A</span></div>
+    <div class="cm-separator"></div>
+    <div class="cm-item disabled"><span>Объединить</span><span class="cm-shortcut">Ctrl+M</span></div>
+    <div class="cm-item disabled"><span>Раздвинуть</span></div>
+    <div class="cm-item disabled"><span>Разбить ячейку</span></div>
+    <div class="cm-separator"></div>
+    <div class="cm-item disabled"><span class="cm-icon">✕</span><span>Удалить</span></div>
+    <div class="cm-item disabled"><span>Очистить</span><span class="cm-arrow">▶</span></div>
+    <div class="cm-separator"></div>
+    <div class="cm-item disabled"><span class="cm-icon">📝</span><span>Вставить примечание</span></div>
+    <div class="cm-separator"></div>
+    <!-- Уровни группировок (Screenshot 4) -->
+    <div class="cm-item cm-has-submenu">
+      <span class="cm-icon">📑</span>
+      <span>Уровни группировок</span>
+      <span class="cm-arrow">▶</span>
+      <div class="cm-submenu">
+        <div class="cm-item" onclick="ReportEngine.setGroupLevel(1)"><span>Уровень 1</span></div>
+        <div class="cm-item" onclick="ReportEngine.setGroupLevel(2)"><span>Уровень 2</span></div>
+        <div class="cm-item" id="cmLvl3Item" onclick="ReportEngine.setGroupLevel(3)" style="display: none;"><span>Уровень 3</span></div>
+      </div>
+    </div>
+    <div class="cm-separator"></div>
+    <div class="cm-item" onclick="openSettingsModal()"><span class="cm-icon">⚙️</span><span>Свойства</span><span class="cm-shortcut">Alt+Enter</span></div>
+  </div>
+
+</div>

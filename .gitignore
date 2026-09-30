@@ -1,0 +1,101 @@
+# ==========================================
+# 1C Enterprise & Universal Reporter .gitignore
+# ==========================================
+
+# --- Python ---
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Virtual Environments
+venv/
+.venv/
+ENV/
+env/
+env.bak/
+venv.bak/
+
+# Pytest / Coverage
+.pytest_cache/
+.coverage
+htmlcov/
+
+# --- Node.js & Electron ---
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+package-lock.json.bak
+
+# --- Environment & Sensitive Data ---
+.env
+.env.local
+.env.*.local
+*.env
+credentials.json
+secrets.json
+
+# --- 1C Temporary & Export Files ---
+epf_cache/
+*.epf
+*.tmp
+*.temp
+skd_tovary_na_skladakh.xml
+
+# Local Exported Excel Files & Dumps
+*.xlsx
+*.xls
+*.csv
+report_export.xlsx
+universal_export.xlsx
+universal_report_export.xlsx
+
+# Local Debug / Dump Data
+barcode_price_info.json
+wh_multi_test.json
+wh_schema_investigation.json
+last_successful_report.json
+
+# Local SQLite databases (auto-created on startup)
+data/*.db
+*.db
+*.sqlite3
+
+# --- Logs & Run Artifacts ---
+*.log
+logs/
+
+# --- OS Specific Files ---
+.DS_Store
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+
+# --- IDEs and Editors ---
+.idea/
+.vscode/
+*.sublime-project
+*.sublime-workspace
+.gemini/
+.agents/
+scratch/

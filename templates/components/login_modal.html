@@ -1,0 +1,85 @@
+<!-- ========================================================
+     1C:ENTERPRISE UNIVERSAL REPORT - LOGIN & SESSION MODAL
+     login_modal.html
+     ======================================================== -->
+
+<div id="loginModalOverlay" class="modal-overlay-1c">
+  <div class="settings-window" style="max-width: 480px; height: auto; max-height: 90vh;" onmousedown="MdiManager.bringModalToFront(document.getElementById('loginModalOverlay'))">
+    
+    <!-- Window Header -->
+    <div class="settings-header">
+      <div class="settings-header-title">
+        <div class="settings-header-icon" style="background: #c00000;">1C</div>
+        <span>1C:Enterprise - Giriş və Baza Seçimi</span>
+      </div>
+      <button class="window-btn-sys window-btn-close" onclick="closeLoginModal()">✕</button>
+    </div>
+
+    <!-- Window Body -->
+    <div class="settings-body" style="padding: 16px;">
+      
+      <!-- Base Selection -->
+      <div style="margin-bottom: 12px;">
+        <label style="display: block; font-weight: bold; margin-bottom: 4px; color: #222;">
+          1C İnformasiya Bazası:
+        </label>
+        <select id="modalBaseSelect" class="input-1c" style="width: 100%; height: 26px;" onchange="onModalBaseChange()">
+          <option value="">Bazalar axtarılır...</option>
+        </select>
+      </div>
+
+      <!-- Advanced Server & Ref -->
+      <div style="margin-bottom: 12px; background: #ece9d8; padding: 8px; border: 1px solid #c0bfae; border-radius: 2px;">
+        <div style="display: flex; gap: 8px; margin-bottom: 6px;">
+          <div style="flex: 1;">
+            <label style="font-size: 10px; color: #555;">Server (Srvr):</label>
+            <input type="text" id="modalCustomServer" class="input-1c" style="width: 100%;" value="Test1C">
+          </div>
+          <div style="flex: 1;">
+            <label style="font-size: 10px; color: #555;">Baza (Ref):</label>
+            <input type="text" id="modalCustomRef" class="input-1c" style="width: 100%;" value="Aztrade_test3">
+          </div>
+        </div>
+        <button class="btn-1c" onclick="reloadModalUsersForCustomDb()" style="width: 100%;">
+          İstifadəçiləri Yenilə
+        </button>
+      </div>
+
+      <!-- User Selection -->
+      <div style="margin-bottom: 12px;">
+        <label style="display: block; font-weight: bold; margin-bottom: 4px; color: #222;">
+          İstifadəçi:
+        </label>
+        <select id="modalUserSelect" class="input-1c" style="width: 100%; height: 26px;">
+          <option value="">İstifadəçilər yüklənir...</option>
+        </select>
+      </div>
+
+      <!-- Password -->
+      <div style="margin-bottom: 16px;">
+        <label style="display: block; font-weight: bold; margin-bottom: 4px; color: #222;">
+          Şifrə:
+        </label>
+        <input type="password" id="modalPasswordInput" class="input-1c" style="width: 100%; height: 26px;" value="15963" autocomplete="new-password" data-lpignore="true" onkeydown="if(event.key==='Enter') submitLoginModal()">
+      </div>
+
+      <!-- Action Buttons -->
+      <div style="display: flex; justify-content: flex-end; gap: 8px;">
+        <button class="btn-1c primary" onclick="submitLoginModal()" style="padding: 4px 16px; height: 26px;">
+          <span>Giriş et</span>
+        </button>
+        <button class="btn-1c" onclick="closeLoginModal()" style="padding: 4px 16px; height: 26px;">
+          <span>Bağla</span>
+        </button>
+      </div>
+
+    </div>
+
+    <!-- Status Bar -->
+    <div class="settings-footer" style="font-size: 10px; color: #555;">
+      <span>Status: <b id="modalConnStatus">Hazır</b></span>
+      <span id="modalActiveDbText">Test1C / Aztrade_test3</span>
+    </div>
+
+  </div>
+</div>

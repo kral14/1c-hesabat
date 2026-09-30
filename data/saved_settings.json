@@ -1,0 +1,92 @@
+[
+  {
+    "name": "kent",
+    "open_on_startup": true,
+    "save_on_close": false,
+    "user": "Administrator",
+    "startDate": "01.09.2026",
+    "endDate": "30.09.2026",
+    "priceType": "20",
+    "parameters": {
+      "negativeRed": true,
+      "showGrandTotals": true,
+      "showDetails": false,
+      "useProperties": true
+    },
+    "indicators": {
+      "barcode": true,
+      "showPrice": true,
+      "showSum": true,
+      "qtyStart": true,
+      "qtyIn": true,
+      "qtyOut": true,
+      "qtyEnd": true,
+      "qtyTurnover": false,
+      "sumStart": false,
+      "sumIn": false,
+      "sumOut": false,
+      "sumEnd": false
+    },
+    "rowGroupings": [
+      {
+        "field": "Склад",
+        "type": "Элементы"
+      },
+      {
+        "field": "Номенклатура",
+        "type": "Элементы"
+      }
+    ],
+    "colGroupings": [],
+    "filters": [
+      {
+        "active": true,
+        "field": "Склад",
+        "comparison": "in_list",
+        "value": "2.1 Anbar MDLZ Türkiyə"
+      },
+      {
+        "active": false,
+        "field": "Номенклатура",
+        "comparison": "in_list",
+        "value": ""
+      },
+      {
+        "active": false,
+        "field": "Номенклатура.Номенклатурная группа",
+        "comparison": "in_list",
+        "value": ""
+      },
+      {
+        "active": false,
+        "field": "Качество",
+        "comparison": "equal",
+        "value": ""
+      },
+      {
+        "active": false,
+        "field": "КоличествоКонечныйОстаток",
+        "comparison": "less",
+        "value": ""
+      },
+      {
+        "active": false,
+        "field": "КоличествоРасход",
+        "comparison": "equal",
+        "value": ""
+      },
+      {
+        "active": false,
+        "field": "Регистратор.Вид операции",
+        "comparison": "in_list",
+        "value": ""
+      },
+      {
+        "active": false,
+        "field": "Регистратор.Ответственный",
+        "comparison": "not_equal",
+        "value": ""
+      }
+    ]
+  }
+]

@@ -1,0 +1,398 @@
+/* ========================================================
+   1C:ENTERPRISE UNIVERSAL REPORT - SPREADSHEET SHEET STYLESHEET
+   1c_sheet.css
+   ======================================================== */
+
+.report-viewport {
+  flex: 1;
+  background-color: #ffffff;
+  overflow: auto;
+  position: relative;
+  padding: 12px 16px;
+}
+
+/* 1C Report Metadata Summary Block (Top of Sheet) */
+.sheet-meta-block {
+  margin-bottom: 12px;
+  font-family: var(--1c-font);
+  color: #000000;
+  line-height: 1.35;
+}
+
+.sheet-title {
+  font-size: 15px;
+  font-weight: bold;
+  margin-bottom: 4px;
+}
+
+.sheet-period {
+  font-size: 11px;
+  font-weight: 500;
+  margin-bottom: 3px;
+}
+
+.sheet-meta-line {
+  font-size: 11px;
+  color: #111;
+  margin-bottom: 2px;
+}
+
+.sheet-meta-label {
+  font-weight: bold;
+}
+
+.sheet-meta-sub {
+  margin-left: 12px;
+  font-size: 11px;
+  color: #222;
+}
+
+/* 1C Classic Spreadsheet Table Grid */
+.sheet-table-wrap {
+  display: inline-block;
+  min-width: 100%;
+}
+
+.sheet-table {
+  border-collapse: collapse;
+  font-family: var(--1c-font);
+  font-size: 11px;
+  color: #000000;
+  background-color: #ffffff;
+  border: 1px solid #7a7a7a;
+}
+
+/* Table Headers (Beige 1C Classic Look) */
+.sheet-table th {
+  background-color: #fffee0;
+  border: 1px solid #999999;
+  padding: 3px 6px;
+  font-weight: bold;
+  text-align: center;
+  white-space: nowrap;
+  vertical-align: middle;
+}
+
+.sheet-table th.header-group {
+  background-color: #f7f6d2;
+}
+
+/* Data Cells */
+.sheet-table td {
+  border: 1px solid #c0c0c0;
+  padding: 2px 6px;
+  height: 20px;
+  white-space: nowrap;
+  vertical-align: middle;
+}
+
+/* Column Alignments */
+.sheet-table td.cell-text {
+  text-align: left;
+}
+
+.sheet-table td.cell-code {
+  text-align: center;
+  font-family: var(--1c-font-mono);
+  font-size: 10px;
+}
+
+.sheet-table td.cell-num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Negative Numbers in Red */
+.sheet-table .negative-red {
+  color: var(--1c-text-red) !important;
+  font-weight: bold;
+}
+
+/* Hierarchical Tree Row Styling */
+.sheet-table tr.row-group-0 {
+  background-color: #fcfbe8;
+  font-weight: bold;
+  border-top: 1px solid #888888;
+}
+
+.sheet-table tr.row-group-1 {
+  background-color: #ffffff;
+  font-weight: 500;
+}
+
+.sheet-table tr.row-group-2 {
+  background-color: #fafafa;
+  color: #333333;
+}
+
+/* Document Movement rows (Движения документа / Регистратор) */
+.sheet-table tr.row-doc-movement {
+  background-color: #fff8f0;
+  border-left: 2px solid #c8a97b;
+  font-style: italic;
+  color: #5a3e00;
+  font-size: 11px;
+}
+.sheet-table tr.row-doc-movement:hover {
+  background-color: #fdefd8 !important;
+}
+.sheet-table tr.row-doc-movement td {
+  border-top: 1px dashed #d4b88c;
+  border-bottom: 1px dashed #d4b88c;
+}
+
+.sheet-table tr.row-total {
+  background-color: #f5f3dc;
+  font-weight: bold;
+  border-top: 2px solid #7a7a7a;
+  border-bottom: 2px solid #7a7a7a;
+}
+
+.sheet-table tr:hover:not(.row-total) {
+  background-color: #eaf1fb;
+}
+
+
+/* Tree Toggle Expand / Collapse Icon */
+.tree-toggle-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 12px;
+  height: 12px;
+  border: 1px solid #7a7a7a;
+  background-color: #ffffff;
+  color: #000000;
+  font-size: 10px;
+  line-height: 1;
+  font-weight: bold;
+  margin-right: 5px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.tree-indent-1 {
+  padding-left: 18px !important;
+}
+
+.tree-indent-2 {
+  padding-left: 36px !important;
+}
+
+/* Empty Sheet State */
+.sheet-empty-placeholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 80px 20px;
+  color: #777;
+  text-align: center;
+}
+
+.sheet-empty-icon {
+  font-size: 36px;
+  margin-bottom: 12px;
+  color: #b0af9f;
+}
+
+.sheet-empty-hint {
+  font-size: 12px;
+  color: #666;
+  max-width: 420px;
+  line-height: 1.5;
+}
+
+/* ========================================================
+   1C OUTLINE GUTTER BAR & GROUPING LEVELS (Screenshot 4)
+   ======================================================== */
+.sheet-main-layout {
+  display: flex;
+  align-items: stretch;
+}
+
+.sheet-gutter-bar {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 38px;
+  min-width: 38px;
+  background: #ece9d8;
+  border: 1px solid #7f9db9;
+  border-right: none;
+  user-select: none;
+}
+
+.gutter-level-buttons {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  padding: 4px 2px;
+  background: #e0ded0;
+  border-bottom: 1px solid #b5b29f;
+  width: 100%;
+}
+
+.gutter-lvl-btn {
+  width: 15px;
+  height: 15px;
+  font-size: 9px;
+  font-weight: bold;
+  font-family: var(--1c-font);
+  line-height: 1;
+  border: 1px solid #7f9db9;
+  background: #ffffff;
+  color: #000000;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border-radius: 1px;
+}
+
+.gutter-lvl-btn:hover {
+  background: #d4e4f7;
+  border-color: #316ac5;
+}
+
+.gutter-lvl-btn.active {
+  background: #316ac5;
+  color: #ffffff;
+  border-color: #1e5cb3;
+}
+
+.gutter-tree-track {
+  width: 100%;
+  flex: 1;
+  position: relative;
+  background: #ece9d8;
+  border-right: 1px solid #7f9db9;
+  min-height: 200px;
+}
+
+.gutter-tree-node {
+  position: absolute;
+  left: 13px;
+  width: 12px;
+  z-index: 10;
+}
+
+.gutter-tree-box {
+  width: 11px;
+  height: 11px;
+  background: #ffffff;
+  border: 1px solid #333333;
+  color: #000000;
+  font-family: monospace;
+  font-size: 9px;
+  font-weight: bold;
+  line-height: 9px;
+  text-align: center;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 1px 1px 0 rgba(0, 0, 0, 0.15);
+  user-select: none;
+}
+
+.gutter-tree-box:hover {
+  background: #ffffdd;
+  border-color: #000000;
+}
+
+.gutter-tree-line {
+  position: absolute;
+  left: 18px;
+  border-left: 1px dotted #555555;
+  width: 1px;
+  pointer-events: none;
+}
+
+/* ========================================================
+   1C CONTEXT MENU (Screenshot 4)
+   ======================================================== */
+.context-menu-1c {
+  position: fixed;
+  background: #f7f6f0;
+  border: 1px solid #7f9db9;
+  box-shadow: 2px 2px 6px rgba(0, 0, 0, 0.28);
+  font-family: var(--1c-font);
+  font-size: 11px;
+  z-index: 100000;
+  min-width: 195px;
+  display: none;
+  padding: 2px 0;
+  border-radius: 1px;
+}
+
+.context-menu-1c.show {
+  display: block;
+}
+
+.cm-item {
+  padding: 3px 18px 3px 26px;
+  position: relative;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  color: #000000;
+  font-size: 11px;
+}
+
+.cm-item:hover:not(.disabled) {
+  background: #316ac5;
+  color: #ffffff;
+}
+
+.cm-item.disabled {
+  color: #888888;
+  cursor: default;
+}
+
+.cm-icon {
+  position: absolute;
+  left: 6px;
+  font-size: 11px;
+}
+
+.cm-shortcut {
+  font-size: 10px;
+  color: #666666;
+  margin-left: 16px;
+}
+
+.cm-item:hover:not(.disabled) .cm-shortcut {
+  color: #e0e0e0;
+}
+
+.cm-separator {
+  height: 1px;
+  background: #d4d0c8;
+  margin: 3px 2px;
+}
+
+.cm-arrow {
+  font-size: 8px;
+  margin-left: 8px;
+}
+
+.cm-has-submenu:hover .cm-submenu {
+  display: block;
+}
+
+.cm-submenu {
+  display: none;
+  position: absolute;
+  left: 100%;
+  top: -2px;
+  background: #f7f6f0;
+  border: 1px solid #7f9db9;
+  box-shadow: 2px 2px 6px rgba(0, 0, 0, 0.28);
+  min-width: 125px;
+  padding: 2px 0;
+}
+

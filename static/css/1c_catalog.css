@@ -1,0 +1,322 @@
+/* ========================================================
+   1C:ENTERPRISE UNIVERSAL CATALOG SELECTOR STYLESHEET
+   1c_catalog.css (Screenshot 2 - Справочник.Номенклатура)
+   ======================================================== */
+
+.catalog-window {
+  width: 95vw;
+  max-width: 1100px;
+  height: 90vh;
+  max-height: 720px;
+  min-width: 500px;
+  min-height: 350px;
+  background-color: var(--1c-bg-app);
+  border: 1px solid #7a7a7a;
+  box-shadow: 0 8px 30px rgba(0,0,0,0.35);
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  font-size: 11px;
+  resize: both;
+  overflow: hidden;
+}
+
+/* Maximized State */
+.catalog-window.maximized,
+.settings-window.maximized {
+  width: 100vw !important;
+  max-width: 100vw !important;
+  height: 100vh !important;
+  max-height: 100vh !important;
+  top: 0 !important;
+  left: 0 !important;
+  border: none !important;
+  border-radius: 0 !important;
+  resize: none !important;
+}
+
+/* Minimized State */
+.catalog-window.minimized,
+.settings-window.minimized {
+  height: 26px !important;
+  overflow: hidden !important;
+  position: fixed !important;
+  bottom: 0 !important;
+  left: 10px !important;
+  width: 320px !important;
+  max-width: 320px !important;
+  box-shadow: 0 -2px 10px rgba(0,0,0,0.2) !important;
+}
+
+.catalog-window.minimized .catalog-body,
+.settings-window.minimized .settings-body,
+.settings-window.minimized .settings-footer {
+  display: none !important;
+}
+
+/* Catalog Top Toolbar (Screenshot 2) */
+.catalog-toolbar {
+  height: 28px;
+  background: #f0ede0;
+  border-bottom: 1px solid var(--1c-border-dark);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 6px;
+  gap: 6px;
+}
+
+.catalog-toolbar-left {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.catalog-toolbar-right {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.btn-catalog-select {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 22px;
+  padding: 0 10px;
+  background: linear-gradient(to bottom, #ffffff 0%, #ece9d8 100%);
+  border: 1px solid #2b7814;
+  border-radius: 2px;
+  cursor: pointer;
+  font-size: 11px;
+  font-weight: bold;
+  color: #104e06;
+}
+
+.btn-catalog-select:hover {
+  background: #fffae8;
+  border-color: #107c10;
+}
+
+/* Search bar on toolbar */
+.catalog-search-group {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+}
+
+.catalog-search-select {
+  height: 21px;
+  font-size: 11px;
+  border: 1px solid #7f9db9;
+  background: #ffffff;
+  padding: 0 4px;
+}
+
+.catalog-search-input {
+  height: 21px;
+  width: 220px;
+  font-size: 11px;
+  border: 1px solid #7f9db9;
+  background: #ffffff;
+  padding: 0 6px;
+}
+
+/* Catalog Body: Split Pane (Tree on Left, Table on Right) */
+.catalog-body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background-color: #ffffff;
+}
+
+.catalog-main-split {
+  flex: 1;
+  display: flex;
+  min-height: 250px;
+  overflow: hidden;
+  border-bottom: 1px solid #7a7a7a;
+}
+
+/* Left Pane: Folder Tree */
+.catalog-tree-pane {
+  width: 260px;
+  min-width: 180px;
+  max-width: 400px;
+  background: #fdfdfd;
+  border-right: 1px solid #c0c0c0;
+  overflow-y: auto;
+  padding: 4px 2px;
+}
+
+.catalog-tree-root {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.catalog-tree-item {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 4px;
+  cursor: pointer;
+  white-space: nowrap;
+  font-size: 11px;
+}
+
+.catalog-tree-item:hover {
+  background-color: #eef4fd;
+}
+
+.catalog-tree-item.selected {
+  background-color: var(--1c-bg-selected);
+  color: var(--1c-text-selected);
+}
+
+.catalog-tree-item.selected span {
+  color: var(--1c-text-selected);
+}
+
+/* Right Pane: Items Table */
+.catalog-items-pane {
+  flex: 1;
+  overflow: auto;
+  background: #ffffff;
+}
+
+.catalog-items-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 11px;
+}
+
+.catalog-items-table th {
+  background: #fffee0;
+  border-bottom: 1px solid #7a7a7a;
+  border-right: 1px solid #c0c0c0;
+  padding: 3px 6px;
+  text-align: left;
+  font-weight: bold;
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  white-space: nowrap;
+}
+
+.catalog-items-table td {
+  border-bottom: 1px solid #e4e4e4;
+  border-right: 1px solid #e4e4e4;
+  padding: 2px 6px;
+  height: 20px;
+  white-space: nowrap;
+}
+
+.catalog-items-table tr:hover {
+  background-color: #f2f7fe;
+}
+
+.catalog-items-table tr.selected {
+  background-color: var(--1c-bg-selected) !important;
+  color: var(--1c-text-selected) !important;
+}
+
+.catalog-items-table tr.selected td {
+  color: var(--1c-text-selected) !important;
+}
+
+/* Bottom Pane: Остатки товаров на складах */
+.catalog-bottom-pane {
+  height: 180px;
+  min-height: 120px;
+  background: #fdfdfd;
+  display: flex;
+  flex-direction: column;
+}
+
+.catalog-bottom-header {
+  height: 22px;
+  background: #ece9d8;
+  border-bottom: 1px solid #b4b0a2;
+  padding: 0 8px;
+  font-weight: bold;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.catalog-bottom-split {
+  flex: 1;
+  display: flex;
+  overflow: hidden;
+}
+
+.catalog-prices-box {
+  width: 220px;
+  border-right: 1px solid #c0c0c0;
+  overflow-y: auto;
+  padding: 4px;
+}
+
+.catalog-stock-box {
+  flex: 1;
+  overflow-y: auto;
+}
+
+.catalog-stock-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 11px;
+}
+
+.catalog-stock-table th {
+  background: #f5f3e5;
+  border-bottom: 1px solid #c0c0c0;
+  border-right: 1px solid #e0e0e0;
+  padding: 2px 6px;
+  text-align: left;
+  font-weight: 500;
+  position: sticky;
+  top: 0;
+}
+
+.catalog-stock-table td {
+  border-bottom: 1px solid #eee;
+  border-right: 1px solid #eee;
+  padding: 2px 6px;
+  text-align: right;
+}
+
+.catalog-stock-table td:first-child {
+  text-align: left;
+}
+
+/* Selection Button (...) inside filter row */
+.filter-value-cell-wrap {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  width: 100%;
+}
+
+.filter-btn-pick {
+  width: 18px;
+  height: 19px;
+  background: #ece9d8;
+  border: 1px solid #7f9db9;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-size: 10px;
+  font-weight: bold;
+  padding: 0;
+  flex-shrink: 0;
+}
+
+.filter-btn-pick:hover {
+  background: #fff;
+  border-color: #316ac5;
+}

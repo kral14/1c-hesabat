@@ -1,0 +1,553 @@
+/* ========================================================
+   1C:ENTERPRISE UNIVERSAL REPORT - SETTINGS MODAL STYLESHEET
+   1c_settings.css
+   ======================================================== */
+
+.settings-window {
+  width: 95vw;
+  max-width: 1040px;
+  height: 90vh;
+  max-height: 640px;
+  min-width: 600px;
+  min-height: 380px;
+  background-color: var(--1c-bg-app);
+  border: 1px solid #7a7a7a;
+  box-shadow: 0 8px 30px rgba(0,0,0,0.35);
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  font-size: 11px;
+  resize: both;
+  overflow: hidden;
+}
+
+.settings-window::after {
+  content: "";
+  position: absolute;
+  bottom: 1px;
+  right: 1px;
+  width: 11px;
+  height: 11px;
+  background: linear-gradient(135deg, transparent 0%, transparent 45%, #7a7a7a 45%, #7a7a7a 55%, transparent 55%, transparent 70%, #7a7a7a 70%, #7a7a7a 80%, transparent 80%);
+  cursor: se-resize;
+  pointer-events: none;
+  z-index: 20;
+}
+
+.settings-window.maximized::after {
+  display: none !important;
+}
+
+/* Settings Window Header */
+.settings-header {
+  height: 24px;
+  background: linear-gradient(to bottom, #d2d0c2 0%, #c4c1b2 100%);
+  border-bottom: 1px solid var(--1c-border-dark);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 8px;
+  font-weight: bold;
+}
+
+.settings-header-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.settings-header-icon {
+  width: 14px;
+  height: 14px;
+  background: #316ac5;
+  color: white;
+  border-radius: 2px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 9px;
+}
+
+/* Settings Body */
+.settings-body {
+  flex: 1;
+  padding: 8px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  overflow-y: auto;
+  background-color: #f7f6f0;
+}
+
+/* Settings Top: Period & Parameters */
+.settings-top-section {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  background: #f0ede0;
+  border: 1px solid #c0bfae;
+  padding: 6px 8px;
+  border-radius: 2px;
+}
+
+.settings-period-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.settings-params-row {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  border-top: 1px solid #d4d2c4;
+  padding-top: 4px;
+}
+
+.settings-params-title {
+  font-weight: bold;
+  color: #333;
+  margin-bottom: 2px;
+}
+
+.settings-checkboxes-group {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.checkbox-1c-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  cursor: pointer;
+  font-size: 11px;
+}
+
+.checkbox-1c-label input[type="checkbox"] {
+  cursor: pointer;
+  width: 13px;
+  height: 13px;
+}
+
+/* 3-Column Middle Section */
+.settings-middle-grid {
+  display: grid;
+  grid-template-columns: 1.1fr 1fr 24px 0.9fr;
+  gap: 6px;
+  height: 220px;
+  min-height: 180px;
+}
+
+.settings-box {
+  display: flex;
+  flex-direction: column;
+  background: #ffffff;
+  border: 1px solid #7f9db9;
+  overflow: hidden;
+}
+
+.settings-box-header {
+  height: 22px;
+  background: #ece9d8;
+  border-bottom: 1px solid #b4b0a2;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 4px;
+  font-weight: bold;
+}
+
+.settings-box-title {
+  font-size: 11px;
+  color: #222;
+}
+
+.settings-box-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 1px;
+}
+
+.box-tool-btn {
+  width: 17px;
+  height: 17px;
+  background: transparent;
+  border: 1px solid transparent;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  border-radius: 1px;
+  font-size: 10px;
+  color: #444;
+}
+
+.box-tool-btn:hover {
+  background: #fdfbe8;
+  border-color: #8da4be;
+}
+
+.settings-box-content {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+/* Indicators Tree (Показатели) */
+.indicators-tree {
+  list-style: none;
+  padding: 2px 4px;
+  margin: 0;
+}
+
+.tree-node-group {
+  margin-bottom: 2px;
+}
+
+.tree-node-header {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 2px;
+  cursor: pointer;
+  font-weight: 500;
+}
+
+.tree-node-header:hover {
+  background: #f0f4fc;
+}
+
+.tree-node-children {
+  list-style: none;
+  padding-left: 20px;
+}
+
+.tree-child-item {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 1px 2px;
+}
+
+.tree-child-item:hover {
+  background: #eef3fb;
+}
+
+/* Grouping Tables (Группировки строк / колонок) */
+.groupings-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 11px;
+}
+
+.groupings-table th {
+  background: #ece9d8;
+  border-bottom: 1px solid #7f9db9;
+  border-right: 1px solid #c0c0c0;
+  padding: 2px 6px;
+  text-align: left;
+  font-weight: bold;
+  height: 20px;
+}
+
+.groupings-table td {
+  border-bottom: 1px solid #e0e0e0;
+  border-right: 1px solid #e0e0e0;
+  padding: 2px 6px;
+  height: 20px;
+}
+
+.groupings-table tr:hover {
+  background-color: #edf4fe;
+}
+
+.groupings-table tr.selected {
+  background-color: var(--1c-bg-selected);
+  color: var(--1c-text-selected);
+}
+
+.groupings-table tr.selected select {
+  background-color: #316ac5;
+  color: #fff;
+  border-color: #5588d0;
+}
+
+.grouping-cell-wrap {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  gap: 4px;
+}
+
+.grouping-field-name {
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.grouping-btn-pick {
+  width: 19px;
+  height: 17px;
+  background: #ece9d8;
+  border: 1px solid #7f9db9;
+  font-size: 10px;
+  line-height: 1;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #000;
+  border-radius: 1px;
+  visibility: hidden;
+}
+
+tr.selected .grouping-btn-pick,
+tr:hover .grouping-btn-pick {
+  visibility: visible;
+}
+
+.grouping-btn-pick:hover {
+  background: #dfe6f2;
+  border-color: #316ac5;
+}
+
+.grouping-type-sel {
+  width: 100%;
+  height: 18px;
+  font-size: 11px;
+  font-family: var(--1c-font);
+  border: 1px solid transparent;
+  background: transparent;
+  cursor: pointer;
+  outline: none;
+}
+
+.groupings-table tr:hover .grouping-type-sel,
+.groupings-table tr.selected .grouping-type-sel {
+  border-color: #7f9db9;
+  background: #fff;
+  color: #000;
+}
+
+.groupings-table tr.selected .grouping-type-sel {
+  background: #2558a8;
+  color: #fff;
+}
+
+/* 1C Toolbar Buttons */
+.box-tool-btn.btn-purple-plus {
+  color: #7b1fa2;
+  font-weight: 900;
+  font-size: 13px;
+}
+
+.box-tool-btn.btn-red-del {
+  color: #c62828;
+  font-weight: bold;
+  font-size: 11px;
+}
+
+/* -------------------------------------------------------------
+   FIELD PICKER TREE (ВЫБОР ПОЛЯ) CSS
+   ------------------------------------------------------------- */
+.field-picker-tree {
+  font-family: var(--1c-font);
+  font-size: 11px;
+  user-select: none;
+}
+
+.fp-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 4px;
+  cursor: pointer;
+  border-radius: 1px;
+  white-space: nowrap;
+}
+
+.fp-row:hover {
+  background-color: #eaf1fb;
+}
+
+.fp-row.selected {
+  background-color: #316ac5 !important;
+  color: #ffffff !important;
+}
+
+.fp-row.selected .fp-label {
+  color: #ffffff !important;
+}
+
+.fp-expander {
+  width: 11px;
+  height: 11px;
+  border: 1px solid #7f9db9;
+  background: #fff;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 9px;
+  line-height: 1;
+  font-weight: bold;
+  color: #333;
+  margin-right: 2px;
+  cursor: pointer;
+}
+
+.fp-expander-blank {
+  width: 13px;
+  display: inline-block;
+}
+
+.fp-indent {
+  width: 16px;
+  display: inline-block;
+}
+
+.fp-icon {
+  font-size: 11px;
+  line-height: 1;
+}
+
+.fp-label {
+  font-size: 11px;
+  color: #000;
+}
+
+.fp-children {
+  padding-left: 14px;
+  border-left: 1px dotted #ccc;
+  margin-left: 5px;
+}
+
+/* Middle Arrow Transfer Buttons */
+.transfer-arrows-col {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+
+.transfer-arrow-btn {
+  width: 20px;
+  height: 20px;
+  background: #ece9d8;
+  border: 1px solid #7f9db9;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 9px;
+  border-radius: 2px;
+}
+
+.transfer-arrow-btn:hover {
+  background: #fff;
+  border-color: #316ac5;
+}
+
+/* Bottom Section: Filters (Отборы) */
+.settings-filters-section {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  background: #ffffff;
+  border: 1px solid #7f9db9;
+  min-height: 140px;
+  overflow: hidden;
+}
+
+.filters-table-container {
+  flex: 1;
+  overflow-y: auto;
+}
+
+.filters-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 11px;
+}
+
+.filters-table th {
+  background: #ece9d8;
+  border-bottom: 1px solid #7f9db9;
+  border-right: 1px solid #c0c0c0;
+  padding: 2px 4px;
+  text-align: left;
+  font-weight: bold;
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  height: 20px;
+}
+
+.filters-table th.col-check {
+  width: 26px;
+  text-align: center;
+}
+
+.filters-table th.col-field {
+  width: 32%;
+}
+
+.filters-table th.col-comp {
+  width: 24%;
+}
+
+.filters-table th.col-val {
+  width: auto;
+}
+
+.filters-table td {
+  border-bottom: 1px solid #e4e4e4;
+  border-right: 1px solid #e4e4e4;
+  padding: 1px 4px;
+  height: 22px;
+}
+
+.filters-table tr:hover {
+  background-color: #f7f9fd;
+}
+
+.filters-table tr.active-row {
+  background-color: #edf3fb;
+}
+
+.filters-table select,
+.filters-table input[type="text"] {
+  width: 100%;
+  height: 19px;
+  font-family: var(--1c-font);
+  font-size: 11px;
+  border: 1px solid #7f9db9;
+  padding: 0 4px;
+  background: #ffffff;
+}
+
+/* Modal Footer */
+.settings-footer {
+  height: 32px;
+  background: #ece9d8;
+  border-top: 1px solid #b4b0a2;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 10px;
+}
+
+.settings-footer-left {
+  display: flex;
+  align-items: center;
+}
+
+.settings-footer-right {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}

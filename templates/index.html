@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html lang="az">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>1С:Предприятие 8.3 - [Товары на складах]</title>
+  
+  <!-- 1C Modular Stylesheets -->
+  <link rel="stylesheet" href="/static/css/1c_base.css?v=3.9">
+  <link rel="stylesheet" href="/static/css/1c_toolbar.css?v=3.9">
+  <link rel="stylesheet" href="/static/css/1c_settings.css?v=3.9">
+  <link rel="stylesheet" href="/static/css/1c_sheet.css?v=3.9">
+  <link rel="stylesheet" href="/static/css/1c_catalog.css?v=3.9">
+  <link rel="stylesheet" href="/static/css/1c_value_list.css?v=3.9">
+  <link rel="stylesheet" href="/static/css/1c_presets.css?v=3.9">
+  <link rel="stylesheet" href="/static/css/1c_calendar.css?v=3.9">
+  <link rel="stylesheet" href="/static/css/1c_mdi.css?v=3.9">
+</head>
+<body>
+
+  <!-- 1C Loading Overlay -->
+  <div id="loadingOverlay" class="loading-box-1c">
+    <div class="spinner-1c"></div>
+    <div id="loadingText">1C: Məlumatlar emal olunur...</div>
+  </div>
+
+  <!-- Main 1C Desktop MDI Container -->
+  <div class="mdi-main-container">
+    
+    <!-- 1. Top Application Window Titlebar (Hidden: Native OS Electron Titlebar is used) -->
+    <div class="mdi-app-titlebar" style="display: none;">
+      <div class="mdi-app-title-left">
+        <div class="mdi-app-icon">1C</div>
+        <span id="mdiAppWindowTitle">1С:Предприятие 8.3 - [Товары на складах]</span>
+      </div>
+      <div class="mdi-app-titlebar-controls">
+        <button class="window-btn-sys" title="Qatla" onclick="minimizeAppWindow()">_</button>
+        <button class="window-btn-sys" title="Böyüt" onclick="maximizeAppWindow()">□</button>
+        <button class="window-btn-sys window-btn-close" title="Bağla" onclick="closeAppWindow()">✕</button>
+      </div>
+    </div>
+
+    <!-- 2. Main 1C Menu Bar (Файл, Операции, Отчеты, Сервис, Окна, Справка) -->
+    <div class="mdi-menubar">
+      <!-- Файл -->
+      <div class="mdi-menu-item">
+        <button class="mdi-menu-btn" onclick="toggleMdiMenu(event, 'menuFile')">Файл</button>
+        <div class="mdi-dropdown-menu" id="menuFile">
+          <div class="mdi-dropdown-entry" onclick="MdiManager.createNewReportWindow()">
+            <span class="mdi-dropdown-entry-icon">➕</span>
+            <span>Новый отчет</span>
+            <span class="mdi-dropdown-entry-shortcut">Ctrl+N</span>
+          </div>
+          <div class="mdi-dropdown-entry" onclick="onActionFormirovat()">
+            <span class="mdi-dropdown-entry-icon">▶</span>
+            <span>Сформировать</span>
+            <span class="mdi-dropdown-entry-shortcut">F5</span>
+          </div>
+          <div class="mdi-dropdown-sep"></div>
+          <div class="mdi-dropdown-entry" onclick="exportReportToExcel()">
+            <span class="mdi-dropdown-entry-icon">📊</span>
+            <span>Экспорт в Excel (.xlsx)...</span>
+            <span class="mdi-dropdown-entry-shortcut">Ctrl+S</span>
+          </div>
+          <div class="mdi-dropdown-entry" onclick="printReportSheet()">
+            <span class="mdi-dropdown-entry-icon">🖨️</span>
+            <span>Печать...</span>
+            <span class="mdi-dropdown-entry-shortcut">Ctrl+P</span>
+          </div>
+          <div class="mdi-dropdown-sep"></div>
+          <div class="mdi-dropdown-entry" onclick="window.close()">
+            <span class="mdi-dropdown-entry-icon">✕</span>
+            <span>Выход</span>
+            <span class="mdi-dropdown-entry-shortcut">Alt+F4</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Операции -->
+      <div class="mdi-menu-item">
+        <button class="mdi-menu-btn" onclick="toggleMdiMenu(event, 'menuOps')">Операции</button>
+        <div class="mdi-dropdown-menu" id="menuOps">
+          <div class="mdi-dropdown-entry" onclick="openCatalogDirect('Номенклатура')">
+            <span class="mdi-dropdown-entry-icon">📦</span>
+            <span>Справочник.Номенклатура</span>
+          </div>
+          <div class="mdi-dropdown-entry" onclick="openCatalogDirect('Склады')">
+            <span class="mdi-dropdown-entry-icon">🏬</span>
+            <span>Справочник.Склады</span>
+          </div>
+          <div class="mdi-dropdown-entry" onclick="openCatalogDirect('ТипыЦенНоменклатуры')">
+            <span class="mdi-dropdown-entry-icon">🏷️</span>
+            <span>Справочник.Типы цен</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Отчеты -->
+      <div class="mdi-menu-item">
+        <button class="mdi-menu-btn" onclick="toggleMdiMenu(event, 'menuReports')">Отчеты</button>
+        <div class="mdi-dropdown-menu" id="menuReports">
+          <div class="mdi-dropdown-entry" onclick="MdiManager.createNewReportWindow()">
+            <span class="mdi-dropdown-entry-icon">📦</span>
+            <span style="font-weight: bold;">Товары на складах (Ведомость)</span>
+          </div>
+          <div class="mdi-dropdown-entry" onclick="openSettingsModal(event)">
+            <span class="mdi-dropdown-entry-icon">⚙️</span>
+            <span>Настройка отчета...</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Сервис -->
+      <div class="mdi-menu-item">
+        <button class="mdi-menu-btn" onclick="toggleMdiMenu(event, 'menuService')">Сервис</button>
+        <div class="mdi-dropdown-menu" id="menuService">
+          <div class="mdi-dropdown-entry" onclick="openRestoreSettingsModal()">
+            <span class="mdi-dropdown-entry-icon">📥</span>
+            <span>Восстановить настройку...</span>
+          </div>
+          <div class="mdi-dropdown-entry" onclick="openSaveSettingsModal()">
+            <span class="mdi-dropdown-entry-icon">📤</span>
+            <span>Сохранить настройку...</span>
+          </div>
+          <div class="mdi-dropdown-entry" onclick="resetToDefaultSettings()">
+            <span class="mdi-dropdown-entry-icon">↺</span>
+            <span>Стандартные настройки</span>
+          </div>
+          <div class="mdi-dropdown-sep"></div>
+          <div class="mdi-dropdown-entry" onclick="openLoginModal()">
+            <span class="mdi-dropdown-entry-icon">🔄</span>
+            <span>Сменить базу данных / пользователя...</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Окна -->
+      <div class="mdi-menu-item">
+        <button class="mdi-menu-btn" onclick="toggleMdiMenu(event, 'menuWindows')">Окна</button>
+        <div class="mdi-dropdown-menu" id="mdiWindowsMenuList">
+          <!-- Populated by MdiManager -->
+        </div>
+      </div>
+
+      <!-- Справка -->
+      <div class="mdi-menu-item">
+        <button class="mdi-menu-btn" onclick="toggleMdiMenu(event, 'menuHelp')">Справка</button>
+        <div class="mdi-dropdown-menu" id="menuHelp">
+          <div class="mdi-dropdown-entry" onclick="show1CHelp()">
+            <span class="mdi-dropdown-entry-icon">❓</span>
+            <span>Справка (F1)</span>
+          </div>
+          <div class="mdi-dropdown-entry" onclick="alert('1С:Предприятие 8.3 (Ведомость по товарам на складах)\nВерсия 2.4.0\nБаза: Aztrade Test Bazası')">
+            <span class="mdi-dropdown-entry-icon">ℹ️</span>
+            <span>О программе</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 3. Header 2: Main 1C Top Toolbar with Connection Indicators -->
+    <div class="mdi-app-toolbar" style="height: 28px; background: #ece9d8; border-bottom: 1px solid #7a7a7a; display: flex; align-items: center; padding: 0 10px; justify-content: flex-end; gap: 8px; flex-shrink: 0;">
+      <!-- Base & User Connection Indicator -->
+      <div class="statusbar-indicator" id="topBasePill" title="Aktiv 1C Bazası" onclick="openLoginModal()" style="cursor: pointer; display: inline-flex; align-items: center; gap: 5px; padding: 2px 8px; border: 1px inset #d0d0d0; background: #faf8ef; border-radius: 2px;">
+        <span class="dot-green" id="topBaseDot"></span>
+        <span id="topBaseName" style="font-weight: bold; color: #1a1a1a;">Test1C / Aztrade_test3</span>
+      </div>
+
+      <div class="statusbar-indicator" id="topUserPill" title="Aktiv İstifadəçi" style="display: inline-flex; align-items: center; gap: 5px; padding: 2px 8px; border: 1px inset #d0d0d0; background: #faf8ef; border-radius: 2px;">
+        <span style="color: #004080;">👤</span>
+        <span id="topUserName" style="font-weight: bold; color: #1a1a1a;">Nesib</span>
+      </div>
+    </div>
+
+    <!-- 4. MDI Desktop Workspace Area (Dashboard Background + Floating Child Windows) -->
+    <div class="mdi-workspace" id="mdiWorkspace">
+      
+      <!-- Desktop Dashboard Background (Visible on startup & when windows are closed/minimized) -->
+      <div class="mdi-dashboard-bg" id="mdiDashboardBg">
+        <div class="mdi-dashboard-header">
+          <div class="mdi-dash-logo">1C</div>
+          <div class="mdi-dash-title-group">
+            <div class="mdi-dash-main-title">1С:Предприятие 8.3 — Aztrade</div>
+            <div class="mdi-dash-sub-title">İdarəetmə Paneli</div>
+          </div>
+        </div>
+
+        <div class="mdi-dashboard-grid-simple">
+          <!-- 1. Товары на складах -->
+          <div class="mdi-dash-tile" onclick="MdiManager.openOrRestoreReportWindow()" title="Открыть отчет 'Товары на складах'">
+            <div class="mdi-dash-tile-icon">📦</div>
+            <div class="mdi-dash-tile-content">
+              <div class="mdi-dash-tile-title">Товары на складах</div>
+              <div class="mdi-dash-tile-subtitle">Отчет</div>
+            </div>
+          </div>
+
+          <!-- 2. Номенклатура -->
+          <div class="mdi-dash-tile" onclick="openCatalogDirect('Номенклатура')" title="Открыть справочник 'Номенклатура'">
+            <div class="mdi-dash-tile-icon">📋</div>
+            <div class="mdi-dash-tile-content">
+              <div class="mdi-dash-tile-title">Номенклатура</div>
+              <div class="mdi-dash-tile-subtitle">Справочник</div>
+            </div>
+          </div>
+
+          <!-- 3. Склады -->
+          <div class="mdi-dash-tile" onclick="openCatalogDirect('Склады')" title="Открыть справочник 'Склады'">
+            <div class="mdi-dash-tile-icon">🏢</div>
+            <div class="mdi-dash-tile-content">
+              <div class="mdi-dash-tile-title">Склады</div>
+              <div class="mdi-dash-tile-subtitle">Справочник</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="mdi-dashboard-footer">
+          <div>Сервер: <strong>Test1C / Aztrade_test3</strong></div>
+          <div>Пользователь: <strong>Nesib</strong></div>
+        </div>
+      </div>
+
+      <!-- Child Report Window 1 (Товары на складах) - Floating on top of Dashboard (Hidden on Startup) -->
+      <div class="mdi-window minimized" id="mdiWindow-1" style="top: 15px; left: 20px; width: calc(100% - 40px); height: calc(100% - 30px); z-index: 100;">
+        
+        <!-- Child Window Header (Moves and controls only this child window) -->
+        <div class="mdi-window-header">
+          <div class="mdi-win-title-left">
+            <span class="mdi-win-icon">📦</span>
+            <span class="mdi-win-title-text" id="reportWindowTitle">Товары на складах</span>
+          </div>
+          <div class="mdi-win-controls">
+            <button class="mdi-win-btn mdi-win-btn-min" onclick="MdiManager.minimizeWindow('mdiWindow-1')" title="Qatla (İş masasına sal)">_</button>
+            <button class="mdi-win-btn mdi-win-btn-max" onclick="MdiManager.toggleMaximize('mdiWindow-1')" title="Böyüt / Bərpa et">□</button>
+            <button class="mdi-win-btn mdi-win-btn-close" onclick="MdiManager.closeWindow('mdiWindow-1')" title="Bağla">✕</button>
+          </div>
+        </div>
+
+        <!-- Child Window Body: Inner Toolbar + Report Sheet -->
+        <div class="mdi-window-body">
+          {% include "components/header_toolbar.html" %}
+          {% include "components/report_sheet.html" %}
+        </div>
+
+      </div>
+
+      <!-- Settings MDI Window (Screenshot 3 - Full MDI Window) -->
+      {% include "components/settings_dialog.html" %}
+
+      <!-- Universal Catalog Selector MDI Window (Screenshot 2 - Справочник) -->
+      {% include "components/catalog_selector_modal.html" %}
+
+      <!-- 4. Value List Editor Modal (Screenshot 2 - Редактирование списка значений) -->
+      {% include "components/value_list_modal.html" %}
+
+      <!-- 6. Session & Database Login Modal -->
+      {% include "components/login_modal.html" %}
+
+      <!-- 7. Field Selector Modal (Выбор поля - Screenshot 3) -->
+      {% include "components/field_selector_modal.html" %}
+
+      <!-- 8. Presets Modals (Image 4 & 5 - Восстановление и Сохранение настройки) -->
+      {% include "components/settings_restore_modal.html" %}
+      {% include "components/settings_save_modal.html" %}
+
+      <!-- 9. Operation Type Selector Modal (Вид операции) -->
+      {% include "components/operation_type_modal.html" %}
+
+    </div>
+
+    <!-- 5. Bottom 1C Window Taskbar -->
+    <div class="mdi-taskbar" id="mdiTaskbar">
+      <div class="mdi-taskbar-tabs" id="mdiTaskbarTabs">
+        <!-- Dynamically rendered tabs for each open window -->
+      </div>
+      <div class="mdi-taskbar-status">
+        <div class="mdi-status-pill" id="statusBarPresetBadge" style="color: #1565c0; font-weight: bold;">
+          <span>🏷️ Настройка: KRAFT</span>
+        </div>
+        <div class="mdi-status-pill" onclick="openLoginModal()" style="cursor: pointer;" title="Aktiv 1C bazası">
+          <span class="dot-green"></span>
+          <span id="statusBarBaseName">Test1C / Aztrade_test3</span>
+        </div>
+        <div class="mdi-status-pill">
+          <span style="color: #004080;">👤</span>
+          <span id="statusBarUserName">Nesib</span>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- 1C Modular JavaScript Subsystems -->
+  <script src="/static/js/session.js?v=3.9"></script>
+  <script src="/static/js/catalog_selector.js?v=3.9"></script>
+  <script src="/static/js/value_list_modal.js?v=3.9"></script>
+  <script src="/static/js/operation_type_modal.js?v=3.9"></script>
+  <script src="/static/js/field_selector.js?v=3.9"></script>
+  <script src="/static/js/calendar_picker.js?v=3.9"></script>
+  <script src="/static/js/settings_modal.js?v=3.9"></script>
+  <script src="/static/js/settings_presets.js?v=3.9"></script>
+  <script src="/static/js/report_engine.js?v=3.9"></script>
+  <script src="/static/js/mdi_manager.js?v=3.9"></script>
+  <script src="/static/js/app.js?v=3.9"></script>
+
+</body>
+</html>

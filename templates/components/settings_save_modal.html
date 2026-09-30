@@ -1,0 +1,79 @@
+<!-- ========================================================
+     1C:ENTERPRISE SAVE SETTINGS MODAL (Сохранение настройки)
+     settings_save_modal.html (Image 5)
+     ======================================================== -->
+
+<div id="settingsSaveModalOverlay" class="preset-modal-overlay">
+  <div class="preset-window-modal" id="settingsSaveModalWindow" onmousedown="MdiManager.bringModalToFront(document.getElementById('settingsSaveModalOverlay'))">
+    
+    <!-- Titlebar -->
+    <div class="preset-titlebar" ondblclick="togglePresetWindowMaximize(this)">
+      <div class="preset-title-left">
+        <span class="preset-title-icon">📤</span>
+        <span class="preset-title-text">Сохранение настройки</span>
+      </div>
+      <div class="preset-titlebar-controls">
+        <button class="preset-btn-max" onclick="togglePresetWindowMaximize(this)" title="Böyüt / Bərpa et">□</button>
+        <button class="preset-btn-close" onclick="closeSaveSettingsModal()" title="Закрыть">✕</button>
+      </div>
+    </div>
+
+    <!-- Toolbar (Image 5: Выбрать + Add + Copy + Edit + Delete + Save) -->
+    <div class="preset-modal-toolbar">
+      <button class="preset-btn-select-main" onclick="confirmSaveCurrentPreset()" title="Выбрать / Сохранить">
+        <span style="color: #2b7814; font-size: 11px;">✔</span>
+        <span>Выбрать</span>
+      </button>
+
+      <div class="toolbar-separator" style="height: 18px;"></div>
+
+      <button class="preset-btn-tool" onclick="addNewPresetPrompt()" title="Добавить (Ins)">
+        <span style="color: #2e7d32; font-weight: bold; font-size: 14px;">➕</span>
+      </button>
+      <button class="preset-btn-tool" onclick="duplicateSelectedPreset()" title="Скопировать (F9)">
+        <span style="color: #1565c0; font-size: 13px;">📋</span>
+      </button>
+      <button class="preset-btn-tool" onclick="renameSelectedPresetPrompt()" title="Изменить (F2)">
+        <span style="color: #2e7d32; font-size: 13px;">✏️</span>
+      </button>
+      <button class="preset-btn-tool" onclick="deleteSelectedPresetPrompt()" title="Удалить (Del)">
+        <span style="color: #c62828; font-weight: bold; font-size: 13px;">❌</span>
+      </button>
+      <button class="preset-btn-tool" onclick="confirmSaveCurrentPreset()" title="Записать настройку">
+        <span style="color: #555; font-size: 13px;">💾</span>
+      </button>
+    </div>
+
+    <!-- Table Content (Image 5) -->
+    <div class="preset-modal-content">
+      <div class="preset-table-wrap">
+        <table class="preset-grid-table" id="presetSaveTable">
+          <thead>
+            <tr>
+              <th style="min-width: 180px;">Наименование</th>
+              <th style="width: 70px;" class="th-center">Открыв...</th>
+              <th style="width: 70px;" class="th-center">Сохран...</th>
+              <th style="width: 130px;">Пользователь</th>
+            </tr>
+          </thead>
+          <tbody id="presetSaveTableBody">
+            <!-- Dynamically populated rows from SettingsPresets -->
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Quick Name Input for Saving -->
+      <div style="display: flex; align-items: center; gap: 8px; margin-top: 6px; padding: 4px; background: #fff; border: 1px solid #7f9db9;">
+        <span style="font-weight: 500;">Имя настройки:</span>
+        <input type="text" id="savePresetNameInput" style="flex: 1; height: 20px; font-size: 11px; padding: 1px 4px; border: 1px solid #7f9db9;" placeholder="Məsələn: Anbar Qaligi, Loreal Stok və s." onkeydown="if(event.key==='Enter') confirmSaveCurrentPreset()">
+      </div>
+    </div>
+
+    <!-- Footer Controls -->
+    <div class="preset-modal-footer">
+      <button class="btn-1c" onclick="confirmSaveCurrentPreset()" style="font-weight: bold; min-width: 75px;">ОК</button>
+      <button class="btn-1c" onclick="closeSaveSettingsModal()" style="min-width: 65px;">Отмена</button>
+    </div>
+
+  </div>
+</div>

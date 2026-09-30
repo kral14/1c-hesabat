@@ -1,0 +1,183 @@
+<!-- ========================================================
+     1C:ENTERPRISE UNIVERSAL CATALOG SELECTOR MODAL
+     catalog_selector_modal.html (Screenshot 2 - Справочник)
+     ======================================================== -->
+
+<div class="mdi-window" id="catalogWindowModal" style="display: none; top: 40px; left: 80px; width: 960px; height: 620px; min-width: 580px; min-height: 400px;" onmousedown="MdiManager.activateWindow('catalogWindowModal')">
+  
+  <!-- Window Title Bar (MDI Standard) -->
+  <div class="mdi-window-header" id="catalogTitleBar" ondblclick="MdiManager.toggleMaximize('catalogWindowModal')">
+    <div class="mdi-win-title-left">
+      <span class="mdi-win-icon" id="catalogWindowIcon">📋</span>
+      <span class="mdi-win-title-text" id="catalogWindowTitle">Справочник: Номенклатура</span>
+    </div>
+    <div class="mdi-win-controls">
+      <button class="mdi-win-btn mdi-win-btn-min" title="Qatla" onclick="MdiManager.minimizeWindow('catalogWindowModal')" onmousedown="event.stopPropagation()">_</button>
+      <button class="mdi-win-btn mdi-win-btn-max" title="Böyüt / Bərpa et" onclick="MdiManager.toggleMaximize('catalogWindowModal')" onmousedown="event.stopPropagation()">□</button>
+      <button class="mdi-win-btn mdi-win-btn-close" title="Bağla" onclick="CatalogSelector.close(event)" onmousedown="event.stopPropagation()">✕</button>
+    </div>
+  </div>
+
+  <!-- Window Body -->
+  <div class="mdi-window-body" style="background-color: #f7f6f0; display: flex; flex-direction: column;">
+
+    <!-- Mode Podbor Banner -->
+    <div id="catalogPodborBanner" style="display: none; background: #fffde7; border-bottom: 1px solid #ffe082; padding: 4px 10px; font-size: 11px; color: #5d4037; display: none; align-items: center; justify-content: space-between;">
+      <span><strong>📌 Режим подбора:</strong> Element və ya qovluqlara iki dəfə klikləyin (və ya [Выбрать] basın). Siyahıya əlavə olunacaq.</span>
+      <span id="catalogPodborCount" style="font-weight: bold; color: #2e7d32; background: #e8f5e9; padding: 1px 6px; border-radius: 3px;"></span>
+    </div>
+
+    <!-- Action Toolbar (Screenshot 2) -->
+    <div class="catalog-toolbar">
+      <div class="catalog-toolbar-left" style="gap: 5px;">
+        <!-- "Выбрать" Button -->
+        <button class="btn-catalog-select" onclick="CatalogSelector.confirmSelection(true)" title="Seçilmiş elementi və ya qovluğu süzgəcə daxil et">
+          <span style="font-size: 11px;">✔</span>
+          <span id="btnCatalogSelectText">Выбрать</span>
+        </button>
+
+        <!-- "Выбрать эту папку" Button -->
+        <button class="btn-1c" id="btnSelectCurrentFolder" onclick="CatalogSelector.confirmCurrentFolder()" style="display: none; height: 22px; padding: 0 8px; font-weight: bold; background: #e8f4fd; border: 1px solid #316ac5; color: #004080;" title="Açılmış qovluğu bütövlükdə süzgəcə daxil et">
+          <span id="btnSelectCurrentFolderText">📁 Выбрать эту папку</span>
+        </button>
+
+        <button class="btn-actions" onclick="alert('1C Əməliyyat menyusu')">
+          <span>Действия</span>
+          <span style="font-size: 8px;">▼</span>
+        </button>
+
+        <button class="box-tool-btn" title="Yenilə" onclick="CatalogSelector.reload()">🔄</button>
+      </div>
+
+      <!-- Search Group -->
+      <div class="catalog-toolbar-right">
+        <div class="catalog-search-group">
+          <select class="catalog-search-select" id="catalogSearchField">
+            <option value="all">Все видимые поля</option>
+            <option value="name">Наименование</option>
+            <option value="artikul">Артикул</option>
+            <option value="code">Код</option>
+          </select>
+          <span style="color: #444;">содержит:</span>
+          <input type="text" id="catalogSearchInput" class="catalog-search-input" placeholder="Axtarış..." onkeydown="if(event.key==='Enter') CatalogSelector.search()">
+          <button class="btn-1c" onclick="CatalogSelector.search()" style="padding: 1px 8px;">Найти</button>
+          <button class="btn-1c" onclick="CatalogSelector.clearSearch()" title="Axtarışı təmizlə" style="padding: 1px 6px;">✕</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Catalog Main Body (Split Pane) -->
+    <div class="catalog-body">
+      
+      <div class="catalog-main-split">
+        
+        <!-- Left Pane: Folder Tree -->
+        <div class="catalog-tree-pane" id="catalogTreeContainer">
+          <ul class="catalog-tree-root" id="catalogTreeList">
+            <li class="catalog-tree-item selected" onclick="CatalogSelector.selectFolder(this, '')">
+              <span>📁</span>
+              <span id="catalogTreeRootLabel">Номенклатура</span>
+            </li>
+            <!-- Dynamic Subfolders -->
+          </ul>
+        </div>
+
+        <!-- Right Pane: Items Table Grid -->
+        <div class="catalog-items-pane" id="catalogItemsContainer">
+          <table class="catalog-items-table" id="catalogItemsTable">
+            <thead>
+              <tr>
+                <th style="width: 30px; text-align: center;"></th>
+                <th style="width: 100px;">Код</th>
+                <th style="width: 110px;" id="colArtikulHeader">Артикул</th>
+                <th style="min-width: 280px;">Наименование</th>
+                <th style="width: 100px;">Вид ном.</th>
+                <th style="width: 80px;">Ед.</th>
+              </tr>
+            </thead>
+            <tbody id="catalogItemsBody">
+              <tr>
+                <td colspan="6" style="text-align: center; color: #888; padding: 20px;">
+                  Məlumatlar yüklənir...
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+      </div>
+
+      <!-- Bottom Pane: Остатки товаров на складах (Screenshot 2) -->
+      <div class="catalog-bottom-pane" id="catalogStockPane">
+        <div class="catalog-bottom-header">
+          <span>Остатки товаров на складах</span>
+          <span id="catalogSelectedPreviewTitle" style="font-weight: normal; color: #444;">Seçilmiş mal: -</span>
+        </div>
+
+        <div class="catalog-bottom-split">
+          <!-- Prices Checklist -->
+          <div class="catalog-prices-box">
+            <div style="font-weight: bold; margin-bottom: 4px; color: #333;">Типы цен:</div>
+            <label class="checkbox-1c-label" style="display: flex; margin-bottom: 2px;">
+              <input type="checkbox" checked> <span>80 (Əsas Satış Qiyməti)</span>
+            </label>
+            <label class="checkbox-1c-label" style="display: flex; margin-bottom: 2px;">
+              <input type="checkbox"> <span>80 возврат</span>
+            </label>
+            <label class="checkbox-1c-label" style="display: flex; margin-bottom: 2px;">
+              <input type="checkbox"> <span>70 Optom</span>
+            </label>
+            <label class="checkbox-1c-label" style="display: flex;">
+              <input type="checkbox"> <span>100 Pərakəndə</span>
+            </label>
+          </div>
+
+          <!-- Warehouses Stock Table -->
+          <div class="catalog-stock-box">
+            <table class="catalog-stock-table">
+              <thead>
+                <tr>
+                  <th>Характеристика / Склад</th>
+                  <th style="width: 110px;">Общий остаток</th>
+                  <th style="width: 110px;">Свободный</th>
+                  <th style="width: 110px;">В резерве</th>
+                </tr>
+              </thead>
+              <tbody id="catalogStockBody">
+                <tr>
+                  <td>1.Anbar - AZTRADE</td>
+                  <td id="previewStockTotal">-</td>
+                  <td id="previewStockFree">-</td>
+                  <td>0.00</td>
+                </tr>
+                <tr>
+                  <td>Anbar Gəncə</td>
+                  <td id="previewStockGence">-</td>
+                  <td id="previewStockGenceFree">-</td>
+                  <td>0.00</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Status Bar / Selection Footer -->
+    <div class="settings-footer">
+      <div>
+        <span>Aktiv Element: <b id="catalogSelectedLabel" style="color: #004080;">-</b></span>
+      </div>
+      <div style="display: flex; gap: 6px;">
+        <button class="btn-1c primary" onclick="CatalogSelector.confirmSelection(true)" style="min-width: 80px;">
+          <span>Выбрать</span>
+        </button>
+        <button class="btn-1c" onclick="CatalogSelector.close(event)" style="min-width: 70px;">
+          <span>Отмена</span>
+        </button>
+      </div>
+    </div>
+
+  </div>
+</div>

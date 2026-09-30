@@ -1,0 +1,316 @@
+/* ========================================================
+   1C:ENTERPRISE UNIVERSAL REPORT - BASE STYLESHEET
+   1c_base.css
+   ======================================================== */
+
+:root {
+  --1c-bg-app: #ebeadb;
+  --1c-bg-panel: #f0ede0;
+  --1c-bg-header: #e6e2d3;
+  --1c-bg-active: #d4d0c2;
+  --1c-bg-sheet: #ffffff;
+  --1c-bg-sheet-header: #f7f5e8;
+  --1c-bg-grid-row: #ffffff;
+  --1c-bg-grid-alt: #fdfcf7;
+  --1c-bg-selected: #316ac5;
+  --1c-text-selected: #ffffff;
+  
+  --1c-text-main: #000000;
+  --1c-text-muted: #555555;
+  --1c-text-dim: #777777;
+  --1c-text-red: #c00000;
+  --1c-text-blue: #004080;
+  --1c-text-green: #006000;
+
+  --1c-border-dark: #7a7a7a;
+  --1c-border-main: #ababab;
+  --1c-border-light: #d8d6c8;
+  --1c-border-grid: #c0c0c0;
+  --1c-border-grid-strong: #8a8a8a;
+
+  --1c-font: "Segoe UI", Tahoma, Arial, sans-serif;
+  --1c-font-mono: "Consolas", "Courier New", monospace;
+  --1c-font-size: 11px;
+  --1c-font-size-sm: 10px;
+  --1c-font-size-md: 12px;
+  --1c-font-size-lg: 13px;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  -webkit-font-smoothing: antialiased;
+}
+
+body {
+  font-family: var(--1c-font);
+  font-size: var(--1c-font-size);
+  color: var(--1c-text-main);
+  background-color: var(--1c-bg-app);
+  height: 100vh;
+  overflow: hidden;
+  user-select: none;
+}
+
+/* 1C Window Container */
+.window-container {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  background-color: var(--1c-bg-app);
+  border: 1px solid var(--1c-border-dark);
+}
+
+/* 1C Window Title Bar */
+.window-titlebar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 24px;
+  background: linear-gradient(to bottom, #d2d0c2 0%, #c4c1b2 100%);
+  border-bottom: 1px solid var(--1c-border-dark);
+  padding: 0 6px;
+  font-size: 11px;
+  font-weight: bold;
+  color: #1a1a1a;
+}
+
+.window-titlebar-left {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.window-icon {
+  width: 14px;
+  height: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #c00000;
+  color: #ffffff;
+  border-radius: 2px;
+  font-size: 9px;
+  font-weight: 900;
+  letter-spacing: -0.5px;
+}
+
+.window-title {
+  font-size: 11px;
+  font-weight: bold;
+}
+
+.window-titlebar-controls {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.window-btn-sys {
+  width: 18px;
+  height: 16px;
+  background: #ece9d8;
+  border: 1px solid #7f9db9;
+  font-size: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  line-height: 1;
+  padding: 0;
+}
+
+.window-btn-sys:hover {
+  background: #fbf9ea;
+}
+
+.window-btn-close:hover {
+  background: #d84a38;
+  color: white;
+}
+
+/* Common 1C Button */
+.btn-1c {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  height: 22px;
+  padding: 0 8px;
+  font-family: var(--1c-font);
+  font-size: var(--1c-font-size);
+  color: var(--1c-text-main);
+  background: linear-gradient(to bottom, #fcfbf6 0%, #ece9d8 100%);
+  border: 1px solid #7f9db9;
+  border-radius: 2px;
+  cursor: pointer;
+  white-space: nowrap;
+  outline: none;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.7);
+}
+
+.btn-1c:hover {
+  background: linear-gradient(to bottom, #fff 0%, #f4f0df 100%);
+  border-color: #557ca7;
+}
+
+.btn-1c:active {
+  background: #ded9c4;
+  box-shadow: inset 0 1px 2px rgba(0,0,0,0.2);
+}
+
+.btn-1c.primary {
+  font-weight: bold;
+  border-color: #2b7814;
+  color: #104e06;
+}
+
+.btn-1c.primary:hover {
+  border-color: #1c550d;
+}
+
+.btn-1c-icon {
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: 1px solid transparent;
+  cursor: pointer;
+  border-radius: 2px;
+}
+
+.btn-1c-icon:hover {
+  background: #fdfbe8;
+  border-color: #8da4be;
+}
+
+/* 1C Standard Inputs */
+.input-1c {
+  height: 20px;
+  padding: 1px 4px;
+  font-family: var(--1c-font);
+  font-size: var(--1c-font-size);
+  color: var(--1c-text-main);
+  background-color: #ffffff;
+  border: 1px solid #7f9db9;
+  border-radius: 1px;
+  outline: none;
+}
+
+.input-1c:focus {
+  border-color: #316ac5;
+  box-shadow: 0 0 2px rgba(49, 106, 197, 0.5);
+}
+
+/* 1C Statusbar */
+.statusbar-1c {
+  height: 20px;
+  background: #ece9d8;
+  border-top: 1px solid #999;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 6px;
+  font-size: 10px;
+  color: #444;
+}
+
+.statusbar-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.statusbar-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.statusbar-indicator {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 1px 5px;
+  border: 1px inset #d0d0d0;
+  background: #faf8ef;
+}
+
+.dot-green {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background-color: #22c55e;
+}
+
+.dot-amber {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background-color: #f59e0b;
+}
+
+/* Modal Overlay Backdrop */
+.modal-overlay-1c {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: transparent !important;
+  pointer-events: none !important;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+}
+
+.modal-overlay-1c.active {
+  display: flex !important;
+}
+
+.modal-overlay-1c > * {
+  pointer-events: auto !important;
+}
+
+/* Loading Overlay */
+.loading-box-1c {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: #ffffff;
+  border: 2px solid #316ac5;
+  padding: 16px 24px;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.3);
+  display: none;
+  align-items: center;
+  gap: 12px;
+  z-index: 2000;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.loading-box-1c.active {
+  display: flex;
+}
+
+.spinner-1c {
+  width: 20px;
+  height: 20px;
+  border: 3px solid #d4d0c8;
+  border-top-color: #316ac5;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}

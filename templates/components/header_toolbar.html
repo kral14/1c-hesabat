@@ -1,0 +1,146 @@
+<!-- ========================================================
+     1C:ENTERPRISE UNIVERSAL REPORT - HEADER & TOOLBAR
+     header_toolbar.html
+     ======================================================== -->
+
+<!-- 1C Window Title Bar (Managed by MdiManager in .mdi-window-header) -->
+<div class="window-titlebar" style="display: none;">
+  <div class="window-titlebar-left">
+    <div class="window-icon">1C</div>
+    <span class="window-title" id="reportWindowTitle">Товары на складах</span>
+  </div>
+  <div class="window-titlebar-controls">
+    <button class="window-btn-sys" title="Qatla">_</button>
+    <button class="window-btn-sys" title="Böyüt">□</button>
+    <button class="window-btn-sys window-btn-close" title="Bağla" onclick="confirmCloseWindow()">✕</button>
+  </div>
+</div>
+
+<!-- 1C Action Toolbar (Screenshot 2 & 3) -->
+<div class="toolbar-1c">
+  <div class="toolbar-left">
+    
+    <!-- "Действия" Dropdown Button -->
+    <div style="position: relative;">
+      <button class="btn-actions" id="btnActionsDropdown" onclick="toggleActionsMenu(event)">
+        <span>Действия</span>
+        <span style="font-size: 8px;">▼</span>
+      </button>
+
+      <!-- Dropdown Menu List -->
+      <div id="actionsDropdownMenu" class="actions-dropdown">
+        <a href="javascript:void(0)" class="actions-dropdown-item" onclick="onActionFormirovat()">
+          <span>▶</span> <span>Сформировать</span>
+        </a>
+        <a href="javascript:void(0)" class="actions-dropdown-item" onclick="openSettingsModal(event)" onmousedown="event.stopPropagation()">
+          <span>⚙️</span> <span>Настройка...</span>
+        </a>
+        <div class="actions-dropdown-separator"></div>
+        <a href="javascript:void(0)" class="actions-dropdown-item" onclick="openRestoreSettingsModal()">
+          <span>📥</span> <span>Восстановить настройку...</span>
+        </a>
+        <a href="javascript:void(0)" class="actions-dropdown-item" onclick="openSaveSettingsModal()">
+          <span>📤</span> <span>Сохранить настройку...</span>
+        </a>
+        <a href="javascript:void(0)" class="actions-dropdown-item" onclick="resetToDefaultSettings()">
+          <span>↺</span> <span>Восстановить стандартные настройки</span>
+        </a>
+        <div class="actions-dropdown-separator"></div>
+        <a href="javascript:void(0)" class="actions-dropdown-item" onclick="exportReportToExcel()">
+          <span>📊</span> <span>Экспорт в Excel (.xlsx)</span>
+        </a>
+        <a href="javascript:void(0)" class="actions-dropdown-item" onclick="printReportSheet()">
+          <span>🖨️</span> <span>Печать...</span>
+        </a>
+        <div class="actions-dropdown-separator"></div>
+        <a href="javascript:void(0)" class="actions-dropdown-item" onclick="openLoginModal()">
+          <span>🔄</span> <span>Сменить базу / пользователя</span>
+        </a>
+      </div>
+    </div>
+
+    <!-- "▶ Сформировать" Button -->
+    <button class="btn-execute" id="btnMainFormirovat" onclick="onActionFormirovat()" title="Hesabatı formalaşdır (Ctrl+Enter)">
+      <span class="play-arrow">▶</span>
+      <span>Сформировать</span>
+    </button>
+
+    <!-- "Настройка..." Button -->
+    <button class="btn-settings" id="btnMainNastroyka" onclick="openSettingsModal(event)" onmousedown="event.stopPropagation()" title="Hesabatın tənzimləmələri və süzgəcləri">
+      <span>Настройка...</span>
+    </button>
+
+    <!-- 1C Settings Preset Buttons (Image 3: Сохранить настройку / Восстановление настройки) -->
+    <div class="toolbar-separator"></div>
+    <button class="tool-preset-btn" id="btnSaveSettingToolbar" onclick="openSaveSettingsModal()" title="Сохранить настройку... (Yadda saxla)">
+      <svg width="18" height="18" viewBox="0 0 20 20" fill="none" style="vertical-align: middle;">
+        <rect x="2.5" y="2.5" width="10" height="13" fill="#ffffff" stroke="#4878a8" stroke-width="1.1" rx="1"/>
+        <line x1="4.5" y1="5.5" x2="10.5" y2="5.5" stroke="#90a4ae" stroke-width="1"/>
+        <line x1="4.5" y1="8" x2="10.5" y2="8" stroke="#90a4ae" stroke-width="1"/>
+        <line x1="4.5" y1="10.5" x2="8.5" y2="10.5" stroke="#90a4ae" stroke-width="1"/>
+        <polygon points="10,17.5 16.5,17.5 13.5,11.5" fill="#f5c242" stroke="#b8860b" stroke-width="0.8"/>
+        <path d="M12,4 L8,8 L10.2,8 L10.2,12 L13.8,12 L13.8,8 L16,8 Z" fill="#2eb82e" stroke="#196619" stroke-width="0.8"/>
+      </svg>
+    </button>
+    <button class="tool-preset-btn" id="btnRestoreSettingToolbar" onclick="openRestoreSettingsModal()" title="Восстановление настройки... (Bərpa et)">
+      <svg width="18" height="18" viewBox="0 0 20 20" fill="none" style="vertical-align: middle;">
+        <rect x="7.5" y="2.5" width="10" height="13" fill="#ffffff" stroke="#4878a8" stroke-width="1.1" rx="1"/>
+        <line x1="9.5" y1="5.5" x2="15.5" y2="5.5" stroke="#90a4ae" stroke-width="1"/>
+        <line x1="9.5" y1="8" x2="15.5" y2="8" stroke="#90a4ae" stroke-width="1"/>
+        <line x1="9.5" y1="10.5" x2="13.5" y2="10.5" stroke="#90a4ae" stroke-width="1"/>
+        <polygon points="3.5,17.5 10,17.5 7,11.5" fill="#f5c242" stroke="#b8860b" stroke-width="0.8"/>
+        <path d="M14,14 L18,10 L15.8,10 L15.8,6 L12.2,6 L12.2,10 L10,10 Z" fill="#2eb82e" stroke="#196619" stroke-width="0.8"/>
+      </svg>
+    </button>
+
+    <div class="toolbar-separator"></div>
+
+    <!-- Quick Toolbar Icon Buttons (from Screenshot 2) -->
+    <button class="tool-icon-btn" onclick="exportReportToExcel()" title="Excel / Табличный документ">
+      <span style="font-size: 13px;">📄</span>
+    </button>
+    <button class="tool-icon-btn" onclick="toggleQuickFilters()" title="Отбор / Скрыть отборы">
+      <span style="font-size: 13px;">🔍</span>
+    </button>
+    <button class="tool-icon-btn active" title="Режим редактирования таблицы">
+      <span style="font-size: 13px;">▦</span>
+    </button>
+    <button class="tool-icon-btn" onclick="resetToDefaultSettings()" title="Восстановить значения">
+      <span style="font-size: 13px;">↩️</span>
+    </button>
+    <button class="tool-icon-btn" onclick="show1CHelp()" title="Справка (F1)">
+      <span style="font-size: 13px; font-weight: bold; color: #b86200;">❓</span>
+    </button>
+
+    <div class="toolbar-separator"></div>
+
+    <!-- Second Window Trigger Button -->
+    <button class="tool-preset-btn" onclick="MdiManager.createNewReportWindow()" title="İkinci pəncərəni aç (+ Yeni Hesabat pəncərəsi)" style="width: auto; padding: 0 6px; font-weight: bold; color: #1b5e20;">
+      <span>➕ 2-ci Pəncərə</span>
+    </button>
+
+    <!-- Active Preset Badge Indicator -->
+    <div id="toolbarActivePresetBadge" style="display: none; align-items: center; gap: 4px; background: #e8f5e9; border: 1px solid #81c784; color: #1b5e20; padding: 1px 7px; border-radius: 2px; font-weight: bold; font-size: 11px;">
+      <span>🏷️ Настройка: KRAFT</span>
+    </div>
+  </div>
+
+  <!-- Right: Date Pickers & Session Status -->
+  <div class="toolbar-right">
+    <div class="period-control-group">
+      <span class="period-label">Период с:</span>
+      <div class="period-input-wrapper">
+        <input type="text" id="topStartDateInput" class="period-input-1c" value="01.09.2026" onchange="syncDateInputsFromTop()">
+        <button class="period-cal-btn" onclick="pickDate('topStartDateInput', this)">📅</button>
+      </div>
+
+      <span class="period-label">по:</span>
+      <div class="period-input-wrapper">
+        <input type="text" id="topEndDateInput" class="period-input-1c" value="30.09.2026" onchange="syncDateInputsFromTop()">
+        <button class="period-cal-btn" onclick="pickDate('topEndDateInput', this)">📅</button>
+      </div>
+
+      <button class="period-more-btn" onclick="openPeriodSelectDialog(this)" title="Dövr seçimi">...</button>
+    </div>
+  </div>
+</div>

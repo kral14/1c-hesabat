@@ -1,0 +1,65 @@
+<!-- ========================================================
+     1C:ENTERPRISE RESTORE SETTINGS MODAL (Восстановление настройки)
+     settings_restore_modal.html (Image 4)
+     ======================================================== -->
+
+<div id="settingsRestoreModalOverlay" class="preset-modal-overlay">
+  <div class="preset-window-modal" id="settingsRestoreModalWindow" onmousedown="MdiManager.bringModalToFront(document.getElementById('settingsRestoreModalOverlay'))">
+    
+    <!-- Titlebar -->
+    <div class="preset-titlebar" ondblclick="togglePresetWindowMaximize(this)">
+      <div class="preset-title-left">
+        <span class="preset-title-icon">📥</span>
+        <span class="preset-title-text">Восстановление настройки</span>
+      </div>
+      <div class="preset-titlebar-controls">
+        <button class="preset-btn-max" onclick="togglePresetWindowMaximize(this)" title="Böyüt / Bərpa et">□</button>
+        <button class="preset-btn-close" onclick="closeRestoreSettingsModal()" title="Закрыть">✕</button>
+      </div>
+    </div>
+
+    <!-- Toolbar (Image 4) -->
+    <div class="preset-modal-toolbar">
+      <button class="preset-btn-select-main" onclick="confirmApplySelectedPreset()" title="Выбрать настройку">
+        <span style="color: #2b7814; font-size: 11px;">✔</span>
+        <span>Выбрать</span>
+      </button>
+
+      <div class="toolbar-separator" style="height: 18px;"></div>
+
+      <button class="preset-btn-select-main" style="font-weight: normal;" onclick="toggleAllUsersPresets()" title="Настройки всех пользователей">
+        <span>👤</span>
+        <span>Настройки всех пользователей</span>
+      </button>
+    </div>
+
+    <!-- Table Content (Image 4) -->
+    <div class="preset-modal-content">
+      <div class="preset-table-wrap">
+        <table class="preset-grid-table" id="presetRestoreTable">
+          <thead>
+            <tr>
+              <th style="min-width: 180px;">Наименование</th>
+              <th style="width: 70px;" class="th-center">Открыв...</th>
+              <th style="width: 70px;" class="th-center">Сохран...</th>
+              <th style="width: 130px;">Пользователь</th>
+            </tr>
+          </thead>
+          <tbody id="presetRestoreTableBody">
+            <!-- Dynamically populated rows from SettingsPresets -->
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Footer Controls -->
+    <div class="preset-modal-footer">
+      <button class="btn-1c" onclick="resetToCleanDefault(); closeRestoreSettingsModal();" style="margin-right: auto; color: #b86200;">
+        ↺ Стандартная настройка (Чистая)
+      </button>
+      <button class="btn-1c" onclick="confirmApplySelectedPreset()" style="font-weight: bold; min-width: 75px;">ОК</button>
+      <button class="btn-1c" onclick="closeRestoreSettingsModal()" style="min-width: 65px;">Отмена</button>
+    </div>
+
+  </div>
+</div>

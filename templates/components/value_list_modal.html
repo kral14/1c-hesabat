@@ -1,0 +1,82 @@
+<!-- ========================================================
+     1C:ENTERPRISE VALUE LIST EDITOR MODAL (СписокЗначений)
+     value_list_modal.html (Screenshot 2 - Редактирование списка значений)
+     ======================================================== -->
+
+<div id="valueListModalOverlay" class="modal-overlay-1c">
+  <div class="settings-window" id="valueListWindowModal" style="width: 480px; height: 440px; max-width: 95vw; max-height: 90vh;" onmousedown="MdiManager.bringModalToFront(document.getElementById('valueListModalOverlay'))">
+    
+    <!-- Title Bar -->
+    <div class="settings-header" ondblclick="ValueListModal.toggleMaximize()">
+      <div class="settings-header-title">
+        <div class="settings-header-icon" style="background: #316ac5;">📋</div>
+        <span>Редактирование списка значений</span>
+      </div>
+      <div class="window-titlebar-controls">
+        <button class="window-btn-sys" title="Böyüt / Bərpa et" onclick="ValueListModal.toggleMaximize()">□</button>
+        <button class="window-btn-sys window-btn-close" onclick="ValueListModal.close()">✕</button>
+      </div>
+    </div>
+
+    <!-- Body -->
+    <div class="settings-body" style="padding: 6px; background-color: #f7f6f0;">
+      
+      <!-- Top Label & Toolbar (Screenshot 2) -->
+      <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px;">
+        <span style="font-size: 11px; color: #222; font-weight: 500;">Список значений...</span>
+        
+        <div style="display: flex; align-items: center; gap: 3px;">
+          <!-- [+] Add -->
+          <button class="box-tool-btn" onclick="ValueListModal.openCatalogForNew()" title="Soraqçadan yeni element/qrup əlavə et (+)">
+            <span style="color: #2b7814; font-weight: bold; font-size: 13px;">➕</span>
+          </button>
+          <!-- Duplicate -->
+          <button class="box-tool-btn" onclick="ValueListModal.duplicateSelected()" title="Kopyala">
+            <span style="color: #004080; font-size: 11px;">📋</span>
+          </button>
+          <!-- Edit -->
+          <button class="box-tool-btn" onclick="ValueListModal.editSelected()" title="Dəyişdir">
+            <span style="color: #107c10; font-size: 11px;">✏️</span>
+          </button>
+          <!-- Delete [x] -->
+          <button class="box-tool-btn" onclick="ValueListModal.removeSelected()" title="Sil">
+            <span style="color: #c00000; font-weight: bold; font-size: 12px;">✖</span>
+          </button>
+          <!-- Save / Clear -->
+          <button class="box-tool-btn" onclick="ValueListModal.clearAll()" title="Təmizlə">
+            <span style="font-size: 11px;">📄</span>
+          </button>
+          
+          <!-- "Подбор" Button (Screenshot 2) -->
+          <button class="btn-1c primary" onclick="ValueListModal.openPodbor()" style="height: 20px; padding: 0 8px; margin-left: 6px; font-weight: bold;" title="Soraqçadan çoxsaylı seçim (Подбор)">
+            <span>Подбор</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Values List Container (Screenshot 2) -->
+      <div style="flex: 1; background: #ffffff; border: 1px solid #7f9db9; overflow-y: auto; min-height: 260px;">
+        <table style="width: 100%; border-collapse: collapse; font-size: 11px;" id="valueListTable">
+          <tbody id="valueListTbody">
+            <!-- Dynamic value rows with blue selection bar -->
+          </tbody>
+        </table>
+      </div>
+
+    </div>
+
+    <!-- Footer: OK / Отмена / Справка (Screenshot 2) -->
+    <div class="settings-footer" style="justify-content: flex-end; gap: 6px; padding: 6px 10px;">
+      <button class="btn-1c primary" onclick="ValueListModal.applyAndClose()" style="min-width: 65px; height: 23px;">
+        <span>OK</span>
+      </button>
+      <button class="btn-1c" onclick="ValueListModal.close()" style="min-width: 65px; height: 23px;">
+        <span>Отмена</span>
+      </button>
+      <button class="btn-1c" onclick="alert('Dəyərlər siyahısı redaktoru:\n\n- [Подбор] düyməsinə basaraq soraqçadan qovluq və ya malları siyahıya əlavə edin.\n- Qovluq (məs: 01 MONDELEZ) seçildikdə hesabat onun daxilindəki bütün malları da əhatə edəcəkdir.')" style="min-width: 65px; height: 23px;">
+        <span>Справка</span>
+      </button>
+    </div>
+
+  </div>
+</div>

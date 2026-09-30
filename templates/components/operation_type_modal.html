@@ -1,0 +1,60 @@
+<!-- ========================================================
+     1C:ENTERPRISE OPERATION TYPE SELECTOR (Выбор вида операции)
+     operation_type_modal.html
+     ======================================================== -->
+
+<div id="operationTypeModalOverlay" class="modal-overlay-1c">
+  <div class="settings-window" id="operationTypeWindow" style="width: 540px; height: 500px; max-width: 95vw; max-height: 90vh;" onmousedown="MdiManager.bringModalToFront(document.getElementById('operationTypeModalOverlay'))">
+    
+    <!-- Title Bar -->
+    <div class="settings-header" ondblclick="OperationTypeSelector.toggleMaximize()">
+      <div class="settings-header-title">
+        <span style="font-size: 13px; margin-right: 4px;">📑</span>
+        <span>Выбор вида операции (Регистратор)</span>
+      </div>
+      <div class="window-titlebar-controls">
+        <button class="window-btn-sys" title="Böyüt / Bərpa et" onclick="OperationTypeSelector.toggleMaximize()">□</button>
+        <button class="window-btn-sys window-btn-close" onclick="OperationTypeSelector.close()">✕</button>
+      </div>
+    </div>
+
+    <!-- Search Toolbar -->
+    <div style="background: #ece9d8; padding: 5px 8px; border-bottom: 1px solid #c0bfae; display: flex; align-items: center; justify-content: space-between; gap: 8px;">
+      <div style="display: flex; align-items: center; gap: 6px; flex: 1;">
+        <span style="font-size: 11px; color: #333; font-weight: bold;">Поиск:</span>
+        <input type="text" id="opTypeSearchInput" class="input-1c" style="flex: 1; height: 21px;" placeholder="Əməliyyat növünü axtar..." oninput="OperationTypeSelector.filter(this.value)">
+      </div>
+      <button class="btn-1c" onclick="OperationTypeSelector.clearSearch()" style="height: 21px; padding: 0 8px;" title="Təmizlə">✕</button>
+    </div>
+
+    <!-- Table Content -->
+    <div class="settings-body" style="padding: 2px; overflow-y: auto; flex: 1; background: #fff;">
+      <table style="width: 100%; border-collapse: collapse; font-size: 11px;" id="operationTypeTable">
+        <thead>
+          <tr style="background: #ece9d8; position: sticky; top: 0; z-index: 2; border-bottom: 1px solid #b2af9e;">
+            <th style="width: 28px; text-align: center; padding: 3px;" id="opTypeColChk">
+              <input type="checkbox" id="opTypeCheckAll" onchange="OperationTypeSelector.checkAll(this.checked)" title="Hamısını seç">
+            </th>
+            <th style="text-align: left; padding: 4px 6px; border-left: 1px solid #dcd9c8;">Вид операции</th>
+            <th style="text-align: left; padding: 4px 6px; width: 190px; border-left: 1px solid #dcd9c8;">Документ движения</th>
+          </tr>
+        </thead>
+        <tbody id="operationTypeTbody">
+          <!-- Populated by OperationTypeSelector.render() -->
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Footer Controls -->
+    <div class="settings-footer" style="padding: 6px 10px; background: #ece9d8; border-top: 1px solid #c0bfae; display: flex; align-items: center; justify-content: space-between;">
+      <div style="font-size: 10px; color: #555;" id="opTypeSelectedCount">
+        Seçilmiş: 0 əməliyyat
+      </div>
+      <div style="display: flex; gap: 6px;">
+        <button class="btn-1c primary" onclick="OperationTypeSelector.confirm()" style="min-width: 75px; font-weight: bold;">Выбрать</button>
+        <button class="btn-1c" onclick="OperationTypeSelector.close()" style="min-width: 65px;">Отмена</button>
+      </div>
+    </div>
+
+  </div>
+</div>

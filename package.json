@@ -1,0 +1,9 @@
+{
+  "name": "1c-universal-reporter",
+  "version": "1.0.0",
+  "description": "1C:Enterprise Universal Report Desktop App",
+  "main": "main_electron.js",
+  "scripts": {
+    "start": "electron ."
+  }
+}

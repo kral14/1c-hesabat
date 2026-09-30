@@ -1,0 +1,251 @@
+<!-- ========================================================
+     1C:ENTERPRISE UNIVERSAL REPORT - FIELD SELECTOR MODAL (ВЫБОР ПОЛЯ)
+     field_selector_modal.html (Screenshot 3)
+     ======================================================== -->
+
+<div id="fieldSelectorModalOverlay" class="modal-overlay-1c">
+  <div class="settings-window" id="fieldSelectorWindow" style="width: 360px; height: 500px; max-width: 95vw; max-height: 90vh;" onmousedown="MdiManager.bringModalToFront(document.getElementById('fieldSelectorModalOverlay'))">
+    
+    <!-- Window Header -->
+    <div class="settings-header" ondblclick="toggleFieldSelectorMaximize()">
+      <div class="settings-header-title">
+        <span style="font-size: 13px; margin-right: 4px;">📊</span>
+        <span>Выбор поля</span>
+      </div>
+      <div class="window-titlebar-controls">
+        <button class="window-btn-sys" title="Böyüt / Bərpa et" onclick="toggleFieldSelectorMaximize()">□</button>
+        <button class="window-btn-sys window-btn-close" onclick="closeFieldSelectorModal()" title="Закрыть">✕</button>
+      </div>
+    </div>
+
+    <!-- Tree Sub-header -->
+    <div style="background: #f7f6f0; padding: 4px 8px; border-bottom: 1px solid #d4d0c8; font-size: 11px; font-weight: bold; color: #222;">
+      Доступные поля
+    </div>
+
+    <!-- Tree Body -->
+    <div class="settings-body" style="padding: 4px; overflow-y: auto; flex: 1; background: #fff;">
+      <div id="fieldSelectorTree" class="field-picker-tree">
+        
+        <!-- 1. БазоваяЕдиницаИзмерения -->
+        <div class="fp-node">
+          <div class="fp-row" onclick="onFieldNodeClick(this, 'БазоваяЕдиницаИзмерения')" ondblclick="confirmFieldSelection()">
+            <span class="fp-expander" onclick="toggleFieldNode(event, this)">+</span>
+            <span class="fp-icon fp-icon-folder">📁</span>
+            <span class="fp-label">БазоваяЕдиницаИзмерения</span>
+          </div>
+          <div class="fp-children" style="display: none;">
+            <div class="fp-row fp-sub" onclick="onFieldNodeClick(this, 'БазоваяЕдиницаИзмерения.Код')" ondblclick="confirmFieldSelection()">
+              <span class="fp-indent"></span>
+              <span class="fp-icon">📄</span>
+              <span class="fp-label">Код</span>
+            </div>
+            <div class="fp-row fp-sub" onclick="onFieldNodeClick(this, 'БазоваяЕдиницаИзмерения.Наименование')" ondblclick="confirmFieldSelection()">
+              <span class="fp-indent"></span>
+              <span class="fp-icon">📄</span>
+              <span class="fp-label">Наименование</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- 2. Качество -->
+        <div class="fp-node">
+          <div class="fp-row" onclick="onFieldNodeClick(this, 'Качество')" ondblclick="confirmFieldSelection()">
+            <span class="fp-expander" onclick="toggleFieldNode(event, this)">+</span>
+            <span class="fp-icon fp-icon-folder">📁</span>
+            <span class="fp-label">Качество</span>
+          </div>
+          <div class="fp-children" style="display: none;">
+            <div class="fp-row fp-sub" onclick="onFieldNodeClick(this, 'Качество.Код')" ondblclick="confirmFieldSelection()">
+              <span class="fp-indent"></span>
+              <span class="fp-icon">📄</span>
+              <span class="fp-label">Код</span>
+            </div>
+            <div class="fp-row fp-sub" onclick="onFieldNodeClick(this, 'Качество.Наименование')" ondblclick="confirmFieldSelection()">
+              <span class="fp-indent"></span>
+              <span class="fp-icon">📄</span>
+              <span class="fp-label">Наименование</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- 3. Номенклатура -->
+        <div class="fp-node">
+          <div class="fp-row" onclick="onFieldNodeClick(this, 'Номенклатура')" ondblclick="confirmFieldSelection()">
+            <span class="fp-expander" onclick="toggleFieldNode(event, this)">+</span>
+            <span class="fp-icon fp-icon-folder">📁</span>
+            <span class="fp-label">Номенклатура</span>
+          </div>
+          <div class="fp-children" style="display: none;">
+            <div class="fp-row fp-sub" onclick="onFieldNodeClick(this, 'Номенклатура.Артикул')" ondblclick="confirmFieldSelection()">
+              <span class="fp-indent"></span>
+              <span class="fp-icon">📄</span>
+              <span class="fp-label">Артикул</span>
+            </div>
+            <div class="fp-row fp-sub" onclick="onFieldNodeClick(this, 'Номенклатура.БазоваяЕдиницаИзмерения')" ondblclick="confirmFieldSelection()">
+              <span class="fp-indent"></span>
+              <span class="fp-icon">📁</span>
+              <span class="fp-label">БазоваяЕдиницаИзмерения</span>
+            </div>
+            <div class="fp-row fp-sub" onclick="onFieldNodeClick(this, 'Номенклатура.Код')" ondblclick="confirmFieldSelection()">
+              <span class="fp-indent"></span>
+              <span class="fp-icon">📄</span>
+              <span class="fp-label">Код</span>
+            </div>
+            <div class="fp-row fp-sub" onclick="onFieldNodeClick(this, 'Номенклатура.Наименование')" ondblclick="confirmFieldSelection()">
+              <span class="fp-indent"></span>
+              <span class="fp-icon">📄</span>
+              <span class="fp-label">Наименование</span>
+            </div>
+            <div class="fp-row fp-sub" onclick="onFieldNodeClick(this, 'Номенклатура.Номенклатурная группа')" ondblclick="confirmFieldSelection()">
+              <span class="fp-indent"></span>
+              <span class="fp-icon">📁</span>
+              <span class="fp-label">Номенклатурная группа</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Periods Group -->
+        <div class="fp-row" onclick="onFieldNodeClick(this, 'Период')" ondblclick="confirmFieldSelection()">
+          <span class="fp-expander-blank"></span>
+          <span class="fp-icon fp-icon-cal">📅</span>
+          <span class="fp-label">Период</span>
+        </div>
+        <div class="fp-row" onclick="onFieldNodeClick(this, 'По годам')" ondblclick="confirmFieldSelection()">
+          <span class="fp-expander-blank"></span>
+          <span class="fp-icon fp-icon-cal">📅</span>
+          <span class="fp-label">По годам</span>
+        </div>
+        <div class="fp-row" onclick="onFieldNodeClick(this, 'По декадам')" ondblclick="confirmFieldSelection()">
+          <span class="fp-expander-blank"></span>
+          <span class="fp-icon fp-icon-cal">📅</span>
+          <span class="fp-label">По декадам</span>
+        </div>
+        <div class="fp-row" onclick="onFieldNodeClick(this, 'По дням')" ondblclick="confirmFieldSelection()">
+          <span class="fp-expander-blank"></span>
+          <span class="fp-icon fp-icon-cal">📅</span>
+          <span class="fp-label">По дням</span>
+        </div>
+        <div class="fp-row" onclick="onFieldNodeClick(this, 'По кварталам')" ondblclick="confirmFieldSelection()">
+          <span class="fp-expander-blank"></span>
+          <span class="fp-icon fp-icon-cal">📅</span>
+          <span class="fp-label">По кварталам</span>
+        </div>
+        <div class="fp-row" onclick="onFieldNodeClick(this, 'По месяцам')" ondblclick="confirmFieldSelection()">
+          <span class="fp-expander-blank"></span>
+          <span class="fp-icon fp-icon-cal">📅</span>
+          <span class="fp-label">По месяцам</span>
+        </div>
+        <div class="fp-row" onclick="onFieldNodeClick(this, 'По неделям')" ondblclick="confirmFieldSelection()">
+          <span class="fp-expander-blank"></span>
+          <span class="fp-icon fp-icon-cal">📅</span>
+          <span class="fp-label">По неделям</span>
+        </div>
+        <div class="fp-row" onclick="onFieldNodeClick(this, 'По полугодиям')" ondblclick="confirmFieldSelection()">
+          <span class="fp-expander-blank"></span>
+          <span class="fp-icon fp-icon-cal">📅</span>
+          <span class="fp-label">По полугодиям</span>
+        </div>
+
+        <!-- 4. Документ движения (регистратор) -->
+        <div class="fp-node">
+          <div class="fp-row" onclick="onFieldNodeClick(this, 'Документ движения (регистратор)')" ondblclick="confirmFieldSelection()">
+            <span class="fp-expander" onclick="toggleFieldNode(event, this)">+</span>
+            <span class="fp-icon fp-icon-doc">📝</span>
+            <span class="fp-label">Документ движения (регистратор)</span>
+          </div>
+          <div class="fp-children" style="display: none;">
+            <div class="fp-row fp-sub" onclick="onFieldNodeClick(this, 'Документ движения (регистратор).Вид операции')" ondblclick="confirmFieldSelection()">
+              <span class="fp-indent"></span>
+              <span class="fp-icon">📄</span>
+              <span class="fp-label">Вид операции</span>
+            </div>
+            <div class="fp-row fp-sub" onclick="onFieldNodeClick(this, 'Документ движения (регистратор).Дата')" ondblclick="confirmFieldSelection()">
+              <span class="fp-indent"></span>
+              <span class="fp-icon">📅</span>
+              <span class="fp-label">Дата</span>
+            </div>
+            <div class="fp-row fp-sub" onclick="onFieldNodeClick(this, 'Документ движения (регистратор).Номер')" ondblclick="confirmFieldSelection()">
+              <span class="fp-indent"></span>
+              <span class="fp-icon">📄</span>
+              <span class="fp-label">Номер</span>
+            </div>
+            <div class="fp-row fp-sub" onclick="onFieldNodeClick(this, 'Документ движения (регистратор).Ответственный')" ondblclick="confirmFieldSelection()">
+              <span class="fp-indent"></span>
+              <span class="fp-icon">👤</span>
+              <span class="fp-label">Ответственный</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- 5. СерияНоменклатуры -->
+        <div class="fp-node">
+          <div class="fp-row" onclick="onFieldNodeClick(this, 'СерияНоменклатуры')" ondblclick="confirmFieldSelection()">
+            <span class="fp-expander" onclick="toggleFieldNode(event, this)">+</span>
+            <span class="fp-icon fp-icon-folder">📁</span>
+            <span class="fp-label">СерияНоменклатуры</span>
+          </div>
+          <div class="fp-children" style="display: none;">
+            <div class="fp-row fp-sub" onclick="onFieldNodeClick(this, 'СерияНоменклатуры.Номер')" ondblclick="confirmFieldSelection()">
+              <span class="fp-indent"></span>
+              <span class="fp-icon">📄</span>
+              <span class="fp-label">Номер</span>
+            </div>
+            <div class="fp-row fp-sub" onclick="onFieldNodeClick(this, 'СерияНоменклатуры.ГоденДо')" ondblclick="confirmFieldSelection()">
+              <span class="fp-indent"></span>
+              <span class="fp-icon">📅</span>
+              <span class="fp-label">ГоденДо</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- 6. Склад -->
+        <div class="fp-node">
+          <div class="fp-row" onclick="onFieldNodeClick(this, 'Склад')" ondblclick="confirmFieldSelection()">
+            <span class="fp-expander" onclick="toggleFieldNode(event, this)">+</span>
+            <span class="fp-icon fp-icon-folder">📁</span>
+            <span class="fp-label">Склад</span>
+          </div>
+          <div class="fp-children" style="display: none;">
+            <div class="fp-row fp-sub" onclick="onFieldNodeClick(this, 'Склад.Код')" ondblclick="confirmFieldSelection()">
+              <span class="fp-indent"></span>
+              <span class="fp-icon">📄</span>
+              <span class="fp-label">Код</span>
+            </div>
+            <div class="fp-row fp-sub" onclick="onFieldNodeClick(this, 'Склад.Наименование')" ondblclick="confirmFieldSelection()">
+              <span class="fp-indent"></span>
+              <span class="fp-icon">📄</span>
+              <span class="fp-label">Наименование</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- 7. ХарактеристикаНоменклатуры -->
+        <div class="fp-row" onclick="onFieldNodeClick(this, 'ХарактеристикаНоменклатуры')" ondblclick="confirmFieldSelection()">
+          <span class="fp-expander-blank"></span>
+          <span class="fp-icon fp-icon-folder">📁</span>
+          <span class="fp-label">ХарактеристикаНоменклатуры</span>
+        </div>
+
+        <!-- 8. Портфель (Номенклатурная группа) -->
+        <div class="fp-row" onclick="onFieldNodeClick(this, 'Портфель')" ondblclick="confirmFieldSelection()">
+          <span class="fp-expander-blank"></span>
+          <span class="fp-icon fp-icon-folder">📁</span>
+          <span class="fp-label">Портфель (Номенклатурная группа)</span>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- Window Footer Buttons -->
+    <div style="display: flex; justify-content: flex-end; gap: 8px; padding: 8px 12px; background: #ece9d8; border-top: 1px solid #c0bfae;">
+      <button class="btn-1c primary" onclick="confirmFieldSelection()" style="min-width: 65px; height: 24px; font-size: 11px;">
+        OK
+      </button>
+      <button class="btn-1c" onclick="closeFieldSelectorModal()" style="min-width: 65px; height: 24px; font-size: 11px;">
+        Отмена
+      </button>
+    </div>
+
+  </div>
+</div>

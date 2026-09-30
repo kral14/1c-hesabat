@@ -1,0 +1,236 @@
+/* ========================================================
+   1C:ENTERPRISE UNIVERSAL REPORT - TOOLBAR STYLESHEET
+   1c_toolbar.css
+   ======================================================== */
+
+.toolbar-1c {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 28px;
+  background: #f0ede0;
+  border-bottom: 1px solid var(--1c-border-dark);
+  padding: 0 4px;
+  gap: 4px;
+  overflow-x: auto;
+}
+
+.toolbar-left {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+}
+
+.toolbar-right {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: auto;
+  padding-right: 4px;
+}
+
+.toolbar-separator {
+  width: 1px;
+  height: 18px;
+  background-color: #b0af9f;
+  margin: 0 2px;
+}
+
+/* Action Dropdown Menu Button */
+.btn-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 22px;
+  padding: 0 6px;
+  background: linear-gradient(to bottom, #fcfbf6 0%, #ece9d8 100%);
+  border: 1px solid #7f9db9;
+  border-radius: 2px;
+  cursor: pointer;
+  font-size: 11px;
+}
+
+.btn-actions:hover {
+  background: #fff;
+  border-color: #316ac5;
+}
+
+/* Primary "Сформировать" Button */
+.btn-execute {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 22px;
+  padding: 0 10px;
+  background: linear-gradient(to bottom, #ffffff 0%, #f1efe4 100%);
+  border: 1px solid #7f9db9;
+  border-radius: 2px;
+  cursor: pointer;
+  font-size: 11px;
+  font-weight: bold;
+  color: #000;
+}
+
+.btn-execute:hover {
+  background: #fffae8;
+  border-color: #2b7814;
+}
+
+.btn-execute .play-arrow {
+  color: #107c10;
+  font-size: 10px;
+}
+
+/* "Настройка..." Button */
+.btn-settings {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 22px;
+  padding: 0 8px;
+  background: linear-gradient(to bottom, #fcfbf6 0%, #ece9d8 100%);
+  border: 1px solid #7f9db9;
+  border-radius: 2px;
+  cursor: pointer;
+  font-size: 11px;
+}
+
+.btn-settings:hover {
+  background: #fff;
+  border-color: #316ac5;
+}
+
+/* Toolbar Icon Buttons */
+.tool-icon-btn {
+  width: 22px;
+  height: 22px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 2px;
+  cursor: pointer;
+  color: #333;
+}
+
+.tool-icon-btn:hover {
+  background: #fbf9ea;
+  border-color: #7f9db9;
+}
+
+.tool-icon-btn.active {
+  background: #ded9c4;
+  border-color: #7a7a7a;
+  box-shadow: inset 0 1px 1px rgba(0,0,0,0.15);
+}
+
+/* Period Controls Container */
+.period-control-group {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+.period-label {
+  color: #222;
+  font-size: 11px;
+}
+
+.period-input-wrapper {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+
+.period-input-1c {
+  width: 90px;
+  height: 20px;
+  padding: 1px 18px 1px 4px;
+  border: 1px solid #7f9db9;
+  background: #fff;
+  font-family: var(--1c-font);
+  font-size: 11px;
+  text-align: center;
+}
+
+.period-cal-btn {
+  position: absolute;
+  right: 1px;
+  top: 1px;
+  width: 17px;
+  height: 18px;
+  background: #ece9d8;
+  border: none;
+  border-left: 1px solid #7f9db9;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: #444;
+  font-size: 10px;
+}
+
+.period-cal-btn:hover {
+  background: #fdfae7;
+}
+
+.period-more-btn {
+  width: 18px;
+  height: 20px;
+  background: #ece9d8;
+  border: 1px solid #7f9db9;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-size: 10px;
+  font-weight: bold;
+}
+
+.period-more-btn:hover {
+  background: #fff;
+}
+
+/* Dropdown Menu for "Действия" */
+.actions-dropdown {
+  position: absolute;
+  top: 52px;
+  left: 6px;
+  background: #ffffff;
+  border: 1px solid #7a7a7a;
+  box-shadow: 2px 2px 5px rgba(0,0,0,0.25);
+  display: none;
+  flex-direction: column;
+  min-width: 180px;
+  z-index: 500;
+  padding: 2px 0;
+}
+
+.actions-dropdown.show {
+  display: flex;
+}
+
+.actions-dropdown-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 12px;
+  font-size: 11px;
+  color: #000;
+  cursor: pointer;
+  text-decoration: none;
+}
+
+.actions-dropdown-item:hover {
+  background-color: var(--1c-bg-selected);
+  color: var(--1c-text-selected);
+}
+
+.actions-dropdown-separator {
+  height: 1px;
+  background: #e0e0e0;
+  margin: 3px 0;
+}
