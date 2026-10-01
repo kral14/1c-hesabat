@@ -260,11 +260,11 @@ class OneCService(threading.Thread):
 
                 conn = self.connections.get(key)
                 if conn is not None:
+                    # Check connection liveness using valid COMConnector method String(1)
                     try:
-                        # True cluster RPC check: ТекущаяДата() hits 1C rphost process to verify session is still alive
-                        _ = conn.ТекущаяДата()
-                    except Exception:
-                        print(f"🔄 [1C SESSIYA BƏRPASI] Sessiya vaxt aşımına (inactivity timeout) uğrayıb, avtomatik yenidən qoşulur...", flush=True)
+                        _ = conn.String(1)
+                    except Exception as e_hb:
+                        print(f"🔄 [1C SESSIYA BƏRPASI] COM sessiyası qırılıb ({e_hb}), yenidən qoşulur...", flush=True)
                         self.connections.pop(key, None)
                         conn = None
 
