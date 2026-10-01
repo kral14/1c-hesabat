@@ -10,6 +10,11 @@ const PortfolioCatalog = {
   availablePriceTypes: [],
   selectedPriceTypes: ["20"],
   activePriceTypes: ["20"],
+  availablePortfolios: [],
+  selectedPortfolios: [],
+  availableNomGroups: [],
+  selectedNomGroups: [],
+  portfolioGroupsMap: {},
   priceAnalysis: {
     enabled: false,
     basePriceType: "20"
@@ -261,6 +266,340 @@ const PortfolioCatalog = {
     }
   },
 
+  togglePortfolioDropdown: function(e) {
+    if (e) {
+      e.stopPropagation();
+      e.preventDefault();
+    }
+    const menu = document.getElementById("pcPortfolioMenu");
+    if (!menu) return;
+    const isShown = menu.style.display === "block";
+    menu.style.display = isShown ? "none" : "block";
+    if (!isShown) {
+      const inp = document.getElementById("pcPortfolioSearchInp");
+      if (inp) {
+        inp.value = "";
+        setTimeout(() => inp.focus(), 30);
+      }
+      this.renderPortfolioChecklist();
+    }
+  },
+
+  filterPortfolioDropdownList: function() {
+    const inp = document.getElementById("pcPortfolioSearchInp");
+    const q = inp ? inp.value.trim().toLowerCase() : "";
+    const items = document.querySelectorAll("#pcPortfolioList label");
+    items.forEach(el => {
+      const text = el.textContent.toLowerCase();
+      el.style.display = text.includes(q) ? "flex" : "none";
+    });
+  },
+
+  renderPortfolioChecklist: function() {
+    const listEl = document.getElementById("pcPortfolioList");
+    if (!listEl) return;
+    listEl.innerHTML = "";
+
+    this.availablePortfolios.forEach(p => {
+      const isChecked = this.selectedPortfolios.includes(p);
+      const label = document.createElement("label");
+      label.style.display = "flex";
+      label.style.alignItems = "center";
+      label.style.gap = "6px";
+      label.style.padding = "3px 5px";
+      label.style.cursor = "pointer";
+      label.style.borderRadius = "2px";
+      label.style.fontSize = "11px";
+      label.style.userSelect = "none";
+      label.onmouseover = () => { label.style.background = "#eef4fa"; };
+      label.onmouseout = () => { label.style.background = "transparent"; };
+
+      const chk = document.createElement("input");
+      chk.type = "checkbox";
+      chk.value = p;
+      chk.checked = isChecked;
+      chk.style.cursor = "pointer";
+      chk.onchange = (ev) => {
+        this.onPortfolioToggle(p, ev.target.checked);
+      };
+
+      const span = document.createElement("span");
+      span.textContent = p;
+      span.style.color = "#111";
+
+      label.appendChild(chk);
+      label.appendChild(span);
+      listEl.appendChild(label);
+    });
+
+    this.updatePortfolioButtonLabel();
+  },
+
+  onPortfolioToggle: function(pName, isChecked) {
+    if (isChecked) {
+      if (!this.selectedPortfolios.includes(pName)) {
+        this.selectedPortfolios.push(pName);
+      }
+    } else {
+      this.selectedPortfolios = this.selectedPortfolios.filter(p => p !== pName);
+    }
+    this.updatePortfolioButtonLabel();
+    // Prune nom groups that don't belong to any remaining selected portfolio
+    if (this.selectedPortfolios.length > 0 && this.selectedNomGroups.length > 0) {
+      let allowedGroups = new Set();
+      this.selectedPortfolios.forEach(port => {
+        (this.portfolioGroupsMap[port] || []).forEach(g => allowedGroups.add(g));
+      });
+      this.selectedNomGroups = this.selectedNomGroups.filter(g => allowedGroups.has(g));
+    }
+    this.renderNomGroupChecklist();
+    this.generate();
+  },
+
+  selectAllPortfolios: function(select) {
+    if (select) {
+      this.selectedPortfolios = [...this.availablePortfolios];
+    } else {
+      this.selectedPortfolios = [];
+    }
+    this.updatePortfolioButtonLabel();
+    this.renderPortfolioChecklist();
+    this.renderNomGroupChecklist();
+    this.generate();
+  },
+
+  updatePortfolioButtonLabel: function() {
+    const lbl = document.getElementById("pcPortfolioLabel");
+    if (!lbl) return;
+    if (this.selectedPortfolios.length === 0) {
+      lbl.textContent = "(Все портфели)";
+      lbl.style.color = "#000";
+    } else if (this.selectedPortfolios.length === 1) {
+      lbl.textContent = this.selectedPortfolios[0];
+      lbl.style.color = "#002060";
+    } else if (this.selectedPortfolios.length === 2) {
+      lbl.textContent = this.selectedPortfolios.join(", ");
+      lbl.style.color = "#002060";
+    } else {
+      lbl.textContent = `${this.selectedPortfolios.slice(0, 2).join(", ")} (+${this.selectedPortfolios.length - 2})`;
+      lbl.style.color = "#002060";
+    }
+  },
+
+  // -------------------------------------------------------------
+  // NOMENCLATURE GROUPS MULTI-SELECT (Grouped by Portfolio Headings)
+  // -------------------------------------------------------------
+  toggleNomGroupDropdown: function(e) {
+    if (e) {
+      e.stopPropagation();
+      e.preventDefault();
+    }
+    const menu = document.getElementById("pcNomGroupMenu");
+    if (!menu) return;
+    const isShown = menu.style.display === "block";
+    menu.style.display = isShown ? "none" : "block";
+    if (!isShown) {
+      const inp = document.getElementById("pcNomGroupSearchInp");
+      if (inp) {
+        inp.value = "";
+        setTimeout(() => inp.focus(), 30);
+      }
+      this.renderNomGroupChecklist();
+    }
+  },
+
+  filterNomGroupDropdownList: function() {
+    const inp = document.getElementById("pcNomGroupSearchInp");
+    const q = inp ? inp.value.trim().toLowerCase() : "";
+    const sections = document.querySelectorAll("#pcNomGroupList .pc-nomgroup-section");
+    sections.forEach(sec => {
+      let anyVisible = false;
+      sec.querySelectorAll(".pc-nomgroup-item").forEach(item => {
+        const text = item.textContent.toLowerCase();
+        const match = text.includes(q);
+        item.style.display = match ? "flex" : "none";
+        if (match) anyVisible = true;
+      });
+      sec.style.display = (anyVisible || !q) ? "block" : "none";
+    });
+  },
+
+  renderNomGroupChecklist: function() {
+    const listEl = document.getElementById("pcNomGroupList");
+    if (!listEl) return;
+    listEl.innerHTML = "";
+
+    // Target portfolios to render as headings:
+    // If user has specific portfolios selected -> show ONLY those portfolios!
+    // If all portfolios (or none selected) -> show all portfolios with groups
+    let targetPortfolios = [];
+    if (this.selectedPortfolios.length > 0) {
+      targetPortfolios = this.selectedPortfolios;
+    } else if (Object.keys(this.portfolioGroupsMap).length > 0) {
+      targetPortfolios = Object.keys(this.portfolioGroupsMap);
+    } else {
+      targetPortfolios = this.availablePortfolios;
+    }
+
+    if (!targetPortfolios || targetPortfolios.length === 0) {
+      listEl.innerHTML = '<div style="color: #888; padding: 10px; text-align: center;">Нет данных по группам</div>';
+      this.updateNomGroupButtonLabel();
+      return;
+    }
+
+    targetPortfolios.forEach(port => {
+      const grps = this.portfolioGroupsMap[port] || [];
+      if (grps.length === 0) return;
+
+      const sec = document.createElement("div");
+      sec.className = "pc-nomgroup-section";
+      sec.style.marginBottom = "5px";
+
+      // Portfolio Section Header (e.g. 📁 01 MONDELEZ)
+      const header = document.createElement("div");
+      header.className = "pc-nomgroup-header";
+      header.style.background = "#e4edf7";
+      header.style.color = "#003366";
+      header.style.fontWeight = "bold";
+      header.style.fontSize = "11px";
+      header.style.padding = "3px 6px";
+      header.style.borderRadius = "2px";
+      header.style.border = "1px solid #b8d0ea";
+      header.style.display = "flex";
+      header.style.alignItems = "center";
+      header.style.justifyContent = "space-between";
+      header.style.cursor = "pointer";
+      header.title = `Нажмите, чтобы выбрать / снять все группы портфеля «${port}»`;
+
+      const headerTitle = document.createElement("span");
+      headerTitle.textContent = `📁 ${port} (${grps.length})`;
+      header.appendChild(headerTitle);
+
+      const headerAction = document.createElement("span");
+      headerAction.style.fontSize = "9px";
+      headerAction.style.color = "#555";
+      const allSelected = grps.every(g => this.selectedNomGroups.includes(g));
+      headerAction.textContent = allSelected ? "✕ снять" : "☑ выбрать все";
+      header.appendChild(headerAction);
+
+      header.onclick = (ev) => {
+        ev.stopPropagation();
+        this.toggleAllGroupsForPortfolio(port, grps);
+      };
+
+      sec.appendChild(header);
+
+      // Groups container
+      const itemsContainer = document.createElement("div");
+      itemsContainer.style.display = "flex";
+      itemsContainer.style.flexDirection = "column";
+      itemsContainer.style.gap = "1px";
+      itemsContainer.style.paddingLeft = "8px";
+      itemsContainer.style.paddingTop = "2px";
+
+      grps.forEach(grp => {
+        const isChecked = this.selectedNomGroups.includes(grp);
+        const label = document.createElement("label");
+        label.className = "pc-nomgroup-item";
+        label.style.display = "flex";
+        label.style.alignItems = "center";
+        label.style.gap = "6px";
+        label.style.padding = "2px 4px";
+        label.style.cursor = "pointer";
+        label.style.borderRadius = "2px";
+        label.style.fontSize = "11px";
+        label.style.userSelect = "none";
+        label.onmouseover = () => { label.style.background = "#f0f4f9"; };
+        label.onmouseout = () => { label.style.background = "transparent"; };
+
+        const chk = document.createElement("input");
+        chk.type = "checkbox";
+        chk.value = grp;
+        chk.checked = isChecked;
+        chk.style.cursor = "pointer";
+        chk.onchange = (ev) => {
+          this.onNomGroupToggle(grp, ev.target.checked);
+        };
+
+        const span = document.createElement("span");
+        span.textContent = grp;
+        span.style.color = "#222";
+
+        label.appendChild(chk);
+        label.appendChild(span);
+        itemsContainer.appendChild(label);
+      });
+
+      sec.appendChild(itemsContainer);
+      listEl.appendChild(sec);
+    });
+
+    this.updateNomGroupButtonLabel();
+  },
+
+  onNomGroupToggle: function(gName, isChecked) {
+    if (isChecked) {
+      if (!this.selectedNomGroups.includes(gName)) {
+        this.selectedNomGroups.push(gName);
+      }
+    } else {
+      this.selectedNomGroups = this.selectedNomGroups.filter(g => g !== gName);
+    }
+    this.updateNomGroupButtonLabel();
+    this.generate();
+  },
+
+  toggleAllGroupsForPortfolio: function(portName, grps) {
+    if (!grps || !grps.length) return;
+    const allSelected = grps.every(g => this.selectedNomGroups.includes(g));
+    if (allSelected) {
+      // Deselect all
+      this.selectedNomGroups = this.selectedNomGroups.filter(g => !grps.includes(g));
+    } else {
+      // Select all
+      grps.forEach(g => {
+        if (!this.selectedNomGroups.includes(g)) this.selectedNomGroups.push(g);
+      });
+    }
+    this.renderNomGroupChecklist();
+    this.generate();
+  },
+
+  selectAllNomGroups: function(select) {
+    if (select) {
+      let allGrps = [];
+      let targetPorts = this.selectedPortfolios.length ? this.selectedPortfolios : Object.keys(this.portfolioGroupsMap);
+      targetPorts.forEach(p => {
+        (this.portfolioGroupsMap[p] || []).forEach(g => {
+          if (!allGrps.includes(g)) allGrps.push(g);
+        });
+      });
+      this.selectedNomGroups = allGrps;
+    } else {
+      this.selectedNomGroups = [];
+    }
+    this.renderNomGroupChecklist();
+    this.generate();
+  },
+
+  updateNomGroupButtonLabel: function() {
+    const lbl = document.getElementById("pcNomGroupLabel");
+    if (!lbl) return;
+    if (this.selectedNomGroups.length === 0) {
+      lbl.textContent = "(Все группы)";
+      lbl.style.color = "#000";
+    } else if (this.selectedNomGroups.length === 1) {
+      lbl.textContent = this.selectedNomGroups[0];
+      lbl.style.color = "#002060";
+    } else if (this.selectedNomGroups.length === 2) {
+      lbl.textContent = this.selectedNomGroups.join(", ");
+      lbl.style.color = "#002060";
+    } else {
+      lbl.textContent = `${this.selectedNomGroups.slice(0, 2).join(", ")} (+${this.selectedNomGroups.length - 2})`;
+      lbl.style.color = "#002060";
+    }
+  },
+
   loadFilters: function() {
     const creds = window.SessionManager ? SessionManager.getCredentials() : {};
     this.updateStatus("Загрузка списков (портфели, группы, цены)...");
@@ -280,43 +619,28 @@ const PortfolioCatalog = {
 
       this.filtersLoaded = true;
 
-      // 1. Populate Portfolios Select
-      const portSel = document.getElementById("pcPortfolioSelect");
-      if (portSel) {
-        portSel.innerHTML = '<option value="">(Все портфели)</option>';
-        (data.portfolios || []).forEach(p => {
-          const opt = document.createElement("option");
-          opt.value = p;
-          opt.textContent = p;
-          portSel.appendChild(opt);
-        });
-      }
-
-      // 2. Populate Nom Groups Select (clean of vehicle fleet)
-      const grpSel = document.getElementById("pcNomGroupSelect");
-      if (grpSel) {
-        grpSel.innerHTML = '<option value="">(Все группы)</option>';
-        (data.nom_groups || []).forEach(g => {
-          const opt = document.createElement("option");
-          opt.value = g;
-          opt.textContent = g;
-          grpSel.appendChild(opt);
-        });
-      }
-
-      // 3. Populate Multi-Select Price Types Checklist
+      this.availablePortfolios = data.portfolios || [];
+      this.portfolioGroupsMap = data.portfolio_groups || {};
+      this.availableNomGroups = data.nom_groups || [];
       this.availablePriceTypes = data.price_types || [];
+
+      // Default select first portfolio (e.g. 01 MONDELEZ) if nothing selected
+      if (!this.selectedPortfolios.length && this.availablePortfolios.length > 0) {
+        this.selectedPortfolios = [this.availablePortfolios[0]];
+      }
       if (!this.selectedPriceTypes.length) {
         this.selectedPriceTypes = ["20"];
       }
+
+      this.renderPortfolioChecklist();
+      this.renderNomGroupChecklist();
       this.renderPriceTypeChecklist();
 
       this.updateStatus("Фильтры успешно загружены");
 
-      // Auto-trigger load for first portfolio if available
-      if (portSel && portSel.options.length > 1 && !this.items.length) {
-        portSel.selectedIndex = 1;
-        this.onPortfolioChange();
+      // Auto-trigger load
+      if (this.selectedPortfolios.length && !this.items.length) {
+        this.generate();
       }
     })
     .catch(err => {
@@ -325,40 +649,28 @@ const PortfolioCatalog = {
     });
   },
 
-  onPortfolioChange: function() {
-    const portSel = document.getElementById("pcPortfolioSelect");
-    const badge = document.getElementById("pcActiveFilterBadge");
-    if (badge && portSel) {
-      if (portSel.value) {
-        badge.textContent = portSel.value;
-        badge.style.display = "inline-block";
-      } else {
-        badge.style.display = "none";
-      }
-    }
-    // Instant auto-generate when portfolio changes
-    this.generate();
-  },
-
   generate: function() {
-    const portSel = document.getElementById("pcPortfolioSelect");
-    const grpSel = document.getElementById("pcNomGroupSelect");
-
     const creds = window.SessionManager ? SessionManager.getCredentials() : {};
     const payload = {
       ...creds,
-      portfolio: portSel ? portSel.value : "",
-      nom_group: grpSel ? grpSel.value : "",
+      portfolios: this.selectedPortfolios,
+      nom_groups: this.selectedNomGroups,
       price_types: this.selectedPriceTypes,
       search: ""
     };
 
+    const portsKey = (this.selectedPortfolios || []).slice().sort().join(",");
+    const grpsKey = (this.selectedNomGroups || []).slice().sort().join(",");
     const ptsKey = (this.selectedPriceTypes || []).slice().sort().join(",");
-    const cacheKey = `${creds.server || ""}_${creds.ref || ""}_${payload.portfolio}_${payload.nom_group}_${ptsKey}`;
+    const cacheKey = `${creds.server || ""}_${creds.ref || ""}_${portsKey}_${grpsKey}_${ptsKey}`;
 
-    // Close price type dropdown if open
-    const menu = document.getElementById("pcPriceTypeMenu");
-    if (menu) menu.style.display = "none";
+    // Close all open dropdown menus if any
+    const pMenu = document.getElementById("pcPortfolioMenu");
+    if (pMenu) pMenu.style.display = "none";
+    const gMenu = document.getElementById("pcNomGroupMenu");
+    if (gMenu) gMenu.style.display = "none";
+    const ptMenu = document.getElementById("pcPriceTypeMenu");
+    if (ptMenu) ptMenu.style.display = "none";
 
     // Reset row selections and filters on new generation
     this.selectedCodes.clear();
@@ -1046,16 +1358,13 @@ const PortfolioCatalog = {
       return;
     }
 
-    const portSel = document.getElementById("pcPortfolioSelect");
-    const grpSel = document.getElementById("pcNomGroupSelect");
-
     const creds = window.SessionManager ? SessionManager.getCredentials() : {};
     const payload = {
       ...creds,
       items: this.filteredItems,
       filters: {
-        portfolio: portSel ? portSel.value : "",
-        nom_group: grpSel ? grpSel.value : "",
+        portfolios: this.selectedPortfolios,
+        nom_groups: this.selectedNomGroups,
         price_types: this.activePriceTypes || this.selectedPriceTypes,
         price_analysis: this.priceAnalysis,
         selected_only: this.filterSelectedOnly
@@ -1103,13 +1412,32 @@ const PortfolioCatalog = {
   }
 };
 
-// Global click handler to close dropdown menu when clicking outside
+// Global click handler to close all dropdown menus when clicking outside
 document.addEventListener("click", function(e) {
-  const menu = document.getElementById("pcPriceTypeMenu");
-  const btn = document.getElementById("pcPriceTypeDropdownBtn");
-  if (menu && menu.style.display === "block") {
-    if (!menu.contains(e.target) && (!btn || !btn.contains(e.target))) {
-      menu.style.display = "none";
+  // 1. Price Types Dropdown
+  const ptMenu = document.getElementById("pcPriceTypeMenu");
+  const ptBtn = document.getElementById("pcPriceTypeDropdownBtn");
+  if (ptMenu && ptMenu.style.display === "block") {
+    if (!ptMenu.contains(e.target) && (!ptBtn || !ptBtn.contains(e.target))) {
+      ptMenu.style.display = "none";
+    }
+  }
+
+  // 2. Portfolio Dropdown
+  const pMenu = document.getElementById("pcPortfolioMenu");
+  const pBtn = document.getElementById("pcPortfolioDropdownBtn");
+  if (pMenu && pMenu.style.display === "block") {
+    if (!pMenu.contains(e.target) && (!pBtn || !pBtn.contains(e.target))) {
+      pMenu.style.display = "none";
+    }
+  }
+
+  // 3. Nom Group Dropdown
+  const gMenu = document.getElementById("pcNomGroupMenu");
+  const gBtn = document.getElementById("pcNomGroupDropdownBtn");
+  if (gMenu && gMenu.style.display === "block") {
+    if (!gMenu.contains(e.target) && (!gBtn || !gBtn.contains(e.target))) {
+      gMenu.style.display = "none";
     }
   }
 });

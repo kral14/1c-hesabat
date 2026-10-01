@@ -25,20 +25,52 @@
     <!-- Top Filter & Action Toolbar -->
     <div class="pc-toolbar" style="padding: 6px 10px; background: #e5e2cf; border-bottom: 1px solid #b0af9f; display: flex; flex-wrap: wrap; align-items: center; gap: 8px;">
       
-      <!-- 1. Portfolio (Brand) -->
-      <div class="pc-filter-group" style="display: flex; align-items: center; gap: 4px;">
+      <!-- 1. Multi-Select Portfolio Dropdown -->
+      <div class="pc-filter-group" style="display: flex; align-items: center; gap: 4px; position: relative;">
         <span style="font-size: 11px; font-weight: bold; color: #222;">Портфель:</span>
-        <select id="pcPortfolioSelect" class="select-1c" style="min-width: 170px; height: 24px; font-size: 11px;" onchange="PortfolioCatalog.onPortfolioChange()">
-          <option value="">(Все портфели)</option>
-        </select>
+        <button id="pcPortfolioDropdownBtn" type="button" class="select-1c" onclick="PortfolioCatalog.togglePortfolioDropdown(event)" style="min-width: 165px; max-width: 220px; height: 24px; font-size: 11px; text-align: left; padding: 2px 6px; display: inline-flex; align-items: center; justify-content: space-between; cursor: pointer; background: #ffffff;">
+          <span id="pcPortfolioLabel" style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 180px; font-weight: 500;">(Все портфели)</span>
+          <span style="font-size: 9px; color: #555; margin-left: 4px;">▼</span>
+        </button>
+
+        <!-- Dropdown checklist popup -->
+        <div id="pcPortfolioMenu" style="display: none; position: absolute; top: 26px; left: 65px; min-width: 230px; max-height: 290px; overflow-y: auto; background: #ffffff; border: 1px solid #7f9db9; box-shadow: 2px 3px 10px rgba(0,0,0,0.3); z-index: 1000; padding: 5px; font-size: 11px;">
+          <div style="padding: 2px 2px 4px 2px; border-bottom: 1px solid #e0dfd5;">
+            <input type="text" id="pcPortfolioSearchInp" placeholder="Быстрый поиск портфеля..." style="width: 100%; height: 22px; padding: 2px 5px; font-size: 11px; border: 1px solid #7f9db9;" oninput="PortfolioCatalog.filterPortfolioDropdownList()">
+          </div>
+          <div style="display: flex; justify-content: space-between; padding: 3px 4px; border-bottom: 1px solid #e0dfd5; margin-bottom: 5px; font-size: 10px;">
+            <a href="javascript:void(0)" onclick="PortfolioCatalog.selectAllPortfolios(true)" style="color: #004080; text-decoration: none; font-weight: bold;">[☑ Все]</a>
+            <span style="color: #ccc;">|</span>
+            <a href="javascript:void(0)" onclick="PortfolioCatalog.selectAllPortfolios(false)" style="color: #a00; text-decoration: none; font-weight: bold;">[✕ Очистить]</a>
+          </div>
+          <div id="pcPortfolioList" style="display: flex; flex-direction: column; gap: 2px;">
+            <!-- Populated via JS -->
+          </div>
+        </div>
       </div>
 
-      <!-- 2. Nom Group -->
-      <div class="pc-filter-group" style="display: flex; align-items: center; gap: 4px;">
+      <!-- 2. Multi-Select Nom Group Dropdown (Grouped by Portfolio with Headings) -->
+      <div class="pc-filter-group" style="display: flex; align-items: center; gap: 4px; position: relative;">
         <span style="font-size: 11px; font-weight: bold; color: #222;">Ном. группа:</span>
-        <select id="pcNomGroupSelect" class="select-1c" style="min-width: 160px; height: 24px; font-size: 11px;">
-          <option value="">(Все группы)</option>
-        </select>
+        <button id="pcNomGroupDropdownBtn" type="button" class="select-1c" onclick="PortfolioCatalog.toggleNomGroupDropdown(event)" style="min-width: 165px; max-width: 240px; height: 24px; font-size: 11px; text-align: left; padding: 2px 6px; display: inline-flex; align-items: center; justify-content: space-between; cursor: pointer; background: #ffffff;">
+          <span id="pcNomGroupLabel" style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 200px; font-weight: 500;">(Все группы)</span>
+          <span style="font-size: 9px; color: #555; margin-left: 4px;">▼</span>
+        </button>
+
+        <!-- Dropdown checklist popup with headers -->
+        <div id="pcNomGroupMenu" style="display: none; position: absolute; top: 26px; left: 78px; min-width: 290px; max-width: 360px; max-height: 330px; overflow-y: auto; background: #ffffff; border: 1px solid #7f9db9; box-shadow: 2px 3px 12px rgba(0,0,0,0.3); z-index: 1000; padding: 5px; font-size: 11px;">
+          <div style="padding: 2px 2px 4px 2px; border-bottom: 1px solid #e0dfd5;">
+            <input type="text" id="pcNomGroupSearchInp" placeholder="Быстрый поиск группы..." style="width: 100%; height: 22px; padding: 2px 5px; font-size: 11px; border: 1px solid #7f9db9;" oninput="PortfolioCatalog.filterNomGroupDropdownList()">
+          </div>
+          <div style="display: flex; justify-content: space-between; padding: 3px 4px; border-bottom: 1px solid #e0dfd5; margin-bottom: 4px; font-size: 10px;">
+            <a href="javascript:void(0)" onclick="PortfolioCatalog.selectAllNomGroups(true)" style="color: #004080; text-decoration: none; font-weight: bold;">[☑ Все]</a>
+            <span style="color: #ccc;">|</span>
+            <a href="javascript:void(0)" onclick="PortfolioCatalog.selectAllNomGroups(false)" style="color: #a00; text-decoration: none; font-weight: bold;">[✕ Очистить]</a>
+          </div>
+          <div id="pcNomGroupList" style="display: flex; flex-direction: column; gap: 2px;">
+            <!-- Populated via JS grouped by Portfolio headings -->
+          </div>
+        </div>
       </div>
 
       <!-- 3. Multi-Select Price Types -->

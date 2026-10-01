@@ -506,8 +506,18 @@ def generate_portfolio_catalog_excel(items, filters, output_path):
     ws["B2"].font = font_title
 
     # 2. Metadata / Filter info
-    port_text = filters.get("portfolio") or "Все портфели"
-    grp_text = filters.get("nom_group") or "Все группы"
+    ports_val = filters.get("portfolios") or filters.get("portfolio")
+    if isinstance(ports_val, list):
+        port_text = ", ".join(ports_val) if ports_val else "Все портфели"
+    else:
+        port_text = ports_val or "Все портфели"
+
+    grps_val = filters.get("nom_groups") or filters.get("nom_group")
+    if isinstance(grps_val, list):
+        grp_text = ", ".join(grps_val) if grps_val else "Все группы"
+    else:
+        grp_text = grps_val or "Все группы"
+
     raw_pts = filters.get("price_types")
     if not raw_pts or not isinstance(raw_pts, list):
         single_pt = filters.get("price_type")

@@ -1931,10 +1931,11 @@ class OneCService(threading.Thread):
                     except Exception:
                         pass
 
-                    # Query only groups assigned to actual commercial goods in Справочник.Номенклатура
+                    # Query groups assigned to actual commercial goods with parent folder code
                     q_ng = conn.NewObject("Запрос")
                     q_ng.Text = """
                     ВЫБРАТЬ РАЗЛИЧНЫЕ
+                        Т.Родитель.Код КАК ParentCode,
                         Т.НоменклатурнаяГруппа.Наименование КАК Name
                     ИЗ
                         Справочник.Номенклатура КАК Т
@@ -1947,25 +1948,54 @@ class OneCService(threading.Thread):
                         Name
                     """
                     r_ng = q_ng.Execute().Choose()
-                    nom_groups = []
+                    fmap = get_folders_map(conn, key)
+                    nom_groups = set()
+                    portfolio_groups_map = {}
                     while r_ng.Next():
                         g_name = str(r_ng.Name or "").strip()
-                        if g_name and not is_vehicle_group(g_name):
-                            nom_groups.append(g_name)
+                        if not g_name or is_vehicle_group(g_name):
+                            continue
+                        nom_groups.add(g_name)
+                        p_code = str(r_ng.ParentCode or "").strip()
+                        port = resolve_root_portfolio(p_code, fmap)
+                        if port and not port.startswith("!"):
+                            if port not in portfolio_groups_map:
+                                portfolio_groups_map[port] = set()
+                            portfolio_groups_map[port].add(g_name)
 
+                    portfolio_groups = {p: sorted(list(grps)) for p, grps in sorted(portfolio_groups_map.items())}
                     pts = get_all_price_types(conn, key)
 
                     resp_q.put((True, {
                         "portfolios": sorted(list(root_portfolios)),
-                        "nom_groups": nom_groups,
+                        "nom_groups": sorted(list(nom_groups)),
+                        "portfolio_groups": portfolio_groups,
                         "price_types": pts
                     }))
 
                 elif action == "get_portfolio_catalog_items":
                     fmap = get_folders_map(conn, key)
 
-                    sel_portfolio = str(payload.get("portfolio") or "").strip()
-                    sel_group = str(payload.get("nom_group") or "").strip()
+                    # Multiple or single portfolios
+                    raw_ports = payload.get("portfolios")
+                    if isinstance(raw_ports, list):
+                        selected_portfolios = [str(p).strip() for p in raw_ports if str(p).strip() and str(p) != "(Все портфели)"]
+                    elif payload.get("portfolio"):
+                        single_p = str(payload.get("portfolio")).strip()
+                        selected_portfolios = [single_p] if single_p and single_p != "(Все портфели)" else []
+                    else:
+                        selected_portfolios = []
+
+                    # Multiple or single nom groups
+                    raw_groups = payload.get("nom_groups")
+                    if isinstance(raw_groups, list):
+                        selected_nom_groups = [str(g).strip() for g in raw_groups if str(g).strip() and str(g) != "(Все группы)"]
+                    elif payload.get("nom_group"):
+                        single_g = str(payload.get("nom_group")).strip()
+                        selected_nom_groups = [single_g] if single_g and single_g != "(Все группы)" else []
+                    else:
+                        selected_nom_groups = []
+
                     search_txt = str(payload.get("search") or "").strip().lower()
 
                     # Handle 1 or more price types
@@ -1981,20 +2011,35 @@ class OneCService(threading.Thread):
                             selected_price_types.append(pt_s)
 
                     where_clauses = ["НЕ Т.ЭтоГруппа", "НЕ Т.ПометкаУдаления"]
-                    port_folder_ref = None
+                    port_folders_obj = None
 
-                    if sel_portfolio:
+                    if len(selected_portfolios) == 1:
                         try:
-                            p_find = conn.Справочники.Номенклатура.НайтиПоНаименованию(sel_portfolio, True)
+                            p_find = conn.Справочники.Номенклатура.НайтиПоНаименованию(selected_portfolios[0], True)
                             if p_find and not p_find.Пустая():
-                                port_folder_ref = p_find
+                                port_folders_obj = p_find
                                 where_clauses.append("Т.Ссылка В ИЕРАРХИИ (&PortFolder)")
                         except Exception as e_fnd:
                             print(f"⚠️ [PortFolder lookup fallback]: {e_fnd}", flush=True)
-                            port_folder_ref = None
+                            port_folders_obj = None
+                    elif len(selected_portfolios) > 1:
+                        try:
+                            p_list = conn.NewObject("СписокЗначений")
+                            for p_name in selected_portfolios:
+                                p_find = conn.Справочники.Номенклатура.НайтиПоНаименованию(p_name, True)
+                                if p_find and not p_find.Пустая():
+                                    p_list.Добавить(p_find)
+                            if p_list.Количество() > 0:
+                                port_folders_obj = p_list
+                                where_clauses.append("Т.Ссылка В ИЕРАРХИИ (&PortFolder)")
+                        except Exception as e_fnd:
+                            print(f"⚠️ [Multi PortFolder lookup fallback]: {e_fnd}", flush=True)
+                            port_folders_obj = None
 
-                    if sel_group:
+                    if len(selected_nom_groups) == 1:
                         where_clauses.append("Т.НоменклатурнаяГруппа.Наименование = &NomGroupName")
+                    elif len(selected_nom_groups) > 1:
+                        where_clauses.append("Т.НоменклатурнаяГруппа.Наименование В (&NomGroupNames)")
 
                     # Multi-Price SQL Construction
                     price_select_parts = []
@@ -2028,7 +2073,7 @@ class OneCService(threading.Thread):
                         ПО Т.Ссылка = Ш.ItemRef
                     """
 
-                    limit_clause = "ПЕРВЫЕ 2000" if (not sel_portfolio and not sel_group and not search_txt) else ""
+                    limit_clause = "ПЕРВЫЕ 2000" if (not selected_portfolios and not selected_nom_groups and not search_txt) else ""
                     q = conn.NewObject("Запрос")
                     q.Text = f"""
                     ВЫБРАТЬ {limit_clause}
@@ -2056,19 +2101,24 @@ class OneCService(threading.Thread):
                         Т.Наименование
                     """
 
-                    if port_folder_ref:
-                        q.SetParameter("PortFolder", port_folder_ref)
+                    if port_folders_obj:
+                        q.SetParameter("PortFolder", port_folders_obj)
                     if selected_price_types:
                         q.SetParameter("CurrentDate", datetime.datetime.now())
                         for p_k, p_v in price_params.items():
                             q.SetParameter(p_k, p_v)
-                    if sel_group:
-                        q.SetParameter("NomGroupName", sel_group)
+                    if len(selected_nom_groups) == 1:
+                        q.SetParameter("NomGroupName", selected_nom_groups[0])
+                    elif len(selected_nom_groups) > 1:
+                        g_list = conn.NewObject("СписокЗначений")
+                        for g in selected_nom_groups:
+                            g_list.Добавить(g)
+                        q.SetParameter("NomGroupNames", g_list)
 
                     try:
                         res = q.Execute().Choose()
                     except Exception as eq:
-                        if port_folder_ref and "PortFolder" in str(eq):
+                        if port_folders_obj and "PortFolder" in str(eq):
                             print("⚠️ [1C QUERY RETRY] Hierarchy parameter error, retrying without SQL hierarchy filter...", flush=True)
                             clean_clauses = [c for c in where_clauses if "PortFolder" not in c]
                             q.Text = f"""
@@ -2096,7 +2146,7 @@ class OneCService(threading.Thread):
                                 Т.НоменклатурнаяГруппа.Наименование,
                                 Т.Наименование
                             """
-                            port_folder_ref = None
+                            port_folders_obj = None
                             res = q.Execute().Choose()
                         else:
                             raise eq
@@ -2104,9 +2154,13 @@ class OneCService(threading.Thread):
                     items = []
                     while res.Next():
                         p_code = str(res.ParentCode or "").strip()
-                        root_port = sel_portfolio or resolve_root_portfolio(p_code, fmap)
+                        root_port = resolve_root_portfolio(p_code, fmap)
 
-                        if sel_portfolio and not port_folder_ref and root_port.lower() != sel_portfolio.lower():
+                        if selected_portfolios and not any(root_port.lower() == sp.lower() for sp in selected_portfolios):
+                            continue
+
+                        group = str(res.NomGroup or "").strip()
+                        if selected_nom_groups and group not in selected_nom_groups:
                             continue
 
                         name = str(res.Name or "").strip()
