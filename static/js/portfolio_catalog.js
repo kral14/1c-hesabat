@@ -10,6 +10,10 @@ const PortfolioCatalog = {
   availablePriceTypes: [],
   selectedPriceTypes: ["20"],
   activePriceTypes: ["20"],
+  priceAnalysis: {
+    enabled: false,
+    basePriceType: "20"
+  },
   currentSortCol: null,
   currentSortAsc: true,
   cache: {}, // Instant memory cache: key -> items array
@@ -18,6 +22,8 @@ const PortfolioCatalog = {
     console.log("[PORTFOLIO CATALOG] Opening window...");
     const win = document.getElementById("portfolioCatalogWindow");
     if (!win) return;
+
+    this.loadAnalysisSettings();
 
     // Center nicely in workspace
     const ws = document.getElementById("mdiWorkspace");
@@ -56,6 +62,104 @@ const PortfolioCatalog = {
     } else {
       const win = document.getElementById("portfolioCatalogWindow");
       if (win) win.style.display = "none";
+    }
+  },
+
+  loadAnalysisSettings: function() {
+    try {
+      const saved = localStorage.getItem("pc_price_analysis");
+      if (saved) {
+        this.priceAnalysis = Object.assign(this.priceAnalysis, JSON.parse(saved));
+      }
+    } catch (e) {}
+    this.updateAnalysisButtonUI();
+  },
+
+  openPriceAnalysisModal: function() {
+    const modal = document.getElementById("pcPriceAnalysisModal");
+    if (!modal) return;
+
+    const baseSel = document.getElementById("pcAnalysisBasePriceType");
+    const enChk = document.getElementById("pcAnalysisEnabled");
+    const summaryText = document.getElementById("pcAnalysisSummaryText");
+
+    if (enChk) enChk.checked = Boolean(this.priceAnalysis.enabled);
+
+    const pts = (this.activePriceTypes && this.activePriceTypes.length) 
+      ? this.activePriceTypes 
+      : (this.selectedPriceTypes.length ? this.selectedPriceTypes : ["20"]);
+
+    if (baseSel) {
+      baseSel.innerHTML = "";
+      pts.forEach(pt => {
+        const opt = document.createElement("option");
+        opt.value = pt;
+        opt.textContent = pt;
+        baseSel.appendChild(opt);
+      });
+
+      if (this.priceAnalysis.basePriceType && pts.includes(this.priceAnalysis.basePriceType)) {
+        baseSel.value = this.priceAnalysis.basePriceType;
+      } else if (pts.includes("20")) {
+        baseSel.value = "20";
+      } else if (pts.length) {
+        baseSel.value = pts[0];
+      }
+    }
+
+    if (summaryText) {
+      summaryText.textContent = `Доступно для сравнения: ${pts.length} колонок`;
+    }
+
+    modal.style.display = "flex";
+  },
+
+  closePriceAnalysisModal: function() {
+    const modal = document.getElementById("pcPriceAnalysisModal");
+    if (modal) modal.style.display = "none";
+  },
+
+  applyPriceAnalysis: function() {
+    const enChk = document.getElementById("pcAnalysisEnabled");
+    const baseSel = document.getElementById("pcAnalysisBasePriceType");
+
+    this.priceAnalysis.enabled = enChk ? enChk.checked : false;
+    this.priceAnalysis.basePriceType = baseSel ? baseSel.value : "20";
+
+    try {
+      localStorage.setItem("pc_price_analysis", JSON.stringify(this.priceAnalysis));
+    } catch (e) {}
+
+    this.updateAnalysisButtonUI();
+    this.renderTable();
+    this.closePriceAnalysisModal();
+
+    if (this.priceAnalysis.enabled) {
+      this.updateStatus(`Анализ цен включен (Базовый эталон: ${this.priceAnalysis.basePriceType})`);
+    } else {
+      this.updateStatus("Анализ цен выключен");
+    }
+  },
+
+  updateAnalysisButtonUI: function() {
+    const btn = document.getElementById("pcBtnPriceAnalysis");
+    const dot = document.getElementById("pcAnalysisActiveDot");
+    if (!btn) return;
+
+    if (this.priceAnalysis.enabled) {
+      btn.style.background = "#fff3cd";
+      btn.style.borderColor = "#f0ad4e";
+      btn.style.color = "#856404";
+      btn.style.fontWeight = "bold";
+      btn.title = `Анализ цен активен (Базовый тип: ${this.priceAnalysis.basePriceType}). Нажмите для настройки.`;
+      if (dot) dot.style.display = "inline-block";
+    } else {
+      btn.style.background = "";
+      btn.style.borderColor = "";
+      btn.style.color = "";
+      btn.style.fontWeight = "";
+      btn.title = "Сравнение и анализ цен (выделение разницы)";
+      if (dot) dot.style.display = "none";
     }
   },
 
@@ -331,10 +435,23 @@ const PortfolioCatalog = {
     if (!headRow) return;
 
     const pts = this.activePriceTypes || this.selectedPriceTypes || [];
+    const isAnalysis = Boolean(this.priceAnalysis.enabled);
+    const basePt = this.priceAnalysis.basePriceType;
+
     let priceHeadersHtml = "";
     if (pts.length > 0) {
       pts.forEach(pt => {
-        priceHeadersHtml += `<th style="min-width: 80px; padding: 4px 6px; border: 1px solid #b0af9f; text-align: right; cursor: pointer; white-space: nowrap;" onclick="PortfolioCatalog.sortByPrice('${escapeHtml(pt)}')">Цена (${escapeHtml(pt)}) ⬍</th>`;
+        let tag = "";
+        let thBg = "";
+        let thColor = "";
+
+        if (isAnalysis && pt === basePt) {
+          tag = " <span style='font-size:9px; background:#0055ea; color:#fff; padding:1px 4px; border-radius:2px; vertical-align:middle;'>База</span>";
+          thBg = "background: #d8e6f3;";
+          thColor = "color: #002060;";
+        }
+
+        priceHeadersHtml += `<th style="min-width: 85px; padding: 4px 6px; border: 1px solid #b0af9f; text-align: right; cursor: pointer; white-space: nowrap; ${thBg} ${thColor}" onclick="PortfolioCatalog.sortByPrice('${escapeHtml(pt)}')">Цена (${escapeHtml(pt)})${tag} ⬍</th>`;
       });
     }
 
@@ -365,11 +482,23 @@ const PortfolioCatalog = {
     this.updateCountBadge(list.length);
 
     const pts = this.activePriceTypes || this.selectedPriceTypes || [];
+    const isAnalysis = Boolean(this.priceAnalysis.enabled);
+    const basePt = this.priceAnalysis.basePriceType;
 
     let html = "";
     for (let i = 0; i < list.length; i++) {
       const itm = list[i];
       const bg = (i % 2 === 1) ? "#f7f6f0" : "#ffffff";
+
+      // Base price value for benchmark comparison
+      let baseVal = 0;
+      if (isAnalysis && basePt) {
+        if (itm.prices && itm.prices[basePt] !== undefined) {
+          baseVal = Number(itm.prices[basePt]) || 0;
+        } else if (basePt === pts[0] && itm.price !== undefined) {
+          baseVal = Number(itm.price) || 0;
+        }
+      }
 
       // Render columns for each selected price type
       let priceTds = "";
@@ -382,7 +511,33 @@ const PortfolioCatalog = {
             val = Number(itm.price) || 0;
           }
           const priceStr = val > 0 ? val.toLocaleString("ru-RU", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : "-";
-          priceTds += `<td style="padding: 3px 5px; border: 1px solid #d4d0c8; text-align: right; font-weight: bold; color: #000080; white-space: nowrap;">${priceStr}</td>`;
+
+          let cellBg = "";
+          let cellBorder = "1px solid #d4d0c8";
+          let cellColor = "#000080";
+          let cellTitle = "";
+
+          if (isAnalysis) {
+            if (pt === basePt) {
+              // Base benchmark column: subtle neutral light blue
+              cellBg = "#eef4fa";
+              cellColor = "#002060";
+              cellTitle = `Базовая цена (${basePt}): ${priceStr}`;
+            } else {
+              const diff = val - baseVal;
+              if (Math.abs(diff) > 0.0001) {
+                // Different price than base -> HIGHLIGHT IN AUTHENTIC SOFT YELLOW!
+                cellBg = "#fff3cd";
+                cellBorder = "1px solid #ffeeba";
+                cellColor = "#856404";
+                const diffSign = diff > 0 ? `+${diff.toFixed(2)}` : diff.toFixed(2);
+                cellTitle = `Разница с базой (${basePt}): ${diffSign} AZN (База: ${baseVal.toFixed(2)}, Текущая: ${val.toFixed(2)})`;
+              }
+            }
+          }
+
+          const styleAttr = `padding: 3px 5px; border: ${cellBorder}; text-align: right; font-weight: bold; color: ${cellColor}; white-space: nowrap; ${cellBg ? `background: ${cellBg};` : ''}`;
+          priceTds += `<td style="${styleAttr}" ${cellTitle ? `title="${escapeHtml(cellTitle)}"` : ''}>${priceStr}</td>`;
         });
       }
 
@@ -491,7 +646,8 @@ const PortfolioCatalog = {
       filters: {
         portfolio: portSel ? portSel.value : "",
         nom_group: grpSel ? grpSel.value : "",
-        price_types: this.activePriceTypes || this.selectedPriceTypes
+        price_types: this.activePriceTypes || this.selectedPriceTypes,
+        price_analysis: this.priceAnalysis
       }
     };
 

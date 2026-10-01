@@ -75,6 +75,13 @@
         <span>Экспорт в Excel</span>
       </button>
 
+      <!-- Price Analysis Button -->
+      <button class="btn-1c" id="pcBtnPriceAnalysis" onclick="PortfolioCatalog.openPriceAnalysisModal()" title="Сравнение и анализ цен (выделение разницы)" style="height: 24px; display: inline-flex; align-items: center; gap: 4px; padding: 0 9px;">
+        <span>⚖️</span>
+        <span>Анализ цен</span>
+        <span id="pcAnalysisActiveDot" style="display: none; width: 7px; height: 7px; background: #e6a23c; border-radius: 50%; margin-left: 2px;"></span>
+      </button>
+
       <div class="mdi-tool-sep" style="height: 20px; width: 1px; background: #b0af9f; margin: 0 4px;"></div>
 
       <!-- Search Input -->
@@ -138,6 +145,63 @@
       <span id="pcStatusRight">1С:Предприятие 8.3 — Aztrade</span>
     </div>
 
+  </div>
+
+  <!-- Price Analysis Modal Popup -->
+  <div id="pcPriceAnalysisModal" style="display: none; position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.35); z-index: 200; align-items: center; justify-content: center;">
+    <div style="background: #ece9d8; border: 2px solid #0055ea; box-shadow: 0 4px 16px rgba(0,0,0,0.4); width: 380px; border-radius: 3px; overflow: hidden; font-family: Tahoma, 'MS Sans Serif', Arial, sans-serif;">
+      <!-- Modal Header -->
+      <div style="background: linear-gradient(180deg, #0a246a 0%, #a6caf0 100%); color: #ffffff; padding: 4px 8px; font-weight: bold; font-size: 11px; display: flex; align-items: center; justify-content: space-between;">
+        <div style="display: flex; align-items: center; gap: 6px;">
+          <span>⚖️</span>
+          <span>Анализ и сравнение цен</span>
+        </div>
+        <button onclick="PortfolioCatalog.closePriceAnalysisModal()" style="background: #d4d0c8; border: 1px solid #808080; width: 16px; height: 14px; font-size: 10px; line-height: 10px; cursor: pointer; padding: 0;">✕</button>
+      </div>
+      <!-- Modal Body -->
+      <div style="padding: 12px 14px; display: flex; flex-direction: column; gap: 10px; font-size: 11px; color: #222;">
+        
+        <!-- Toggle Active / Inactive -->
+        <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-weight: bold; background: #fff; padding: 6px 8px; border: 1px solid #7f9db9; border-radius: 2px;">
+          <input type="checkbox" id="pcAnalysisEnabled" style="cursor: pointer; transform: scale(1.15);">
+          <span>Включить анализ цен (подсветка различий)</span>
+        </label>
+
+        <!-- Base Price Type Selection -->
+        <div style="display: flex; flex-direction: column; gap: 4px; background: #fff; padding: 8px; border: 1px solid #7f9db9; border-radius: 2px;">
+          <label style="font-weight: bold; color: #003366;">Базовый тип цен (эталон для сравнения):</label>
+          <select id="pcAnalysisBasePriceType" class="select-1c" style="width: 100%; height: 24px; font-size: 11px;">
+            <!-- Populated dynamically with selected price types, e.g. 20 -->
+          </select>
+          <span style="font-size: 10px; color: #666; margin-top: 2px;">
+            Другие колонки цен будут сравниваться с этой базовой ценой.
+          </span>
+        </div>
+
+        <!-- Highlight Color Preview / Explanation -->
+        <div style="background: #fffbe6; border: 1px solid #ffe58f; padding: 8px; border-radius: 2px; font-size: 11px; display: flex; align-items: flex-start; gap: 8px;">
+          <div style="width: 18px; height: 18px; background: #ffe58f; border: 1px solid #d4b106; border-radius: 2px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 11px;">!</div>
+          <div style="color: #614700; line-height: 1.4;">
+            Если цена в другой колонке (например, <strong>10</strong> или <strong>10 Region</strong>) отличается от базовой (<strong>20</strong>), ячейка будет выделена <strong>желтым цветом</strong>.
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Modal Footer -->
+      <div style="padding: 6px 10px; background: #e0ded5; border-top: 1px solid #b0af9f; display: flex; justify-content: space-between; align-items: center;">
+        <span id="pcAnalysisSummaryText" style="font-size: 10px; color: #666;"></span>
+        <div style="display: flex; gap: 6px;">
+          <button class="btn-1c btn-1c-primary" onclick="PortfolioCatalog.applyPriceAnalysis()" style="height: 23px; padding: 0 14px; font-weight: bold;">
+            Применить
+          </button>
+          <button class="btn-1c" onclick="PortfolioCatalog.closePriceAnalysisModal()" style="height: 23px; padding: 0 12px;">
+            Отмена
+          </button>
+        </div>
+      </div>
+
+    </div>
   </div>
 
 </div>

@@ -552,6 +552,15 @@ def generate_portfolio_catalog_excel(items, filters, output_path):
         col_letter = get_column_letter(col_idx)
         ws.column_dimensions[col_letter].width = width
 
+    analysis_info = filters.get("price_analysis") or {}
+    analysis_enabled = analysis_info.get("enabled", False)
+    base_pt = analysis_info.get("basePriceType", "20")
+
+    fill_diff = PatternFill(start_color="FFF3CD", end_color="FFF3CD", fill_type="solid")
+    font_diff = Font(name=FONT_FAMILY, size=8.5, bold=True, color="856404")
+    fill_base = PatternFill(start_color="F0F4F8", end_color="F0F4F8", fill_type="solid")
+    font_base = Font(name=FONT_FAMILY, size=8.5, bold=True, color="002060")
+
     # 4. Data Rows
     current_row = header_row + 1
     for i, itm in enumerate(items, start=1):
@@ -559,35 +568,51 @@ def generate_portfolio_catalog_excel(items, filters, output_path):
         is_even = (i % 2 == 0)
 
         row_vals = [
-            (i, align_center, font_td, None),
-            (itm.get("code") or "", align_center, font_code, None),
-            (itm.get("artikul") or "", align_left, font_td, None),
-            (itm.get("cv") or "", align_center, font_code, None),
-            (itm.get("barcode") or "", align_center, font_td, "@"),
-            (itm.get("name") or "", align_left, font_td, None),
-            (itm.get("folder") or "", align_left, font_td, None),
-            (itm.get("group") or "", align_left, font_td, None),
-            (itm.get("portfolio") or "", align_left, font_td, None),
-            (itm.get("type") or "", align_left, font_td, None),
-            (itm.get("unit") or "", align_center, font_td, None),
+            (i, align_center, font_td, None, None),
+            (itm.get("code") or "", align_center, font_code, None, None),
+            (itm.get("artikul") or "", align_left, font_td, None, None),
+            (itm.get("cv") or "", align_center, font_code, None, None),
+            (itm.get("barcode") or "", align_center, font_td, "@", None),
+            (itm.get("name") or "", align_left, font_td, None, None),
+            (itm.get("folder") or "", align_left, font_td, None, None),
+            (itm.get("group") or "", align_left, font_td, None, None),
+            (itm.get("portfolio") or "", align_left, font_td, None, None),
+            (itm.get("type") or "", align_left, font_td, None, None),
+            (itm.get("unit") or "", align_center, font_td, None, None),
         ]
         prices_dict = itm.get("prices") or {}
+        base_val = float(prices_dict.get(base_pt, itm.get("price", 0)) or 0) if analysis_enabled else 0.0
+
         if sel_pts:
             for pt in sel_pts:
                 p_val = float(prices_dict.get(pt, itm.get("price", 0)) or 0)
-                row_vals.append((p_val, align_right, font_price, "#,##0.00"))
-        else:
-            row_vals.append((float(itm.get("price") or 0), align_right, font_price, "#,##0.00"))
-        row_vals.append((itm.get("manufacturer") or "", align_left, font_td, None))
+                is_diff = analysis_enabled and (pt != base_pt) and (abs(p_val - base_val) > 0.001)
+                is_benchmark = analysis_enabled and (pt == base_pt)
 
-        for col_idx, (val, alignment, font, num_fmt) in enumerate(row_vals, start=2):
+                f_price = font_diff if is_diff else (font_base if is_benchmark else font_price)
+                fill_price = fill_diff if is_diff else (fill_base if is_benchmark else None)
+
+                row_vals.append((p_val, align_right, f_price, "#,##0.00", fill_price))
+        else:
+            row_vals.append((float(itm.get("price") or 0), align_right, font_price, "#,##0.00", None))
+        row_vals.append((itm.get("manufacturer") or "", align_left, font_td, None, None))
+
+        for col_idx, item_tuple in enumerate(row_vals, start=2):
+            val = item_tuple[0]
+            alignment = item_tuple[1]
+            font = item_tuple[2]
+            num_fmt = item_tuple[3]
+            c_fill = item_tuple[4] if len(item_tuple) > 4 else None
+
             cell = ws.cell(row=current_row, column=col_idx, value=val)
             cell.font = font
             cell.alignment = alignment
             cell.border = border_cell
             if num_fmt:
                 cell.number_format = num_fmt
-            if is_even:
+            if c_fill:
+                cell.fill = c_fill
+            elif is_even:
                 cell.fill = fill_zebra
 
         current_row += 1
