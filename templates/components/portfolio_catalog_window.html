@@ -217,4 +217,68 @@
     </div>
   </div>
 
+  <!-- 1C Find / Search Modal Popup (Ctrl+F) -->
+  <div id="pcFindModal" style="display: none; position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.25); z-index: 250; align-items: center; justify-content: center;">
+    <div style="background: #ece9d8; border: 2px solid #0055ea; box-shadow: 0 4px 18px rgba(0,0,0,0.45); width: 420px; border-radius: 3px; overflow: hidden; font-family: Tahoma, 'MS Sans Serif', Arial, sans-serif;">
+      <!-- Modal Header -->
+      <div style="background: linear-gradient(180deg, #0a246a 0%, #a6caf0 100%); color: #ffffff; padding: 4px 8px; font-weight: bold; font-size: 11px; display: flex; align-items: center; justify-content: space-between;">
+        <div style="display: flex; align-items: center; gap: 6px;">
+          <span>🔍</span>
+          <span>Поиск (Найти) — Ctrl+F</span>
+        </div>
+        <button onclick="PortfolioCatalog.closeFindModal()" style="background: #d4d0c8; border: 1px solid #808080; width: 16px; height: 14px; font-size: 10px; line-height: 10px; cursor: pointer; padding: 0;">✕</button>
+      </div>
+
+      <!-- Modal Body -->
+      <div style="padding: 12px 14px; display: flex; flex-direction: column; gap: 10px; font-size: 11px; color: #222;">
+        
+        <!-- Field 1: Что искать (Search query) -->
+        <div style="display: flex; flex-direction: column; gap: 4px;">
+          <label style="font-weight: bold; color: #003366;">Что искать (Axtarış sözü və ya kodu):</label>
+          <input type="text" id="pcFindModalInput" class="input-1c" placeholder="İstənilən ad, kod, artikul, barkod, qiymət..." style="width: 100%; height: 25px; padding: 2px 6px; font-size: 12px;" oninput="PortfolioCatalog.onFindModalInput()" onkeydown="PortfolioCatalog.onFindModalKeydown(event)">
+        </div>
+
+        <!-- Field 2: Где искать (Which column) -->
+        <div style="display: flex; flex-direction: column; gap: 4px;">
+          <label style="font-weight: bold; color: #003366;">Где искать (Sütun seçimi):</label>
+          <select id="pcFindModalColumn" class="select-1c" style="width: 100%; height: 24px; font-size: 11px;" onchange="PortfolioCatalog.onFindModalInput()">
+            <option value="all">(Во всех колонках)</option>
+            <option value="name">Наименование (Malın adı)</option>
+            <option value="artikul">Артикул</option>
+            <option value="code">Код</option>
+            <option value="barcode">Штрихкод</option>
+            <option value="cv">СВ код</option>
+            <option value="folder">Папка (Родитель)</option>
+            <option value="group">Ном. группа</option>
+            <option value="portfolio">Портфель</option>
+            <option value="prices">Цена (Qiymətlər)</option>
+          </select>
+        </div>
+
+        <!-- Live Results Counter Badge -->
+        <div style="display: flex; justify-content: space-between; align-items: center; background: #fff; padding: 6px 8px; border: 1px solid #7f9db9; border-radius: 2px;">
+          <span style="color: #555;">Результаты поиска:</span>
+          <span id="pcFindModalResultCount" style="font-weight: bold; color: #004080;">0 найдено</span>
+        </div>
+
+      </div>
+
+      <!-- Modal Footer -->
+      <div style="padding: 6px 10px; background: #e0ded5; border-top: 1px solid #b0af9f; display: flex; justify-content: space-between; align-items: center;">
+        <button class="btn-1c" onclick="PortfolioCatalog.clearFindModal()" style="height: 23px; padding: 0 10px; color: #a00;">
+          ✕ Сбросить (Ctrl+Q)
+        </button>
+        <div style="display: flex; gap: 6px;">
+          <button class="btn-1c btn-1c-primary" onclick="PortfolioCatalog.applyFindModal()" style="height: 23px; padding: 0 16px; font-weight: bold;">
+            Найти (Enter)
+          </button>
+          <button class="btn-1c" onclick="PortfolioCatalog.closeFindModal()" style="height: 23px; padding: 0 12px;">
+            Закрыть (Esc)
+          </button>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
 </div>

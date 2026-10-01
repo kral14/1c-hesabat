@@ -602,15 +602,34 @@ const PortfolioCatalog = {
     }
   },
 
+  bindTableClickDelegation: function() {
+    const table = document.getElementById("pcReportTable");
+    if (!table || table._clickBound) return;
+    table._clickBound = true;
+
+    table.addEventListener("click", (e) => {
+      const td = e.target.closest("td");
+      if (!td) return;
+      // Skip checkbox column and its inputs
+      if (e.target.matches("input[type='checkbox']") || td.querySelector("input[type='checkbox']")) return;
+
+      const colKey = td.dataset.colKey || "";
+      const val = td.textContent.trim();
+      PortfolioCatalog.setActiveCell(colKey, val, td);
+    });
+  },
+
   setActiveCell: function(colKey, cellValue, tdEl) {
+    if (!tdEl) return;
     this.activeColumn = colKey;
     this.activeCell = { col: colKey, value: cellValue };
 
-    const sel = window.getSelection();
-
     // 2nd click on the same cell: cancel/clear selection
-    if (this.lastSelectedTd === tdEl && sel && sel.toString().trim().length > 0) {
-      sel.removeAllRanges();
+    if (this.lastSelectedTd === tdEl) {
+      try {
+        const sel = window.getSelection();
+        if (sel) sel.removeAllRanges();
+      } catch (e) {}
       this.lastSelectedTd = null;
       tdEl.classList.remove("pc-cell-active");
       tdEl.style.outline = "";
@@ -624,22 +643,28 @@ const PortfolioCatalog = {
       el.style.boxShadow = "";
     });
 
-    if (tdEl) {
-      tdEl.classList.add("pc-cell-active");
-      tdEl.style.outline = "2px solid #0055ea";
-      tdEl.style.outlineOffset = "-2px";
+    tdEl.classList.add("pc-cell-active");
+    tdEl.style.outline = "2px solid #0055ea";
+    tdEl.style.outlineOffset = "-2px";
 
-      // 1st click: automatically select all text inside this cell for easy copy (Ctrl+C)
+    // 1st click: automatically select all text inside this cell for easy copy (Ctrl+C)
+    const doSelect = () => {
       try {
-        const range = document.createRange();
-        range.selectNodeContents(tdEl);
-        sel.removeAllRanges();
-        sel.addRange(range);
+        const sel = window.getSelection();
+        if (sel) {
+          sel.removeAllRanges();
+          const range = document.createRange();
+          range.selectNodeContents(tdEl);
+          sel.addRange(range);
+        }
         this.lastSelectedTd = tdEl;
       } catch (err) {
         console.warn("Could not select cell text:", err);
       }
-    }
+    };
+
+    doSelect();
+    setTimeout(doSelect, 25);
   },
 
   onHeaderClick: function(e, colField, colTitle) {
@@ -647,30 +672,174 @@ const PortfolioCatalog = {
     this.sortBy(colField);
   },
 
-  onSearchHotkey: function() {
-    const inp = document.getElementById("pcSearchInput");
-    if (!inp) return;
+  openFindModal: function() {
+    const modal = document.getElementById("pcFindModal");
+    if (!modal) return;
 
-    // In 1C: If a cell was selected and search input is currently empty, prefill with cell's value
-    if (this.activeCell && this.activeCell.value && !inp.value.trim()) {
-      inp.value = String(this.activeCell.value).trim();
-      this.onFilterChange();
+    const inp = document.getElementById("pcFindModalInput");
+    const colSel = document.getElementById("pcFindModalColumn");
+    const mainSearch = document.getElementById("pcSearchInput");
+
+    // Pre-select column if user has active column
+    if (colSel) {
+      if (this.activeColumn) {
+        const colMap = {
+          "Наименование": "name",
+          "Артикул": "artikul",
+          "Код": "code",
+          "Штрихкод": "barcode",
+          "СВ код": "cv",
+          "Папка": "folder",
+          "Папка (Родитель)": "folder",
+          "Ном. группа": "group",
+          "Портфель": "portfolio",
+          "Цена": "prices"
+        };
+        const matchedVal = colMap[this.activeColumn] || (this.activeColumn.startsWith("Цена") ? "prices" : "all");
+        colSel.value = matchedVal;
+      } else {
+        colSel.value = "all";
+      }
     }
 
-    inp.focus();
-    inp.select();
+    if (inp) {
+      if (this.activeCell && this.activeCell.value) {
+        inp.value = String(this.activeCell.value).trim();
+      } else if (mainSearch && mainSearch.value.trim()) {
+        inp.value = mainSearch.value.trim();
+      } else {
+        inp.value = "";
+      }
+    }
 
-    // Visual pulse effect on search box
-    inp.style.transition = "box-shadow 0.2s, border-color 0.2s";
-    inp.style.boxShadow = "0 0 8px rgba(0, 85, 234, 0.7)";
-    inp.style.borderColor = "#0055ea";
-    setTimeout(() => {
-      inp.style.boxShadow = "";
-      inp.style.borderColor = "";
-    }, 1200);
+    modal.style.display = "flex";
 
-    const colMsg = this.activeColumn ? ` (колонка: ${this.activeColumn})` : "";
-    this.updateStatus(`Поиск (Ctrl+F)${colMsg}. Для сброса поиска нажмите Ctrl+Q`);
+    // Immediate count update
+    this.onFindModalInput();
+
+    if (inp) {
+      setTimeout(() => {
+        inp.focus();
+        inp.select();
+      }, 50);
+    }
+  },
+
+  closeFindModal: function() {
+    const modal = document.getElementById("pcFindModal");
+    if (modal) modal.style.display = "none";
+  },
+
+  onFindModalInput: function() {
+    const inp = document.getElementById("pcFindModalInput");
+    const colSel = document.getElementById("pcFindModalColumn");
+    const countBadge = document.getElementById("pcFindModalResultCount");
+    const mainSearch = document.getElementById("pcSearchInput");
+
+    const q = inp ? inp.value.trim().toLowerCase() : "";
+    const col = colSel ? colSel.value : "all";
+
+    if (mainSearch) {
+      mainSearch.value = inp ? inp.value : "";
+    }
+
+    // Live filter items
+    this.filteredItems = this.items.filter(itm => {
+      if (this.filterSelectedOnly && !this.selectedCodes.has(itm.code)) {
+        return false;
+      }
+      if (!q) return true;
+
+      if (col === "name") return (itm.name || "").toLowerCase().includes(q);
+      if (col === "artikul") return (itm.artikul || "").toLowerCase().includes(q);
+      if (col === "code") return (itm.code || "").toLowerCase().includes(q);
+      if (col === "barcode") return (itm.barcode || "").toLowerCase().includes(q);
+      if (col === "cv") return (itm.cv || "").toLowerCase().includes(q);
+      if (col === "folder") return (itm.folder || "").toLowerCase().includes(q);
+      if (col === "group") return (itm.group || "").toLowerCase().includes(q);
+      if (col === "portfolio") return (itm.portfolio || "").toLowerCase().includes(q);
+      if (col === "prices") {
+        let priceText = "";
+        if (itm.prices) {
+          priceText = Object.values(itm.prices).map(v => Number(v || 0).toFixed(2)).join(" ");
+        } else if (itm.price !== undefined) {
+          priceText = Number(itm.price || 0).toFixed(2);
+        }
+        return priceText.includes(q);
+      }
+
+      // "all" columns
+      let priceText = "";
+      if (itm.prices) {
+        priceText = Object.values(itm.prices).map(v => Number(v || 0).toFixed(2)).join(" ");
+      } else if (itm.price !== undefined) {
+        priceText = Number(itm.price || 0).toFixed(2);
+      }
+      const src = `${itm.name} ${itm.code} ${itm.artikul} ${itm.cv} ${itm.barcode} ${itm.folder} ${itm.group} ${itm.portfolio} ${itm.manufacturer} ${priceText}`.toLowerCase();
+      return src.includes(q);
+    });
+
+    if (countBadge) {
+      countBadge.textContent = `${this.filteredItems.length} товаров найдено`;
+    }
+
+    if (this.currentSortCol) {
+      this.applyCurrentSort();
+    }
+
+    this.renderTable();
+    this.updateCountBadge(this.filteredItems.length);
+  },
+
+  onFindModalKeydown: function(e) {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      this.applyFindModal();
+    } else if (e.key === "Escape") {
+      e.preventDefault();
+      this.closeFindModal();
+    }
+  },
+
+  applyFindModal: function() {
+    this.closeFindModal();
+    const count = this.filteredItems.length;
+    this.updateStatus(`Поиск завершен: найдено ${count} товаров. Для сброса нажмите Ctrl+Q`);
+
+    // Auto-select first matching row/cell so user immediately sees what was found!
+    if (this.filteredItems.length > 0) {
+      const firstItem = this.filteredItems[0];
+      setTimeout(() => {
+        const row = document.getElementById(`pcRow_${firstItem.code}`);
+        if (row) {
+          row.scrollIntoView({ block: "nearest", behavior: "smooth" });
+          const targetTd = row.querySelector("td[data-col-key='Наименование']") ||
+                           row.querySelector("td[data-col-key='Артикул']") ||
+                           row.querySelector("td[data-col-key='Код']") ||
+                           row.querySelectorAll("td")[3];
+          if (targetTd) {
+            const colKey = targetTd.dataset.colKey || "Наименование";
+            PortfolioCatalog.setActiveCell(colKey, targetTd.textContent.trim(), targetTd);
+          }
+        }
+      }, 50);
+    }
+  },
+
+  clearFindModal: function() {
+    const inp = document.getElementById("pcFindModalInput");
+    if (inp) inp.value = "";
+    this.clearSearch();
+    const countBadge = document.getElementById("pcFindModalResultCount");
+    if (countBadge) {
+      countBadge.textContent = `${this.items.length} товаров найдено`;
+    }
+    this.closeFindModal();
+  },
+
+  onSearchHotkey: function() {
+    // Open authentic 1C Search Modal Dialog!
+    this.openFindModal();
   },
 
   clearSearch: function() {
@@ -679,6 +848,9 @@ const PortfolioCatalog = {
       inp.value = "";
       inp.blur();
     }
+    const modalInp = document.getElementById("pcFindModalInput");
+    if (modalInp) modalInp.value = "";
+
     this.activeCell = null;
     document.querySelectorAll(".pc-cell-active").forEach(el => {
       el.classList.remove("pc-cell-active");
@@ -738,6 +910,7 @@ const PortfolioCatalog = {
 
   renderTable: function() {
     this.renderTableHead();
+    this.lastSelectedTd = null;
 
     const tbody = document.getElementById("pcTableBody");
     if (!tbody) return;
@@ -800,8 +973,8 @@ const PortfolioCatalog = {
             }
           }
 
-          const styleAttr = `padding: 3px 5px; border: ${cellBorder}; text-align: right; font-weight: bold; color: ${cellColor}; white-space: nowrap; cursor: pointer; ${cellBg ? `background: ${cellBg};` : ''}`;
-          priceTds += `<td style="${styleAttr}" ${cellTitle ? `title="${escapeHtml(cellTitle)}"` : ''} onclick="PortfolioCatalog.setActiveCell('Цена (${escapeHtml(pt)})', '${priceStr}', this)">${priceStr}</td>`;
+          const styleAttr = `padding: 3px 5px; border: ${cellBorder}; text-align: right; font-weight: bold; color: ${cellColor}; white-space: nowrap; cursor: pointer; user-select: text; -webkit-user-select: text; ${cellBg ? `background: ${cellBg};` : ''}`;
+          priceTds += `<td data-col-key="Цена (${escapeHtml(pt)})" style="${styleAttr}" ${cellTitle ? `title="${escapeHtml(cellTitle)}"` : ''}>${priceStr}</td>`;
         });
       }
 
@@ -810,24 +983,25 @@ const PortfolioCatalog = {
           <td style="padding: 2px 2px; border: 1px solid #d4d0c8; text-align: center;" onclick="event.stopPropagation()">
             <input type="checkbox" class="pc-row-chk" data-code="${escapeHtml(itm.code)}" ${isSelected ? 'checked' : ''} onchange="PortfolioCatalog.toggleItemSelection('${escapeHtml(itm.code)}', this.checked)">
           </td>
-          <td style="padding: 3px 5px; border: 1px solid #d4d0c8; text-align: center; color: #777;">${i + 1}</td>
-          <td style="padding: 3px 5px; border: 1px solid #d4d0c8; text-align: center; font-family: Consolas, monospace; font-weight: bold; color: #003366; cursor: pointer;" onclick="PortfolioCatalog.setActiveCell('Код', '${escapeHtml(itm.code)}', this)">${escapeHtml(itm.code)}</td>
-          <td style="padding: 3px 5px; border: 1px solid #d4d0c8; cursor: pointer;" onclick="PortfolioCatalog.setActiveCell('Артикул', '${escapeHtml(itm.artikul)}', this)">${escapeHtml(itm.artikul)}</td>
-          <td style="padding: 3px 5px; border: 1px solid #d4d0c8; text-align: center; font-family: Consolas, monospace; color: #2e7d32; font-weight: bold; cursor: pointer;" onclick="PortfolioCatalog.setActiveCell('СВ код', '${escapeHtml(itm.cv)}', this)">${escapeHtml(itm.cv)}</td>
-          <td style="padding: 3px 5px; border: 1px solid #d4d0c8; text-align: center; font-family: Consolas, monospace; color: #555; cursor: pointer;" onclick="PortfolioCatalog.setActiveCell('Штрихкод', '${escapeHtml(itm.barcode)}', this)">${escapeHtml(itm.barcode)}</td>
-          <td style="padding: 3px 6px; border: 1px solid #d4d0c8; font-weight: 500; color: #111; cursor: pointer;" onclick="PortfolioCatalog.setActiveCell('Наименование', '${escapeHtml(itm.name)}', this)">${escapeHtml(itm.name)}</td>
-          <td style="padding: 3px 5px; border: 1px solid #d4d0c8; color: #444; cursor: pointer;" onclick="PortfolioCatalog.setActiveCell('Папка', '${escapeHtml(itm.folder)}', this)">${escapeHtml(itm.folder)}</td>
-          <td style="padding: 3px 5px; border: 1px solid #d4d0c8; color: #004080; font-weight: 500; cursor: pointer;" onclick="PortfolioCatalog.setActiveCell('Ном. группа', '${escapeHtml(itm.group)}', this)">${escapeHtml(itm.group)}</td>
-          <td style="padding: 3px 5px; border: 1px solid #d4d0c8; color: #6a1b9a; font-weight: bold; cursor: pointer;" onclick="PortfolioCatalog.setActiveCell('Портфель', '${escapeHtml(itm.portfolio)}', this)">${escapeHtml(itm.portfolio)}</td>
-          <td style="padding: 3px 5px; border: 1px solid #d4d0c8; text-align: center; cursor: pointer;" onclick="PortfolioCatalog.setActiveCell('Ед. изм.', '${escapeHtml(itm.unit)}', this)">${escapeHtml(itm.unit)}</td>
+          <td style="padding: 3px 5px; border: 1px solid #d4d0c8; text-align: center; color: #777; user-select: text; -webkit-user-select: text;">${i + 1}</td>
+          <td data-col-key="Код" style="padding: 3px 5px; border: 1px solid #d4d0c8; text-align: center; font-family: Consolas, monospace; font-weight: bold; color: #003366; cursor: pointer; user-select: text; -webkit-user-select: text;">${escapeHtml(itm.code)}</td>
+          <td data-col-key="Артикул" style="padding: 3px 5px; border: 1px solid #d4d0c8; cursor: pointer; user-select: text; -webkit-user-select: text;">${escapeHtml(itm.artikul)}</td>
+          <td data-col-key="СВ код" style="padding: 3px 5px; border: 1px solid #d4d0c8; text-align: center; font-family: Consolas, monospace; color: #2e7d32; font-weight: bold; cursor: pointer; user-select: text; -webkit-user-select: text;">${escapeHtml(itm.cv)}</td>
+          <td data-col-key="Штрихкод" style="padding: 3px 5px; border: 1px solid #d4d0c8; text-align: center; font-family: Consolas, monospace; color: #555; cursor: pointer; user-select: text; -webkit-user-select: text;">${escapeHtml(itm.barcode)}</td>
+          <td data-col-key="Наименование" style="padding: 3px 6px; border: 1px solid #d4d0c8; font-weight: 500; color: #111; cursor: pointer; user-select: text; -webkit-user-select: text;">${escapeHtml(itm.name)}</td>
+          <td data-col-key="Папка" style="padding: 3px 5px; border: 1px solid #d4d0c8; color: #444; cursor: pointer; user-select: text; -webkit-user-select: text;">${escapeHtml(itm.folder)}</td>
+          <td data-col-key="Ном. группа" style="padding: 3px 5px; border: 1px solid #d4d0c8; color: #004080; font-weight: 500; cursor: pointer; user-select: text; -webkit-user-select: text;">${escapeHtml(itm.group)}</td>
+          <td data-col-key="Портфель" style="padding: 3px 5px; border: 1px solid #d4d0c8; color: #6a1b9a; font-weight: bold; cursor: pointer; user-select: text; -webkit-user-select: text;">${escapeHtml(itm.portfolio)}</td>
+          <td data-col-key="Ед. изм." style="padding: 3px 5px; border: 1px solid #d4d0c8; text-align: center; cursor: pointer; user-select: text; -webkit-user-select: text;">${escapeHtml(itm.unit)}</td>
           ${priceTds}
-          <td style="padding: 3px 5px; border: 1px solid #d4d0c8; color: #555; cursor: pointer;" onclick="PortfolioCatalog.setActiveCell('Вид', '${escapeHtml(itm.type)}', this)">${escapeHtml(itm.type)}</td>
-          <td style="padding: 3px 5px; border: 1px solid #d4d0c8; color: #333; cursor: pointer;" onclick="PortfolioCatalog.setActiveCell('Производитель', '${escapeHtml(itm.manufacturer)}', this)">${escapeHtml(itm.manufacturer)}</td>
+          <td data-col-key="Вид" style="padding: 3px 5px; border: 1px solid #d4d0c8; color: #555; cursor: pointer; user-select: text; -webkit-user-select: text;">${escapeHtml(itm.type)}</td>
+          <td data-col-key="Производитель" style="padding: 3px 5px; border: 1px solid #d4d0c8; color: #333; cursor: pointer; user-select: text; -webkit-user-select: text;">${escapeHtml(itm.manufacturer)}</td>
         </tr>
       `;
     }
 
     tbody.innerHTML = html;
+    this.bindTableClickDelegation();
   },
 
   applyCurrentSort: function() {

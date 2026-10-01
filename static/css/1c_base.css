@@ -53,6 +53,31 @@ body {
   user-select: none;
 }
 
+/* Allow text selection in table cells and inputs for easy copying */
+.pc-report-table,
+.pc-report-table tr,
+.pc-report-table td,
+.pc-report-table th,
+.sheet-table,
+.sheet-table tr,
+.sheet-table td,
+.sheet-table th,
+input,
+textarea,
+select {
+  user-select: text !important;
+  -webkit-user-select: text !important;
+}
+
+::selection {
+  background: #0055ea !important;
+  color: #ffffff !important;
+}
+::-moz-selection {
+  background: #0055ea !important;
+  color: #ffffff !important;
+}
+
 /* 1C Window Container */
 .window-container {
   display: flex;

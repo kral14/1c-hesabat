@@ -948,6 +948,15 @@ const MdiManager = {
       return true;
     }
 
+    // 2.5 Close Portfolio Find Modal if open
+    const pcFindModal = document.getElementById("pcFindModal");
+    if (pcFindModal && pcFindModal.style.display === "flex") {
+      if (typeof PortfolioCatalog !== "undefined" && PortfolioCatalog.closeFindModal) {
+        PortfolioCatalog.closeFindModal();
+        return true;
+      }
+    }
+
     // 3. Find and close the topmost active MDI window or Modal (highest z-index)
     const topWin = this.getTopmostVisibleWindow();
     if (topWin) {
@@ -974,6 +983,15 @@ const MdiManager = {
       if (typeof closeDatePicker === "function") closeDatePicker();
       else cal.style.display = "none";
       return true;
+    }
+
+    // Check if Portfolio Find Modal is open
+    const pcFindModal = document.getElementById("pcFindModal");
+    if (pcFindModal && pcFindModal.style.display === "flex") {
+      if (typeof PortfolioCatalog !== "undefined" && PortfolioCatalog.applyFindModal) {
+        PortfolioCatalog.applyFindModal();
+        return true;
+      }
     }
 
     // 2. Find topmost visible window or modal (strictly based on highest z-index)
@@ -1078,6 +1096,34 @@ const MdiManager = {
   },
 
   handleSearch() {
+    // 0. If Portfolio Find Modal is already open, focus its input!
+    const pcFindModal = document.getElementById("pcFindModal");
+    if (pcFindModal && pcFindModal.style.display === "flex") {
+      const inp = document.getElementById("pcFindModalInput");
+      if (inp) {
+        inp.focus();
+        inp.select();
+        return true;
+      }
+    }
+
+    // Check if user is inside or focused on Portfolio Catalog Window
+    const pcWin = document.getElementById("portfolioCatalogWindow");
+    if (pcWin && pcWin.style.display !== "none" && !pcWin.classList.contains("minimized")) {
+      const isPcActive = (this.activeWindowId === "portfolioCatalogWindow") ||
+                         pcWin.classList.contains("active") ||
+                         pcWin.contains(document.activeElement) ||
+                         (document.getSelection && document.getSelection().anchorNode && pcWin.contains(document.getSelection().anchorNode.nodeType === 1 ? document.getSelection().anchorNode : document.getSelection().anchorNode.parentElement));
+      
+      const topWin = this.getTopmostVisibleWindow();
+      if (isPcActive || (topWin && topWin.id === "portfolioCatalogWindow")) {
+        if (typeof PortfolioCatalog !== "undefined" && PortfolioCatalog.onSearchHotkey) {
+          PortfolioCatalog.onSearchHotkey();
+          return true;
+        }
+      }
+    }
+
     const topWin = this.getTopmostVisibleWindow();
     if (!topWin) return false;
 
@@ -1135,6 +1181,28 @@ const MdiManager = {
   },
 
   handleCancelSearch() {
+    const pcFindModal = document.getElementById("pcFindModal");
+    if (pcFindModal && pcFindModal.style.display === "flex") {
+      if (typeof PortfolioCatalog !== "undefined" && PortfolioCatalog.clearFindModal) {
+        PortfolioCatalog.clearFindModal();
+        return true;
+      }
+    }
+
+    const pcWin = document.getElementById("portfolioCatalogWindow");
+    if (pcWin && pcWin.style.display !== "none" && !pcWin.classList.contains("minimized")) {
+      const isPcActive = (this.activeWindowId === "portfolioCatalogWindow") ||
+                         pcWin.classList.contains("active") ||
+                         pcWin.contains(document.activeElement);
+      const topWin = this.getTopmostVisibleWindow();
+      if (isPcActive || (topWin && topWin.id === "portfolioCatalogWindow")) {
+        if (typeof PortfolioCatalog !== "undefined" && PortfolioCatalog.clearSearch) {
+          PortfolioCatalog.clearSearch();
+          return true;
+        }
+      }
+    }
+
     const topWin = this.getTopmostVisibleWindow();
     if (!topWin) return false;
 
