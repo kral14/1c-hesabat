@@ -61,6 +61,19 @@ def init_db():
         )
     """)
 
+    # 5. Persistent Active 1C Database & Credentials Table
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS active_base (
+            id INTEGER PRIMARY KEY CHECK (id = 1),
+            server TEXT NOT NULL,
+            ref TEXT NOT NULL,
+            title TEXT,
+            user TEXT DEFAULT 'Nesib',
+            password TEXT DEFAULT '15963',
+            updated_at TEXT DEFAULT (datetime('now', 'localtime'))
+        )
+    """)
+
     conn.commit()
 
     # Check if presets table is empty, then seed with 1C database presets
@@ -334,3 +347,48 @@ def delete_base(server, ref):
     conn.commit()
     conn.close()
     return True
+
+def set_active_base(server, ref, title=None, user=None, password=None):
+    conn = get_connection()
+    cur = conn.cursor()
+    server = (server or "").strip()
+    ref = (ref or "").strip()
+    if not server or not ref:
+        conn.close()
+        return False
+    title = (title or "").strip() or f"{server} / {ref}"
+    user = (user or "Nesib").strip()
+    password = (password or "15963").strip()
+    now_str = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+    cur.execute("""
+        INSERT INTO active_base (id, server, ref, title, user, password, updated_at)
+        VALUES (1, ?, ?, ?, ?, ?, ?)
+        ON CONFLICT(id) DO UPDATE SET
+            server = excluded.server,
+            ref = excluded.ref,
+            title = excluded.title,
+            user = excluded.user,
+            password = excluded.password,
+            updated_at = excluded.updated_at
+    """, (server, ref, title, user, password, now_str))
+    conn.commit()
+    conn.close()
+    return True
+
+def get_active_base():
+    conn = get_connection()
+    cur = conn.cursor()
+    cur.execute("SELECT server, ref, title, user, password FROM active_base WHERE id = 1")
+    row = cur.fetchone()
+    conn.close()
+    if row:
+        return {
+            "server": row["server"],
+            "ref": row["ref"],
+            "title": row["title"],
+            "user": row["user"],
+            "password": row["password"]
+        }
+    return None
+

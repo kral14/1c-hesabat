@@ -220,10 +220,11 @@ class OneCService(threading.Thread):
                 resp_q.put((True, "Closed"))
                 break
             try:
-                server = payload.get("server") or "Test1C"
-                base = payload.get("ref") or "Aztrade_test3"
-                user = payload.get("user") or "Nesib"
-                pwd = payload.get("password") or "15963"
+                active_base = database.get_active_base() or {}
+                server = payload.get("server") or active_base.get("server") or "Test1C"
+                base = payload.get("ref") or active_base.get("ref") or "Aztrade_test3"
+                user = payload.get("user") or active_base.get("user") or "Nesib"
+                pwd = payload.get("password") or active_base.get("password") or "15963"
                 if str(user).strip().lower() in ["nesib admin", "nesibadmin", "nəsib"]:
                     user = "Nesib"
                 key = f"{server.lower()}_{base.lower()}_{user.lower()}_{pwd}"
@@ -2166,9 +2167,30 @@ def index():
 @app.route("/api/bases", methods=["GET"])
 def get_bases():
     try:
-        return jsonify({"success": True, "bases": parse_ibases()})
+        active_b = database.get_active_base()
+        return jsonify({
+            "success": True, 
+            "bases": parse_ibases(),
+            "active_base": active_b
+        })
     except Exception as e:
         print_server_error("/api/bases", e)
+        return jsonify({"success": False, "error": str(e)})
+
+@app.route("/api/bases/set_active", methods=["POST"])
+def set_active_base_endpoint():
+    try:
+        data = request.json or {}
+        server = (data.get("server") or "").strip()
+        ref = (data.get("ref") or "").strip()
+        title = (data.get("title") or "").strip()
+        user = (data.get("user") or "").strip()
+        pwd = data.get("password")
+        if server and ref:
+            database.set_active_base(server, ref, title, user, pwd)
+            print(f"📌 [AKTİV BAZA TƏYİN EDİLDİ] {title} ({server} / {ref})", flush=True)
+        return jsonify({"success": True, "active_base": database.get_active_base()})
+    except Exception as e:
         return jsonify({"success": False, "error": str(e)})
 
 @app.route("/api/bases/add", methods=["POST"])
@@ -2183,8 +2205,9 @@ def add_base_endpoint():
         if not title:
             title = f"{server} / {ref}"
         database.add_custom_base(title, server, ref)
+        database.set_active_base(server, ref, title)
         print(f"💾 [1C BAZA ƏLAVƏ EDİLDİ] Başlıq: {title} | Server: {server} | Ref: {ref}", flush=True)
-        return jsonify({"success": True, "bases": parse_ibases()})
+        return jsonify({"success": True, "bases": parse_ibases(), "active_base": database.get_active_base()})
     except Exception as e:
         print_server_error("/api/bases/add", e, data)
         return jsonify({"success": False, "error": str(e)})
@@ -2198,8 +2221,13 @@ def delete_base_endpoint():
         if not server or not ref:
             return jsonify({"success": False, "error": "Silinəcək server və baza adı tələb olunur."})
         database.delete_base(server, ref)
+        cur_active = database.get_active_base()
+        if cur_active and cur_active["server"].lower() == server.lower() and cur_active["ref"].lower() == ref.lower():
+            all_b = parse_ibases()
+            if all_b:
+                database.set_active_base(all_b[0]["server"], all_b[0]["ref"], all_b[0]["title"])
         print(f"🗑️ [1C BAZA SİLİNDİ] Server: {server} | Ref: {ref}", flush=True)
-        return jsonify({"success": True, "bases": parse_ibases()})
+        return jsonify({"success": True, "bases": parse_ibases(), "active_base": database.get_active_base()})
     except Exception as e:
         print_server_error("/api/bases/delete", e, data)
         return jsonify({"success": False, "error": str(e)})
@@ -2261,6 +2289,14 @@ def user_login():
         print(f"🔑 [1C GİRİŞ CƏHDİ] Server: {data.get('server')} | Baza: {data.get('ref')} | İstifadəçi: {data.get('user')}", flush=True)
         res = one_c.execute("get_reports", data)
         print(f"✅ [1C GİRİŞ UĞURLU] İstifadəçi: {data.get('user')} uğurla bağlandı!", flush=True)
+        # Persist selected database in SQLite as active database
+        database.set_active_base(
+            data.get('server'),
+            data.get('ref'),
+            data.get('dbTitle') or f"{data.get('server')} / {data.get('ref')}",
+            data.get('user'),
+            data.get('password')
+        )
         return jsonify({"success": True, "user": data.get("user"), **res})
     except Exception as e:
         print_server_error("/api/login", e, data)

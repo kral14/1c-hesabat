@@ -87,11 +87,21 @@ const SessionManager = {
       if (data.success && data.bases) {
         const select = document.getElementById("modalBaseSelect");
         if (!select) return;
-        select.innerHTML = "";
-        let matchedOpt = null;
+
+        // If backend has persistent active_base and no preferred base was explicitly passed, adopt it
+        if (data.active_base && !preferredBase) {
+          this.state.server = data.active_base.server || this.state.server;
+          this.state.ref = data.active_base.ref || this.state.ref;
+          this.state.dbTitle = data.active_base.title || this.state.dbTitle;
+          if (data.active_base.user) this.state.user = data.active_base.user;
+          this.save();
+        }
 
         const targetServer = (preferredBase?.server || this.state.server || "").toLowerCase();
         const targetRef = (preferredBase?.ref || this.state.ref || "").toLowerCase();
+
+        select.innerHTML = "";
+        let selectedIdx = 0;
 
         data.bases.forEach((b, idx) => {
           const opt = document.createElement("option");
@@ -100,20 +110,47 @@ const SessionManager = {
           opt.textContent = `${b.title} (${b.server} / ${b.ref})${customTag}`;
 
           if (b.server.toLowerCase() === targetServer && b.ref.toLowerCase() === targetRef) {
-            opt.selected = true;
-            matchedOpt = opt;
-          } else if (!matchedOpt && idx === 0) {
-            opt.selected = true;
+            selectedIdx = idx;
           }
           select.appendChild(opt);
         });
 
-        // Trigger onModalBaseChange to sync inputs and users
-        onModalBaseChange();
+        if (select.options.length > 0) {
+          select.selectedIndex = selectedIdx;
+        }
+
+        // Just sync inputs quietly without firing redundant user/base change reloads
+        this.syncInputs();
       }
     } catch (err) {
       console.error("Failed to load bases:", err);
     }
+  },
+
+  syncInputs() {
+    const select = document.getElementById("modalBaseSelect");
+    if (!select || !select.value) return;
+    try {
+      const b = JSON.parse(select.value);
+      this.state.server = b.server;
+      this.state.ref = b.ref;
+      this.state.dbTitle = b.title;
+
+      const tInp = document.getElementById("modalCustomTitle");
+      const sInp = document.getElementById("modalCustomServer");
+      const rInp = document.getElementById("modalCustomRef");
+      const badge = document.getElementById("modalCustomBadge");
+
+      if (tInp) tInp.value = b.title || "";
+      if (sInp) sInp.value = b.server || "";
+      if (rInp) rInp.value = b.ref || "";
+      if (badge) {
+        badge.textContent = b.is_custom ? "🌟 Əlavə edilmiş baza" : "💻 1C Sistem bazası";
+        badge.style.color = b.is_custom ? "#1b5e20" : "#666";
+      }
+
+      this.updateUI();
+    } catch (e) {}
   },
 
   async loadUsers() {
@@ -234,7 +271,7 @@ function closeLoginModal() {
   }
 }
 
-function onModalBaseChange() {
+async function onModalBaseChange() {
   const select = document.getElementById("modalBaseSelect");
   if (!select || !select.value) return;
   try {
@@ -243,20 +280,21 @@ function onModalBaseChange() {
     SessionManager.state.ref = b.ref;
     SessionManager.state.dbTitle = b.title;
 
-    const tInp = document.getElementById("modalCustomTitle");
-    const sInp = document.getElementById("modalCustomServer");
-    const rInp = document.getElementById("modalCustomRef");
-    const badge = document.getElementById("modalCustomBadge");
-
-    if (tInp) tInp.value = b.title || "";
-    if (sInp) sInp.value = b.server || "";
-    if (rInp) rInp.value = b.ref || "";
-    if (badge) {
-      badge.textContent = b.is_custom ? "🌟 Əlavə edilmiş baza" : "💻 1C Sistem bazası";
-      badge.style.color = b.is_custom ? "#1b5e20" : "#666";
-    }
-
+    SessionManager.syncInputs();
     SessionManager.save();
+
+    // Persist active database choice to backend SQLite
+    await fetch("/api/bases/set_active", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        server: b.server,
+        ref: b.ref,
+        title: b.title,
+        user: SessionManager.state.user
+      })
+    }).catch(() => {});
+
     SessionManager.loadUsers();
   } catch (e) {
     console.error("onModalBaseChange error:", e);
@@ -345,6 +383,18 @@ function reloadModalUsersForCustomDb() {
   if (rInp && rInp.value.trim()) SessionManager.state.ref = rInp.value.trim();
   if (tInp && tInp.value.trim()) SessionManager.state.dbTitle = tInp.value.trim();
   SessionManager.save();
+
+  fetch("/api/bases/set_active", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      server: SessionManager.state.server,
+      ref: SessionManager.state.ref,
+      title: SessionManager.state.dbTitle,
+      user: SessionManager.state.user
+    })
+  }).catch(() => {});
+
   SessionManager.loadUsers();
 }
 
@@ -369,6 +419,12 @@ async function submitLoginModal() {
 
   const ok = await SessionManager.authenticate(user, pwd, server, ref, title);
   if (ok) {
+    await fetch("/api/bases/set_active", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ server, ref, title, user, password: pwd })
+    }).catch(() => {});
+
     // Invalidate caches when database session connects
     if (window.PortfolioCatalog) {
       PortfolioCatalog.cache = {};
