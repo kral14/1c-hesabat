@@ -1892,7 +1892,7 @@ class OneCService(threading.Thread):
                         price_join = """
                         ЛЕВОЕ СОЕДИНЕНИЕ РегистрСведений.ЦеныНоменклатуры.СрезПоследних(
                             &CurrentDate, 
-                            ТипЦен.Код = &PriceType ИЛИ ТипЦен.Наименование ПОДОБНО &PriceTypePattern
+                            ТипЦен.Код = &PriceType ИЛИ ТипЦен.Наименование = &PriceType
                         ) КАК Цены
                             ПО Т.Ссылка = Цены.Номенклатура
                         """
@@ -1930,13 +1930,14 @@ class OneCService(threading.Thread):
                     if sel_price_type:
                         q.SetParameter("CurrentDate", datetime.datetime.now())
                         q.SetParameter("PriceType", sel_price_type)
-                        q.SetParameter("PriceTypePattern", f"%{sel_price_type}%")
                     if sel_group:
                         q.SetParameter("NomGroupName", sel_group)
 
                     res = q.Execute().Choose()
-                    items = []
+                    items_map = {}
+                    order_keys = []
                     while res.Next():
+                        ref_str = conn.String(res.Ref)
                         p_ref_str = conn.String(res.ParentRef) if res.ParentRef else ""
                         root_port = resolve_root_portfolio(p_ref_str, fmap)
 
@@ -1963,21 +1964,28 @@ class OneCService(threading.Thread):
                             if search_txt not in match_src:
                                 continue
 
-                        items.append({
-                            "code": code,
-                            "artikul": artikul,
-                            "cv": cv_code,
-                            "barcode": bc,
-                            "name": name,
-                            "folder": folder,
-                            "group": group,
-                            "portfolio": root_port,
-                            "type": item_type,
-                            "unit": unit,
-                            "price": price,
-                            "manufacturer": manuf
-                        })
+                        dedup_key = ref_str or code
+                        if dedup_key in items_map:
+                            if items_map[dedup_key]["price"] == 0 and price > 0:
+                                items_map[dedup_key]["price"] = price
+                        else:
+                            items_map[dedup_key] = {
+                                "code": code,
+                                "artikul": artikul,
+                                "cv": cv_code,
+                                "barcode": bc,
+                                "name": name,
+                                "folder": folder,
+                                "group": group,
+                                "portfolio": root_port,
+                                "type": item_type,
+                                "unit": unit,
+                                "price": price,
+                                "manufacturer": manuf
+                            }
+                            order_keys.append(dedup_key)
 
+                    items = [items_map[k] for k in order_keys]
                     resp_q.put((True, items))
 
             except Exception as e:
