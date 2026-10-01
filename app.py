@@ -232,9 +232,10 @@ class OneCService(threading.Thread):
                 conn = self.connections.get(key)
                 if conn is not None:
                     try:
-                        _ = conn.String(1)
+                        # True cluster RPC check: ТекущаяДата() hits 1C rphost process to verify session is still alive
+                        _ = conn.ТекущаяДата()
                     except Exception:
-                        print(f"1C Session for '{key}' expired/dropped. Reconnecting...")
+                        print(f"🔄 [1C SESSIYA BƏRPASI] Sessiya vaxt aşımına (inactivity timeout) uğrayıb, avtomatik yenidən qoşulur...", flush=True)
                         self.connections.pop(key, None)
                         conn = None
 
@@ -2054,13 +2055,14 @@ class OneCService(threading.Thread):
 
             except Exception as e:
                 err_str = str(e)
-                print_server_error(f"OneCService.run [Action: {action}]", e, payload)
                 if any(k in err_str for k in ["Сеанс отсутствует", "ClusterDistribImpl", "Соединение разорвано"]):
-                    print(f"⚠️ [1C KEŞ] Evicting stale 1C session due to error: {err_str[:120]}", flush=True)
+                    print(f"⚠️ [1C BİLDİRİŞ] 1C sessiyası server tərəfindən bağlanıb, avtomatik bərpa edilir...", flush=True)
                     try:
                         self.connections.pop(key, None)
                     except Exception:
                         pass
+                else:
+                    print_server_error(f"OneCService.run [Action: {action}]", e, payload)
                 resp_q.put((False, e))
 
     def execute(self, action, payload, retry=1):
