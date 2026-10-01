@@ -75,7 +75,7 @@ def get_folders_map(conn, base_key):
         while res_f.Next():
             r_id = conn.String(res_f.Ref)
             p_id = conn.String(res_f.Parent) if res_f.Parent else ""
-            fmap[r_id] = (str(res_f.Name).strip(), p_id, res_f.Ref)
+            fmap[r_id] = (str(res_f.Name).strip(), p_id)
         _folders_cache[base_key] = fmap
         return fmap
     except Exception as ex_f:
@@ -1900,11 +1900,15 @@ class OneCService(threading.Thread):
                     port_folder_ref = None
 
                     if sel_portfolio:
-                        for r_id, f_data in fmap.items():
-                            if len(f_data) >= 3 and f_data[0].lower() == sel_portfolio.lower() and not f_data[1]:
-                                port_folder_ref = f_data[2]
+                        try:
+                            # 1C native catalog finder returns a fresh, valid CatalogRef
+                            p_find = conn.Справочники.Номенклатура.НайтиПоНаименованию(sel_portfolio, True)
+                            if p_find and not p_find.Пустая():
+                                port_folder_ref = p_find
                                 where_clauses.append("Т.Ссылка В ИЕРАРХИИ (&PortFolder)")
-                                break
+                        except Exception as e_fnd:
+                            print(f"⚠️ [PortFolder lookup fallback]: {e_fnd}", flush=True)
+                            port_folder_ref = None
 
                     if sel_group:
                         where_clauses.append("Т.НоменклатурнаяГруппа.Наименование = &NomGroupName")
@@ -1957,7 +1961,43 @@ class OneCService(threading.Thread):
                     if sel_group:
                         q.SetParameter("NomGroupName", sel_group)
 
-                    res = q.Execute().Choose()
+                    try:
+                        res = q.Execute().Choose()
+                    except Exception as eq:
+                        if port_folder_ref and "PortFolder" in str(eq):
+                            print("⚠️ [1C QUERY RETRY] Hierarchy parameter error, retrying without SQL hierarchy filter...", flush=True)
+                            clean_clauses = [c for c in where_clauses if "PortFolder" not in c]
+                            q.Text = f"""
+                            ВЫБРАТЬ {limit_clause}
+                                Т.Ссылка КАК Ref,
+                                Т.Код КАК Code,
+                                Т.Артикул КАК Artikul,
+                                Т.СВкод КАК CVCode,
+                                Т.Наименование КАК Name,
+                                Т.НаименованиеПолное КАК FullName,
+                                Т.Родитель КАК ParentRef,
+                                Т.Родитель.Наименование КАК FolderName,
+                                Т.НоменклатурнаяГруппа.Наименование КАК NomGroup,
+                                Т.ВидНоменклатуры.Наименование КАК ItemType,
+                                Т.БазоваяЕдиницаИзмерения.Наименование КАК BaseUnit,
+                                Т.Производитель.Наименование КАК Manufacturer,
+                                ЕСТЬNULL(Ш.Штрихкод, "") КАК Barcode
+                                {", ЕСТЬNULL(Цены.Цена, 0) КАК Price" if sel_price_type else ""}
+                            ИЗ
+                                Справочник.Номенклатура КАК Т
+                                ЛЕВОЕ СОЕДИНЕНИЕ РегистрСведений.Штрихкоды КАК Ш
+                                    ПО Т.Ссылка = Ш.Владелец
+                                {price_join}
+                            ГДЕ
+                                {" И ".join(clean_clauses)}
+                            УПОРЯДОЧИТЬ ПО
+                                Т.НоменклатурнаяГруппа.Наименование,
+                                Т.Наименование
+                            """
+                            port_folder_ref = None
+                            res = q.Execute().Choose()
+                        else:
+                            raise eq
                     items_map = {}
                     order_keys = []
                     while res.Next():
@@ -2014,7 +2054,7 @@ class OneCService(threading.Thread):
             except Exception as e:
                 err_str = str(e)
                 print_server_error(f"OneCService.run [Action: {action}]", e, payload)
-                if any(k in err_str for k in ["Сеанс отсутствует", "ClusterDistribImpl", "Соединение разорвано", "-2147352567"]):
+                if any(k in err_str for k in ["Сеанс отсутствует", "ClusterDistribImpl", "Соединение разорвано"]):
                     print(f"⚠️ [1C KEŞ] Evicting stale 1C session due to error: {err_str[:120]}", flush=True)
                     try:
                         self.connections.pop(key, None)
