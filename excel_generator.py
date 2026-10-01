@@ -508,7 +508,12 @@ def generate_portfolio_catalog_excel(items, filters, output_path):
     # 2. Metadata / Filter info
     port_text = filters.get("portfolio") or "Все портфели"
     grp_text = filters.get("nom_group") or "Все группы"
-    price_text = filters.get("price_type") or "Без цен"
+    raw_pts = filters.get("price_types")
+    if not raw_pts or not isinstance(raw_pts, list):
+        single_pt = filters.get("price_type")
+        raw_pts = [single_pt] if single_pt else []
+    sel_pts = [str(p).strip() for p in raw_pts if str(p).strip() and str(p).lower() != "none" and str(p) != "(Без цен)"]
+    price_text = ", ".join(sel_pts) if sel_pts else "Без цен"
     now_str = datetime.datetime.now().strftime("%d.%m.%Y %H:%M")
 
     ws["B3"] = f"Портфель: {port_text}  |  Группа: {grp_text}  |  Тип цен: {price_text}  |  Дата формирования: {now_str}  |  Всего: {len(items)} товаров"
@@ -527,9 +532,13 @@ def generate_portfolio_catalog_excel(items, filters, output_path):
         ("Портфель", 18, align_left),
         ("Вид номенклатуры", 14, align_left),
         ("Базовая ед.", 10, align_center),
-        ("Цена", 12, align_right),
-        ("Производитель", 18, align_left),
     ]
+    if sel_pts:
+        for pt in sel_pts:
+            headers.append((f"Цена ({pt})", 13, align_right))
+    else:
+        headers.append(("Цена", 12, align_right))
+    headers.append(("Производитель", 18, align_left))
 
     header_row = 5
     ws.row_dimensions[header_row].height = 24
@@ -561,9 +570,15 @@ def generate_portfolio_catalog_excel(items, filters, output_path):
             (itm.get("portfolio") or "", align_left, font_td, None),
             (itm.get("type") or "", align_left, font_td, None),
             (itm.get("unit") or "", align_center, font_td, None),
-            (float(itm.get("price") or 0), align_right, font_price, "#,##0.00"),
-            (itm.get("manufacturer") or "", align_left, font_td, None),
         ]
+        prices_dict = itm.get("prices") or {}
+        if sel_pts:
+            for pt in sel_pts:
+                p_val = float(prices_dict.get(pt, itm.get("price", 0)) or 0)
+                row_vals.append((p_val, align_right, font_price, "#,##0.00"))
+        else:
+            row_vals.append((float(itm.get("price") or 0), align_right, font_price, "#,##0.00"))
+        row_vals.append((itm.get("manufacturer") or "", align_left, font_td, None))
 
         for col_idx, (val, alignment, font, num_fmt) in enumerate(row_vals, start=2):
             cell = ws.cell(row=current_row, column=col_idx, value=val)

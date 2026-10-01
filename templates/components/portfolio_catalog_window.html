@@ -41,13 +41,25 @@
         </select>
       </div>
 
-      <!-- 3. Price Type -->
-      <div class="pc-filter-group" style="display: flex; align-items: center; gap: 4px;">
+      <!-- 3. Multi-Select Price Types -->
+      <div class="pc-filter-group" style="display: flex; align-items: center; gap: 4px; position: relative;">
         <span style="font-size: 11px; font-weight: bold; color: #222;">Тип цен:</span>
-        <select id="pcPriceTypeSelect" class="select-1c" style="min-width: 110px; height: 24px; font-size: 11px;">
-          <option value="20">20</option>
-          <option value="">(Без цен)</option>
-        </select>
+        <button id="pcPriceTypeDropdownBtn" type="button" class="select-1c" onclick="PortfolioCatalog.togglePriceTypeDropdown(event)" style="min-width: 120px; height: 24px; font-size: 11px; text-align: left; padding: 2px 6px; display: inline-flex; align-items: center; justify-content: space-between; cursor: pointer; background: #ffffff;">
+          <span id="pcPriceTypeLabel" style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 120px; font-weight: 500;">20</span>
+          <span style="font-size: 9px; color: #555; margin-left: 4px;">▼</span>
+        </button>
+
+        <!-- Dropdown checklist popup -->
+        <div id="pcPriceTypeMenu" style="display: none; position: absolute; top: 26px; left: 55px; min-width: 190px; max-height: 250px; overflow-y: auto; background: #ffffff; border: 1px solid #7f9db9; box-shadow: 2px 3px 8px rgba(0,0,0,0.25); z-index: 1000; padding: 5px; font-size: 11px;">
+          <div style="display: flex; justify-content: space-between; padding: 3px 4px; border-bottom: 1px solid #e0dfd5; margin-bottom: 5px; font-size: 10px;">
+            <a href="javascript:void(0)" onclick="PortfolioCatalog.selectAllPriceTypes(true)" style="color: #004080; text-decoration: none; font-weight: bold;">[☑ Все]</a>
+            <span style="color: #ccc;">|</span>
+            <a href="javascript:void(0)" onclick="PortfolioCatalog.selectAllPriceTypes(false)" style="color: #a00; text-decoration: none; font-weight: bold;">[✕ Очистить]</a>
+          </div>
+          <div id="pcPriceTypeList" style="display: flex; flex-direction: column; gap: 3px;">
+            <!-- Populated via JS -->
+          </div>
+        </div>
       </div>
 
       <div class="mdi-tool-sep" style="height: 20px; width: 1px; background: #b0af9f; margin: 0 4px;"></div>
@@ -97,7 +109,7 @@
       <!-- Report Sheet Table -->
       <table class="pc-report-table" id="pcReportTable" style="display: none; width: 100%; border-collapse: collapse; font-family: Tahoma, 'MS Sans Serif', Arial, sans-serif; font-size: 11px;">
         <thead>
-          <tr style="background: #e3dec9; border-bottom: 2px solid #5a5a5a; position: sticky; top: 0; z-index: 10;">
+          <tr id="pcTableHeadRow" style="background: #e3dec9; border-bottom: 2px solid #5a5a5a; position: sticky; top: 0; z-index: 10;">
             <th style="width: 40px; padding: 4px 6px; border: 1px solid #b0af9f; text-align: center;">№</th>
             <th style="width: 85px; padding: 4px 6px; border: 1px solid #b0af9f; text-align: left; cursor: pointer;" onclick="PortfolioCatalog.sortBy('code')">Код ⬍</th>
             <th style="width: 95px; padding: 4px 6px; border: 1px solid #b0af9f; text-align: left; cursor: pointer;" onclick="PortfolioCatalog.sortBy('artikul')">Артикул ⬍</th>

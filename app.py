@@ -54,6 +54,28 @@ def print_server_error(source, err, payload=None):
 # -------------------------------------------------------------
 _folders_cache = {}
 
+def is_vehicle_group(name):
+    """
+    Returns True if the nomenclature group name corresponds to a company vehicle,
+    truck, fleet maintenance, or internal logistics asset, rather than commercial merchandise.
+    """
+    if not name:
+        return True
+    n_lower = name.lower().strip()
+    v_keywords = [
+        "yük", "yuk", "avto", "maşın", "masin", "qaraj", "garaj", "texnika",
+        "hyundai", "isuzu", "mercedes", "mersedes", "kamaz", "gazel", "qazel",
+        "sprinter", "vito", "transit", "tranzit", "volvo", "scania", "iveco",
+        "shacman", "howo", "toyota", "nissan", "mitsubishi", "atego", "actros",
+        "canter", "sonata", "elantra", "accent", "porter", "h-100", "hd-65", "hd-72", "hd-78", "bmw"
+    ]
+    if any(kw in n_lower for kw in v_keywords):
+        return True
+    # License plate regex e.g. 90JS920, 99JP045, 10 PD 421, 77JP142, etc.
+    if re.search(r'\b\d{2}\s*[-\s]?[A-Za-z]{2}\s*[-\s]?\d{3}\b', name):
+        return True
+    return False
+
 def get_folders_map(conn, base_key):
     global _folders_cache
     if base_key in _folders_cache:
@@ -63,8 +85,10 @@ def get_folders_map(conn, base_key):
         q_f.Text = """
         ВЫБРАТЬ
             Т.Ссылка КАК Ref,
+            Т.Код КАК Code,
             Т.Наименование КАК Name,
-            Т.Родитель КАК Parent
+            Т.Родитель КАК Parent,
+            Т.Родитель.Код КАК ParentCode
         ИЗ
             Справочник.Номенклатура КАК Т
         ГДЕ
@@ -75,7 +99,12 @@ def get_folders_map(conn, base_key):
         while res_f.Next():
             r_id = conn.String(res_f.Ref)
             p_id = conn.String(res_f.Parent) if res_f.Parent else ""
-            fmap[r_id] = (str(res_f.Name).strip(), p_id)
+            c_code = str(res_f.Code or "").strip()
+            p_code = str(res_f.ParentCode or "").strip()
+            nm = str(res_f.Name or "").strip()
+            fmap[r_id] = (nm, p_id)
+            if c_code:
+                fmap[c_code] = (nm, p_code)
         _folders_cache[base_key] = fmap
         return fmap
     except Exception as ex_f:
@@ -85,7 +114,7 @@ def get_folders_map(conn, base_key):
 def resolve_root_portfolio(p_id, fmap):
     if not p_id or not fmap:
         return "Digər"
-    curr = p_id
+    curr = str(p_id).strip()
     last_name = "Digər"
     visited = set()
     while curr and curr in fmap and curr not in visited:
@@ -1854,24 +1883,61 @@ class OneCService(threading.Thread):
                     resp_q.put((True, {"price_types": pts}))
 
                 elif action == "get_portfolio_catalog_filters":
-                    fmap = get_folders_map(conn, key)
                     root_portfolios = set()
-                    for r_id, f_data in fmap.items():
-                        f_name = f_data[0]
-                        parent_ref = f_data[1]
-                        if not parent_ref or parent_ref == "":
-                            f_clean = f_name.strip()
-                            if f_clean and not f_clean.startswith("!"):
-                                root_portfolios.add(f_clean)
+                    try:
+                        q_rf = conn.NewObject("Запрос")
+                        q_rf.Text = """
+                        ВЫБРАТЬ
+                            Т.Наименование КАК Name
+                        ИЗ
+                            Справочник.Номенклатура КАК Т
+                        ГДЕ
+                            Т.ЭтоГруппа
+                            И НЕ Т.ПометкаУдаления
+                            И (Т.Родитель ЕСТЬ NULL ИЛИ Т.Родитель = ЗНАЧЕНИЕ(Справочник.Номенклатура.ПустаяСсылка))
+                        УПОРЯДОЧИТЬ ПО
+                            Name
+                        """
+                        r_rf = q_rf.Execute().Choose()
+                        while r_rf.Next():
+                            nm = str(r_rf.Name or "").strip()
+                            if nm and not nm.startswith("!"):
+                                root_portfolios.add(nm)
+                    except Exception as e_rf:
+                        print("Error fetching root portfolio folders:", e_rf)
 
+                    try:
+                        q_p = conn.NewObject("Запрос")
+                        q_p.Text = """
+                        ВЫБРАТЬ
+                            Т.Наименование КАК Name
+                        ИЗ
+                            Справочник.Портфели КАК Т
+                        ГДЕ
+                            НЕ Т.ПометкаУдаления
+                        УПОРЯДОЧИТЬ ПО
+                            Name
+                        """
+                        r_p = q_p.Execute().Choose()
+                        while r_p.Next():
+                            nm = str(r_p.Name or "").strip()
+                            if nm and not nm.startswith("!"):
+                                root_portfolios.add(nm)
+                    except Exception:
+                        pass
+
+                    # Query only groups assigned to actual commercial goods in Справочник.Номенклатура
                     q_ng = conn.NewObject("Запрос")
                     q_ng.Text = """
                     ВЫБРАТЬ РАЗЛИЧНЫЕ
-                        Т.Наименование КАК Name
+                        Т.НоменклатурнаяГруппа.Наименование КАК Name
                     ИЗ
-                        Справочник.НоменклатурныеГруппы КАК Т
+                        Справочник.Номенклатура КАК Т
                     ГДЕ
-                        НЕ Т.ПометкаУдаления
+                        НЕ Т.ЭтоГруппа
+                        И НЕ Т.ПометкаУдаления
+                        И Т.НоменклатурнаяГруппа ЕСТЬ НЕ NULL
+                        И Т.НоменклатурнаяГруппа <> ЗНАЧЕНИЕ(Справочник.НоменклатурныеГруппы.ПустаяСсылка)
                     УПОРЯДОЧИТЬ ПО
                         Name
                     """
@@ -1879,7 +1945,7 @@ class OneCService(threading.Thread):
                     nom_groups = []
                     while r_ng.Next():
                         g_name = str(r_ng.Name or "").strip()
-                        if g_name:
+                        if g_name and not is_vehicle_group(g_name):
                             nom_groups.append(g_name)
 
                     pts = get_all_price_types(conn, key)
@@ -1895,15 +1961,25 @@ class OneCService(threading.Thread):
 
                     sel_portfolio = str(payload.get("portfolio") or "").strip()
                     sel_group = str(payload.get("nom_group") or "").strip()
-                    sel_price_type = str(payload.get("price_type") or "20").strip()
                     search_txt = str(payload.get("search") or "").strip().lower()
+
+                    # Handle 1 or more price types
+                    raw_pts = payload.get("price_types")
+                    if not raw_pts or not isinstance(raw_pts, list):
+                        single_pt = str(payload.get("price_type") or "20").strip()
+                        raw_pts = [single_pt] if single_pt else []
+
+                    selected_price_types = []
+                    for pt in raw_pts:
+                        pt_s = str(pt).strip()
+                        if pt_s and pt_s not in selected_price_types and pt_s.lower() != "none" and pt_s != "(Без цен)":
+                            selected_price_types.append(pt_s)
 
                     where_clauses = ["НЕ Т.ЭтоГруппа", "НЕ Т.ПометкаУдаления"]
                     port_folder_ref = None
 
                     if sel_portfolio:
                         try:
-                            # 1C native catalog finder returns a fresh, valid CatalogRef
                             p_find = conn.Справочники.Номенклатура.НайтиПоНаименованию(sel_portfolio, True)
                             if p_find and not p_find.Пустая():
                                 port_folder_ref = p_find
@@ -1915,39 +1991,59 @@ class OneCService(threading.Thread):
                     if sel_group:
                         where_clauses.append("Т.НоменклатурнаяГруппа.Наименование = &NomGroupName")
 
-                    price_join = ""
-                    if sel_price_type:
-                        price_join = """
+                    # Multi-Price SQL Construction
+                    price_select_parts = []
+                    price_join_parts = []
+                    price_params = {}
+                    for p_i, pt in enumerate(selected_price_types):
+                        price_select_parts.append(f"ЕСТЬNULL(Цены_{p_i}.Цена, 0) КАК Price_{p_i}")
+                        price_join_parts.append(f"""
                         ЛЕВОЕ СОЕДИНЕНИЕ РегистрСведений.ЦеныНоменклатуры.СрезПоследних(
                             &CurrentDate, 
-                            ТипЦен.Код = &PriceType ИЛИ ТипЦен.Наименование = &PriceType
-                        ) КАК Цены
-                            ПО Т.Ссылка = Цены.Номенклатура
-                        """
+                            ТипЦен.Код = &PriceType_{p_i} ИЛИ ТипЦен.Наименование = &PriceType_{p_i}
+                        ) КАК Цены_{p_i}
+                            ПО Т.Ссылка = Цены_{p_i}.Номенклатура
+                        """)
+                        price_params[f"PriceType_{p_i}"] = pt
+
+                    price_select_sql = (", " + ", ".join(price_select_parts)) if price_select_parts else ""
+                    price_join_sql = "\n".join(price_join_parts)
+
+                    # Barcode join with single barcode per item to prevent row explosion
+                    barcode_join = """
+                    ЛЕВОЕ СОЕДИНЕНИЕ (
+                        ВЫБРАТЬ
+                            Ш.Владелец КАК ItemRef,
+                            МИНИМУМ(Ш.Штрихкод) КАК Barcode
+                        ИЗ
+                            РегистрСведений.Штрихкоды КАК Ш
+                        СГРУППИРОВАТЬ ПО
+                            Ш.Владелец
+                    ) КАК Ш
+                        ПО Т.Ссылка = Ш.ItemRef
+                    """
 
                     limit_clause = "ПЕРВЫЕ 2000" if (not sel_portfolio and not sel_group and not search_txt) else ""
                     q = conn.NewObject("Запрос")
                     q.Text = f"""
                     ВЫБРАТЬ {limit_clause}
-                        Т.Ссылка КАК Ref,
                         Т.Код КАК Code,
                         Т.Артикул КАК Artikul,
                         Т.СВкод КАК CVCode,
                         Т.Наименование КАК Name,
                         Т.НаименованиеПолное КАК FullName,
-                        Т.Родитель КАК ParentRef,
+                        Т.Родитель.Код КАК ParentCode,
                         Т.Родитель.Наименование КАК FolderName,
                         Т.НоменклатурнаяГруппа.Наименование КАК NomGroup,
                         Т.ВидНоменклатуры.Наименование КАК ItemType,
                         Т.БазоваяЕдиницаИзмерения.Наименование КАК BaseUnit,
                         Т.Производитель.Наименование КАК Manufacturer,
-                        ЕСТЬNULL(Ш.Штрихкод, "") КАК Barcode
-                        {", ЕСТЬNULL(Цены.Цена, 0) КАК Price" if sel_price_type else ""}
+                        ЕСТЬNULL(Ш.Barcode, "") КАК Barcode
+                        {price_select_sql}
                     ИЗ
                         Справочник.Номенклатура КАК Т
-                        ЛЕВОЕ СОЕДИНЕНИЕ РегистрСведений.Штрихкоды КАК Ш
-                            ПО Т.Ссылка = Ш.Владелец
-                        {price_join}
+                        {barcode_join}
+                        {price_join_sql}
                     ГДЕ
                         {" И ".join(where_clauses)}
                     УПОРЯДОЧИТЬ ПО
@@ -1957,9 +2053,10 @@ class OneCService(threading.Thread):
 
                     if port_folder_ref:
                         q.SetParameter("PortFolder", port_folder_ref)
-                    if sel_price_type:
+                    if selected_price_types:
                         q.SetParameter("CurrentDate", datetime.datetime.now())
-                        q.SetParameter("PriceType", sel_price_type)
+                        for p_k, p_v in price_params.items():
+                            q.SetParameter(p_k, p_v)
                     if sel_group:
                         q.SetParameter("NomGroupName", sel_group)
 
@@ -1971,25 +2068,23 @@ class OneCService(threading.Thread):
                             clean_clauses = [c for c in where_clauses if "PortFolder" not in c]
                             q.Text = f"""
                             ВЫБРАТЬ {limit_clause}
-                                Т.Ссылка КАК Ref,
                                 Т.Код КАК Code,
                                 Т.Артикул КАК Artikul,
                                 Т.СВкод КАК CVCode,
                                 Т.Наименование КАК Name,
                                 Т.НаименованиеПолное КАК FullName,
-                                Т.Родитель КАК ParentRef,
+                                Т.Родитель.Код КАК ParentCode,
                                 Т.Родитель.Наименование КАК FolderName,
                                 Т.НоменклатурнаяГруппа.Наименование КАК NomGroup,
                                 Т.ВидНоменклатуры.Наименование КАК ItemType,
                                 Т.БазоваяЕдиницаИзмерения.Наименование КАК BaseUnit,
                                 Т.Производитель.Наименование КАК Manufacturer,
-                                ЕСТЬNULL(Ш.Штрихкод, "") КАК Barcode
-                                {", ЕСТЬNULL(Цены.Цена, 0) КАК Price" if sel_price_type else ""}
+                                ЕСТЬNULL(Ш.Barcode, "") КАК Barcode
+                                {price_select_sql}
                             ИЗ
                                 Справочник.Номенклатура КАК Т
-                                ЛЕВОЕ СОЕДИНЕНИЕ РегистрСведений.Штрихкоды КАК Ш
-                                    ПО Т.Ссылка = Ш.Владелец
-                                {price_join}
+                                {barcode_join}
+                                {price_join_sql}
                             ГДЕ
                                 {" И ".join(clean_clauses)}
                             УПОРЯДОЧИТЬ ПО
@@ -2000,12 +2095,11 @@ class OneCService(threading.Thread):
                             res = q.Execute().Choose()
                         else:
                             raise eq
-                    items_map = {}
-                    order_keys = []
+
+                    items = []
                     while res.Next():
-                        ref_str = conn.String(res.Ref)
-                        p_ref_str = conn.String(res.ParentRef) if res.ParentRef else ""
-                        root_port = resolve_root_portfolio(p_ref_str, fmap)
+                        p_code = str(res.ParentCode or "").strip()
+                        root_port = sel_portfolio or resolve_root_portfolio(p_code, fmap)
 
                         if sel_portfolio and not port_folder_ref and root_port.lower() != sel_portfolio.lower():
                             continue
@@ -2019,7 +2113,6 @@ class OneCService(threading.Thread):
                         item_type = str(res.ItemType or "").strip()
                         unit = str(res.BaseUnit or "").strip()
                         manuf = str(res.Manufacturer or "").strip()
-                        price = float(getattr(res, "Price", 0) or 0) if sel_price_type else 0.0
                         bc = str(res.Barcode or "").strip()
 
                         if search_txt:
@@ -2027,31 +2120,31 @@ class OneCService(threading.Thread):
                             if search_txt not in match_src:
                                 continue
 
-                        dedup_key = ref_str or code
-                        if dedup_key in items_map:
-                            if not items_map[dedup_key]["barcode"] and bc:
-                                items_map[dedup_key]["barcode"] = bc
-                            if items_map[dedup_key]["price"] == 0 and price > 0:
-                                items_map[dedup_key]["price"] = price
-                        else:
-                            items_map[dedup_key] = {
-                                "code": code,
-                                "artikul": artikul,
-                                "cv": cv_code,
-                                "barcode": bc,
-                                "name": name,
-                                "folder": folder,
-                                "group": group,
-                                "portfolio": root_port or sel_portfolio,
-                                "type": item_type,
-                                "unit": unit,
-                                "price": price,
-                                "manufacturer": manuf
-                            }
-                            order_keys.append(dedup_key)
+                        row_prices = {}
+                        for p_i, pt in enumerate(selected_price_types):
+                            row_prices[pt] = float(getattr(res, f"Price_{p_i}", 0) or 0)
 
-                    items = [items_map[k] for k in order_keys]
-                    resp_q.put((True, items))
+                        items.append({
+                            "code": code,
+                            "artikul": artikul,
+                            "cv": cv_code,
+                            "barcode": bc,
+                            "name": name,
+                            "folder": folder,
+                            "group": group,
+                            "portfolio": root_port or sel_portfolio,
+                            "type": item_type,
+                            "unit": unit,
+                            "price": row_prices.get(selected_price_types[0], 0.0) if selected_price_types else 0.0,
+                            "prices": row_prices,
+                            "manufacturer": manuf
+                        })
+
+                    resp_q.put((True, {
+                        "items": items,
+                        "price_types": selected_price_types,
+                        "total": len(items)
+                    }))
 
             except Exception as e:
                 err_str = str(e)
@@ -2552,8 +2645,15 @@ def portfolio_catalog_filters_endpoint():
 def portfolio_catalog_items_endpoint():
     data = request.json or {}
     try:
-        items = one_c.execute("get_portfolio_catalog_items", data)
-        return jsonify({"success": True, "items": items, "total": len(items)})
+        res = one_c.execute("get_portfolio_catalog_items", data)
+        if isinstance(res, dict):
+            return jsonify({
+                "success": True,
+                "items": res.get("items", []),
+                "price_types": res.get("price_types", []),
+                "total": res.get("total", len(res.get("items", [])))
+            })
+        return jsonify({"success": True, "items": res, "total": len(res)})
     except Exception as e:
         print_server_error("/api/portfolio_catalog/items", e, data)
         return jsonify({"success": False, "error": str(e)})

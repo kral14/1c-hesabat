@@ -7,6 +7,9 @@ const PortfolioCatalog = {
   items: [],
   filteredItems: [],
   filtersLoaded: false,
+  availablePriceTypes: [],
+  selectedPriceTypes: ["20"],
+  activePriceTypes: ["20"],
   currentSortCol: null,
   currentSortAsc: true,
   cache: {}, // Instant memory cache: key -> items array
@@ -56,8 +59,103 @@ const PortfolioCatalog = {
     }
   },
 
+  togglePriceTypeDropdown: function(e) {
+    if (e) {
+      e.stopPropagation();
+      e.preventDefault();
+    }
+    const menu = document.getElementById("pcPriceTypeMenu");
+    if (!menu) return;
+    const isShown = menu.style.display === "block";
+    menu.style.display = isShown ? "none" : "block";
+  },
+
+  renderPriceTypeChecklist: function() {
+    const listEl = document.getElementById("pcPriceTypeList");
+    if (!listEl) return;
+    listEl.innerHTML = "";
+
+    const pts = this.availablePriceTypes.length ? this.availablePriceTypes : [{ code: "20", name: "20" }];
+    pts.forEach(pt => {
+      const ptCode = String(pt.code || pt.name || "").trim();
+      const ptName = String(pt.name || pt.code || "").trim();
+      if (!ptName) return;
+
+      const isChecked = this.selectedPriceTypes.includes(ptName) || this.selectedPriceTypes.includes(ptCode);
+
+      const label = document.createElement("label");
+      label.style.display = "flex";
+      label.style.alignItems = "center";
+      label.style.gap = "6px";
+      label.style.padding = "3px 5px";
+      label.style.cursor = "pointer";
+      label.style.borderRadius = "2px";
+      label.style.fontSize = "11px";
+      label.style.userSelect = "none";
+      label.onmouseover = () => { label.style.background = "#eef4fa"; };
+      label.onmouseout = () => { label.style.background = "transparent"; };
+
+      const chk = document.createElement("input");
+      chk.type = "checkbox";
+      chk.value = ptName;
+      chk.checked = isChecked;
+      chk.style.cursor = "pointer";
+      chk.onchange = (ev) => {
+        this.onPriceTypeToggle(ptName, ev.target.checked);
+      };
+
+      const span = document.createElement("span");
+      span.textContent = ptName;
+      span.style.color = "#111";
+
+      label.appendChild(chk);
+      label.appendChild(span);
+      listEl.appendChild(label);
+    });
+
+    this.updatePriceTypeButtonLabel();
+  },
+
+  onPriceTypeToggle: function(ptName, isChecked) {
+    if (isChecked) {
+      if (!this.selectedPriceTypes.includes(ptName)) {
+        this.selectedPriceTypes.push(ptName);
+      }
+    } else {
+      this.selectedPriceTypes = this.selectedPriceTypes.filter(p => p !== ptName);
+    }
+    this.updatePriceTypeButtonLabel();
+  },
+
+  selectAllPriceTypes: function(select) {
+    if (select) {
+      this.selectedPriceTypes = this.availablePriceTypes.map(pt => String(pt.name || pt.code).trim()).filter(Boolean);
+      if (!this.selectedPriceTypes.length) this.selectedPriceTypes = ["20"];
+    } else {
+      this.selectedPriceTypes = [];
+    }
+    this.renderPriceTypeChecklist();
+  },
+
+  updatePriceTypeButtonLabel: function() {
+    const lbl = document.getElementById("pcPriceTypeLabel");
+    if (!lbl) return;
+    if (this.selectedPriceTypes.length === 0) {
+      lbl.textContent = "(Без цен)";
+      lbl.style.color = "#888";
+    } else if (this.selectedPriceTypes.length <= 2) {
+      lbl.textContent = this.selectedPriceTypes.join(", ");
+      lbl.style.color = "#000";
+    } else {
+      lbl.textContent = `${this.selectedPriceTypes.slice(0, 2).join(", ")} (+${this.selectedPriceTypes.length - 2})`;
+      lbl.style.color = "#000";
+    }
+  },
+
   loadFilters: function() {
     const creds = window.SessionManager ? SessionManager.getCredentials() : {};
+    this.updateStatus("Загрузка списков (портфели, группы, цены)...");
+
     fetch("/api/portfolio_catalog/filters", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -67,6 +165,7 @@ const PortfolioCatalog = {
     .then(data => {
       if (!data.success) {
         console.error("Failed to load portfolio filters:", data.error);
+        this.updateStatus("Ошибка загрузки фильтров");
         return;
       }
 
@@ -84,7 +183,7 @@ const PortfolioCatalog = {
         });
       }
 
-      // 2. Populate Nom Groups Select
+      // 2. Populate Nom Groups Select (clean of vehicle fleet)
       const grpSel = document.getElementById("pcNomGroupSelect");
       if (grpSel) {
         grpSel.innerHTML = '<option value="">(Все группы)</option>';
@@ -96,19 +195,12 @@ const PortfolioCatalog = {
         });
       }
 
-      // 3. Populate Price Types Select
-      const ptSel = document.getElementById("pcPriceTypeSelect");
-      if (ptSel) {
-        ptSel.innerHTML = '<option value="20">20</option><option value="">(Без цен)</option>';
-        (data.price_types || []).forEach(pt => {
-          if (pt.name !== "20") {
-            const opt = document.createElement("option");
-            opt.value = pt.code || pt.name;
-            opt.textContent = pt.name;
-            ptSel.appendChild(opt);
-          }
-        });
+      // 3. Populate Multi-Select Price Types Checklist
+      this.availablePriceTypes = data.price_types || [];
+      if (!this.selectedPriceTypes.length) {
+        this.selectedPriceTypes = ["20"];
       }
+      this.renderPriceTypeChecklist();
 
       this.updateStatus("Фильтры успешно загружены");
 
@@ -120,6 +212,7 @@ const PortfolioCatalog = {
     })
     .catch(err => {
       console.error("Error loading portfolio filters:", err);
+      this.updateStatus("Ошибка сети при загрузке фильтров");
     });
   },
 
@@ -141,7 +234,6 @@ const PortfolioCatalog = {
   generate: function() {
     const portSel = document.getElementById("pcPortfolioSelect");
     const grpSel = document.getElementById("pcNomGroupSelect");
-    const ptSel = document.getElementById("pcPriceTypeSelect");
     const searchInp = document.getElementById("pcSearchInput");
 
     const creds = window.SessionManager ? SessionManager.getCredentials() : {};
@@ -149,16 +241,22 @@ const PortfolioCatalog = {
       ...creds,
       portfolio: portSel ? portSel.value : "",
       nom_group: grpSel ? grpSel.value : "",
-      price_type: ptSel ? ptSel.value : "20",
+      price_types: this.selectedPriceTypes,
       search: searchInp ? searchInp.value.trim() : ""
     };
 
-    const cacheKey = `${creds.server || ""}_${creds.ref || ""}_${payload.portfolio}_${payload.nom_group}_${payload.price_type}_${payload.search}`;
+    const ptsKey = (this.selectedPriceTypes || []).slice().sort().join(",");
+    const cacheKey = `${creds.server || ""}_${creds.ref || ""}_${payload.portfolio}_${payload.nom_group}_${ptsKey}_${payload.search}`;
+
+    // Close price type dropdown if open
+    const menu = document.getElementById("pcPriceTypeMenu");
+    if (menu) menu.style.display = "none";
 
     // Instant render from cache if available (0 ms)
     if (this.cache[cacheKey]) {
       console.log(`[PORTFOLIO CATALOG] Instant load from cache for '${cacheKey}'`);
       this.items = this.cache[cacheKey];
+      this.activePriceTypes = [...this.selectedPriceTypes];
       this.filteredItems = [...this.items];
       const emptyEl = document.getElementById("pcEmptyState");
       const tableEl = document.getElementById("pcReportTable");
@@ -195,6 +293,7 @@ const PortfolioCatalog = {
       }
 
       this.items = data.items || [];
+      this.activePriceTypes = data.price_types || this.selectedPriceTypes;
       this.filteredItems = [...this.items];
       // Save to instant memory cache
       this.cache[cacheKey] = this.items;
@@ -227,18 +326,65 @@ const PortfolioCatalog = {
     });
   },
 
+  renderTableHead: function() {
+    const headRow = document.getElementById("pcTableHeadRow");
+    if (!headRow) return;
+
+    const pts = this.activePriceTypes || this.selectedPriceTypes || [];
+    let priceHeadersHtml = "";
+    if (pts.length > 0) {
+      pts.forEach(pt => {
+        priceHeadersHtml += `<th style="min-width: 80px; padding: 4px 6px; border: 1px solid #b0af9f; text-align: right; cursor: pointer; white-space: nowrap;" onclick="PortfolioCatalog.sortByPrice('${escapeHtml(pt)}')">Цена (${escapeHtml(pt)}) ⬍</th>`;
+      });
+    }
+
+    headRow.innerHTML = `
+      <th style="width: 40px; padding: 4px 6px; border: 1px solid #b0af9f; text-align: center;">№</th>
+      <th style="width: 85px; padding: 4px 6px; border: 1px solid #b0af9f; text-align: left; cursor: pointer;" onclick="PortfolioCatalog.sortBy('code')">Код ⬍</th>
+      <th style="width: 95px; padding: 4px 6px; border: 1px solid #b0af9f; text-align: left; cursor: pointer;" onclick="PortfolioCatalog.sortBy('artikul')">Артикул ⬍</th>
+      <th style="width: 85px; padding: 4px 6px; border: 1px solid #b0af9f; text-align: left; cursor: pointer;" onclick="PortfolioCatalog.sortBy('cv')">СВ код ⬍</th>
+      <th style="width: 110px; padding: 4px 6px; border: 1px solid #b0af9f; text-align: left; cursor: pointer;" onclick="PortfolioCatalog.sortBy('barcode')">Штрихкод ⬍</th>
+      <th style="min-width: 250px; padding: 4px 6px; border: 1px solid #b0af9f; text-align: left; cursor: pointer;" onclick="PortfolioCatalog.sortBy('name')">Наименование ⬍</th>
+      <th style="width: 140px; padding: 4px 6px; border: 1px solid #b0af9f; text-align: left; cursor: pointer;" onclick="PortfolioCatalog.sortBy('folder')">Папка (Родитель) ⬍</th>
+      <th style="width: 130px; padding: 4px 6px; border: 1px solid #b0af9f; text-align: left; cursor: pointer;" onclick="PortfolioCatalog.sortBy('group')">Ном. группа ⬍</th>
+      <th style="width: 120px; padding: 4px 6px; border: 1px solid #b0af9f; text-align: left; cursor: pointer;" onclick="PortfolioCatalog.sortBy('portfolio')">Портфель ⬍</th>
+      <th style="width: 65px; padding: 4px 6px; border: 1px solid #b0af9f; text-align: center;">Ед. изм.</th>
+      ${priceHeadersHtml}
+      <th style="width: 110px; padding: 4px 6px; border: 1px solid #b0af9f; text-align: left;">Вид</th>
+      <th style="width: 130px; padding: 4px 6px; border: 1px solid #b0af9f; text-align: left;">Производитель</th>
+    `;
+  },
+
   renderTable: function() {
+    this.renderTableHead();
+
     const tbody = document.getElementById("pcTableBody");
     if (!tbody) return;
 
     const list = this.filteredItems;
     this.updateCountBadge(list.length);
 
+    const pts = this.activePriceTypes || this.selectedPriceTypes || [];
+
     let html = "";
     for (let i = 0; i < list.length; i++) {
       const itm = list[i];
       const bg = (i % 2 === 1) ? "#f7f6f0" : "#ffffff";
-      const priceStr = itm.price ? Number(itm.price).toLocaleString("ru-RU", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : "-";
+
+      // Render columns for each selected price type
+      let priceTds = "";
+      if (pts.length > 0) {
+        pts.forEach(pt => {
+          let val = 0;
+          if (itm.prices && itm.prices[pt] !== undefined) {
+            val = Number(itm.prices[pt]) || 0;
+          } else if (pt === pts[0] && itm.price !== undefined) {
+            val = Number(itm.price) || 0;
+          }
+          const priceStr = val > 0 ? val.toLocaleString("ru-RU", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : "-";
+          priceTds += `<td style="padding: 3px 5px; border: 1px solid #d4d0c8; text-align: right; font-weight: bold; color: #000080; white-space: nowrap;">${priceStr}</td>`;
+        });
+      }
 
       html += `
         <tr style="background: ${bg}; border-bottom: 1px solid #e0dfd5;" onmouseover="this.style.background='#fffae8'" onmouseout="this.style.background='${bg}'">
@@ -252,7 +398,7 @@ const PortfolioCatalog = {
           <td style="padding: 3px 5px; border: 1px solid #d4d0c8; color: #004080; font-weight: 500;">${escapeHtml(itm.group)}</td>
           <td style="padding: 3px 5px; border: 1px solid #d4d0c8; color: #6a1b9a; font-weight: bold;">${escapeHtml(itm.portfolio)}</td>
           <td style="padding: 3px 5px; border: 1px solid #d4d0c8; text-align: center;">${escapeHtml(itm.unit)}</td>
-          <td style="padding: 3px 5px; border: 1px solid #d4d0c8; text-align: right; font-weight: bold; color: #000080;">${priceStr}</td>
+          ${priceTds}
           <td style="padding: 3px 5px; border: 1px solid #d4d0c8; color: #555;">${escapeHtml(itm.type)}</td>
           <td style="padding: 3px 5px; border: 1px solid #d4d0c8; color: #333;">${escapeHtml(itm.manufacturer)}</td>
         </tr>
@@ -304,14 +450,26 @@ const PortfolioCatalog = {
     this.filteredItems.sort((a, b) => {
       let va = a[field] || "";
       let vb = b[field] || "";
-
-      if (field === "price") {
-        va = Number(va) || 0;
-        vb = Number(vb) || 0;
-        return (va - vb) * asc;
-      }
-
       return va.toString().localeCompare(vb.toString(), "az") * asc;
+    });
+
+    this.renderTable();
+  },
+
+  sortByPrice: function(pt) {
+    const colKey = `price_${pt}`;
+    if (this.currentSortCol === colKey) {
+      this.currentSortAsc = !this.currentSortAsc;
+    } else {
+      this.currentSortCol = colKey;
+      this.currentSortAsc = true;
+    }
+
+    const asc = this.currentSortAsc ? 1 : -1;
+    this.filteredItems.sort((a, b) => {
+      const va = (a.prices && a.prices[pt] !== undefined) ? Number(a.prices[pt]) : Number(a.price || 0);
+      const vb = (b.prices && b.prices[pt] !== undefined) ? Number(b.prices[pt]) : Number(b.price || 0);
+      return (va - vb) * asc;
     });
 
     this.renderTable();
@@ -325,7 +483,6 @@ const PortfolioCatalog = {
 
     const portSel = document.getElementById("pcPortfolioSelect");
     const grpSel = document.getElementById("pcNomGroupSelect");
-    const ptSel = document.getElementById("pcPriceTypeSelect");
 
     const creds = window.SessionManager ? SessionManager.getCredentials() : {};
     const payload = {
@@ -334,7 +491,7 @@ const PortfolioCatalog = {
       filters: {
         portfolio: portSel ? portSel.value : "",
         nom_group: grpSel ? grpSel.value : "",
-        price_type: ptSel ? ptSel.value : ""
+        price_types: this.activePriceTypes || this.selectedPriceTypes
       }
     };
 
@@ -378,6 +535,17 @@ const PortfolioCatalog = {
     if (el) el.textContent = text;
   }
 };
+
+// Global click handler to close dropdown menu when clicking outside
+document.addEventListener("click", function(e) {
+  const menu = document.getElementById("pcPriceTypeMenu");
+  const btn = document.getElementById("pcPriceTypeDropdownBtn");
+  if (menu && menu.style.display === "block") {
+    if (!menu.contains(e.target) && (!btn || !btn.contains(e.target))) {
+      menu.style.display = "none";
+    }
+  }
+});
 
 // Global helper for opening
 function openPortfolioReportWindow() {
