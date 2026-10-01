@@ -16,6 +16,8 @@ const PortfolioCatalog = {
   },
   selectedCodes: new Set(),
   filterSelectedOnly: false,
+  activeColumn: null,
+  activeCell: null,
   currentSortCol: null,
   currentSortAsc: true,
   cache: {}, // Instant memory cache: key -> items array
@@ -443,9 +445,15 @@ const PortfolioCatalog = {
         return false;
       }
 
-      // 2. General search query (code, artikul, cv, barcode, name, folder, group, portfolio, manufacturer)
+      // 2. General search query (code, artikul, cv, barcode, name, folder, group, portfolio, manufacturer, prices)
       if (q) {
-        const src = `${itm.name} ${itm.code} ${itm.artikul} ${itm.cv} ${itm.barcode} ${itm.folder} ${itm.group} ${itm.portfolio} ${itm.manufacturer}`.toLowerCase();
+        let priceText = "";
+        if (itm.prices) {
+          priceText = Object.values(itm.prices).map(v => Number(v || 0).toFixed(2)).join(" ");
+        } else if (itm.price !== undefined) {
+          priceText = Number(itm.price || 0).toFixed(2);
+        }
+        const src = `${itm.name} ${itm.code} ${itm.artikul} ${itm.cv} ${itm.barcode} ${itm.folder} ${itm.group} ${itm.portfolio} ${itm.manufacturer} ${priceText}`.toLowerCase();
         if (!src.includes(q)) return false;
       }
 
@@ -465,7 +473,7 @@ const PortfolioCatalog = {
         emptyEl.innerHTML = `
           <span style="font-size: 32px;">🔍</span>
           <span style="font-weight: bold; font-size: 13px;">По фильтрам ничего не найдено</span>
-          <span>Попробуйте изменить поисковый запрос или сбросить фильтр выбранных.</span>
+          <span>Попробуйте изменить поисковый запрос или сбросить фильтр выбранных (Ctrl+Q).</span>
         `;
       }
       if (tableEl) tableEl.style.display = "none";
@@ -594,10 +602,69 @@ const PortfolioCatalog = {
     }
   },
 
+  setActiveCell: function(colKey, cellValue, tdEl) {
+    this.activeColumn = colKey;
+    this.activeCell = { col: colKey, value: cellValue };
+
+    // Clear previous cell outline
+    document.querySelectorAll(".pc-cell-active").forEach(el => {
+      el.classList.remove("pc-cell-active");
+      el.style.outline = "";
+      el.style.boxShadow = "";
+    });
+
+    if (tdEl) {
+      tdEl.classList.add("pc-cell-active");
+      tdEl.style.outline = "2px solid #0055ea";
+      tdEl.style.outlineOffset = "-2px";
+    }
+  },
+
+  onHeaderClick: function(e, colField, colTitle) {
+    this.activeColumn = colTitle || colField;
+    this.sortBy(colField);
+  },
+
+  onSearchHotkey: function() {
+    const inp = document.getElementById("pcSearchInput");
+    if (!inp) return;
+
+    // In 1C: If a cell was selected and search input is currently empty, prefill with cell's value
+    if (this.activeCell && this.activeCell.value && !inp.value.trim()) {
+      inp.value = String(this.activeCell.value).trim();
+      this.onFilterChange();
+    }
+
+    inp.focus();
+    inp.select();
+
+    // Visual pulse effect on search box
+    inp.style.transition = "box-shadow 0.2s, border-color 0.2s";
+    inp.style.boxShadow = "0 0 8px rgba(0, 85, 234, 0.7)";
+    inp.style.borderColor = "#0055ea";
+    setTimeout(() => {
+      inp.style.boxShadow = "";
+      inp.style.borderColor = "";
+    }, 1200);
+
+    const colMsg = this.activeColumn ? ` (колонка: ${this.activeColumn})` : "";
+    this.updateStatus(`Поиск (Ctrl+F)${colMsg}. Для сброса поиска нажмите Ctrl+Q`);
+  },
+
   clearSearch: function() {
     const inp = document.getElementById("pcSearchInput");
-    if (inp) inp.value = "";
+    if (inp) {
+      inp.value = "";
+      inp.blur();
+    }
+    this.activeCell = null;
+    document.querySelectorAll(".pc-cell-active").forEach(el => {
+      el.classList.remove("pc-cell-active");
+      el.style.outline = "";
+      el.style.boxShadow = "";
+    });
     this.onFilterChange();
+    this.updateStatus("Поиск отменен (Ctrl+Q)");
   },
 
   renderTableHead: function() {
@@ -621,7 +688,7 @@ const PortfolioCatalog = {
           thColor = "color: #002060;";
         }
 
-        priceHeadersHtml += `<th style="min-width: 85px; padding: 4px 6px; border: 1px solid #b0af9f; text-align: right; cursor: pointer; white-space: nowrap; ${thBg} ${thColor}" onclick="PortfolioCatalog.sortByPrice('${escapeHtml(pt)}')">Цена (${escapeHtml(pt)})${tag} ⬍</th>`;
+        priceHeadersHtml += `<th style="min-width: 85px; padding: 4px 6px; border: 1px solid #b0af9f; text-align: right; cursor: pointer; white-space: nowrap; ${thBg} ${thColor}" onclick="PortfolioCatalog.onHeaderClick(event, 'price_${escapeHtml(pt)}', 'Цена (${escapeHtml(pt)})')">Цена (${escapeHtml(pt)})${tag} ⬍</th>`;
       });
     }
 
@@ -630,18 +697,18 @@ const PortfolioCatalog = {
         <input type="checkbox" id="pcMasterRowCheckbox" onchange="PortfolioCatalog.toggleSelectAllVisible(this.checked)" title="Выбрать все / Снять выбор" style="cursor: pointer;">
       </th>
       <th style="width: 35px; padding: 4px 6px; border: 1px solid #b0af9f; text-align: center;">№</th>
-      <th style="width: 85px; padding: 4px 6px; border: 1px solid #b0af9f; text-align: left; cursor: pointer;" onclick="PortfolioCatalog.sortBy('code')">Код ⬍</th>
-      <th style="width: 95px; padding: 4px 6px; border: 1px solid #b0af9f; text-align: left; cursor: pointer;" onclick="PortfolioCatalog.sortBy('artikul')">Артикул ⬍</th>
-      <th style="width: 85px; padding: 4px 6px; border: 1px solid #b0af9f; text-align: left; cursor: pointer;" onclick="PortfolioCatalog.sortBy('cv')">СВ код ⬍</th>
-      <th style="width: 110px; padding: 4px 6px; border: 1px solid #b0af9f; text-align: left; cursor: pointer;" onclick="PortfolioCatalog.sortBy('barcode')">Штрихкод ⬍</th>
-      <th style="min-width: 250px; padding: 4px 6px; border: 1px solid #b0af9f; text-align: left; cursor: pointer;" onclick="PortfolioCatalog.sortBy('name')">Наименование ⬍</th>
-      <th style="width: 140px; padding: 4px 6px; border: 1px solid #b0af9f; text-align: left; cursor: pointer;" onclick="PortfolioCatalog.sortBy('folder')">Папка (Родитель) ⬍</th>
-      <th style="width: 130px; padding: 4px 6px; border: 1px solid #b0af9f; text-align: left; cursor: pointer;" onclick="PortfolioCatalog.sortBy('group')">Ном. группа ⬍</th>
-      <th style="width: 120px; padding: 4px 6px; border: 1px solid #b0af9f; text-align: left; cursor: pointer;" onclick="PortfolioCatalog.sortBy('portfolio')">Портфель ⬍</th>
+      <th style="width: 85px; padding: 4px 6px; border: 1px solid #b0af9f; text-align: left; cursor: pointer;" onclick="PortfolioCatalog.onHeaderClick(event, 'code', 'Код')">Код ⬍</th>
+      <th style="width: 95px; padding: 4px 6px; border: 1px solid #b0af9f; text-align: left; cursor: pointer;" onclick="PortfolioCatalog.onHeaderClick(event, 'artikul', 'Артикул')">Артикул ⬍</th>
+      <th style="width: 85px; padding: 4px 6px; border: 1px solid #b0af9f; text-align: left; cursor: pointer;" onclick="PortfolioCatalog.onHeaderClick(event, 'cv', 'СВ код')">СВ код ⬍</th>
+      <th style="width: 110px; padding: 4px 6px; border: 1px solid #b0af9f; text-align: left; cursor: pointer;" onclick="PortfolioCatalog.onHeaderClick(event, 'barcode', 'Штрихкод')">Штрихкод ⬍</th>
+      <th style="min-width: 250px; padding: 4px 6px; border: 1px solid #b0af9f; text-align: left; cursor: pointer;" onclick="PortfolioCatalog.onHeaderClick(event, 'name', 'Наименование')">Наименование ⬍</th>
+      <th style="width: 140px; padding: 4px 6px; border: 1px solid #b0af9f; text-align: left; cursor: pointer;" onclick="PortfolioCatalog.onHeaderClick(event, 'folder', 'Папка (Родитель)')">Папка (Родитель) ⬍</th>
+      <th style="width: 130px; padding: 4px 6px; border: 1px solid #b0af9f; text-align: left; cursor: pointer;" onclick="PortfolioCatalog.onHeaderClick(event, 'group', 'Ном. группа')">Ном. группа ⬍</th>
+      <th style="width: 120px; padding: 4px 6px; border: 1px solid #b0af9f; text-align: left; cursor: pointer;" onclick="PortfolioCatalog.onHeaderClick(event, 'portfolio', 'Портфель')">Портфель ⬍</th>
       <th style="width: 65px; padding: 4px 6px; border: 1px solid #b0af9f; text-align: center;">Ед. изм.</th>
       ${priceHeadersHtml}
-      <th style="width: 110px; padding: 4px 6px; border: 1px solid #b0af9f; text-align: left;">Вид</th>
-      <th style="width: 130px; padding: 4px 6px; border: 1px solid #b0af9f; text-align: left;">Производитель</th>
+      <th style="width: 110px; padding: 4px 6px; border: 1px solid #b0af9f; text-align: left;" onclick="PortfolioCatalog.onHeaderClick(event, 'type', 'Вид')">Вид</th>
+      <th style="width: 130px; padding: 4px 6px; border: 1px solid #b0af9f; text-align: left;" onclick="PortfolioCatalog.onHeaderClick(event, 'manufacturer', 'Производитель')">Производитель</th>
     `;
 
     this.updateMasterCheckboxState();
@@ -711,8 +778,8 @@ const PortfolioCatalog = {
             }
           }
 
-          const styleAttr = `padding: 3px 5px; border: ${cellBorder}; text-align: right; font-weight: bold; color: ${cellColor}; white-space: nowrap; ${cellBg ? `background: ${cellBg};` : ''}`;
-          priceTds += `<td style="${styleAttr}" ${cellTitle ? `title="${escapeHtml(cellTitle)}"` : ''}>${priceStr}</td>`;
+          const styleAttr = `padding: 3px 5px; border: ${cellBorder}; text-align: right; font-weight: bold; color: ${cellColor}; white-space: nowrap; cursor: pointer; ${cellBg ? `background: ${cellBg};` : ''}`;
+          priceTds += `<td style="${styleAttr}" ${cellTitle ? `title="${escapeHtml(cellTitle)}"` : ''} onclick="PortfolioCatalog.setActiveCell('Цена (${escapeHtml(pt)})', '${priceStr}', this)">${priceStr}</td>`;
         });
       }
 
@@ -722,18 +789,18 @@ const PortfolioCatalog = {
             <input type="checkbox" class="pc-row-chk" data-code="${escapeHtml(itm.code)}" ${isSelected ? 'checked' : ''} onchange="PortfolioCatalog.toggleItemSelection('${escapeHtml(itm.code)}', this.checked)">
           </td>
           <td style="padding: 3px 5px; border: 1px solid #d4d0c8; text-align: center; color: #777;">${i + 1}</td>
-          <td style="padding: 3px 5px; border: 1px solid #d4d0c8; text-align: center; font-family: Consolas, monospace; font-weight: bold; color: #003366;">${escapeHtml(itm.code)}</td>
-          <td style="padding: 3px 5px; border: 1px solid #d4d0c8;">${escapeHtml(itm.artikul)}</td>
-          <td style="padding: 3px 5px; border: 1px solid #d4d0c8; text-align: center; font-family: Consolas, monospace; color: #2e7d32; font-weight: bold;">${escapeHtml(itm.cv)}</td>
-          <td style="padding: 3px 5px; border: 1px solid #d4d0c8; text-align: center; font-family: Consolas, monospace; color: #555;">${escapeHtml(itm.barcode)}</td>
-          <td style="padding: 3px 6px; border: 1px solid #d4d0c8; font-weight: 500; color: #111;">${escapeHtml(itm.name)}</td>
-          <td style="padding: 3px 5px; border: 1px solid #d4d0c8; color: #444;">${escapeHtml(itm.folder)}</td>
-          <td style="padding: 3px 5px; border: 1px solid #d4d0c8; color: #004080; font-weight: 500;">${escapeHtml(itm.group)}</td>
-          <td style="padding: 3px 5px; border: 1px solid #d4d0c8; color: #6a1b9a; font-weight: bold;">${escapeHtml(itm.portfolio)}</td>
-          <td style="padding: 3px 5px; border: 1px solid #d4d0c8; text-align: center;">${escapeHtml(itm.unit)}</td>
+          <td style="padding: 3px 5px; border: 1px solid #d4d0c8; text-align: center; font-family: Consolas, monospace; font-weight: bold; color: #003366; cursor: pointer;" onclick="PortfolioCatalog.setActiveCell('Код', '${escapeHtml(itm.code)}', this)">${escapeHtml(itm.code)}</td>
+          <td style="padding: 3px 5px; border: 1px solid #d4d0c8; cursor: pointer;" onclick="PortfolioCatalog.setActiveCell('Артикул', '${escapeHtml(itm.artikul)}', this)">${escapeHtml(itm.artikul)}</td>
+          <td style="padding: 3px 5px; border: 1px solid #d4d0c8; text-align: center; font-family: Consolas, monospace; color: #2e7d32; font-weight: bold; cursor: pointer;" onclick="PortfolioCatalog.setActiveCell('СВ код', '${escapeHtml(itm.cv)}', this)">${escapeHtml(itm.cv)}</td>
+          <td style="padding: 3px 5px; border: 1px solid #d4d0c8; text-align: center; font-family: Consolas, monospace; color: #555; cursor: pointer;" onclick="PortfolioCatalog.setActiveCell('Штрихкод', '${escapeHtml(itm.barcode)}', this)">${escapeHtml(itm.barcode)}</td>
+          <td style="padding: 3px 6px; border: 1px solid #d4d0c8; font-weight: 500; color: #111; cursor: pointer;" onclick="PortfolioCatalog.setActiveCell('Наименование', '${escapeHtml(itm.name)}', this)">${escapeHtml(itm.name)}</td>
+          <td style="padding: 3px 5px; border: 1px solid #d4d0c8; color: #444; cursor: pointer;" onclick="PortfolioCatalog.setActiveCell('Папка', '${escapeHtml(itm.folder)}', this)">${escapeHtml(itm.folder)}</td>
+          <td style="padding: 3px 5px; border: 1px solid #d4d0c8; color: #004080; font-weight: 500; cursor: pointer;" onclick="PortfolioCatalog.setActiveCell('Ном. группа', '${escapeHtml(itm.group)}', this)">${escapeHtml(itm.group)}</td>
+          <td style="padding: 3px 5px; border: 1px solid #d4d0c8; color: #6a1b9a; font-weight: bold; cursor: pointer;" onclick="PortfolioCatalog.setActiveCell('Портфель', '${escapeHtml(itm.portfolio)}', this)">${escapeHtml(itm.portfolio)}</td>
+          <td style="padding: 3px 5px; border: 1px solid #d4d0c8; text-align: center; cursor: pointer;" onclick="PortfolioCatalog.setActiveCell('Ед. изм.', '${escapeHtml(itm.unit)}', this)">${escapeHtml(itm.unit)}</td>
           ${priceTds}
-          <td style="padding: 3px 5px; border: 1px solid #d4d0c8; color: #555;">${escapeHtml(itm.type)}</td>
-          <td style="padding: 3px 5px; border: 1px solid #d4d0c8; color: #333;">${escapeHtml(itm.manufacturer)}</td>
+          <td style="padding: 3px 5px; border: 1px solid #d4d0c8; color: #555; cursor: pointer;" onclick="PortfolioCatalog.setActiveCell('Вид', '${escapeHtml(itm.type)}', this)">${escapeHtml(itm.type)}</td>
+          <td style="padding: 3px 5px; border: 1px solid #d4d0c8; color: #333; cursor: pointer;" onclick="PortfolioCatalog.setActiveCell('Производитель', '${escapeHtml(itm.manufacturer)}', this)">${escapeHtml(itm.manufacturer)}</td>
         </tr>
       `;
     }
@@ -774,15 +841,7 @@ const PortfolioCatalog = {
   },
 
   sortByPrice: function(pt) {
-    const colKey = `price_${pt}`;
-    if (this.currentSortCol === colKey) {
-      this.currentSortAsc = !this.currentSortAsc;
-    } else {
-      this.currentSortCol = colKey;
-      this.currentSortAsc = true;
-    }
-    this.applyCurrentSort();
-    this.renderTable();
+    this.sortBy(`price_${pt}`);
   },
 
   exportExcel: function() {

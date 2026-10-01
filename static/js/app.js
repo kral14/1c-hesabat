@@ -30,7 +30,11 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     if (e.key === "F5") {
       e.preventDefault();
-      onActionFormirovat();
+      if (window.MdiManager) {
+        MdiManager.handleConfirm();
+      } else if (typeof onActionFormirovat === "function") {
+        onActionFormirovat();
+      }
     } else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "n") {
       e.preventDefault();
       MdiManager.createNewReportWindow();

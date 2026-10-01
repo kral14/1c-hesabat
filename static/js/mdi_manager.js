@@ -936,17 +936,44 @@ const MdiManager = {
       return true;
     }
 
-    // 3. Find and close the topmost active MDI window or Modal (highest z-index)
+  getTopmostVisibleWindow() {
     const visibleWins = Object.values(this.windows).filter(w =>
       w.isOpen &&
       !w.isMinimized &&
       w.element &&
       w.element.style.display !== "none"
     );
+    if (!visibleWins.length) return null;
+    visibleWins.sort((a, b) => (parseInt(b.element.style.zIndex) || 0) - (parseInt(a.element.style.zIndex) || 0));
+    return visibleWins[0];
+  },
 
-    if (visibleWins.length > 0) {
-      visibleWins.sort((a, b) => (parseInt(b.element.style.zIndex) || 0) - (parseInt(a.element.style.zIndex) || 0));
-      const topWin = visibleWins[0];
+  handleEscape() {
+    // 1. If date/period picker popup is open, close it first
+    if (typeof OneCCalendar !== "undefined" && OneCCalendar.isOpen && OneCCalendar.isOpen()) {
+      OneCCalendar.close();
+      return true;
+    }
+    if (typeof OneCPeriodPicker !== "undefined" && OneCPeriodPicker.isOpen && OneCPeriodPicker.isOpen()) {
+      OneCPeriodPicker.close();
+      return true;
+    }
+    const cal = document.getElementById("calendarPickerModal");
+    if (cal && cal.style.display !== "none") {
+      if (typeof closeDatePicker === "function") closeDatePicker();
+      else cal.style.display = "none";
+      return true;
+    }
+
+    const openMenus = document.querySelectorAll(".mdi-menu-item.open, .mdi-dropdown-menu.show");
+    if (openMenus.length > 0) {
+      openMenus.forEach(m => m.classList.remove("open", "show"));
+      return true;
+    }
+
+    // 2. Find and close the topmost active MDI window or Modal (highest z-index)
+    const topWin = this.getTopmostVisibleWindow();
+    if (topWin) {
       console.log(`[HOTKEY ESC] Closing topmost window #${topWin.id} ("${topWin.title}", z=${topWin.element.style.zIndex || 0})`);
       this.closeWindow(topWin.id);
       return true;
@@ -972,86 +999,209 @@ const MdiManager = {
       return true;
     }
 
-    // 2. Find topmost visible window or modal
-    const visibleWins = Object.values(this.windows).filter(w =>
-      w.isOpen &&
-      !w.isMinimized &&
-      w.element &&
-      w.element.style.display !== "none"
-    );
-
-    if (visibleWins.length > 0) {
-      visibleWins.sort((a, b) => (parseInt(b.element.style.zIndex) || 0) - (parseInt(a.element.style.zIndex) || 0));
-      const topWin = visibleWins[0];
-      console.log(`[HOTKEY CTRL+ENTER] Confirming topmost window #${topWin.id} ("${topWin.title}", z=${topWin.element.style.zIndex || 0})`);
-
-      if (topWin.id === "catalogWindowModal") {
-        if (typeof CatalogSelector !== "undefined" && CatalogSelector.confirmSelection) {
-          CatalogSelector.confirmSelection(true);
-        } else {
-          this.closeWindow("catalogWindowModal");
-        }
+    // 2. Find topmost visible window or modal (strictly based on highest z-index)
+    const topWin = this.getTopmostVisibleWindow();
+    if (!topWin) {
+      if (typeof onActionFormirovat === "function") {
+        onActionFormirovat();
         return true;
       }
+      return false;
+    }
 
-      if (topWin.id === "valueListModalOverlay") {
-        if (typeof ValueListModal !== "undefined" && ValueListModal.applyAndClose) {
-          ValueListModal.applyAndClose();
-        } else {
-          this.closeWindow("valueListModalOverlay");
-        }
-        return true;
-      }
+    console.log(`[HOTKEY CTRL+ENTER] Confirming topmost window #${topWin.id} ("${topWin.title}", z=${topWin.element.style.zIndex || 0})`);
 
-      if (topWin.id === "fieldSelectorModalOverlay") {
-        if (typeof confirmFieldSelection === "function") confirmFieldSelection();
-        else if (typeof FieldSelector !== "undefined" && FieldSelector.confirm) FieldSelector.confirm();
-        else this.closeWindow("fieldSelectorModalOverlay");
-        return true;
-      }
-
-      if (topWin.id === "operationTypeModalOverlay") {
-        if (typeof OperationTypeSelector !== "undefined" && OperationTypeSelector.confirm) {
-          OperationTypeSelector.confirm();
-        } else {
-          this.closeWindow("operationTypeModalOverlay");
-        }
-        return true;
-      }
-
-      if (topWin.id === "settingsRestoreModalOverlay") {
-        if (typeof confirmApplySelectedPreset === "function") confirmApplySelectedPreset();
-        else this.closeWindow("settingsRestoreModalOverlay");
-        return true;
-      }
-
-      if (topWin.id === "settingsSaveModalOverlay") {
-        if (typeof confirmSaveCurrentPreset === "function") confirmSaveCurrentPreset();
-        else this.closeWindow("settingsSaveModalOverlay");
-        return true;
-      }
-
-      if (topWin.id === "loginModalOverlay") {
-        if (typeof submitLoginModal === "function") submitLoginModal();
-        else this.closeWindow("loginModalOverlay");
-        return true;
-      }
-
-      if (topWin.id === "settingsWindowModal") {
-        if (typeof applySettingsAndGenerate === "function") {
-          applySettingsAndGenerate();
-        } else {
-          if (typeof applySettingsAndClose === "function") applySettingsAndClose();
-          if (typeof onActionFormirovat === "function") onActionFormirovat();
-        }
+    // Topmost: Portfolio Catalog Report Window
+    if (topWin.id === "portfolioCatalogWindow") {
+      if (typeof PortfolioCatalog !== "undefined" && PortfolioCatalog.generate) {
+        PortfolioCatalog.generate();
         return true;
       }
     }
 
-    // 3. Default: Active report window has "Сформировать"
-    if (typeof onActionFormirovat === "function") {
-      onActionFormirovat();
+    // Topmost: Catalog Selector Modal
+    if (topWin.id === "catalogWindowModal") {
+      if (typeof CatalogSelector !== "undefined" && CatalogSelector.confirmSelection) {
+        CatalogSelector.confirmSelection(true);
+      } else {
+        this.closeWindow("catalogWindowModal");
+      }
       return true;
+    }
+
+    // Topmost: Value List Modal
+    if (topWin.id === "valueListModalOverlay") {
+      if (typeof ValueListModal !== "undefined" && ValueListModal.applyAndClose) {
+        ValueListModal.applyAndClose();
+      } else {
+        this.closeWindow("valueListModalOverlay");
+      }
+      return true;
+    }
+
+    // Topmost: Field Selector Modal
+    if (topWin.id === "fieldSelectorModalOverlay") {
+      if (typeof confirmFieldSelection === "function") confirmFieldSelection();
+      else if (typeof FieldSelector !== "undefined" && FieldSelector.confirm) FieldSelector.confirm();
+      else this.closeWindow("fieldSelectorModalOverlay");
+      return true;
+    }
+
+    // Topmost: Operation Type Modal
+    if (topWin.id === "operationTypeModalOverlay") {
+      if (typeof OperationTypeSelector !== "undefined" && OperationTypeSelector.confirm) {
+        OperationTypeSelector.confirm();
+      } else {
+        this.closeWindow("operationTypeModalOverlay");
+      }
+      return true;
+    }
+
+    // Topmost: Settings Restore Modal
+    if (topWin.id === "settingsRestoreModalOverlay") {
+      if (typeof confirmApplySelectedPreset === "function") confirmApplySelectedPreset();
+      else this.closeWindow("settingsRestoreModalOverlay");
+      return true;
+    }
+
+    // Topmost: Settings Save Modal
+    if (topWin.id === "settingsSaveModalOverlay") {
+      if (typeof confirmSaveCurrentPreset === "function") confirmSaveCurrentPreset();
+      else this.closeWindow("settingsSaveModalOverlay");
+      return true;
+    }
+
+    // Topmost: Login Modal
+    if (topWin.id === "loginModalOverlay") {
+      if (typeof submitLoginModal === "function") submitLoginModal();
+      else this.closeWindow("loginModalOverlay");
+      return true;
+    }
+
+    // Topmost: Settings Dialog Window
+    if (topWin.id === "settingsWindowModal") {
+      if (typeof applySettingsAndGenerate === "function") {
+        applySettingsAndGenerate();
+      } else {
+        if (typeof applySettingsAndClose === "function") applySettingsAndClose();
+        if (typeof onActionFormirovat === "function") onActionFormirovat();
+      }
+      return true;
+    }
+
+    // Topmost: Main Report Window ("Товары на складах")
+    if (topWin.id === "mdiWindow-1") {
+      if (typeof onActionFormirovat === "function") {
+        onActionFormirovat();
+        return true;
+      }
+    }
+
+    return false;
+  },
+
+  handleSearch() {
+    const topWin = this.getTopmostVisibleWindow();
+    if (!topWin) return false;
+
+    console.log(`[HOTKEY CTRL+F] Search in topmost window #${topWin.id} ("${topWin.title}", z=${topWin.element.style.zIndex || 0})`);
+
+    // 1. Portfolio Catalog Window
+    if (topWin.id === "portfolioCatalogWindow") {
+      if (typeof PortfolioCatalog !== "undefined" && PortfolioCatalog.onSearchHotkey) {
+        PortfolioCatalog.onSearchHotkey();
+        return true;
+      }
+    }
+
+    // 2. Catalog Selector Modal
+    if (topWin.id === "catalogWindowModal") {
+      const inp = document.getElementById("catSearchInput");
+      if (inp) {
+        inp.focus();
+        inp.select();
+        return true;
+      }
+    }
+
+    // 3. Operation Type Modal
+    if (topWin.id === "operationTypeModalOverlay") {
+      const inp = document.getElementById("opTypeSearchInput");
+      if (inp) {
+        inp.focus();
+        inp.select();
+        return true;
+      }
+    }
+
+    // 4. Value List Modal
+    if (topWin.id === "valueListModalOverlay") {
+      const inp = document.querySelector("#valueListModalOverlay input[type='text']");
+      if (inp) {
+        inp.focus();
+        inp.select();
+        return true;
+      }
+    }
+
+    // 5. Settings Window
+    if (topWin.id === "settingsWindowModal") {
+      const inp = document.getElementById("priceTypeSearch");
+      if (inp) {
+        inp.focus();
+        inp.select();
+        return true;
+      }
+    }
+
+    return false;
+  },
+
+  handleCancelSearch() {
+    const topWin = this.getTopmostVisibleWindow();
+    if (!topWin) return false;
+
+    console.log(`[HOTKEY CTRL+Q] Cancel search in topmost window #${topWin.id} ("${topWin.title}", z=${topWin.element.style.zIndex || 0})`);
+
+    // 1. Portfolio Catalog Window
+    if (topWin.id === "portfolioCatalogWindow") {
+      if (typeof PortfolioCatalog !== "undefined" && PortfolioCatalog.clearSearch) {
+        PortfolioCatalog.clearSearch();
+        return true;
+      }
+    }
+
+    // 2. Catalog Selector Modal
+    if (topWin.id === "catalogWindowModal") {
+      const inp = document.getElementById("catSearchInput");
+      if (inp) {
+        inp.value = "";
+        if (typeof CatalogSelector !== "undefined" && CatalogSelector.search) CatalogSelector.search();
+        inp.blur();
+        return true;
+      }
+    }
+
+    // 3. Operation Type Modal
+    if (topWin.id === "operationTypeModalOverlay") {
+      const inp = document.getElementById("opTypeSearchInput");
+      if (inp) {
+        inp.value = "";
+        if (typeof OperationTypeSelector !== "undefined" && OperationTypeSelector.filter) OperationTypeSelector.filter("");
+        inp.blur();
+        return true;
+      }
+    }
+
+    // 4. Settings Window
+    if (topWin.id === "settingsWindowModal") {
+      const inp = document.getElementById("priceTypeSearch");
+      if (inp) {
+        inp.value = "";
+        if (typeof filterPriceTypesList === "function") filterPriceTypesList("");
+        inp.blur();
+        return true;
+      }
     }
 
     return false;
@@ -1099,7 +1249,7 @@ const MdiManager = {
       }
     }, true);
 
-    // 4. Global Ctrl+Enter (OK / Сформировать) listener (capture phase ensures priority)
+    // 4. Global Ctrl+Enter (OK / Сформировать) listener (strictly scoped to topmost z-index window)
     document.addEventListener("keydown", (e) => {
       if ((e.ctrlKey || e.metaKey) && (e.key === "Enter" || e.code === "Enter")) {
         const handled = this.handleConfirm();
@@ -1109,6 +1259,29 @@ const MdiManager = {
         }
       }
     }, true);
+
+    // 5. Global Ctrl+F (Search in active window)
+    document.addEventListener("keydown", (e) => {
+      if ((e.ctrlKey || e.metaKey) && (e.key === "f" || e.key === "F" || e.code === "KeyF")) {
+        const handled = this.handleSearch();
+        if (handled) {
+          e.preventDefault();
+          e.stopPropagation();
+        }
+      }
+    }, true);
+
+    // 6. Global Ctrl+Q (Cancel / Clear search in active window)
+    document.addEventListener("keydown", (e) => {
+      if ((e.ctrlKey || e.metaKey) && (e.key === "q" || e.key === "Q" || e.code === "KeyQ")) {
+        const handled = this.handleCancelSearch();
+        if (handled) {
+          e.preventDefault();
+          e.stopPropagation();
+        }
+      }
+    }, true);
+  }
   }
 };
 
