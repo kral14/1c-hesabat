@@ -20,29 +20,49 @@
       
       <!-- Base Selection -->
       <div style="margin-bottom: 12px;">
-        <label style="display: block; font-weight: bold; margin-bottom: 4px; color: #222;">
-          1C İnformasiya Bazası:
-        </label>
-        <select id="modalBaseSelect" class="input-1c" style="width: 100%; height: 26px;" onchange="onModalBaseChange()">
-          <option value="">Bazalar axtarılır...</option>
-        </select>
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+          <label style="font-weight: bold; color: #222; margin: 0;">
+            1C İnformasiya Bazası:
+          </label>
+          <span id="modalCustomBadge" style="font-size: 10px; color: #666;"></span>
+        </div>
+        <div style="display: flex; gap: 6px;">
+          <select id="modalBaseSelect" class="input-1c" style="flex: 1; height: 26px;" onchange="onModalBaseChange()">
+            <option value="">Bazalar axtarılır...</option>
+          </select>
+          <button type="button" class="btn-1c" id="modalBtnDeleteBase" onclick="deleteCurrentBase()" title="Seçilmiş bazanı siyahıdan sil" style="height: 26px; padding: 0 10px; color: #b30000; font-weight: bold; white-space: nowrap; display: flex; align-items: center; gap: 4px;">
+            <span>🗑️ Sil</span>
+          </button>
+        </div>
       </div>
 
-      <!-- Advanced Server & Ref -->
-      <div style="margin-bottom: 12px; background: #ece9d8; padding: 8px; border: 1px solid #c0bfae; border-radius: 2px;">
-        <div style="display: flex; gap: 8px; margin-bottom: 6px;">
+      <!-- Advanced Server & Ref (Manual Entry & Custom Bases) -->
+      <div style="margin-bottom: 12px; background: #f4f2e8; padding: 10px; border: 1px solid #c0bfae; border-radius: 3px;">
+        <div style="font-size: 11px; font-weight: bold; color: #333; margin-bottom: 6px; display: flex; align-items: center; justify-content: space-between;">
+          <span>⚙️ Baza Parametrləri (Manual Daxiletmə):</span>
+        </div>
+        <div style="margin-bottom: 6px;">
+          <label style="font-size: 10px; color: #555; display: block; margin-bottom: 2px;">Baza Adı / Təsvir (Seçim siyahısında görünən ad):</label>
+          <input type="text" id="modalCustomTitle" class="input-1c" style="width: 100%; height: 24px;" placeholder="Məs: Aztrade Əsas Test Bazası">
+        </div>
+        <div style="display: flex; gap: 8px; margin-bottom: 8px;">
           <div style="flex: 1;">
-            <label style="font-size: 10px; color: #555;">Server (Srvr):</label>
-            <input type="text" id="modalCustomServer" class="input-1c" style="width: 100%;" value="Test1C">
+            <label style="font-size: 10px; color: #555; display: block; margin-bottom: 2px;">Server (Srvr):</label>
+            <input type="text" id="modalCustomServer" class="input-1c" style="width: 100%; height: 24px;" value="Test1C" placeholder="Server adı və ya IP">
           </div>
           <div style="flex: 1;">
-            <label style="font-size: 10px; color: #555;">Baza (Ref):</label>
-            <input type="text" id="modalCustomRef" class="input-1c" style="width: 100%;" value="Aztrade_test3">
+            <label style="font-size: 10px; color: #555; display: block; margin-bottom: 2px;">Baza (Ref):</label>
+            <input type="text" id="modalCustomRef" class="input-1c" style="width: 100%; height: 24px;" value="Aztrade_test3" placeholder="Baza adı">
           </div>
         </div>
-        <button class="btn-1c" onclick="reloadModalUsersForCustomDb()" style="width: 100%;">
-          İstifadəçiləri Yenilə
-        </button>
+        <div style="display: flex; gap: 6px;">
+          <button type="button" class="btn-1c" onclick="addCustomBase()" style="flex: 1; height: 26px; font-weight: bold; background: #eaf3e5; border-color: #6a9b56; color: #1b5e20;">
+            💾 Bazanı Əlavə Et / Yadda Saxla
+          </button>
+          <button type="button" class="btn-1c" onclick="reloadModalUsersForCustomDb()" style="height: 26px; padding: 0 12px;">
+            🔄 İstifadəçiləri Yenilə
+          </button>
+        </div>
       </div>
 
       <!-- User Selection -->

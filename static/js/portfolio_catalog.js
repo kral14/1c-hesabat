@@ -57,10 +57,11 @@ const PortfolioCatalog = {
   },
 
   loadFilters: function() {
+    const creds = window.SessionManager ? SessionManager.getCredentials() : {};
     fetch("/api/portfolio_catalog/filters", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({})
+      body: JSON.stringify(creds)
     })
     .then(res => res.json())
     .then(data => {
@@ -143,14 +144,16 @@ const PortfolioCatalog = {
     const ptSel = document.getElementById("pcPriceTypeSelect");
     const searchInp = document.getElementById("pcSearchInput");
 
+    const creds = window.SessionManager ? SessionManager.getCredentials() : {};
     const payload = {
+      ...creds,
       portfolio: portSel ? portSel.value : "",
       nom_group: grpSel ? grpSel.value : "",
       price_type: ptSel ? ptSel.value : "20",
       search: searchInp ? searchInp.value.trim() : ""
     };
 
-    const cacheKey = `${payload.portfolio}_${payload.nom_group}_${payload.price_type}_${payload.search}`;
+    const cacheKey = `${creds.server || ""}_${creds.ref || ""}_${payload.portfolio}_${payload.nom_group}_${payload.price_type}_${payload.search}`;
 
     // Instant render from cache if available (0 ms)
     if (this.cache[cacheKey]) {
@@ -324,7 +327,9 @@ const PortfolioCatalog = {
     const grpSel = document.getElementById("pcNomGroupSelect");
     const ptSel = document.getElementById("pcPriceTypeSelect");
 
+    const creds = window.SessionManager ? SessionManager.getCredentials() : {};
     const payload = {
+      ...creds,
       items: this.filteredItems,
       filters: {
         portfolio: portSel ? portSel.value : "",

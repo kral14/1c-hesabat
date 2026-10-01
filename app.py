@@ -238,11 +238,18 @@ class OneCService(threading.Thread):
                         conn = None
 
                 if conn is None:
+                    # Release previous connection to prevent 1C license exhaustion (1 concurrent license limit)
+                    for old_key in list(self.connections.keys()):
+                        if old_key != key:
+                            print(f"🔄 [1C BAZA DƏYİŞDİ] Köhnə COM sessiya azad edilir: {old_key} -> Yeni: {key}", flush=True)
+                            self.connections[old_key] = None
+                            self.connections.pop(old_key, None)
+
                     t0 = time.time()
                     conn_str = f'Srvr="{server}";Ref="{base}";Usr="{user}";Pwd="{pwd}";'
                     conn = connector.Connect(conn_str)
                     self.connections[key] = conn
-                    print(f"1C Session connected in {time.time() - t0:.2f} s")
+                    print(f"1C Session connected to [{server} / {base} / {user}] in {time.time() - t0:.2f} s", flush=True)
 
                 # 1. Action: Get Users
                 if action == "get_users":
@@ -2047,9 +2054,12 @@ one_c = OneCService()
 import atexit
 atexit.register(one_c.close_all)
 
+import database
+database.init_db()
+
 def parse_ibases():
     v8i_path = os.path.expandvars(r"%APPDATA%\1C\1CEStart\ibases.v8i")
-    bases = []
+    raw_v8i = []
     if os.path.exists(v8i_path):
         cur_name = None; cur_server = None; cur_ref = None
         with open(v8i_path, "r", encoding="utf-8", errors="ignore") as f:
@@ -2057,25 +2067,55 @@ def parse_ibases():
                 line = line.strip()
                 if line.startswith("[") and line.endswith("]"):
                     if cur_name and cur_server and cur_ref:
-                        if "test" in cur_server.lower() or "test" in cur_ref.lower() or "test" in cur_name.lower():
-                            bases.append({"title": cur_name, "server": cur_server, "ref": cur_ref})
+                        raw_v8i.append({"title": cur_name, "server": cur_server, "ref": cur_ref})
                     cur_name = line[1:-1]; cur_server = None; cur_ref = None
                 elif "Connect=Srvr=" in line:
                     m = re.search(r'Srvr="([^"]+)";Ref="([^"]+)";', line, re.IGNORECASE)
                     if m:
                         cur_server = m.group(1); cur_ref = m.group(2)
         if cur_name and cur_server and cur_ref:
-            if "test" in cur_server.lower() or "test" in cur_ref.lower() or "test" in cur_name.lower():
-                bases.append({"title": cur_name, "server": cur_server, "ref": cur_ref})
+            raw_v8i.append({"title": cur_name, "server": cur_server, "ref": cur_ref})
 
-    # Guarantee Aztrade_test3 is first and primary
-    test3 = [b for b in bases if b["ref"].lower() == "aztrade_test3"]
-    other_tests = [b for b in bases if b["ref"].lower() != "aztrade_test3"]
-    if test3:
-        test3[0]["title"] = "Aztrade Test Bazası #1"
-        bases = test3 + other_tests
-    else:
-        bases = [{"title": "Aztrade Test Bazası #1", "server": "Test1C", "ref": "Aztrade_test3"}]
+    hidden_set = database.get_hidden_bases()
+    custom_list = database.get_custom_bases()
+
+    bases = []
+    seen = set()
+
+    # 1. User-added custom bases first
+    for cb in custom_list:
+        k = (str(cb["server"]).strip().lower(), str(cb["ref"]).strip().lower())
+        if k not in hidden_set and k not in seen:
+            bases.append({
+                "title": cb["title"],
+                "server": cb["server"],
+                "ref": cb["ref"],
+                "is_custom": True
+            })
+            seen.add(k)
+
+    # 2. System / v8i bases (if not hidden and not duplicate)
+    for b in raw_v8i:
+        k = (str(b["server"]).strip().lower(), str(b["ref"]).strip().lower())
+        if k not in hidden_set and k not in seen:
+            bases.append({
+                "title": b["title"],
+                "server": b["server"],
+                "ref": b["ref"],
+                "is_custom": False
+            })
+            seen.add(k)
+
+    # 3. Default fallback if Aztrade_test3 is not hidden and not already present
+    default_key = ("test1c", "aztrade_test3")
+    if default_key not in hidden_set and default_key not in seen:
+        bases.insert(0, {
+            "title": "Aztrade Test Bazası #1",
+            "server": "Test1C",
+            "ref": "Aztrade_test3",
+            "is_custom": False
+        })
+
     return bases
 
 
@@ -2089,6 +2129,39 @@ def get_bases():
         return jsonify({"success": True, "bases": parse_ibases()})
     except Exception as e:
         print_server_error("/api/bases", e)
+        return jsonify({"success": False, "error": str(e)})
+
+@app.route("/api/bases/add", methods=["POST"])
+def add_base_endpoint():
+    try:
+        data = request.json or {}
+        server = (data.get("server") or "").strip()
+        ref = (data.get("ref") or "").strip()
+        title = (data.get("title") or "").strip()
+        if not server or not ref:
+            return jsonify({"success": False, "error": "Server (Srvr) və Baza (Ref) adları mütləq daxil edilməlidir!"})
+        if not title:
+            title = f"{server} / {ref}"
+        database.add_custom_base(title, server, ref)
+        print(f"💾 [1C BAZA ƏLAVƏ EDİLDİ] Başlıq: {title} | Server: {server} | Ref: {ref}", flush=True)
+        return jsonify({"success": True, "bases": parse_ibases()})
+    except Exception as e:
+        print_server_error("/api/bases/add", e, data)
+        return jsonify({"success": False, "error": str(e)})
+
+@app.route("/api/bases/delete", methods=["POST"])
+def delete_base_endpoint():
+    try:
+        data = request.json or {}
+        server = (data.get("server") or "").strip()
+        ref = (data.get("ref") or "").strip()
+        if not server or not ref:
+            return jsonify({"success": False, "error": "Silinəcək server və baza adı tələb olunur."})
+        database.delete_base(server, ref)
+        print(f"🗑️ [1C BAZA SİLİNDİ] Server: {server} | Ref: {ref}", flush=True)
+        return jsonify({"success": True, "bases": parse_ibases()})
+    except Exception as e:
+        print_server_error("/api/bases/delete", e, data)
         return jsonify({"success": False, "error": str(e)})
 
 @app.route("/api/users", methods=["POST"])
@@ -2262,8 +2335,6 @@ def catalog_data_endpoint():
         print_server_error("/api/catalog_data", e, data)
         return jsonify({"success": False, "error": str(e)})
 
-import database
-database.init_db()
 
 @app.route("/api/presets", methods=["GET"])
 def get_presets_endpoint():

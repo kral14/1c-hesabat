@@ -41,6 +41,26 @@ def init_db():
         )
     """)
 
+    # 3. Custom 1C Bases Table
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS custom_bases (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            title TEXT NOT NULL,
+            server TEXT NOT NULL,
+            ref TEXT NOT NULL,
+            created_at TEXT DEFAULT (datetime('now', 'localtime'))
+        )
+    """)
+
+    # 4. Hidden / Deleted Bases Table
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS hidden_bases (
+            server TEXT NOT NULL,
+            ref TEXT NOT NULL,
+            PRIMARY KEY (server, ref)
+        )
+    """)
+
     conn.commit()
 
     # Check if presets table is empty, then seed with 1C database presets
@@ -264,3 +284,53 @@ def get_current_settings():
         except Exception:
             return None
     return None
+
+def get_custom_bases():
+    conn = get_connection()
+    cur = conn.cursor()
+    cur.execute("SELECT id, title, server, ref FROM custom_bases ORDER BY id DESC")
+    rows = cur.fetchall()
+    conn.close()
+    return [{"id": r["id"], "title": r["title"], "server": r["server"], "ref": r["ref"], "is_custom": True} for r in rows]
+
+def get_hidden_bases():
+    conn = get_connection()
+    cur = conn.cursor()
+    cur.execute("SELECT server, ref FROM hidden_bases")
+    rows = cur.fetchall()
+    conn.close()
+    return {(str(r["server"]).strip().lower(), str(r["ref"]).strip().lower()) for r in rows}
+
+def add_custom_base(title, server, ref):
+    conn = get_connection()
+    cur = conn.cursor()
+    server = server.strip()
+    ref = ref.strip()
+    title = title.strip() or f"{server} / {ref}"
+
+    # If previously hidden, unhide it
+    cur.execute("DELETE FROM hidden_bases WHERE LOWER(server) = LOWER(?) AND LOWER(ref) = LOWER(?)", (server, ref))
+
+    # Check if already exists in custom_bases
+    cur.execute("SELECT id FROM custom_bases WHERE LOWER(server) = LOWER(?) AND LOWER(ref) = LOWER(?)", (server, ref))
+    row = cur.fetchone()
+    if row:
+        cur.execute("UPDATE custom_bases SET title = ? WHERE id = ?", (title, row["id"]))
+    else:
+        cur.execute("INSERT INTO custom_bases (title, server, ref) VALUES (?, ?, ?)", (title, server, ref))
+    conn.commit()
+    conn.close()
+    return True
+
+def delete_base(server, ref):
+    conn = get_connection()
+    cur = conn.cursor()
+    server = server.strip()
+    ref = ref.strip()
+    # Delete from custom_bases
+    cur.execute("DELETE FROM custom_bases WHERE LOWER(server) = LOWER(?) AND LOWER(ref) = LOWER(?)", (server, ref))
+    # Also record in hidden_bases so system/v8i base is hidden as well
+    cur.execute("INSERT OR REPLACE INTO hidden_bases (server, ref) VALUES (?, ?)", (server, ref))
+    conn.commit()
+    conn.close()
+    return True

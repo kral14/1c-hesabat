@@ -80,7 +80,7 @@ const SessionManager = {
     }
   },
 
-  async loadBases() {
+  async loadBases(preferredBase) {
     try {
       const res = await fetch("/api/bases");
       const data = await res.json();
@@ -88,17 +88,28 @@ const SessionManager = {
         const select = document.getElementById("modalBaseSelect");
         if (!select) return;
         select.innerHTML = "";
-        data.bases.forEach((b) => {
+        let matchedOpt = null;
+
+        const targetServer = (preferredBase?.server || this.state.server || "").toLowerCase();
+        const targetRef = (preferredBase?.ref || this.state.ref || "").toLowerCase();
+
+        data.bases.forEach((b, idx) => {
           const opt = document.createElement("option");
           opt.value = JSON.stringify(b);
-          opt.textContent = `${b.title} (${b.server} / ${b.ref})`;
-          if (b.server.toLowerCase() === this.state.server.toLowerCase() &&
-              b.ref.toLowerCase() === this.state.ref.toLowerCase()) {
+          const customTag = b.is_custom ? " [Əl ilə əlavə]" : "";
+          opt.textContent = `${b.title} (${b.server} / ${b.ref})${customTag}`;
+
+          if (b.server.toLowerCase() === targetServer && b.ref.toLowerCase() === targetRef) {
+            opt.selected = true;
+            matchedOpt = opt;
+          } else if (!matchedOpt && idx === 0) {
             opt.selected = true;
           }
           select.appendChild(opt);
         });
-        this.loadUsers();
+
+        // Trigger onModalBaseChange to sync inputs and users
+        onModalBaseChange();
       }
     } catch (err) {
       console.error("Failed to load bases:", err);
@@ -147,11 +158,12 @@ const SessionManager = {
     }
   },
 
-  async authenticate(user, password, server, ref) {
+  async authenticate(user, password, server, ref, title) {
     this.state.user = user || this.state.user;
     this.state.password = password !== undefined ? password : this.state.password;
     if (server) this.state.server = server;
     if (ref) this.state.ref = ref;
+    if (title) this.state.dbTitle = title;
 
     const statusEl = document.getElementById("modalConnStatus");
     if (statusEl) statusEl.textContent = "Bağlanılır...";
@@ -231,20 +243,108 @@ function onModalBaseChange() {
     SessionManager.state.ref = b.ref;
     SessionManager.state.dbTitle = b.title;
 
+    const tInp = document.getElementById("modalCustomTitle");
     const sInp = document.getElementById("modalCustomServer");
     const rInp = document.getElementById("modalCustomRef");
-    if (sInp) sInp.value = b.server;
-    if (rInp) rInp.value = b.ref;
+    const badge = document.getElementById("modalCustomBadge");
 
+    if (tInp) tInp.value = b.title || "";
+    if (sInp) sInp.value = b.server || "";
+    if (rInp) rInp.value = b.ref || "";
+    if (badge) {
+      badge.textContent = b.is_custom ? "🌟 Əlavə edilmiş baza" : "💻 1C Sistem bazası";
+      badge.style.color = b.is_custom ? "#1b5e20" : "#666";
+    }
+
+    SessionManager.save();
     SessionManager.loadUsers();
-  } catch (e) {}
+  } catch (e) {
+    console.error("onModalBaseChange error:", e);
+  }
+}
+
+async function addCustomBase() {
+  const tInp = document.getElementById("modalCustomTitle");
+  const sInp = document.getElementById("modalCustomServer");
+  const rInp = document.getElementById("modalCustomRef");
+
+  const server = sInp ? sInp.value.trim() : "";
+  const ref = rInp ? rInp.value.trim() : "";
+  let title = tInp ? tInp.value.trim() : "";
+
+  if (!server || !ref) {
+    alert("Zəhmət olmasa Server (Srvr) və Baza (Ref) adlarını daxil edin!");
+    return;
+  }
+  if (!title) {
+    title = `${server} / ${ref}`;
+  }
+
+  try {
+    const res = await fetch("/api/bases/add", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ title, server, ref })
+    });
+    const data = await res.json();
+    if (data.success) {
+      SessionManager.state.server = server;
+      SessionManager.state.ref = ref;
+      SessionManager.state.dbTitle = title;
+      SessionManager.save();
+      await SessionManager.loadBases({ server, ref });
+      alert(`✅ Baza siyahıya əlavə edildi və aktiv baza olaraq seçildi:\n${title} (${server} / ${ref})`);
+    } else {
+      alert("Xəta: " + (data.error || "Baza əlavə edilə bilmədi"));
+    }
+  } catch (err) {
+    alert("Şəbəkə xətası: " + err.message);
+  }
+}
+
+async function deleteCurrentBase() {
+  const select = document.getElementById("modalBaseSelect");
+  if (!select || !select.value) {
+    alert("Silinəcək baza seçilməyib!");
+    return;
+  }
+
+  let b;
+  try {
+    b = JSON.parse(select.value);
+  } catch (e) {
+    return;
+  }
+
+  const ok = confirm(`'${b.title}' (${b.server} / ${b.ref}) bazasını siyahıdan silmək istədiyinizə əminsiniz?`);
+  if (!ok) return;
+
+  try {
+    const res = await fetch("/api/bases/delete", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ server: b.server, ref: b.ref })
+    });
+    const data = await res.json();
+    if (data.success) {
+      alert(`🗑️ '${b.title}' bazası siyahıdan silindi.`);
+      await SessionManager.loadBases();
+    } else {
+      alert("Xəta: " + (data.error || "Baza silinə bilmədi"));
+    }
+  } catch (err) {
+    alert("Şəbəkə xətası: " + err.message);
+  }
 }
 
 function reloadModalUsersForCustomDb() {
   const sInp = document.getElementById("modalCustomServer");
   const rInp = document.getElementById("modalCustomRef");
-  if (sInp) SessionManager.state.server = sInp.value.trim();
-  if (rInp) SessionManager.state.ref = rInp.value.trim();
+  const tInp = document.getElementById("modalCustomTitle");
+  if (sInp && sInp.value.trim()) SessionManager.state.server = sInp.value.trim();
+  if (rInp && rInp.value.trim()) SessionManager.state.ref = rInp.value.trim();
+  if (tInp && tInp.value.trim()) SessionManager.state.dbTitle = tInp.value.trim();
+  SessionManager.save();
   SessionManager.loadUsers();
 }
 
@@ -262,11 +362,22 @@ async function submitLoginModal() {
 
   const sInp = document.getElementById("modalCustomServer");
   const rInp = document.getElementById("modalCustomRef");
+  const tInp = document.getElementById("modalCustomTitle");
   const server = sInp ? sInp.value.trim() : SessionManager.state.server;
   const ref = rInp ? rInp.value.trim() : SessionManager.state.ref;
+  const title = tInp ? tInp.value.trim() : SessionManager.state.dbTitle;
 
-  const ok = await SessionManager.authenticate(user, pwd, server, ref);
+  const ok = await SessionManager.authenticate(user, pwd, server, ref, title);
   if (ok) {
+    // Invalidate caches when database session connects
+    if (window.PortfolioCatalog) {
+      PortfolioCatalog.cache = {};
+      PortfolioCatalog.filtersLoaded = false;
+      const pcWin = document.getElementById("portfolioCatalogWindow");
+      if (pcWin && pcWin.style.display !== "none") {
+        PortfolioCatalog.loadFilters();
+      }
+    }
     closeLoginModal();
   }
 }
