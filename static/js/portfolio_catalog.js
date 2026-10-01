@@ -353,7 +353,6 @@ const PortfolioCatalog = {
       this.selectedNomGroups = this.selectedNomGroups.filter(g => allowedGroups.has(g));
     }
     this.renderNomGroupChecklist();
-    this.generate();
   },
 
   selectAllPortfolios: function(select) {
@@ -365,7 +364,6 @@ const PortfolioCatalog = {
     this.updatePortfolioButtonLabel();
     this.renderPortfolioChecklist();
     this.renderNomGroupChecklist();
-    this.generate();
   },
 
   updatePortfolioButtonLabel: function() {
@@ -546,7 +544,6 @@ const PortfolioCatalog = {
       this.selectedNomGroups = this.selectedNomGroups.filter(g => g !== gName);
     }
     this.updateNomGroupButtonLabel();
-    this.generate();
   },
 
   toggleAllGroupsForPortfolio: function(portName, grps) {
@@ -562,7 +559,6 @@ const PortfolioCatalog = {
       });
     }
     this.renderNomGroupChecklist();
-    this.generate();
   },
 
   selectAllNomGroups: function(select) {
@@ -579,7 +575,6 @@ const PortfolioCatalog = {
       this.selectedNomGroups = [];
     }
     this.renderNomGroupChecklist();
-    this.generate();
   },
 
   updateNomGroupButtonLabel: function() {
@@ -624,10 +619,8 @@ const PortfolioCatalog = {
       this.availableNomGroups = data.nom_groups || [];
       this.availablePriceTypes = data.price_types || [];
 
-      // Default select first portfolio (e.g. 01 MONDELEZ) if nothing selected
-      if (!this.selectedPortfolios.length && this.availablePortfolios.length > 0) {
-        this.selectedPortfolios = [this.availablePortfolios[0]];
-      }
+      // Do not auto-select portfolio; default to (Все портфели)
+      this.selectedPortfolios = [];
       if (!this.selectedPriceTypes.length) {
         this.selectedPriceTypes = ["20"];
       }
@@ -636,12 +629,7 @@ const PortfolioCatalog = {
       this.renderNomGroupChecklist();
       this.renderPriceTypeChecklist();
 
-      this.updateStatus("Фильтры успешно загружены");
-
-      // Auto-trigger load
-      if (this.selectedPortfolios.length && !this.items.length) {
-        this.generate();
-      }
+      this.updateStatus("Выберите фильтры и нажмите «Сформировать» (Ctrl+Enter)");
     })
     .catch(err => {
       console.error("Error loading portfolio filters:", err);

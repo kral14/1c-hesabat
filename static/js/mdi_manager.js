@@ -1084,6 +1084,14 @@ const MdiManager = {
       return true;
     }
 
+    // Topmost: Portfolio Catalog Window ("Товары по портфелям")
+    if (topWin.id === "portfolioCatalogWindow") {
+      if (typeof PortfolioCatalog !== "undefined" && PortfolioCatalog.generate) {
+        PortfolioCatalog.generate();
+        return true;
+      }
+    }
+
     // Topmost: Main Report Window ("Товары на складах")
     if (topWin.id === "mdiWindow-1") {
       if (typeof onActionFormirovat === "function") {
