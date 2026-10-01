@@ -282,8 +282,13 @@ class OneCService(threading.Thread):
                     self.connections[key] = conn
                     print(f"1C Session connected to [{server} / {base} / {user}] in {time.time() - t0:.2f} s", flush=True)
 
+                # 0. Action: Ping connection
+                if action == "ping":
+                    _ = conn.String(1)
+                    resp_q.put((True, "pong"))
+
                 # 1. Action: Get Users
-                if action == "get_users":
+                elif action == "get_users":
                     q = conn.NewObject("Запрос")
                     q.Text = "ВЫБРАТЬ Т.Наименование КАК Name, Т.Код КАК Code ИЗ Справочник.Пользователи КАК Т ГДЕ НЕ Т.ПометкаУдаления УПОРЯДОЧИТЬ ПО Name"
                     res = q.Execute().Choose()
@@ -2375,6 +2380,28 @@ def search_nomenklatura():
         return jsonify({"success": True, "items": items})
     except Exception as e:
         print_server_error("/api/search_nomenklatura", e, data)
+        return jsonify({"success": False, "error": str(e)})
+
+@app.route("/api/ping_connection", methods=["GET", "POST"])
+def ping_connection_endpoint():
+    data = request.json if (request.method == "POST" and request.is_json) else {}
+    try:
+        active = database.get_active_base() or {}
+        payload = {
+            "server": data.get("server") or active.get("server") or "Aztrade3",
+            "ref": data.get("ref") or active.get("ref") or "Aztrade2023",
+            "user": data.get("user") or active.get("user") or "Nesib",
+            "password": data.get("password") or active.get("password") or "15963"
+        }
+        res = one_c.execute("ping", payload)
+        return jsonify({
+            "success": True,
+            "connected": True,
+            "server": payload["server"],
+            "ref": payload["ref"]
+        })
+    except Exception as e:
+        print_server_error("/api/ping_connection", e, data)
         return jsonify({"success": False, "error": str(e)})
 
 @app.route("/api/login", methods=["POST"])

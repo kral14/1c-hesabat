@@ -16,6 +16,8 @@ const SessionManager = {
     isAuthenticated: false
   },
 
+  connectionStatus: "idle", // 'idle' | 'connecting' | 'connected' | 'error'
+
   init() {
     const saved = localStorage.getItem(this.STORAGE_KEY);
     if (saved) {
@@ -28,7 +30,10 @@ const SessionManager = {
       }
     }
     this.updateUI();
-    this.loadBases();
+    this.loadBases().then(() => {
+      // Proactively connect to 1C on startup with spinning animation & live status
+      this.warmupConnection();
+    });
   },
 
   save() {
@@ -51,20 +56,115 @@ const SessionManager = {
     };
   },
 
-  updateUI() {
-    const basePill = document.getElementById("topBaseName");
-    const userPill = document.getElementById("topUserName");
+  setConnectionStatus(status, message) {
+    this.connectionStatus = status;
+    const basePill = document.getElementById("topBasePill");
+    const baseDot = document.getElementById("topBaseDot");
+    const baseName = document.getElementById("topBaseName");
     const statusBase = document.getElementById("statusBarBaseName");
+
+    if (status === "connecting") {
+      if (basePill) {
+        basePill.style.background = "#fffde7";
+        basePill.style.borderColor = "#d4b106";
+        basePill.title = "1C Serverinə qoşulur, zəhmət olmasa gözləyin...";
+      }
+      if (baseDot) {
+        baseDot.className = "";
+        baseDot.innerHTML = '<span class="conn-spinner" style="display:inline-block; width:11px; height:11px; border:2px solid #004080; border-top-color:transparent; border-radius:50%; animation:spin 0.8s linear infinite; vertical-align:middle; margin-right:3px;"></span>';
+      }
+      if (baseName) {
+        baseName.textContent = `${this.state.server} / ${this.state.ref} (Sistemə qoşulur, gözləyin...)`;
+        baseName.style.color = "#856404";
+        baseName.style.fontWeight = "bold";
+      }
+      if (statusBase) {
+        statusBase.textContent = `1C: ${this.state.server} / ${this.state.ref} (Sistemə qoşulur, gözləyin...)`;
+      }
+    } else if (status === "connected") {
+      if (basePill) {
+        basePill.style.background = "#faf8ef";
+        basePill.style.borderColor = "#d0d0d0";
+        basePill.title = `Aktiv 1C Bazası: ${this.state.server} / ${this.state.ref} (Dəyişmək üçün klikləyin)`;
+      }
+      if (baseDot) {
+        baseDot.className = "dot-green";
+        baseDot.innerHTML = "";
+      }
+      if (baseName) {
+        baseName.textContent = `${this.state.server} / ${this.state.ref} (Qoşuldu, hazırdır)`;
+        baseName.style.color = "#155724";
+        baseName.style.fontWeight = "bold";
+        // After 4 seconds, keep clean server/ref
+        setTimeout(() => {
+          if (this.connectionStatus === "connected" && baseName) {
+            baseName.textContent = `${this.state.server} / ${this.state.ref}`;
+            baseName.style.color = "#1a1a1a";
+          }
+        }, 4000);
+      }
+      if (statusBase) {
+        statusBase.textContent = `${this.state.server} / ${this.state.ref} (Hazırdır)`;
+      }
+    } else if (status === "error") {
+      if (basePill) {
+        basePill.style.background = "#f8d7da";
+        basePill.style.borderColor = "#f5c6cb";
+        basePill.title = message || "1C Qoşulma xətası";
+      }
+      if (baseDot) {
+        baseDot.className = "";
+        baseDot.innerHTML = '<span style="display:inline-block; width:8px; height:8px; background:#dc3545; border-radius:50%; vertical-align:middle; margin-right:3px;"></span>';
+      }
+      if (baseName) {
+        baseName.textContent = `${this.state.server} / ${this.state.ref} (Qoşulma xətası!)`;
+        baseName.style.color = "#721c24";
+        baseName.style.fontWeight = "bold";
+      }
+      if (statusBase) {
+        statusBase.textContent = `1C: Qoşulma xətası!`;
+      }
+    }
+  },
+
+  async warmupConnection() {
+    this.setConnectionStatus("connecting");
+    try {
+      const res = await fetch("/api/ping_connection", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(this.getCredentials())
+      });
+      const data = await res.json();
+      if (data.success) {
+        this.setConnectionStatus("connected");
+      } else {
+        console.warn("1C warmup connection error:", data.error);
+        this.setConnectionStatus("error", data.error);
+      }
+    } catch (e) {
+      console.error("1C warmup connection network error:", e);
+      this.setConnectionStatus("error", e.message);
+    }
+  },
+
+  updateUI() {
+    const userPill = document.getElementById("topUserName");
     const statusUser = document.getElementById("statusBarUserName");
 
-    if (basePill) {
-      basePill.textContent = `${this.state.server} / ${this.state.ref}`;
+    if (this.connectionStatus !== "connecting") {
+      const basePill = document.getElementById("topBaseName");
+      const statusBase = document.getElementById("statusBarBaseName");
+      if (basePill) {
+        basePill.textContent = `${this.state.server} / ${this.state.ref}`;
+      }
+      if (statusBase) {
+        statusBase.textContent = `${this.state.server} / ${this.state.ref}`;
+      }
     }
+
     if (userPill) {
       userPill.textContent = this.state.user || "İstifadəçi";
-    }
-    if (statusBase) {
-      statusBase.textContent = `${this.state.server} / ${this.state.ref}`;
     }
     if (statusUser) {
       statusUser.textContent = this.state.user || "İstifadəçi";
@@ -202,6 +302,7 @@ const SessionManager = {
     if (ref) this.state.ref = ref;
     if (title) this.state.dbTitle = title;
 
+    this.setConnectionStatus("connecting");
     const statusEl = document.getElementById("modalConnStatus");
     if (statusEl) statusEl.textContent = "Bağlanılır...";
 
@@ -215,14 +316,17 @@ const SessionManager = {
       if (data.success) {
         this.state.isAuthenticated = true;
         this.save();
+        this.setConnectionStatus("connected");
         if (statusEl) statusEl.textContent = "Bağlandı!";
         return true;
       } else {
+        this.setConnectionStatus("error", data.error);
         alert("1C Xətası: " + (data.error || "Giriş uğursuz oldu"));
         if (statusEl) statusEl.textContent = "Xəta";
         return false;
       }
     } catch (e) {
+      this.setConnectionStatus("error", e.message);
       alert("Şəbəkə xətası: " + e.message);
       if (statusEl) statusEl.textContent = "Xəta";
       return false;
