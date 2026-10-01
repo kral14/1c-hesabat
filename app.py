@@ -75,7 +75,7 @@ def get_folders_map(conn, base_key):
         while res_f.Next():
             r_id = conn.String(res_f.Ref)
             p_id = conn.String(res_f.Parent) if res_f.Parent else ""
-            fmap[r_id] = (str(res_f.Name).strip(), p_id, res_f.Ссылка)
+            fmap[r_id] = (str(res_f.Name).strip(), p_id, res_f.Ref)
         _folders_cache[base_key] = fmap
         return fmap
     except Exception as ex_f:
