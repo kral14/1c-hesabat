@@ -894,6 +894,18 @@ const MdiManager = {
     this.closeWindow(modalId);
   },
 
+  getTopmostVisibleWindow() {
+    const visibleWins = Object.values(this.windows).filter(w =>
+      w.isOpen &&
+      !w.isMinimized &&
+      w.element &&
+      w.element.style.display !== "none"
+    );
+    if (!visibleWins.length) return null;
+    visibleWins.sort((a, b) => (parseInt(b.element.style.zIndex) || 0) - (parseInt(a.element.style.zIndex) || 0));
+    return visibleWins[0];
+  },
+
   handleEscape() {
     // 1. Close calendar / date picker if open
     if (typeof OneCCalendar !== "undefined" && OneCCalendar.isOpen && OneCCalendar.isOpen()) {
@@ -936,42 +948,7 @@ const MdiManager = {
       return true;
     }
 
-  getTopmostVisibleWindow() {
-    const visibleWins = Object.values(this.windows).filter(w =>
-      w.isOpen &&
-      !w.isMinimized &&
-      w.element &&
-      w.element.style.display !== "none"
-    );
-    if (!visibleWins.length) return null;
-    visibleWins.sort((a, b) => (parseInt(b.element.style.zIndex) || 0) - (parseInt(a.element.style.zIndex) || 0));
-    return visibleWins[0];
-  },
-
-  handleEscape() {
-    // 1. If date/period picker popup is open, close it first
-    if (typeof OneCCalendar !== "undefined" && OneCCalendar.isOpen && OneCCalendar.isOpen()) {
-      OneCCalendar.close();
-      return true;
-    }
-    if (typeof OneCPeriodPicker !== "undefined" && OneCPeriodPicker.isOpen && OneCPeriodPicker.isOpen()) {
-      OneCPeriodPicker.close();
-      return true;
-    }
-    const cal = document.getElementById("calendarPickerModal");
-    if (cal && cal.style.display !== "none") {
-      if (typeof closeDatePicker === "function") closeDatePicker();
-      else cal.style.display = "none";
-      return true;
-    }
-
-    const openMenus = document.querySelectorAll(".mdi-menu-item.open, .mdi-dropdown-menu.show");
-    if (openMenus.length > 0) {
-      openMenus.forEach(m => m.classList.remove("open", "show"));
-      return true;
-    }
-
-    // 2. Find and close the topmost active MDI window or Modal (highest z-index)
+    // 3. Find and close the topmost active MDI window or Modal (highest z-index)
     const topWin = this.getTopmostVisibleWindow();
     if (topWin) {
       console.log(`[HOTKEY ESC] Closing topmost window #${topWin.id} ("${topWin.title}", z=${topWin.element.style.zIndex || 0})`);
@@ -1281,7 +1258,6 @@ const MdiManager = {
         }
       }
     }, true);
-  }
   }
 };
 

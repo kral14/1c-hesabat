@@ -606,7 +606,18 @@ const PortfolioCatalog = {
     this.activeColumn = colKey;
     this.activeCell = { col: colKey, value: cellValue };
 
-    // Clear previous cell outline
+    const sel = window.getSelection();
+
+    // 2nd click on the same cell: cancel/clear selection
+    if (this.lastSelectedTd === tdEl && sel && sel.toString().trim().length > 0) {
+      sel.removeAllRanges();
+      this.lastSelectedTd = null;
+      tdEl.classList.remove("pc-cell-active");
+      tdEl.style.outline = "";
+      return;
+    }
+
+    // Clear previous cell outlines
     document.querySelectorAll(".pc-cell-active").forEach(el => {
       el.classList.remove("pc-cell-active");
       el.style.outline = "";
@@ -617,6 +628,17 @@ const PortfolioCatalog = {
       tdEl.classList.add("pc-cell-active");
       tdEl.style.outline = "2px solid #0055ea";
       tdEl.style.outlineOffset = "-2px";
+
+      // 1st click: automatically select all text inside this cell for easy copy (Ctrl+C)
+      try {
+        const range = document.createRange();
+        range.selectNodeContents(tdEl);
+        sel.removeAllRanges();
+        sel.addRange(range);
+        this.lastSelectedTd = tdEl;
+      } catch (err) {
+        console.warn("Could not select cell text:", err);
+      }
     }
   },
 
