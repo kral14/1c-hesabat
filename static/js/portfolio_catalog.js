@@ -9,6 +9,7 @@ const PortfolioCatalog = {
   filtersLoaded: false,
   currentSortCol: null,
   currentSortAsc: true,
+  cache: {}, // Instant memory cache: key -> items array
 
   open: function() {
     console.log("[PORTFOLIO CATALOG] Opening window...");
@@ -109,6 +110,12 @@ const PortfolioCatalog = {
       }
 
       this.updateStatus("Фильтры успешно загружены");
+
+      // Auto-trigger load for first portfolio if available
+      if (portSel && portSel.options.length > 1 && !this.items.length) {
+        portSel.selectedIndex = 1;
+        this.onPortfolioChange();
+      }
     })
     .catch(err => {
       console.error("Error loading portfolio filters:", err);
@@ -116,7 +123,6 @@ const PortfolioCatalog = {
   },
 
   onPortfolioChange: function() {
-    // When portfolio changes, we can highlight the active badge
     const portSel = document.getElementById("pcPortfolioSelect");
     const badge = document.getElementById("pcActiveFilterBadge");
     if (badge && portSel) {
@@ -127,6 +133,8 @@ const PortfolioCatalog = {
         badge.style.display = "none";
       }
     }
+    // Instant auto-generate when portfolio changes
+    this.generate();
   },
 
   generate: function() {
@@ -141,6 +149,22 @@ const PortfolioCatalog = {
       price_type: ptSel ? ptSel.value : "20",
       search: searchInp ? searchInp.value.trim() : ""
     };
+
+    const cacheKey = `${payload.portfolio}_${payload.nom_group}_${payload.price_type}_${payload.search}`;
+
+    // Instant render from cache if available (0 ms)
+    if (this.cache[cacheKey]) {
+      console.log(`[PORTFOLIO CATALOG] Instant load from cache for '${cacheKey}'`);
+      this.items = this.cache[cacheKey];
+      this.filteredItems = [...this.items];
+      const emptyEl = document.getElementById("pcEmptyState");
+      const tableEl = document.getElementById("pcReportTable");
+      if (emptyEl) emptyEl.style.display = "none";
+      if (tableEl) tableEl.style.display = "table";
+      this.renderTable();
+      this.updateStatus(`Мгновенно загружено ${this.items.length} товаров (кэш)`);
+      return;
+    }
 
     const loadingEl = document.getElementById("pcLoadingState");
     const emptyEl = document.getElementById("pcEmptyState");
@@ -169,6 +193,8 @@ const PortfolioCatalog = {
 
       this.items = data.items || [];
       this.filteredItems = [...this.items];
+      // Save to instant memory cache
+      this.cache[cacheKey] = this.items;
 
       if (this.items.length === 0) {
         if (emptyEl) {

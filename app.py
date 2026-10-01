@@ -75,7 +75,7 @@ def get_folders_map(conn, base_key):
         while res_f.Next():
             r_id = conn.String(res_f.Ref)
             p_id = conn.String(res_f.Parent) if res_f.Parent else ""
-            fmap[r_id] = (str(res_f.Name).strip(), p_id)
+            fmap[r_id] = (str(res_f.Name).strip(), p_id, res_f.Ссылка)
         _folders_cache[base_key] = fmap
         return fmap
     except Exception as ex_f:
@@ -90,7 +90,8 @@ def resolve_root_portfolio(p_id, fmap):
     visited = set()
     while curr and curr in fmap and curr not in visited:
         visited.add(curr)
-        name, parent_ref = fmap[curr]
+        name = fmap[curr][0]
+        parent_ref = fmap[curr][1]
         last_name = name
         curr = parent_ref
     return last_name
@@ -1880,12 +1881,24 @@ class OneCService(threading.Thread):
 
                 elif action == "get_portfolio_catalog_items":
                     fmap = get_folders_map(conn, key)
-                    b_map = get_barcodes_map(conn, key)
 
                     sel_portfolio = str(payload.get("portfolio") or "").strip()
                     sel_group = str(payload.get("nom_group") or "").strip()
                     sel_price_type = str(payload.get("price_type") or "20").strip()
                     search_txt = str(payload.get("search") or "").strip().lower()
+
+                    where_clauses = ["НЕ Т.ЭтоГруппа", "НЕ Т.ПометкаУдаления"]
+                    port_folder_ref = None
+
+                    if sel_portfolio:
+                        for r_id, f_data in fmap.items():
+                            if len(f_data) >= 3 and f_data[0].lower() == sel_portfolio.lower() and not f_data[1]:
+                                port_folder_ref = f_data[2]
+                                where_clauses.append("Т.Ссылка В ИЕРАРХИИ (&PortFolder)")
+                                break
+
+                    if sel_group:
+                        where_clauses.append("Т.НоменклатурнаяГруппа.Наименование = &NomGroupName")
 
                     price_join = ""
                     if sel_price_type:
@@ -1896,10 +1909,6 @@ class OneCService(threading.Thread):
                         ) КАК Цены
                             ПО Т.Ссылка = Цены.Номенклатура
                         """
-
-                    where_clauses = ["НЕ Т.ЭтоГруппа", "НЕ Т.ПометкаУдаления"]
-                    if sel_group:
-                        where_clauses.append("Т.НоменклатурнаяГруппа.Наименование = &NomGroupName")
 
                     q = conn.NewObject("Запрос")
                     q.Text = f"""
@@ -1915,10 +1924,13 @@ class OneCService(threading.Thread):
                         Т.НоменклатурнаяГруппа.Наименование КАК NomGroup,
                         Т.ВидНоменклатуры.Наименование КАК ItemType,
                         Т.БазоваяЕдиницаИзмерения.Наименование КАК BaseUnit,
-                        Т.Производитель.Наименование КАК Manufacturer
-                        {", Цены.Цена КАК Price" if sel_price_type else ""}
+                        Т.Производитель.Наименование КАК Manufacturer,
+                        ЕСТЬNULL(Ш.Штрихкод, "") КАК Barcode
+                        {", ЕСТЬNULL(Цены.Цена, 0) КАК Price" if sel_price_type else ""}
                     ИЗ
                         Справочник.Номенклатура КАК Т
+                        ЛЕВОЕ СОЕДИНЕНИЕ РегистрСведений.Штрихкоды КАК Ш
+                            ПО Т.Ссылка = Ш.Владелец
                         {price_join}
                     ГДЕ
                         {" И ".join(where_clauses)}
@@ -1927,6 +1939,8 @@ class OneCService(threading.Thread):
                         Т.Наименование
                     """
 
+                    if port_folder_ref:
+                        q.SetParameter("PortFolder", port_folder_ref)
                     if sel_price_type:
                         q.SetParameter("CurrentDate", datetime.datetime.now())
                         q.SetParameter("PriceType", sel_price_type)
@@ -1941,7 +1955,7 @@ class OneCService(threading.Thread):
                         p_ref_str = conn.String(res.ParentRef) if res.ParentRef else ""
                         root_port = resolve_root_portfolio(p_ref_str, fmap)
 
-                        if sel_portfolio and root_port.lower() != sel_portfolio.lower():
+                        if sel_portfolio and not port_folder_ref and root_port.lower() != sel_portfolio.lower():
                             continue
 
                         name = str(res.Name or "").strip()
@@ -1954,10 +1968,7 @@ class OneCService(threading.Thread):
                         unit = str(res.BaseUnit or "").strip()
                         manuf = str(res.Manufacturer or "").strip()
                         price = float(getattr(res, "Price", 0) or 0) if sel_price_type else 0.0
-
-                        bc = ""
-                        if name in b_map:
-                            bc = b_map[name].get("unit") or b_map[name].get("box") or ""
+                        bc = str(res.Barcode or "").strip()
 
                         if search_txt:
                             match_src = f"{name} {code} {artikul} {cv_code} {bc} {folder} {group} {root_port} {manuf}".lower()
@@ -1966,6 +1977,8 @@ class OneCService(threading.Thread):
 
                         dedup_key = ref_str or code
                         if dedup_key in items_map:
+                            if not items_map[dedup_key]["barcode"] and bc:
+                                items_map[dedup_key]["barcode"] = bc
                             if items_map[dedup_key]["price"] == 0 and price > 0:
                                 items_map[dedup_key]["price"] = price
                         else:
@@ -1977,7 +1990,7 @@ class OneCService(threading.Thread):
                                 "name": name,
                                 "folder": folder,
                                 "group": group,
-                                "portfolio": root_port,
+                                "portfolio": root_port or sel_portfolio,
                                 "type": item_type,
                                 "unit": unit,
                                 "price": price,
