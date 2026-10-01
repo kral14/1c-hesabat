@@ -2073,10 +2073,9 @@ class OneCService(threading.Thread):
                         ПО Т.Ссылка = Ш.ItemRef
                     """
 
-                    limit_clause = "ПЕРВЫЕ 2000" if (not selected_portfolios and not selected_nom_groups and not search_txt) else ""
                     q = conn.NewObject("Запрос")
                     q.Text = f"""
-                    ВЫБРАТЬ {limit_clause}
+                    ВЫБРАТЬ
                         Т.Код КАК Code,
                         Т.Артикул КАК Artikul,
                         Т.СВкод КАК CVCode,
@@ -2122,7 +2121,7 @@ class OneCService(threading.Thread):
                             print("⚠️ [1C QUERY RETRY] Hierarchy parameter error, retrying without SQL hierarchy filter...", flush=True)
                             clean_clauses = [c for c in where_clauses if "PortFolder" not in c]
                             q.Text = f"""
-                            ВЫБРАТЬ {limit_clause}
+                            ВЫБРАТЬ
                                 Т.Код КАК Code,
                                 Т.Артикул КАК Artikul,
                                 Т.СВкод КАК CVCode,
