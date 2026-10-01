@@ -6,15 +6,15 @@
   <title>1С:Предприятие 8.3 - [Товары на складах]</title>
   
   <!-- 1C Modular Stylesheets -->
-  <link rel="stylesheet" href="/static/css/1c_base.css?v=3.9">
-  <link rel="stylesheet" href="/static/css/1c_toolbar.css?v=3.9">
-  <link rel="stylesheet" href="/static/css/1c_settings.css?v=3.9">
-  <link rel="stylesheet" href="/static/css/1c_sheet.css?v=3.9">
-  <link rel="stylesheet" href="/static/css/1c_catalog.css?v=3.9">
-  <link rel="stylesheet" href="/static/css/1c_value_list.css?v=3.9">
-  <link rel="stylesheet" href="/static/css/1c_presets.css?v=3.9">
-  <link rel="stylesheet" href="/static/css/1c_calendar.css?v=3.9">
-  <link rel="stylesheet" href="/static/css/1c_mdi.css?v=3.9">
+  <link rel="stylesheet" href="/static/css/1c_base.css?v=4.0">
+  <link rel="stylesheet" href="/static/css/1c_toolbar.css?v=4.0">
+  <link rel="stylesheet" href="/static/css/1c_settings.css?v=4.0">
+  <link rel="stylesheet" href="/static/css/1c_sheet.css?v=4.0">
+  <link rel="stylesheet" href="/static/css/1c_catalog.css?v=4.0">
+  <link rel="stylesheet" href="/static/css/1c_value_list.css?v=4.0">
+  <link rel="stylesheet" href="/static/css/1c_presets.css?v=4.0">
+  <link rel="stylesheet" href="/static/css/1c_calendar.css?v=4.0">
+  <link rel="stylesheet" href="/static/css/1c_mdi.css?v=4.0">
 </head>
 <body>
 
@@ -105,6 +105,10 @@
           <div class="mdi-dropdown-entry" onclick="MdiManager.createNewReportWindow()">
             <span class="mdi-dropdown-entry-icon">📦</span>
             <span style="font-weight: bold;">Товары на складах (Ведомость)</span>
+          </div>
+          <div class="mdi-dropdown-entry" onclick="openPortfolioReportWindow()">
+            <span class="mdi-dropdown-entry-icon">📋</span>
+            <span>Товары по портфелям (Реестр)</span>
           </div>
           <div class="mdi-dropdown-entry" onclick="openSettingsModal(event)">
             <span class="mdi-dropdown-entry-icon">⚙️</span>
@@ -215,6 +219,15 @@
               <div class="mdi-dash-tile-subtitle">Справочник</div>
             </div>
           </div>
+
+          <!-- 4. Товары по портфелям -->
+          <div class="mdi-dash-tile" onclick="openPortfolioReportWindow()" title="Открыть реестр 'Товары по портфелям'">
+            <div class="mdi-dash-tile-icon">📋</div>
+            <div class="mdi-dash-tile-content">
+              <div class="mdi-dash-tile-title">Товары по портфелям</div>
+              <div class="mdi-dash-tile-subtitle">Реестр / Справочник</div>
+            </div>
+          </div>
         </div>
 
         <div class="mdi-dashboard-footer">
@@ -269,6 +282,9 @@
       <!-- 9. Operation Type Selector Modal (Вид операции) -->
       {% include "components/operation_type_modal.html" %}
 
+      <!-- 10. Portfolio Catalog Window (Товары по портфелям) -->
+      {% include "components/portfolio_catalog_window.html" %}
+
     </div>
 
     <!-- 5. Bottom 1C Window Taskbar -->
@@ -291,6 +307,7 @@
   <script src="/static/js/settings_modal.js?v=4.0"></script>
   <script src="/static/js/settings_presets.js?v=4.0"></script>
   <script src="/static/js/report_engine.js?v=4.0"></script>
+  <script src="/static/js/portfolio_catalog.js?v=4.0"></script>
   <script src="/static/js/app.js?v=4.0"></script>
 
 </body>

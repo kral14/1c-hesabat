@@ -29,6 +29,7 @@ SCRATCH_DIR = os.path.dirname(os.path.abspath(__file__))
 EXCEL_OUTPUT = os.path.join(SCRATCH_DIR, "report_export.xlsx")
 UNIVERSAL_EXCEL = os.path.join(SCRATCH_DIR, "universal_export.xlsx")
 UNIVERSAL_REPORT_EXCEL = os.path.join(SCRATCH_DIR, "universal_report_export.xlsx")
+PORTFOLIO_EXCEL = os.path.join(SCRATCH_DIR, "portfolio_catalog_export.xlsx")
 CACHE_DIR = os.path.join(SCRATCH_DIR, "epf_cache")
 os.makedirs(CACHE_DIR, exist_ok=True)
 
@@ -1842,6 +1843,143 @@ class OneCService(threading.Thread):
                     pts = get_all_price_types(conn, key)
                     resp_q.put((True, {"price_types": pts}))
 
+                elif action == "get_portfolio_catalog_filters":
+                    fmap = get_folders_map(conn, key)
+                    root_portfolios = set()
+                    for r_id, (f_name, parent_ref) in fmap.items():
+                        if not parent_ref or parent_ref == "":
+                            f_clean = f_name.strip()
+                            if f_clean and not f_clean.startswith("!"):
+                                root_portfolios.add(f_clean)
+
+                    q_ng = conn.NewObject("Запрос")
+                    q_ng.Text = """
+                    ВЫБРАТЬ РАЗЛИЧНЫЕ
+                        Т.Наименование КАК Name
+                    ИЗ
+                        Справочник.НоменклатурныеГруппы КАК Т
+                    ГДЕ
+                        НЕ Т.ПометкаУдаления
+                    УПОРЯДОЧИТЬ ПО
+                        Name
+                    """
+                    r_ng = q_ng.Execute().Choose()
+                    nom_groups = []
+                    while r_ng.Next():
+                        g_name = str(r_ng.Name or "").strip()
+                        if g_name:
+                            nom_groups.append(g_name)
+
+                    pts = get_all_price_types(conn, key)
+
+                    resp_q.put((True, {
+                        "portfolios": sorted(list(root_portfolios)),
+                        "nom_groups": nom_groups,
+                        "price_types": pts
+                    }))
+
+                elif action == "get_portfolio_catalog_items":
+                    fmap = get_folders_map(conn, key)
+                    b_map = get_barcodes_map(conn, key)
+
+                    sel_portfolio = str(payload.get("portfolio") or "").strip()
+                    sel_group = str(payload.get("nom_group") or "").strip()
+                    sel_price_type = str(payload.get("price_type") or "20").strip()
+                    search_txt = str(payload.get("search") or "").strip().lower()
+
+                    price_join = ""
+                    if sel_price_type:
+                        price_join = """
+                        ЛЕВОЕ СОЕДИНЕНИЕ РегистрСведений.ЦеныНоменклатуры.СрезПоследних(
+                            &CurrentDate, 
+                            ТипЦен.Код = &PriceType ИЛИ ТипЦен.Наименование ПОДОБНО &PriceTypePattern
+                        ) КАК Цены
+                            ПО Т.Ссылка = Цены.Номенклатура
+                        """
+
+                    where_clauses = ["НЕ Т.ЭтоГруппа", "НЕ Т.ПометкаУдаления"]
+                    if sel_group:
+                        where_clauses.append("Т.НоменклатурнаяГруппа.Наименование = &NomGroupName")
+
+                    q = conn.NewObject("Запрос")
+                    q.Text = f"""
+                    ВЫБРАТЬ
+                        Т.Ссылка КАК Ref,
+                        Т.Код КАК Code,
+                        Т.Артикул КАК Artikul,
+                        Т.СВкод КАК CVCode,
+                        Т.Наименование КАК Name,
+                        Т.НаименованиеПолное КАК FullName,
+                        Т.Родитель КАК ParentRef,
+                        Т.Родитель.Наименование КАК FolderName,
+                        Т.НоменклатурнаяГруппа.Наименование КАК NomGroup,
+                        Т.ВидНоменклатуры.Наименование КАК ItemType,
+                        Т.БазоваяЕдиницаИзмерения.Наименование КАК BaseUnit,
+                        Т.Производитель.Наименование КАК Manufacturer
+                        {", Цены.Цена КАК Price" if sel_price_type else ""}
+                    ИЗ
+                        Справочник.Номенклатура КАК Т
+                        {price_join}
+                    ГДЕ
+                        {" И ".join(where_clauses)}
+                    УПОРЯДОЧИТЬ ПО
+                        Т.НоменклатурнаяГруппа.Наименование,
+                        Т.Наименование
+                    """
+
+                    if sel_price_type:
+                        q.SetParameter("CurrentDate", datetime.datetime.now())
+                        q.SetParameter("PriceType", sel_price_type)
+                        q.SetParameter("PriceTypePattern", f"%{sel_price_type}%")
+                    if sel_group:
+                        q.SetParameter("NomGroupName", sel_group)
+
+                    res = q.Execute().Choose()
+                    items = []
+                    while res.Next():
+                        p_ref_str = conn.String(res.ParentRef) if res.ParentRef else ""
+                        root_port = resolve_root_portfolio(p_ref_str, fmap)
+
+                        if sel_portfolio and root_port.lower() != sel_portfolio.lower():
+                            continue
+
+                        name = str(res.Name or "").strip()
+                        code = str(res.Code or "").strip()
+                        artikul = str(res.Artikul or "").strip()
+                        cv_code = str(res.CVCode or "").strip()
+                        folder = str(res.FolderName or "").strip()
+                        group = str(res.NomGroup or "").strip()
+                        item_type = str(res.ItemType or "").strip()
+                        unit = str(res.BaseUnit or "").strip()
+                        manuf = str(res.Manufacturer or "").strip()
+                        price = float(getattr(res, "Price", 0) or 0) if sel_price_type else 0.0
+
+                        bc = ""
+                        if name in b_map:
+                            bc = b_map[name].get("unit") or b_map[name].get("box") or ""
+
+                        if search_txt:
+                            match_src = f"{name} {code} {artikul} {cv_code} {bc} {folder} {group} {root_port} {manuf}".lower()
+                            if search_txt not in match_src:
+                                continue
+
+                        items.append({
+                            "code": code,
+                            "artikul": artikul,
+                            "cv": cv_code,
+                            "barcode": bc,
+                            "name": name,
+                            "folder": folder,
+                            "group": group,
+                            "portfolio": root_port,
+                            "type": item_type,
+                            "unit": unit,
+                            "price": price,
+                            "manufacturer": manuf
+                        })
+
+                    resp_q.put((True, items))
+
             except Exception as e:
                 err_str = str(e)
                 print_server_error(f"OneCService.run [Action: {action}]", e, payload)
@@ -2224,8 +2362,48 @@ def app_close_endpoint():
         time.sleep(0.5)
         # Terminate electron processes
         os.system("taskkill /F /IM electron.exe >nul 2>&1")
-    threading.Thread(target=shutdown_later, daemon=True).start()
-    return jsonify({"success": True})
+# -------------------------------------------------------------
+# PORTFOLIO CATALOG ENDPOINTS
+# -------------------------------------------------------------
+@app.route("/api/portfolio_catalog/filters", methods=["GET", "POST"])
+def portfolio_catalog_filters_endpoint():
+    data = request.json or {}
+    try:
+        res = one_c.execute("get_portfolio_catalog_filters", data)
+        return jsonify({"success": True, **res})
+    except Exception as e:
+        print_server_error("/api/portfolio_catalog/filters", e, data)
+        return jsonify({"success": False, "error": str(e)})
+
+@app.route("/api/portfolio_catalog/items", methods=["POST"])
+def portfolio_catalog_items_endpoint():
+    data = request.json or {}
+    try:
+        items = one_c.execute("get_portfolio_catalog_items", data)
+        return jsonify({"success": True, "items": items, "total": len(items)})
+    except Exception as e:
+        print_server_error("/api/portfolio_catalog/items", e, data)
+        return jsonify({"success": False, "error": str(e)})
+
+@app.route("/api/portfolio_catalog/export_excel", methods=["POST"])
+def portfolio_catalog_export_excel_endpoint():
+    data = request.json or {}
+    try:
+        items = data.get("items", [])
+        filters = data.get("filters", {})
+        import excel_generator
+        excel_generator.generate_portfolio_catalog_excel(items, filters, PORTFOLIO_EXCEL)
+        return jsonify({"success": True, "download_url": "/api/portfolio_catalog/download_excel"})
+    except Exception as e:
+        print_server_error("/api/portfolio_catalog/export_excel", e, data)
+        return jsonify({"success": False, "error": str(e)})
+
+@app.route("/api/portfolio_catalog/download_excel", methods=["GET"])
+def portfolio_catalog_download_excel_endpoint():
+    if os.path.exists(PORTFOLIO_EXCEL):
+        filename = f"Tovari_po_portfelyam_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx"
+        return send_file(PORTFOLIO_EXCEL, as_attachment=True, download_name=filename)
+    return "Excel faylı tapılmadı.", 404
 
 if __name__ == "__main__":
     app.run(host="127.0.0.1", port=5050, debug=False)

@@ -1,0 +1,131 @@
+<!-- ========================================================
+     1C:ENTERPRISE - PORTFOLIO CATALOG REPORT WINDOW
+     portfolio_catalog_window.html
+     ======================================================== -->
+
+<div class="mdi-window" id="portfolioCatalogWindow" style="display: none; top: 25px; left: 30px; width: calc(100% - 60px); height: calc(100% - 50px); min-width: 800px; min-height: 450px; z-index: 110;" onmousedown="MdiManager.activateWindow('portfolioCatalogWindow')">
+  
+  <!-- Window Header -->
+  <div class="mdi-window-header" ondblclick="MdiManager.toggleMaximize('portfolioCatalogWindow')">
+    <div class="mdi-win-title-left">
+      <span class="mdi-win-icon">📋</span>
+      <span class="mdi-win-title-text" id="pcWindowTitle">Товары по портфелям (Реестр номенклатуры)</span>
+      <span id="pcActiveFilterBadge" style="display: none; background: #0055ea; color: #fff; padding: 1px 7px; border-radius: 3px; font-size: 11px; margin-left: 8px;"></span>
+    </div>
+    <div class="mdi-win-controls">
+      <button class="mdi-win-btn mdi-win-btn-min" title="Qatla" onclick="MdiManager.minimizeWindow('portfolioCatalogWindow')" onmousedown="event.stopPropagation()">_</button>
+      <button class="mdi-win-btn mdi-win-btn-max" title="Böyüt / Bərpa et" onclick="MdiManager.toggleMaximize('portfolioCatalogWindow')" onmousedown="event.stopPropagation()">□</button>
+      <button class="mdi-win-btn mdi-win-btn-close" title="Bağla" onclick="PortfolioCatalog.close()" onmousedown="event.stopPropagation()">✕</button>
+    </div>
+  </div>
+
+  <!-- Window Body -->
+  <div class="mdi-window-body" style="background-color: #f0eee3; display: flex; flex-direction: column; height: 100%; overflow: hidden;">
+    
+    <!-- Top Filter & Action Toolbar -->
+    <div class="pc-toolbar" style="padding: 6px 10px; background: #e5e2cf; border-bottom: 1px solid #b0af9f; display: flex; flex-wrap: wrap; align-items: center; gap: 8px;">
+      
+      <!-- 1. Portfolio (Brand) -->
+      <div class="pc-filter-group" style="display: flex; align-items: center; gap: 4px;">
+        <span style="font-size: 11px; font-weight: bold; color: #222;">Портфель:</span>
+        <select id="pcPortfolioSelect" class="select-1c" style="min-width: 170px; height: 24px; font-size: 11px;" onchange="PortfolioCatalog.onPortfolioChange()">
+          <option value="">(Все портфели)</option>
+        </select>
+      </div>
+
+      <!-- 2. Nom Group -->
+      <div class="pc-filter-group" style="display: flex; align-items: center; gap: 4px;">
+        <span style="font-size: 11px; font-weight: bold; color: #222;">Ном. группа:</span>
+        <select id="pcNomGroupSelect" class="select-1c" style="min-width: 160px; height: 24px; font-size: 11px;">
+          <option value="">(Все группы)</option>
+        </select>
+      </div>
+
+      <!-- 3. Price Type -->
+      <div class="pc-filter-group" style="display: flex; align-items: center; gap: 4px;">
+        <span style="font-size: 11px; font-weight: bold; color: #222;">Тип цен:</span>
+        <select id="pcPriceTypeSelect" class="select-1c" style="min-width: 110px; height: 24px; font-size: 11px;">
+          <option value="20">20</option>
+          <option value="">(Без цен)</option>
+        </select>
+      </div>
+
+      <div class="mdi-tool-sep" style="height: 20px; width: 1px; background: #b0af9f; margin: 0 4px;"></div>
+
+      <!-- Action Buttons -->
+      <button class="btn-1c btn-1c-primary" id="pcBtnGenerate" onclick="PortfolioCatalog.generate()" style="height: 24px; display: inline-flex; align-items: center; gap: 4px; font-weight: bold; padding: 0 10px;">
+        <span>▶</span>
+        <span>Сформировать</span>
+      </button>
+
+      <button class="btn-1c" id="pcBtnExport" onclick="PortfolioCatalog.exportExcel()" style="height: 24px; display: inline-flex; align-items: center; gap: 4px; padding: 0 9px;">
+        <span>📊</span>
+        <span>Экспорт в Excel</span>
+      </button>
+
+      <div class="mdi-tool-sep" style="height: 20px; width: 1px; background: #b0af9f; margin: 0 4px;"></div>
+
+      <!-- Search Input -->
+      <div class="pc-search-box" style="flex: 1; min-width: 200px; display: flex; align-items: center; position: relative;">
+        <input type="text" id="pcSearchInput" class="input-1c" placeholder="🔍 Cəld axtarış: ad, kod, artikul, cv, barkod..." style="width: 100%; height: 24px; padding-left: 6px; font-size: 11px;" oninput="PortfolioCatalog.onSearchInput()">
+        <button id="pcClearSearchBtn" onclick="PortfolioCatalog.clearSearch()" style="display: none; position: absolute; right: 4px; background: none; border: none; cursor: pointer; color: #888; font-weight: bold;">✕</button>
+      </div>
+
+      <!-- Item Counter Badge -->
+      <div id="pcCountBadge" style="background: #ffffff; border: 1px solid #7f9db9; padding: 2px 8px; border-radius: 2px; font-size: 11px; font-weight: bold; color: #003366; white-space: nowrap;">
+        Всего: 0 товаров
+      </div>
+
+    </div>
+
+    <!-- Table Container -->
+    <div class="pc-table-wrapper" id="pcTableWrapper" style="flex: 1; overflow: auto; background: #ffffff; position: relative;">
+      
+      <!-- Empty / Initial State Placeholder -->
+      <div id="pcEmptyState" style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; color: #666; font-size: 12px; gap: 8px;">
+        <span style="font-size: 32px;">📋</span>
+        <span style="font-weight: bold; font-size: 13px;">Товары по портфелям (Реестр номенклатуры)</span>
+        <span>Выберите портфель или группу и нажмите кнопку <strong>«Сформировать»</strong>.</span>
+      </div>
+
+      <!-- Loading State -->
+      <div id="pcLoadingState" style="display: none; position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: rgba(255,255,255,0.8); z-index: 50; flex-direction: column; align-items: center; justify-content: center; gap: 10px;">
+        <div class="spinner-1c"></div>
+        <div style="font-weight: bold; color: #004080; font-size: 12px;">1C: Данные загружаются...</div>
+      </div>
+
+      <!-- Report Sheet Table -->
+      <table class="pc-report-table" id="pcReportTable" style="display: none; width: 100%; border-collapse: collapse; font-family: Tahoma, 'MS Sans Serif', Arial, sans-serif; font-size: 11px;">
+        <thead>
+          <tr style="background: #e3dec9; border-bottom: 2px solid #5a5a5a; position: sticky; top: 0; z-index: 10;">
+            <th style="width: 40px; padding: 4px 6px; border: 1px solid #b0af9f; text-align: center;">№</th>
+            <th style="width: 85px; padding: 4px 6px; border: 1px solid #b0af9f; text-align: left; cursor: pointer;" onclick="PortfolioCatalog.sortBy('code')">Код ⬍</th>
+            <th style="width: 95px; padding: 4px 6px; border: 1px solid #b0af9f; text-align: left; cursor: pointer;" onclick="PortfolioCatalog.sortBy('artikul')">Артикул ⬍</th>
+            <th style="width: 85px; padding: 4px 6px; border: 1px solid #b0af9f; text-align: left; cursor: pointer;" onclick="PortfolioCatalog.sortBy('cv')">СВ код ⬍</th>
+            <th style="width: 110px; padding: 4px 6px; border: 1px solid #b0af9f; text-align: left; cursor: pointer;" onclick="PortfolioCatalog.sortBy('barcode')">Штрихкод ⬍</th>
+            <th style="min-width: 250px; padding: 4px 6px; border: 1px solid #b0af9f; text-align: left; cursor: pointer;" onclick="PortfolioCatalog.sortBy('name')">Наименование ⬍</th>
+            <th style="width: 140px; padding: 4px 6px; border: 1px solid #b0af9f; text-align: left; cursor: pointer;" onclick="PortfolioCatalog.sortBy('folder')">Папка (Родитель) ⬍</th>
+            <th style="width: 130px; padding: 4px 6px; border: 1px solid #b0af9f; text-align: left; cursor: pointer;" onclick="PortfolioCatalog.sortBy('group')">Ном. группа ⬍</th>
+            <th style="width: 120px; padding: 4px 6px; border: 1px solid #b0af9f; text-align: left; cursor: pointer;" onclick="PortfolioCatalog.sortBy('portfolio')">Портфель ⬍</th>
+            <th style="width: 65px; padding: 4px 6px; border: 1px solid #b0af9f; text-align: center;">Ед. изм.</th>
+            <th style="width: 75px; padding: 4px 6px; border: 1px solid #b0af9f; text-align: right; cursor: pointer;" onclick="PortfolioCatalog.sortBy('price')">Цена ⬍</th>
+            <th style="width: 110px; padding: 4px 6px; border: 1px solid #b0af9f; text-align: left;">Вид</th>
+            <th style="width: 130px; padding: 4px 6px; border: 1px solid #b0af9f; text-align: left;">Производитель</th>
+          </tr>
+        </thead>
+        <tbody id="pcTableBody">
+          <!-- Rows will be injected dynamically -->
+        </tbody>
+      </table>
+
+    </div>
+
+    <!-- Status Bar -->
+    <div class="pc-statusbar" style="padding: 3px 10px; background: #e5e2cf; border-top: 1px solid #b0af9f; display: flex; align-items: center; justify-content: space-between; font-size: 11px; color: #444;">
+      <span id="pcStatusLeft">Готов</span>
+      <span id="pcStatusRight">1С:Предприятие 8.3 — Aztrade</span>
+    </div>
+
+  </div>
+
+</div>

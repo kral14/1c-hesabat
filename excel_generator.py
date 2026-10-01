@@ -465,11 +465,126 @@ def generate_1c_excel(report_data, config, output_path):
     print(f"[EXCEL EXPORT HAZIRDIR] {output_path} fayli ugurla yazildi (Setir: {len(items)}).", flush=True)
     return True
 
-    # Save to output file
+
+def generate_portfolio_catalog_excel(items, filters, output_path):
+    """
+    Generates an authentic 1C:Enterprise styled Excel workbook for the
+    Portfolio Catalog (Реестр номенклатуры по портфелям) with all fields:
+    Code, Artikul, CV Code, Barcode, Name, Folder, Nom Group, Portfolio,
+    Item Type, Base Unit, Price, Manufacturer.
+    """
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = "Товары по портфелям"
+
+    try:
+        ws.sheet_view.showGridLines = True
+    except Exception:
+        pass
+
+    FONT_FAMILY = "Arial"
+    font_title = Font(name=FONT_FAMILY, size=13, bold=True, color="002060")
+    font_meta = Font(name=FONT_FAMILY, size=8.5, bold=False, color="444444")
+    font_th = Font(name=FONT_FAMILY, size=8.5, bold=True, color="000000")
+    font_td = Font(name=FONT_FAMILY, size=8.5, color="000000")
+    font_code = Font(name="Consolas", size=8.5, color="003366")
+    font_price = Font(name=FONT_FAMILY, size=8.5, bold=True, color="000080")
+
+    fill_th = PatternFill(start_color="F5F2E3", end_color="F5F2E3", fill_type="solid")
+    fill_zebra = PatternFill(start_color="FAF9F5", end_color="FAF9F5", fill_type="solid")
+
+    thin_border_side = Side(border_style="thin", color="A09C8D")
+    border_cell = Border(left=thin_border_side, right=thin_border_side, top=thin_border_side, bottom=thin_border_side)
+
+    align_center = Alignment(horizontal="center", vertical="center")
+    align_left = Alignment(horizontal="left", vertical="center")
+    align_right = Alignment(horizontal="right", vertical="center")
+    align_th = Alignment(horizontal="center", vertical="center", wrap_text=True)
+
+    # 1. Title
+    ws["B2"] = "1С:Предприятие — Реестр номенклатуры по портфелям"
+    ws["B2"].font = font_title
+
+    # 2. Metadata / Filter info
+    port_text = filters.get("portfolio") or "Все портфели"
+    grp_text = filters.get("nom_group") or "Все группы"
+    price_text = filters.get("price_type") or "Без цен"
+    now_str = datetime.datetime.now().strftime("%d.%m.%Y %H:%M")
+
+    ws["B3"] = f"Портфель: {port_text}  |  Группа: {grp_text}  |  Тип цен: {price_text}  |  Дата формирования: {now_str}  |  Всего: {len(items)} товаров"
+    ws["B3"].font = font_meta
+
+    # 3. Table Headers
+    headers = [
+        ("№", 5, align_center),
+        ("Код", 12, align_center),
+        ("Артикул", 14, align_left),
+        ("СВ код", 12, align_center),
+        ("Штрихкод", 16, align_center),
+        ("Наименование", 38, align_left),
+        ("Папка (Родитель)", 20, align_left),
+        ("Номенклатурная группа", 20, align_left),
+        ("Портфель", 18, align_left),
+        ("Вид номенклатуры", 14, align_left),
+        ("Базовая ед.", 10, align_center),
+        ("Цена", 12, align_right),
+        ("Производитель", 18, align_left),
+    ]
+
+    header_row = 5
+    ws.row_dimensions[header_row].height = 24
+
+    for col_idx, (th_text, width, _) in enumerate(headers, start=2): # Start from col B
+        cell = ws.cell(row=header_row, column=col_idx, value=th_text)
+        cell.font = font_th
+        cell.fill = fill_th
+        cell.border = border_cell
+        cell.alignment = align_th
+        col_letter = get_column_letter(col_idx)
+        ws.column_dimensions[col_letter].width = width
+
+    # 4. Data Rows
+    current_row = header_row + 1
+    for i, itm in enumerate(items, start=1):
+        ws.row_dimensions[current_row].height = 18
+        is_even = (i % 2 == 0)
+
+        row_vals = [
+            (i, align_center, font_td, None),
+            (itm.get("code") or "", align_center, font_code, None),
+            (itm.get("artikul") or "", align_left, font_td, None),
+            (itm.get("cv") or "", align_center, font_code, None),
+            (itm.get("barcode") or "", align_center, font_td, "@"),
+            (itm.get("name") or "", align_left, font_td, None),
+            (itm.get("folder") or "", align_left, font_td, None),
+            (itm.get("group") or "", align_left, font_td, None),
+            (itm.get("portfolio") or "", align_left, font_td, None),
+            (itm.get("type") or "", align_left, font_td, None),
+            (itm.get("unit") or "", align_center, font_td, None),
+            (float(itm.get("price") or 0), align_right, font_price, "#,##0.00"),
+            (itm.get("manufacturer") or "", align_left, font_td, None),
+        ]
+
+        for col_idx, (val, alignment, font, num_fmt) in enumerate(row_vals, start=2):
+            cell = ws.cell(row=current_row, column=col_idx, value=val)
+            cell.font = font
+            cell.alignment = alignment
+            cell.border = border_cell
+            if num_fmt:
+                cell.number_format = num_fmt
+            if is_even:
+                cell.fill = fill_zebra
+
+        current_row += 1
+
+    # Freeze panes below header
+    ws.freeze_panes = f"C{header_row + 1}"
+
     dir_name = os.path.dirname(output_path)
     if dir_name:
         os.makedirs(dir_name, exist_ok=True)
     wb.save(output_path)
-    print(f"[EXCEL EXPORT HAZIRDIR] {output_path} fayli ugurla yazildi (Setir: {len(items)}).", flush=True)
+    print(f"[PORTFOLIO EXCEL SAVED] {output_path} with {len(items)} items.", flush=True)
     return True
+
 

@@ -216,6 +216,21 @@ const MdiManager = {
         }
       });
     }
+
+    // 10. Portfolio Catalog Report Window (Товары по портфелям - starts hidden)
+    const pcWin = document.getElementById("portfolioCatalogWindow");
+    if (pcWin) {
+      this.registerWindow("portfolioCatalogWindow", {
+        title: "Товары по портфелям",
+        icon: "📋",
+        element: pcWin,
+        isDefault: true,
+        startHidden: true,
+        closeFn: () => {
+          if (typeof PortfolioCatalog !== "undefined" && PortfolioCatalog.close) PortfolioCatalog.close();
+        }
+      });
+    }
   },
 
   registerWindow(id, options = {}) {
