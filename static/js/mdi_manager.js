@@ -1,7 +1,35 @@
 /* ========================================================
-   1C:ENTERPRISE MDI (MULTIPLE DOCUMENT INTERFACE) WINDOW MANAGER
-   mdi_manager.js
+   RENDER & MDI DEBUG LOG CONTROL
+   (Render loglarını silmirik, sadəcə deaktiv edirik.
+    İstənilən vaxt yenidən aktivləşdirmək üçün true edin:
+    window.ENABLE_RENDER_LOGS = true)
    ======================================================== */
+window.ENABLE_RENDER_LOGS = false;
+
+if (typeof window._origConsoleLog === "undefined") {
+  window._origConsoleLog = console.log.bind(console);
+  console.log = function(...args) {
+    if (!window.ENABLE_RENDER_LOGS) {
+      const first = (typeof args[0] === "string") ? args[0] : "";
+      if (
+        first.startsWith("[MDI") ||
+        first.startsWith("[USER CLICK") ||
+        first.startsWith("[PORTFOLIO") ||
+        first.startsWith("[SETTINGS") ||
+        first.startsWith("[VALUE LIST") ||
+        first.startsWith("[CATALOG") ||
+        first.startsWith("[KEYBOARD") ||
+        first.startsWith("[REPORT") ||
+        first.startsWith("[SettingsPresets") ||
+        first.startsWith("1C Universal Report Engine") ||
+        first.startsWith("Selected item:")
+      ) {
+        return; // Deaktiv edilib (silinməyib, sadəcə susdurulub)
+      }
+    }
+    window._origConsoleLog(...args);
+  };
+}
 
 function escapeHtml(str) {
   if (str === null || str === undefined) return "";
@@ -21,6 +49,7 @@ const MdiManager = {
   windowCounter: 1,
 
   auditStack(trigger) {
+    if (!window.ENABLE_RENDER_LOGS) return;
     try {
       const list = [];
       Object.values(this.windows).forEach(w => {
