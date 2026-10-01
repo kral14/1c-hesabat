@@ -14,6 +14,9 @@ const PortfolioCatalog = {
     enabled: false,
     basePriceType: "20"
   },
+  selectedCodes: new Set(),
+  filterDiffOnly: false,
+  filterSelectedOnly: false,
   currentSortCol: null,
   currentSortAsc: true,
   cache: {}, // Instant memory cache: key -> items array
@@ -30,8 +33,8 @@ const PortfolioCatalog = {
     if (ws) {
       const wsW = ws.clientWidth || window.innerWidth;
       const wsH = ws.clientHeight || window.innerHeight;
-      const targetW = Math.min(1150, Math.max(750, wsW - 40));
-      const targetH = Math.min(680, Math.max(420, wsH - 40));
+      const targetW = Math.min(1180, Math.max(780, wsW - 40));
+      const targetH = Math.min(700, Math.max(440, wsH - 40));
       win.style.width = `${targetW}px`;
       win.style.height = `${targetH}px`;
       const left = Math.max(10, Math.floor((wsW - targetW) / 2));
@@ -73,6 +76,8 @@ const PortfolioCatalog = {
       }
     } catch (e) {}
     this.updateAnalysisButtonUI();
+    this.updateDiffButtonUI();
+    this.updateSelectedButtonUI();
   },
 
   openPriceAnalysisModal: function() {
@@ -131,7 +136,8 @@ const PortfolioCatalog = {
     } catch (e) {}
 
     this.updateAnalysisButtonUI();
-    this.renderTable();
+    this.updateDiffBadge();
+    this.onFilterChange();
     this.closePriceAnalysisModal();
 
     if (this.priceAnalysis.enabled) {
@@ -338,7 +344,6 @@ const PortfolioCatalog = {
   generate: function() {
     const portSel = document.getElementById("pcPortfolioSelect");
     const grpSel = document.getElementById("pcNomGroupSelect");
-    const searchInp = document.getElementById("pcSearchInput");
 
     const creds = window.SessionManager ? SessionManager.getCredentials() : {};
     const payload = {
@@ -346,27 +351,27 @@ const PortfolioCatalog = {
       portfolio: portSel ? portSel.value : "",
       nom_group: grpSel ? grpSel.value : "",
       price_types: this.selectedPriceTypes,
-      search: searchInp ? searchInp.value.trim() : ""
+      search: ""
     };
 
     const ptsKey = (this.selectedPriceTypes || []).slice().sort().join(",");
-    const cacheKey = `${creds.server || ""}_${creds.ref || ""}_${payload.portfolio}_${payload.nom_group}_${ptsKey}_${payload.search}`;
+    const cacheKey = `${creds.server || ""}_${creds.ref || ""}_${payload.portfolio}_${payload.nom_group}_${ptsKey}`;
 
     // Close price type dropdown if open
     const menu = document.getElementById("pcPriceTypeMenu");
     if (menu) menu.style.display = "none";
+
+    // Reset row selections and filters on new generation
+    this.selectedCodes.clear();
+    this.updateSelectionBadges();
 
     // Instant render from cache if available (0 ms)
     if (this.cache[cacheKey]) {
       console.log(`[PORTFOLIO CATALOG] Instant load from cache for '${cacheKey}'`);
       this.items = this.cache[cacheKey];
       this.activePriceTypes = [...this.selectedPriceTypes];
-      this.filteredItems = [...this.items];
-      const emptyEl = document.getElementById("pcEmptyState");
-      const tableEl = document.getElementById("pcReportTable");
-      if (emptyEl) emptyEl.style.display = "none";
-      if (tableEl) tableEl.style.display = "table";
-      this.renderTable();
+      this.updateDiffBadge();
+      this.onFilterChange();
       this.updateStatus(`Мгновенно загружено ${this.items.length} товаров (кэш)`);
       return;
     }
@@ -398,9 +403,11 @@ const PortfolioCatalog = {
 
       this.items = data.items || [];
       this.activePriceTypes = data.price_types || this.selectedPriceTypes;
-      this.filteredItems = [...this.items];
       // Save to instant memory cache
       this.cache[cacheKey] = this.items;
+
+      this.updateDiffBadge();
+      this.onFilterChange();
 
       if (this.items.length === 0) {
         if (emptyEl) {
@@ -417,7 +424,6 @@ const PortfolioCatalog = {
       } else {
         if (emptyEl) emptyEl.style.display = "none";
         if (tableEl) tableEl.style.display = "table";
-        this.renderTable();
         this.updateStatus(`Загружено ${this.items.length} товаров`);
       }
     })
@@ -428,6 +434,343 @@ const PortfolioCatalog = {
       alert("Şəbəkə / Server xətası: " + err.message);
       this.updateStatus("Сетевая ошибка");
     });
+  },
+
+  // Helper: check if a specific item has yellow price difference vs benchmark
+  hasPriceDifference: function(itm) {
+    const pts = this.activePriceTypes || this.selectedPriceTypes || [];
+    if (pts.length <= 1) return false;
+    const basePt = (this.priceAnalysis && this.priceAnalysis.basePriceType) || pts[0];
+
+    let baseVal = 0;
+    if (itm.prices && itm.prices[basePt] !== undefined) {
+      baseVal = Number(itm.prices[basePt]) || 0;
+    } else if (basePt === pts[0] && itm.price !== undefined) {
+      baseVal = Number(itm.price) || 0;
+    }
+
+    for (let i = 0; i < pts.length; i++) {
+      const pt = pts[i];
+      if (pt === basePt) continue;
+      let val = 0;
+      if (itm.prices && itm.prices[pt] !== undefined) {
+        val = Number(itm.prices[pt]) || 0;
+      } else if (pt === pts[0] && itm.price !== undefined) {
+        val = Number(itm.price) || 0;
+      }
+      if (Math.abs(val - baseVal) > 0.0001) {
+        return true;
+      }
+    }
+    return false;
+  },
+
+  updateDiffBadge: function() {
+    const badge = document.getElementById("pcDiffCountBadge");
+    if (!badge) return;
+    const pts = this.activePriceTypes || this.selectedPriceTypes || [];
+    if (pts.length <= 1) {
+      badge.style.display = "none";
+      return;
+    }
+    let count = 0;
+    for (let i = 0; i < this.items.length; i++) {
+      if (this.hasPriceDifference(this.items[i])) count++;
+    }
+    if (count > 0) {
+      badge.textContent = count;
+      badge.style.display = "inline-block";
+    } else {
+      badge.style.display = "none";
+    }
+  },
+
+  matchesPriceFilter: function(itm, priceQuery) {
+    if (!priceQuery) return true;
+    priceQuery = priceQuery.trim().replace(",", ".");
+
+    const pts = this.activePriceTypes || this.selectedPriceTypes || [];
+    const prices = [];
+    pts.forEach(pt => {
+      let v = 0;
+      if (itm.prices && itm.prices[pt] !== undefined) v = Number(itm.prices[pt]) || 0;
+      else if (pt === pts[0] && itm.price !== undefined) v = Number(itm.price) || 0;
+      prices.push(v);
+    });
+
+    // Check operator comparisons e.g. > 10, <= 5.5, = 4.35
+    const opMatch = priceQuery.match(/^([><]=?|=)\s*([\d.]+)/);
+    if (opMatch) {
+      const op = opMatch[1];
+      const targetVal = parseFloat(opMatch[2]);
+      if (!isNaN(targetVal)) {
+        return prices.some(p => {
+          if (op === ">") return p > targetVal;
+          if (op === ">=") return p >= targetVal;
+          if (op === "<") return p < targetVal;
+          if (op === "<=") return p <= targetVal;
+          if (op === "=") return Math.abs(p - targetVal) < 0.001;
+          return false;
+        });
+      }
+    }
+
+    // Substring or exact numeric match
+    return prices.some(p => {
+      const pStr = p.toFixed(2);
+      return pStr.includes(priceQuery) || String(p).includes(priceQuery);
+    });
+  },
+
+  onFilterChange: function() {
+    const searchInp = document.getElementById("pcSearchInput");
+    const clearBtn = document.getElementById("pcClearSearchBtn");
+    const q = searchInp ? searchInp.value.trim().toLowerCase() : "";
+    if (clearBtn) clearBtn.style.display = q ? "block" : "none";
+
+    const priceInp = document.getElementById("pcPriceSearchInput");
+    const priceQuery = priceInp ? priceInp.value.trim() : "";
+
+    this.filteredItems = this.items.filter(itm => {
+      // 1. Only selected items filter
+      if (this.filterSelectedOnly && !this.selectedCodes.has(itm.code)) {
+        return false;
+      }
+
+      // 2. Only price discrepancies filter (yellow rows)
+      if (this.filterDiffOnly && !this.hasPriceDifference(itm)) {
+        return false;
+      }
+
+      // 3. Dedicated price search filter
+      if (priceQuery && !this.matchesPriceFilter(itm, priceQuery)) {
+        return false;
+      }
+
+      // 4. General search query (text + prices)
+      if (q) {
+        let priceText = "";
+        if (itm.prices) {
+          priceText = Object.values(itm.prices).map(v => Number(v || 0).toFixed(2)).join(" ");
+        } else if (itm.price !== undefined) {
+          priceText = Number(itm.price || 0).toFixed(2);
+        }
+        const src = `${itm.name} ${itm.code} ${itm.artikul} ${itm.cv} ${itm.barcode} ${itm.folder} ${itm.group} ${itm.portfolio} ${itm.manufacturer} ${priceText}`.toLowerCase();
+        if (!src.includes(q)) return false;
+      }
+
+      return true;
+    });
+
+    // Reapply active sorting
+    if (this.currentSortCol) {
+      this.applyCurrentSort();
+    }
+
+    const emptyEl = document.getElementById("pcEmptyState");
+    const tableEl = document.getElementById("pcReportTable");
+    if (this.filteredItems.length === 0 && this.items.length > 0) {
+      if (emptyEl) {
+        emptyEl.style.display = "flex";
+        emptyEl.innerHTML = `
+          <span style="font-size: 32px;">🔍</span>
+          <span style="font-weight: bold; font-size: 13px;">По фильтрам ничего не найдено</span>
+          <span>Попробуйте изменить поисковый запрос или сбросить фильтры.</span>
+        `;
+      }
+      if (tableEl) tableEl.style.display = "none";
+    } else if (this.items.length > 0) {
+      if (emptyEl) emptyEl.style.display = "none";
+      if (tableEl) tableEl.style.display = "table";
+    }
+
+    this.renderTable();
+    this.updateFilterStatusBadge();
+  },
+
+  toggleDiffOnly: function() {
+    const pts = this.activePriceTypes || this.selectedPriceTypes || [];
+    if (pts.length <= 1) {
+      alert("Qiymət fərqlərini müqayisə etmək üçün ən azı 2 tip qiymət seçilməlidir (məsələn: 20 və 10).");
+      this.togglePriceTypeDropdown();
+      return;
+    }
+
+    this.filterDiffOnly = !this.filterDiffOnly;
+    // Auto-enable price analysis if turning on
+    if (this.filterDiffOnly && !this.priceAnalysis.enabled) {
+      this.priceAnalysis.enabled = true;
+      this.updateAnalysisButtonUI();
+      try {
+        localStorage.setItem("pc_price_analysis", JSON.stringify(this.priceAnalysis));
+      } catch (e) {}
+    }
+
+    this.updateDiffButtonUI();
+    this.onFilterChange();
+  },
+
+  updateDiffButtonUI: function() {
+    const btn = document.getElementById("pcBtnFilterDiff");
+    if (!btn) return;
+    if (this.filterDiffOnly) {
+      btn.style.background = "#fff3cd";
+      btn.style.borderColor = "#f0ad4e";
+      btn.style.color = "#856404";
+      btn.style.fontWeight = "bold";
+      btn.title = "Aktivdir: Yalnız qiymət fərqləri olan mallar göstərilir. Söndürmək üçün klikləyin.";
+    } else {
+      btn.style.background = "";
+      btn.style.borderColor = "";
+      btn.style.color = "";
+      btn.style.fontWeight = "";
+      btn.title = "Yalnız fərqli qiyməti olan (sarı rəngli) malları göstər";
+    }
+  },
+
+  toggleSelectedOnly: function() {
+    if (this.selectedCodes.size === 0 && !this.filterSelectedOnly) {
+      alert("Əvvəlcə cədvəldən müqayisə etmək istədiyiniz məhsulları sol tərəfdəki kvadratlara (☑) klikləyərək seçin.");
+      return;
+    }
+
+    this.filterSelectedOnly = !this.filterSelectedOnly;
+    this.updateSelectedButtonUI();
+    this.onFilterChange();
+  },
+
+  updateSelectedButtonUI: function() {
+    const btn = document.getElementById("pcBtnFilterSelected");
+    if (!btn) return;
+    if (this.filterSelectedOnly) {
+      btn.style.background = "#dbeafe";
+      btn.style.borderColor = "#3b82f6";
+      btn.style.color = "#1e40af";
+      btn.style.fontWeight = "bold";
+      btn.title = "Aktivdir: Yalnız qeyd olunmuş mallar göstərilir. Bütün siyahını görmək üçün klikləyin.";
+    } else {
+      btn.style.background = "";
+      btn.style.borderColor = "";
+      btn.style.color = "";
+      btn.style.fontWeight = "";
+      btn.title = "Yalnız qeyd olunmuş (seçilmiş) malları göstər";
+    }
+  },
+
+  toggleItemSelection: function(code, isChecked) {
+    if (!code) return;
+    if (isChecked) {
+      this.selectedCodes.add(code);
+    } else {
+      this.selectedCodes.delete(code);
+      if (this.selectedCodes.size === 0 && this.filterSelectedOnly) {
+        this.filterSelectedOnly = false;
+        this.updateSelectedButtonUI();
+      }
+    }
+    this.updateSelectionBadges();
+
+    if (this.filterSelectedOnly) {
+      this.onFilterChange();
+    } else {
+      // Fast in-place row background toggle
+      const row = document.getElementById(`pcRow_${code}`);
+      if (row) {
+        row.style.background = isChecked ? "#edf5ff" : (row.dataset.origBg || "#ffffff");
+      }
+      this.updateMasterCheckboxState();
+    }
+  },
+
+  toggleSelectAllVisible: function(isChecked) {
+    if (isChecked) {
+      this.filteredItems.forEach(itm => {
+        if (itm.code) this.selectedCodes.add(itm.code);
+      });
+    } else {
+      this.filteredItems.forEach(itm => {
+        if (itm.code) this.selectedCodes.delete(itm.code);
+      });
+      if (this.selectedCodes.size === 0 && this.filterSelectedOnly) {
+        this.filterSelectedOnly = false;
+        this.updateSelectedButtonUI();
+      }
+    }
+    this.updateSelectionBadges();
+    this.renderTable();
+  },
+
+  clearSelection: function() {
+    this.selectedCodes.clear();
+    this.filterSelectedOnly = false;
+    this.updateSelectedButtonUI();
+    this.updateSelectionBadges();
+    this.onFilterChange();
+  },
+
+  updateSelectionBadges: function() {
+    const count = this.selectedCodes.size;
+    const badge = document.getElementById("pcSelectedCountBadge");
+    const clearBtn = document.getElementById("pcBtnClearSelection");
+    if (badge) {
+      badge.textContent = count;
+      badge.style.display = count > 0 ? "inline-block" : "none";
+    }
+    if (clearBtn) {
+      clearBtn.style.display = count > 0 ? "inline-block" : "none";
+      clearBtn.textContent = `✕ Снять выбор (${count})`;
+    }
+    this.updateMasterCheckboxState();
+  },
+
+  updateMasterCheckboxState: function() {
+    const masterChk = document.getElementById("pcMasterRowCheckbox");
+    if (!masterChk) return;
+    if (this.filteredItems.length === 0) {
+      masterChk.checked = false;
+      masterChk.indeterminate = false;
+      return;
+    }
+    const selectedVisible = this.filteredItems.filter(itm => this.selectedCodes.has(itm.code)).length;
+    if (selectedVisible === 0) {
+      masterChk.checked = false;
+      masterChk.indeterminate = false;
+    } else if (selectedVisible === this.filteredItems.length) {
+      masterChk.checked = true;
+      masterChk.indeterminate = false;
+    } else {
+      masterChk.checked = false;
+      masterChk.indeterminate = true;
+    }
+  },
+
+  updateFilterStatusBadge: function() {
+    const badge = document.getElementById("pcFilteredStatusBadge");
+    if (!badge) return;
+
+    const parts = [];
+    if (this.filterDiffOnly) parts.push("🟨 Только расхождения");
+    if (this.filterSelectedOnly) parts.push(`☑️ Выбрано (${this.selectedCodes.size})`);
+
+    const priceInp = document.getElementById("pcPriceSearchInput");
+    if (priceInp && priceInp.value.trim()) parts.push(`💰 Цена: ${priceInp.value.trim()}`);
+
+    const searchInp = document.getElementById("pcSearchInput");
+    if (searchInp && searchInp.value.trim()) parts.push(`Поиск: "${searchInp.value.trim()}"`);
+
+    if (parts.length > 0) {
+      badge.textContent = `Отобрано: ${this.filteredItems.length} из ${this.items.length}`;
+      badge.title = parts.join(" | ");
+    } else {
+      badge.textContent = "";
+    }
+    this.updateCountBadge(this.filteredItems.length);
+  },
+
+  clearSearch: function() {
+    const inp = document.getElementById("pcSearchInput");
+    if (inp) inp.value = "";
+    this.onFilterChange();
   },
 
   renderTableHead: function() {
@@ -456,7 +799,10 @@ const PortfolioCatalog = {
     }
 
     headRow.innerHTML = `
-      <th style="width: 40px; padding: 4px 6px; border: 1px solid #b0af9f; text-align: center;">№</th>
+      <th style="width: 32px; padding: 4px 2px; border: 1px solid #b0af9f; text-align: center;">
+        <input type="checkbox" id="pcMasterRowCheckbox" onchange="PortfolioCatalog.toggleSelectAllVisible(this.checked)" title="Выбрать все / Снять выбор" style="cursor: pointer;">
+      </th>
+      <th style="width: 35px; padding: 4px 6px; border: 1px solid #b0af9f; text-align: center;">№</th>
       <th style="width: 85px; padding: 4px 6px; border: 1px solid #b0af9f; text-align: left; cursor: pointer;" onclick="PortfolioCatalog.sortBy('code')">Код ⬍</th>
       <th style="width: 95px; padding: 4px 6px; border: 1px solid #b0af9f; text-align: left; cursor: pointer;" onclick="PortfolioCatalog.sortBy('artikul')">Артикул ⬍</th>
       <th style="width: 85px; padding: 4px 6px; border: 1px solid #b0af9f; text-align: left; cursor: pointer;" onclick="PortfolioCatalog.sortBy('cv')">СВ код ⬍</th>
@@ -470,6 +816,8 @@ const PortfolioCatalog = {
       <th style="width: 110px; padding: 4px 6px; border: 1px solid #b0af9f; text-align: left;">Вид</th>
       <th style="width: 130px; padding: 4px 6px; border: 1px solid #b0af9f; text-align: left;">Производитель</th>
     `;
+
+    this.updateMasterCheckboxState();
   },
 
   renderTable: function() {
@@ -479,8 +827,6 @@ const PortfolioCatalog = {
     if (!tbody) return;
 
     const list = this.filteredItems;
-    this.updateCountBadge(list.length);
-
     const pts = this.activePriceTypes || this.selectedPriceTypes || [];
     const isAnalysis = Boolean(this.priceAnalysis.enabled);
     const basePt = this.priceAnalysis.basePriceType;
@@ -488,7 +834,9 @@ const PortfolioCatalog = {
     let html = "";
     for (let i = 0; i < list.length; i++) {
       const itm = list[i];
-      const bg = (i % 2 === 1) ? "#f7f6f0" : "#ffffff";
+      const isSelected = itm.code && this.selectedCodes.has(itm.code);
+      const defaultBg = (i % 2 === 1) ? "#f7f6f0" : "#ffffff";
+      const rowBg = isSelected ? "#edf5ff" : defaultBg;
 
       // Base price value for benchmark comparison
       let baseVal = 0;
@@ -542,7 +890,10 @@ const PortfolioCatalog = {
       }
 
       html += `
-        <tr style="background: ${bg}; border-bottom: 1px solid #e0dfd5;" onmouseover="this.style.background='#fffae8'" onmouseout="this.style.background='${bg}'">
+        <tr id="pcRow_${escapeHtml(itm.code)}" data-orig-bg="${defaultBg}" style="background: ${rowBg}; border-bottom: 1px solid #e0dfd5;" onmouseover="if(!PortfolioCatalog.selectedCodes.has('${escapeHtml(itm.code)}')) this.style.background='#fffae8'" onmouseout="if(!PortfolioCatalog.selectedCodes.has('${escapeHtml(itm.code)}')) this.style.background='${defaultBg}'">
+          <td style="padding: 2px 2px; border: 1px solid #d4d0c8; text-align: center;" onclick="event.stopPropagation()">
+            <input type="checkbox" class="pc-row-chk" data-code="${escapeHtml(itm.code)}" ${isSelected ? 'checked' : ''} onchange="PortfolioCatalog.toggleItemSelection('${escapeHtml(itm.code)}', this.checked)">
+          </td>
           <td style="padding: 3px 5px; border: 1px solid #d4d0c8; text-align: center; color: #777;">${i + 1}</td>
           <td style="padding: 3px 5px; border: 1px solid #d4d0c8; text-align: center; font-family: Consolas, monospace; font-weight: bold; color: #003366;">${escapeHtml(itm.code)}</td>
           <td style="padding: 3px 5px; border: 1px solid #d4d0c8;">${escapeHtml(itm.artikul)}</td>
@@ -563,34 +914,25 @@ const PortfolioCatalog = {
     tbody.innerHTML = html;
   },
 
-  onSearchInput: function() {
-    const inp = document.getElementById("pcSearchInput");
-    const clearBtn = document.getElementById("pcClearSearchBtn");
-    const q = inp ? inp.value.trim().toLowerCase() : "";
+  applyCurrentSort: function() {
+    if (!this.currentSortCol) return;
+    const field = this.currentSortCol;
+    const asc = this.currentSortAsc ? 1 : -1;
 
-    if (clearBtn) {
-      clearBtn.style.display = q ? "block" : "none";
-    }
-
-    if (!q) {
-      this.filteredItems = [...this.items];
+    if (field.startsWith("price_")) {
+      const pt = field.replace("price_", "");
+      this.filteredItems.sort((a, b) => {
+        const va = (a.prices && a.prices[pt] !== undefined) ? Number(a.prices[pt]) : Number(a.price || 0);
+        const vb = (b.prices && b.prices[pt] !== undefined) ? Number(b.prices[pt]) : Number(b.price || 0);
+        return (va - vb) * asc;
+      });
     } else {
-      this.filteredItems = this.items.filter(itm => {
-        const src = `${itm.name} ${itm.code} ${itm.artikul} ${itm.cv} ${itm.barcode} ${itm.folder} ${itm.group} ${itm.portfolio} ${itm.manufacturer}`.toLowerCase();
-        return src.includes(q);
+      this.filteredItems.sort((a, b) => {
+        let va = a[field] || "";
+        let vb = b[field] || "";
+        return va.toString().localeCompare(vb.toString(), "az") * asc;
       });
     }
-
-    this.renderTable();
-    this.updateStatus(`Найдено ${this.filteredItems.length} из ${this.items.length}`);
-  },
-
-  clearSearch: function() {
-    const inp = document.getElementById("pcSearchInput");
-    if (inp) {
-      inp.value = "";
-    }
-    this.onSearchInput();
   },
 
   sortBy: function(field) {
@@ -600,14 +942,7 @@ const PortfolioCatalog = {
       this.currentSortCol = field;
       this.currentSortAsc = true;
     }
-
-    const asc = this.currentSortAsc ? 1 : -1;
-    this.filteredItems.sort((a, b) => {
-      let va = a[field] || "";
-      let vb = b[field] || "";
-      return va.toString().localeCompare(vb.toString(), "az") * asc;
-    });
-
+    this.applyCurrentSort();
     this.renderTable();
   },
 
@@ -619,14 +954,7 @@ const PortfolioCatalog = {
       this.currentSortCol = colKey;
       this.currentSortAsc = true;
     }
-
-    const asc = this.currentSortAsc ? 1 : -1;
-    this.filteredItems.sort((a, b) => {
-      const va = (a.prices && a.prices[pt] !== undefined) ? Number(a.prices[pt]) : Number(a.price || 0);
-      const vb = (b.prices && b.prices[pt] !== undefined) ? Number(b.prices[pt]) : Number(b.price || 0);
-      return (va - vb) * asc;
-    });
-
+    this.applyCurrentSort();
     this.renderTable();
   },
 
@@ -647,7 +975,9 @@ const PortfolioCatalog = {
         portfolio: portSel ? portSel.value : "",
         nom_group: grpSel ? grpSel.value : "",
         price_types: this.activePriceTypes || this.selectedPriceTypes,
-        price_analysis: this.priceAnalysis
+        price_analysis: this.priceAnalysis,
+        diff_only: this.filterDiffOnly,
+        selected_only: this.filterSelectedOnly
       }
     };
 

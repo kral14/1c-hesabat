@@ -516,7 +516,14 @@ def generate_portfolio_catalog_excel(items, filters, output_path):
     price_text = ", ".join(sel_pts) if sel_pts else "Без цен"
     now_str = datetime.datetime.now().strftime("%d.%m.%Y %H:%M")
 
-    ws["B3"] = f"Портфель: {port_text}  |  Группа: {grp_text}  |  Тип цен: {price_text}  |  Дата формирования: {now_str}  |  Всего: {len(items)} товаров"
+    extra_notes = []
+    if filters.get("diff_only"):
+        extra_notes.append("Только расхождения")
+    if filters.get("selected_only"):
+        extra_notes.append("Выбранные позиции")
+    filter_note = f"  |  Фильтр: {', '.join(extra_notes)}" if extra_notes else ""
+
+    ws["B3"] = f"Портфель: {port_text}  |  Группа: {grp_text}  |  Тип цен: {price_text}{filter_note}  |  Дата формирования: {now_str}  |  Всего: {len(items)} товаров"
     ws["B3"].font = font_meta
 
     # 3. Table Headers
