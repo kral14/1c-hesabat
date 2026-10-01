@@ -15,7 +15,6 @@ const PortfolioCatalog = {
     basePriceType: "20"
   },
   selectedCodes: new Set(),
-  filterDiffOnly: false,
   filterSelectedOnly: false,
   currentSortCol: null,
   currentSortAsc: true,
@@ -76,7 +75,6 @@ const PortfolioCatalog = {
       }
     } catch (e) {}
     this.updateAnalysisButtonUI();
-    this.updateDiffButtonUI();
     this.updateSelectedButtonUI();
   },
 
@@ -136,8 +134,7 @@ const PortfolioCatalog = {
     } catch (e) {}
 
     this.updateAnalysisButtonUI();
-    this.updateDiffBadge();
-    this.onFilterChange();
+    this.renderTable();
     this.closePriceAnalysisModal();
 
     if (this.priceAnalysis.enabled) {
@@ -370,7 +367,6 @@ const PortfolioCatalog = {
       console.log(`[PORTFOLIO CATALOG] Instant load from cache for '${cacheKey}'`);
       this.items = this.cache[cacheKey];
       this.activePriceTypes = [...this.selectedPriceTypes];
-      this.updateDiffBadge();
       this.onFilterChange();
       this.updateStatus(`Мгновенно загружено ${this.items.length} товаров (кэш)`);
       return;
@@ -406,7 +402,6 @@ const PortfolioCatalog = {
       // Save to instant memory cache
       this.cache[cacheKey] = this.items;
 
-      this.updateDiffBadge();
       this.onFilterChange();
 
       if (this.items.length === 0) {
@@ -436,100 +431,11 @@ const PortfolioCatalog = {
     });
   },
 
-  // Helper: check if a specific item has yellow price difference vs benchmark
-  hasPriceDifference: function(itm) {
-    const pts = this.activePriceTypes || this.selectedPriceTypes || [];
-    if (pts.length <= 1) return false;
-    const basePt = (this.priceAnalysis && this.priceAnalysis.basePriceType) || pts[0];
-
-    let baseVal = 0;
-    if (itm.prices && itm.prices[basePt] !== undefined) {
-      baseVal = Number(itm.prices[basePt]) || 0;
-    } else if (basePt === pts[0] && itm.price !== undefined) {
-      baseVal = Number(itm.price) || 0;
-    }
-
-    for (let i = 0; i < pts.length; i++) {
-      const pt = pts[i];
-      if (pt === basePt) continue;
-      let val = 0;
-      if (itm.prices && itm.prices[pt] !== undefined) {
-        val = Number(itm.prices[pt]) || 0;
-      } else if (pt === pts[0] && itm.price !== undefined) {
-        val = Number(itm.price) || 0;
-      }
-      if (Math.abs(val - baseVal) > 0.0001) {
-        return true;
-      }
-    }
-    return false;
-  },
-
-  updateDiffBadge: function() {
-    const badge = document.getElementById("pcDiffCountBadge");
-    if (!badge) return;
-    const pts = this.activePriceTypes || this.selectedPriceTypes || [];
-    if (pts.length <= 1) {
-      badge.style.display = "none";
-      return;
-    }
-    let count = 0;
-    for (let i = 0; i < this.items.length; i++) {
-      if (this.hasPriceDifference(this.items[i])) count++;
-    }
-    if (count > 0) {
-      badge.textContent = count;
-      badge.style.display = "inline-block";
-    } else {
-      badge.style.display = "none";
-    }
-  },
-
-  matchesPriceFilter: function(itm, priceQuery) {
-    if (!priceQuery) return true;
-    priceQuery = priceQuery.trim().replace(",", ".");
-
-    const pts = this.activePriceTypes || this.selectedPriceTypes || [];
-    const prices = [];
-    pts.forEach(pt => {
-      let v = 0;
-      if (itm.prices && itm.prices[pt] !== undefined) v = Number(itm.prices[pt]) || 0;
-      else if (pt === pts[0] && itm.price !== undefined) v = Number(itm.price) || 0;
-      prices.push(v);
-    });
-
-    // Check operator comparisons e.g. > 10, <= 5.5, = 4.35
-    const opMatch = priceQuery.match(/^([><]=?|=)\s*([\d.]+)/);
-    if (opMatch) {
-      const op = opMatch[1];
-      const targetVal = parseFloat(opMatch[2]);
-      if (!isNaN(targetVal)) {
-        return prices.some(p => {
-          if (op === ">") return p > targetVal;
-          if (op === ">=") return p >= targetVal;
-          if (op === "<") return p < targetVal;
-          if (op === "<=") return p <= targetVal;
-          if (op === "=") return Math.abs(p - targetVal) < 0.001;
-          return false;
-        });
-      }
-    }
-
-    // Substring or exact numeric match
-    return prices.some(p => {
-      const pStr = p.toFixed(2);
-      return pStr.includes(priceQuery) || String(p).includes(priceQuery);
-    });
-  },
-
   onFilterChange: function() {
     const searchInp = document.getElementById("pcSearchInput");
     const clearBtn = document.getElementById("pcClearSearchBtn");
     const q = searchInp ? searchInp.value.trim().toLowerCase() : "";
     if (clearBtn) clearBtn.style.display = q ? "block" : "none";
-
-    const priceInp = document.getElementById("pcPriceSearchInput");
-    const priceQuery = priceInp ? priceInp.value.trim() : "";
 
     this.filteredItems = this.items.filter(itm => {
       // 1. Only selected items filter
@@ -537,25 +443,9 @@ const PortfolioCatalog = {
         return false;
       }
 
-      // 2. Only price discrepancies filter (yellow rows)
-      if (this.filterDiffOnly && !this.hasPriceDifference(itm)) {
-        return false;
-      }
-
-      // 3. Dedicated price search filter
-      if (priceQuery && !this.matchesPriceFilter(itm, priceQuery)) {
-        return false;
-      }
-
-      // 4. General search query (text + prices)
+      // 2. General search query (code, artikul, cv, barcode, name, folder, group, portfolio, manufacturer)
       if (q) {
-        let priceText = "";
-        if (itm.prices) {
-          priceText = Object.values(itm.prices).map(v => Number(v || 0).toFixed(2)).join(" ");
-        } else if (itm.price !== undefined) {
-          priceText = Number(itm.price || 0).toFixed(2);
-        }
-        const src = `${itm.name} ${itm.code} ${itm.artikul} ${itm.cv} ${itm.barcode} ${itm.folder} ${itm.group} ${itm.portfolio} ${itm.manufacturer} ${priceText}`.toLowerCase();
+        const src = `${itm.name} ${itm.code} ${itm.artikul} ${itm.cv} ${itm.barcode} ${itm.folder} ${itm.group} ${itm.portfolio} ${itm.manufacturer}`.toLowerCase();
         if (!src.includes(q)) return false;
       }
 
@@ -575,7 +465,7 @@ const PortfolioCatalog = {
         emptyEl.innerHTML = `
           <span style="font-size: 32px;">🔍</span>
           <span style="font-weight: bold; font-size: 13px;">По фильтрам ничего не найдено</span>
-          <span>Попробуйте изменить поисковый запрос или сбросить фильтры.</span>
+          <span>Попробуйте изменить поисковый запрос или сбросить фильтр выбранных.</span>
         `;
       }
       if (tableEl) tableEl.style.display = "none";
@@ -585,47 +475,7 @@ const PortfolioCatalog = {
     }
 
     this.renderTable();
-    this.updateFilterStatusBadge();
-  },
-
-  toggleDiffOnly: function() {
-    const pts = this.activePriceTypes || this.selectedPriceTypes || [];
-    if (pts.length <= 1) {
-      alert("Qiymət fərqlərini müqayisə etmək üçün ən azı 2 tip qiymət seçilməlidir (məsələn: 20 və 10).");
-      this.togglePriceTypeDropdown();
-      return;
-    }
-
-    this.filterDiffOnly = !this.filterDiffOnly;
-    // Auto-enable price analysis if turning on
-    if (this.filterDiffOnly && !this.priceAnalysis.enabled) {
-      this.priceAnalysis.enabled = true;
-      this.updateAnalysisButtonUI();
-      try {
-        localStorage.setItem("pc_price_analysis", JSON.stringify(this.priceAnalysis));
-      } catch (e) {}
-    }
-
-    this.updateDiffButtonUI();
-    this.onFilterChange();
-  },
-
-  updateDiffButtonUI: function() {
-    const btn = document.getElementById("pcBtnFilterDiff");
-    if (!btn) return;
-    if (this.filterDiffOnly) {
-      btn.style.background = "#fff3cd";
-      btn.style.borderColor = "#f0ad4e";
-      btn.style.color = "#856404";
-      btn.style.fontWeight = "bold";
-      btn.title = "Aktivdir: Yalnız qiymət fərqləri olan mallar göstərilir. Söndürmək üçün klikləyin.";
-    } else {
-      btn.style.background = "";
-      btn.style.borderColor = "";
-      btn.style.color = "";
-      btn.style.fontWeight = "";
-      btn.title = "Yalnız fərqli qiyməti olan (sarı rəngli) malları göstər";
-    }
+    this.updateCountBadge(this.filteredItems.length);
   },
 
   toggleSelectedOnly: function() {
@@ -742,29 +592,6 @@ const PortfolioCatalog = {
       masterChk.checked = false;
       masterChk.indeterminate = true;
     }
-  },
-
-  updateFilterStatusBadge: function() {
-    const badge = document.getElementById("pcFilteredStatusBadge");
-    if (!badge) return;
-
-    const parts = [];
-    if (this.filterDiffOnly) parts.push("🟨 Только расхождения");
-    if (this.filterSelectedOnly) parts.push(`☑️ Выбрано (${this.selectedCodes.size})`);
-
-    const priceInp = document.getElementById("pcPriceSearchInput");
-    if (priceInp && priceInp.value.trim()) parts.push(`💰 Цена: ${priceInp.value.trim()}`);
-
-    const searchInp = document.getElementById("pcSearchInput");
-    if (searchInp && searchInp.value.trim()) parts.push(`Поиск: "${searchInp.value.trim()}"`);
-
-    if (parts.length > 0) {
-      badge.textContent = `Отобрано: ${this.filteredItems.length} из ${this.items.length}`;
-      badge.title = parts.join(" | ");
-    } else {
-      badge.textContent = "";
-    }
-    this.updateCountBadge(this.filteredItems.length);
   },
 
   clearSearch: function() {
@@ -976,7 +803,6 @@ const PortfolioCatalog = {
         nom_group: grpSel ? grpSel.value : "",
         price_types: this.activePriceTypes || this.selectedPriceTypes,
         price_analysis: this.priceAnalysis,
-        diff_only: this.filterDiffOnly,
         selected_only: this.filterSelectedOnly
       }
     };

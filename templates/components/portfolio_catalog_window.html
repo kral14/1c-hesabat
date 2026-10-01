@@ -82,49 +82,28 @@
         <span id="pcAnalysisActiveDot" style="display: none; width: 7px; height: 7px; background: #e6a23c; border-radius: 50%; margin-left: 2px;"></span>
       </button>
 
-      <!-- Total Count Badge -->
-      <div id="pcCountBadge" style="margin-left: auto; background: #ffffff; border: 1px solid #7f9db9; padding: 2px 8px; border-radius: 2px; font-size: 11px; font-weight: bold; color: #003366; white-space: nowrap;">
-        Всего: 0 товаров
-      </div>
-
-    </div>
-
-    <!-- Secondary Quick Filter & Analysis Toolbar -->
-    <div class="pc-sub-toolbar" style="padding: 4px 10px; background: #ece8d8; border-bottom: 1px solid #c2bfae; display: flex; flex-wrap: wrap; align-items: center; gap: 8px;">
-      
-      <!-- 1. General Search Input (names, codes, barcodes, prices) -->
-      <div class="pc-search-box" style="flex: 1; min-width: 220px; max-width: 320px; display: flex; align-items: center; position: relative;">
-        <input type="text" id="pcSearchInput" class="input-1c" placeholder="🔍 Cəld axtarış: ad, kod, barkod, qiymət..." style="width: 100%; height: 23px; padding-left: 6px; font-size: 11px;" oninput="PortfolioCatalog.onFilterChange()">
-        <button id="pcClearSearchBtn" onclick="PortfolioCatalog.clearSearch()" style="display: none; position: absolute; right: 4px; background: none; border: none; cursor: pointer; color: #888; font-weight: bold;">✕</button>
-      </div>
-
-      <!-- 2. Dedicated Price Search Input -->
-      <div class="pc-filter-group" style="display: flex; align-items: center; gap: 4px;">
-        <span style="font-size: 11px; font-weight: bold; color: #222;">💰 Qiymət:</span>
-        <input type="text" id="pcPriceSearchInput" class="input-1c" placeholder="Məs: 4.35 və ya >10" style="width: 130px; height: 23px; padding-left: 5px; font-size: 11px;" oninput="PortfolioCatalog.onFilterChange()" title="Axtarmaq istədiyiniz qiymət və ya müqayisə (məsələn: 4.35, >5, <10, >=2)">
-      </div>
-
-      <div class="mdi-tool-sep" style="height: 18px; width: 1px; background: #c2bfae; margin: 0 2px;"></div>
-
-      <!-- 3. Filter by Yellow Discrepancies (Rəngə görə filtr: Yalnız fərqlənən qiymətlər) -->
-      <button class="btn-1c" id="pcBtnFilterDiff" onclick="PortfolioCatalog.toggleDiffOnly()" title="Yalnız fərqli qiyməti olan (sarı rəngli) malları göstər" style="height: 23px; display: inline-flex; align-items: center; gap: 5px; padding: 0 8px; font-size: 11px; cursor: pointer;">
-        <span>🟨 Только расхождения</span>
-        <span id="pcDiffCountBadge" style="display: none; background: #e6a23c; color: #fff; font-size: 10px; font-weight: bold; padding: 0 5px; border-radius: 8px;">0</span>
-      </button>
-
-      <!-- 4. Filter by Checked Nomenclatures (Seçilmiş mallara görə filtr) -->
-      <button class="btn-1c" id="pcBtnFilterSelected" onclick="PortfolioCatalog.toggleSelectedOnly()" title="Yalnız qeyd olunmuş (seçilmiş) malları göstər" style="height: 23px; display: inline-flex; align-items: center; gap: 5px; padding: 0 8px; font-size: 11px; cursor: pointer;">
+      <!-- Selection Filter Buttons -->
+      <button class="btn-1c" id="pcBtnFilterSelected" onclick="PortfolioCatalog.toggleSelectedOnly()" title="Yalnız qeyd olunmuş (seçilmiş) malları göstər" style="height: 24px; display: inline-flex; align-items: center; gap: 4px; padding: 0 8px; font-size: 11px;">
         <span>☑️ Только выбранные</span>
         <span id="pcSelectedCountBadge" style="display: none; background: #0055ea; color: #fff; font-size: 10px; font-weight: bold; padding: 0 5px; border-radius: 8px;">0</span>
       </button>
 
-      <!-- 5. Reset Selection Button -->
-      <button class="btn-1c" id="pcBtnClearSelection" onclick="PortfolioCatalog.clearSelection()" title="Bütün seçilmiş malları ləğv et" style="display: none; height: 23px; padding: 0 7px; color: #a00; font-size: 11px; cursor: pointer;">
+      <button class="btn-1c" id="pcBtnClearSelection" onclick="PortfolioCatalog.clearSelection()" title="Bütün seçilmiş malları ləğv et" style="display: none; height: 24px; padding: 0 7px; color: #a00; font-size: 11px; cursor: pointer;">
         ✕ Снять выбор
       </button>
 
-      <!-- Active Filter Status Indicator -->
-      <span id="pcFilteredStatusBadge" style="margin-left: auto; font-size: 11px; font-weight: bold; color: #004080;"></span>
+      <div class="mdi-tool-sep" style="height: 20px; width: 1px; background: #b0af9f; margin: 0 4px;"></div>
+
+      <!-- Search Input -->
+      <div class="pc-search-box" style="flex: 1; min-width: 180px; display: flex; align-items: center; position: relative;">
+        <input type="text" id="pcSearchInput" class="input-1c" placeholder="🔍 Cəld axtarış: ad, kod, artikul, cv, barkod..." style="width: 100%; height: 24px; padding-left: 6px; font-size: 11px;" oninput="PortfolioCatalog.onFilterChange()">
+        <button id="pcClearSearchBtn" onclick="PortfolioCatalog.clearSearch()" style="display: none; position: absolute; right: 4px; background: none; border: none; cursor: pointer; color: #888; font-weight: bold;">✕</button>
+      </div>
+
+      <!-- Total Count Badge -->
+      <div id="pcCountBadge" style="background: #ffffff; border: 1px solid #7f9db9; padding: 2px 8px; border-radius: 2px; font-size: 11px; font-weight: bold; color: #003366; white-space: nowrap;">
+        Всего: 0 товаров
+      </div>
 
     </div>
 
