@@ -1847,7 +1847,9 @@ class OneCService(threading.Thread):
                 elif action == "get_portfolio_catalog_filters":
                     fmap = get_folders_map(conn, key)
                     root_portfolios = set()
-                    for r_id, (f_name, parent_ref) in fmap.items():
+                    for r_id, f_data in fmap.items():
+                        f_name = f_data[0]
+                        parent_ref = f_data[1]
                         if not parent_ref or parent_ref == "":
                             f_clean = f_name.strip()
                             if f_clean and not f_clean.startswith("!"):
@@ -1910,9 +1912,10 @@ class OneCService(threading.Thread):
                             ПО Т.Ссылка = Цены.Номенклатура
                         """
 
+                    limit_clause = "ПЕРВЫЕ 2000" if (not sel_portfolio and not sel_group and not search_txt) else ""
                     q = conn.NewObject("Запрос")
                     q.Text = f"""
-                    ВЫБРАТЬ
+                    ВЫБРАТЬ {limit_clause}
                         Т.Ссылка КАК Ref,
                         Т.Код КАК Code,
                         Т.Артикул КАК Artikul,
