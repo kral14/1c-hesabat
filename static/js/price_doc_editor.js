@@ -23,8 +23,11 @@ const PriceDocEditor = {
   ptWidths: {},
   draggedCol: null,
   resizingCol: null,
+  pendingCacheData: null,
+  pendingDocNumber: null,
+  pendingDocDate: null,
 
-  open: function(docNumber, docDate) {
+  open: function(docNumber, docDate, forceRefreshFrom1C) {
     if (!docNumber) return;
     this.currentDocNumber = docNumber;
 
@@ -61,6 +64,25 @@ const PriceDocEditor = {
       win.style.display = "flex";
       win.classList.remove("minimized");
       win.classList.add("active");
+    }
+
+    // Check if there is cached data for this document in localStorage
+    if (!forceRefreshFrom1C) {
+      const cachedRaw = localStorage.getItem(`1c_price_doc_cache_${docNumber}`);
+      if (cachedRaw) {
+        try {
+          const cached = JSON.parse(cachedRaw);
+          if (cached && Array.isArray(cached.items) && cached.items.length > 0) {
+            this.pendingCacheData = cached;
+            this.pendingDocNumber = docNumber;
+            this.pendingDocDate = docDate;
+            this.openCacheRestoreModal(cached);
+            return;
+          }
+        } catch(e) {
+          console.warn("Failed to parse cached document:", e);
+        }
+      }
     }
 
     this.loadDocumentData(docNumber, docDate);
@@ -1341,15 +1363,15 @@ const PriceDocEditor = {
       return;
     }
 
-    const btn = document.getElementById("pdeBtnSave");
-    const btnTop = document.getElementById("pdeBtnSaveTop");
+    const btn1CTop = document.getElementById("pdeBtnSave1CTop");
+    const btn1CBottom = document.getElementById("pdeBtnSave1CBottom");
     const commInp = document.getElementById("pdeDocComment");
     const dateInp = document.getElementById("pdeDocDate");
     const comment = commInp ? commInp.value.trim() : "";
     const docDate = (dateInp && dateInp.value.trim()) ? dateInp.value.trim() : ((this.docData && this.docData.date) ? this.docData.date : "");
 
-    if (btn) btn.disabled = true;
-    if (btnTop) btnTop.disabled = true;
+    if (btn1CTop) btn1CTop.disabled = true;
+    if (btn1CBottom) btn1CBottom.disabled = true;
 
     const creds = window.SessionManager ? SessionManager.getCredentials() : {};
     const payload = {
@@ -1368,12 +1390,23 @@ const PriceDocEditor = {
     })
     .then(r => r.json())
     .then(res => {
-      if (btn) btn.disabled = false;
-      if (btnTop) btnTop.disabled = false;
+      if (btn1CTop) btn1CTop.disabled = false;
+      if (btn1CBottom) btn1CBottom.disabled = false;
       if (!res.success) {
         alert("1C Yazılma Xətası: " + (res.error || "Məlumat yadda saxlanıla bilmədi"));
         return;
       }
+
+      // Clear local cache for this document on successful 1C commit
+      try {
+        localStorage.removeItem(`1c_price_doc_cache_${this.currentDocNumber}`);
+        let draftRegistry = {};
+        try {
+          draftRegistry = JSON.parse(localStorage.getItem("1c_price_doc_drafts") || "{}");
+          delete draftRegistry[this.currentDocNumber];
+          localStorage.setItem("1c_price_doc_drafts", JSON.stringify(draftRegistry));
+        } catch(e) {}
+      } catch(e) {}
 
       alert(`✅ Sənəd №${this.currentDocNumber} 1C-yə uğurla QARALAMA (Təsdiqsiz) olaraq yazıldı!\n\nCəmi: ${res.data.total_items} mal (${res.data.total_rows} qiymət sətri).\n\nİndi 1C-də sənədi açıb öz adınızla 'Провести' edə bilərsiniz.`);
 
@@ -1386,11 +1419,170 @@ const PriceDocEditor = {
       }
     })
     .catch(err => {
-      if (btn) btn.disabled = false;
-      if (btnTop) btnTop.disabled = false;
+      if (btn1CTop) btn1CTop.disabled = false;
+      if (btn1CBottom) btn1CBottom.disabled = false;
       console.error("Save error:", err);
       alert("Xəta: " + err.message);
     });
+  },
+
+  // Save current document state to local cache (draft)
+  saveToCache: function() {
+    if (!this.currentDocNumber) {
+      alert("Sənəd nömrəsi təyin edilməyib.");
+      return;
+    }
+
+    const dateInp = document.getElementById("pdeDocDate");
+    const commInp = document.getElementById("pdeDocComment");
+    const respInp = document.getElementById("pdeDocResponsible");
+    const zeroPricesChk = document.getElementById("pdeZeroPricesChk");
+
+    const cacheData = {
+      docNumber: this.currentDocNumber,
+      date: (dateInp && dateInp.value) ? dateInp.value : ((this.docData && this.docData.date) ? this.docData.date : ""),
+      comment: commInp ? commInp.value : "",
+      responsible: respInp ? respInp.value : "",
+      zeroPrices: zeroPricesChk ? zeroPricesChk.checked : true,
+      priceTypes: [...this.priceTypes],
+      items: JSON.parse(JSON.stringify(this.items)),
+      savedAt: new Date().toISOString(),
+      savedTimeFormatted: new Date().toLocaleString("az-AZ")
+    };
+
+    try {
+      localStorage.setItem(`1c_price_doc_cache_${this.currentDocNumber}`, JSON.stringify(cacheData));
+
+      let draftRegistry = {};
+      try {
+        draftRegistry = JSON.parse(localStorage.getItem("1c_price_doc_drafts") || "{}");
+      } catch(e) {}
+      draftRegistry[this.currentDocNumber] = {
+        savedAt: cacheData.savedAt,
+        savedTimeFormatted: cacheData.savedTimeFormatted,
+        itemsCount: cacheData.items.length
+      };
+      localStorage.setItem("1c_price_doc_drafts", JSON.stringify(draftRegistry));
+
+      this.showCacheToast(`💾 Sənəd №${this.currentDocNumber} lokal keşdə saxlanıldı! (${cacheData.items.length} mal)`);
+    } catch (err) {
+      console.error("Cache save error:", err);
+      alert("Lokal keşdə saxlamaq mümkün olmadı: " + err.message);
+    }
+  },
+
+  // Open modal asking user whether to load cached changes or refresh from 1C
+  openCacheRestoreModal: function(cached) {
+    const modal = document.getElementById("pdeCacheRestoreModal");
+    if (!modal) {
+      this.loadDocumentData(this.pendingDocNumber, this.pendingDocDate);
+      return;
+    }
+
+    const titleEl = document.getElementById("pdeCacheModalTitle");
+    if (titleEl) {
+      titleEl.textContent = `№ ${cached.docNumber || this.currentDocNumber} sənədi üzrə keşdə saxlanılmış məlumatlar var!`;
+    }
+
+    const dateEl = document.getElementById("pdeCacheModalDate");
+    if (dateEl) {
+      dateEl.textContent = cached.savedTimeFormatted || cached.savedAt || "-";
+    }
+
+    const countEl = document.getElementById("pdeCacheModalItemsCount");
+    if (countEl) {
+      countEl.textContent = (cached.items ? cached.items.length : 0) + " mal";
+    }
+
+    const ptEl = document.getElementById("pdeCacheModalPriceTypes");
+    if (ptEl) {
+      ptEl.textContent = (cached.priceTypes && cached.priceTypes.length) ? cached.priceTypes.join(", ") : "(yoxdur)";
+    }
+
+    modal.style.display = "flex";
+  },
+
+  closeCacheRestoreModal: function() {
+    const modal = document.getElementById("pdeCacheRestoreModal");
+    if (modal) modal.style.display = "none";
+  },
+
+  // User chooses "Bəli (Köhnə məlumatlar)" -> apply cache
+  applyCacheAndOpen: function() {
+    this.closeCacheRestoreModal();
+    if (!this.pendingCacheData) return;
+    const cached = this.pendingCacheData;
+    this.pendingCacheData = null;
+
+    console.log(`[PRICE DOC] Restoring document №${cached.docNumber} from local CACHE`);
+
+    const loading = document.getElementById("pdeLoadingState");
+    if (loading) loading.style.display = "none";
+
+    this.populateDocumentData({
+      number: cached.docNumber,
+      date: cached.date,
+      comment: cached.comment,
+      responsible: cached.responsible,
+      price_types: cached.priceTypes,
+      items: cached.items
+    }, cached.docNumber);
+
+    if (cached.zeroPrices !== undefined) {
+      const chk = document.getElementById("pdeZeroPricesChk");
+      if (chk) chk.checked = !!cached.zeroPrices;
+    }
+
+    this.showCacheToast(`📋 Sənəd №${cached.docNumber} keşdəki köhnə məlumatlarla açıldı! (${cached.savedTimeFormatted || ''})`);
+  },
+
+  // User chooses "Xeyr (1C bazasından yenilə)" -> delete cache and fetch from 1C
+  discardCacheAndFetch1C: function() {
+    this.closeCacheRestoreModal();
+    const docNum = this.pendingDocNumber || this.currentDocNumber;
+    const docDate = this.pendingDocDate || "";
+    this.pendingCacheData = null;
+
+    try {
+      localStorage.removeItem(`1c_price_doc_cache_${docNum}`);
+      let draftRegistry = {};
+      try {
+        draftRegistry = JSON.parse(localStorage.getItem("1c_price_doc_drafts") || "{}");
+        delete draftRegistry[docNum];
+        localStorage.setItem("1c_price_doc_drafts", JSON.stringify(draftRegistry));
+      } catch(e) {}
+    } catch(e) {}
+
+    if (window.UniversalJournal && typeof UniversalJournal.invalidatePrefetch === "function") {
+      UniversalJournal.invalidatePrefetch(docNum);
+    }
+
+    this.loadDocumentData(docNum, docDate);
+  },
+
+  cancelCacheRestoreModal: function() {
+    this.closeCacheRestoreModal();
+    this.pendingCacheData = null;
+    this.close();
+  },
+
+  showCacheToast: function(msg) {
+    let toast = document.getElementById("pdeCacheToast");
+    if (!toast) {
+      toast = document.createElement("div");
+      toast.id = "pdeCacheToast";
+      toast.style.cssText = "position: absolute; bottom: 50px; right: 25px; background: #1e293b; color: #fff; padding: 10px 18px; border-radius: 4px; font-size: 11px; z-index: 1200; box-shadow: 0 4px 20px rgba(0,0,0,0.35); border-left: 4px solid #10b981; display: flex; align-items: center; gap: 8px; transition: opacity 0.3s ease; pointer-events: none;";
+      const win = document.getElementById("priceDocEditorWindow");
+      if (win) win.appendChild(toast);
+    }
+    toast.textContent = msg;
+    toast.style.opacity = "1";
+    toast.style.display = "flex";
+    clearTimeout(this._toastTimer);
+    this._toastTimer = setTimeout(() => {
+      if (toast) toast.style.opacity = "0";
+      setTimeout(() => { if (toast) toast.style.display = "none"; }, 300);
+    }, 4000);
   },
 
   updateRowCount: function() {

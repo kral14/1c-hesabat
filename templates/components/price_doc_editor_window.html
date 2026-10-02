@@ -39,9 +39,14 @@
           </div>
         </div>
 
-        <!-- Top "Записать" (Exact 1C Command Button - Screenshot 2) -->
+        <!-- Top "Записать в 1С" and "Записать" (кэш) Buttons -->
         <div style="display: flex; align-items: center; gap: 6px;">
-          <button type="button" class="btn-1c btn-1c-primary" id="pdeBtnSaveTop" onclick="PriceDocEditor.saveTo1C()" title="Записать документ в 1С (Ctrl+S)" style="height: 23px; min-width: 95px; font-weight: bold; background: linear-gradient(to bottom, #ffea88, #d8a020); border: 1px solid #7c6817; color: #000; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 5px; font-size: 11px; padding: 0 10px;">
+          <button type="button" class="btn-1c btn-1c-primary" id="pdeBtnSave1CTop" onclick="PriceDocEditor.saveTo1C()" title="Отправить и записать документ в базу 1С (Ctrl+S)" style="height: 23px; min-width: 120px; font-weight: bold; background: linear-gradient(to bottom, #ffea88, #d8a020); border: 1px solid #7c6817; color: #000; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 5px; font-size: 11px; padding: 0 10px;">
+            <span>💾</span>
+            <span>Записать в 1С</span>
+          </button>
+
+          <button type="button" class="btn-1c" id="pdeBtnSaveCacheTop" onclick="PriceDocEditor.saveToCache()" title="Сохранить изменения в локальный кэш (черновик)" style="height: 23px; min-width: 90px; font-weight: bold; background: #e0dfd5; border: 1px solid #7f9db9; color: #000; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 5px; font-size: 11px; padding: 0 8px;" onmouseover="this.style.background='#f0eee3'" onmouseout="this.style.background='#e0dfd5'">
             <span>💾</span>
             <span>Записать</span>
           </button>
@@ -256,9 +261,14 @@
 
       <!-- Save & Close Buttons -->
       <div style="display: flex; justify-content: flex-end; align-items: center; gap: 8px; margin-top: 4px; padding-top: 4px; border-top: 1px solid #d5d3c3;">
-        <button type="button" class="btn-1c btn-1c-primary" id="pdeBtnSave" onclick="PriceDocEditor.saveTo1C()" style="height: 24px; min-width: 135px; font-weight: bold; background: linear-gradient(to bottom, #ffea88, #d8a020); border: 1px solid #7c6817; color: #000; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 5px;">
+        <button type="button" class="btn-1c btn-1c-primary" id="pdeBtnSave1CBottom" onclick="PriceDocEditor.saveTo1C()" style="height: 24px; min-width: 135px; font-weight: bold; background: linear-gradient(to bottom, #ffea88, #d8a020); border: 1px solid #7c6817; color: #000; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 5px;">
           <span>💾</span>
           <span>Записать в 1С</span>
+        </button>
+
+        <button type="button" class="btn-1c" id="pdeBtnSaveCacheBottom" onclick="PriceDocEditor.saveToCache()" title="Сохранить изменения в локальный кэш (черновик)" style="height: 24px; min-width: 95px; border: 1px solid #7f9db9; background: #e0dfd5; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 5px; font-weight: bold;" onmouseover="this.style.background='#f0eee3'" onmouseout="this.style.background='#e0dfd5'">
+          <span>💾</span>
+          <span>Записать</span>
         </button>
 
         <button type="button" class="btn-1c" onclick="PriceDocEditor.close()" style="height: 24px; min-width: 80px; cursor: pointer;">
@@ -750,6 +760,68 @@
         </button>
         <button type="button" class="btn-1c" onclick="PriceDocEditor.closeClearPriceTypeModal()" style="height: 24px; min-width: 70px; cursor: pointer;">
           Отмена
+        </button>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Modal: Cache Confirmation (Восстановление из кэша / 1С база) -->
+  <div id="pdeCacheRestoreModal" style="display: none; position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.55); z-index: 1050; align-items: center; justify-content: center; backdrop-filter: blur(1px);">
+    <div style="width: 530px; max-width: 95vw; background: #f0eee3; border: 1px solid #706f64; box-shadow: 0 10px 35px rgba(0,0,0,0.45); display: flex; flex-direction: column; font-family: Tahoma, sans-serif; font-size: 11px;">
+      
+      <!-- Modal Header -->
+      <div style="background: linear-gradient(to bottom, #0055ea, #0040b0); color: #fff; padding: 6px 10px; font-weight: bold; display: flex; align-items: center; justify-content: space-between;">
+        <div style="display: flex; align-items: center; gap: 6px;">
+          <span>📋</span>
+          <span>1C: Восстановление данных документа</span>
+        </div>
+        <button type="button" onclick="PriceDocEditor.closeCacheRestoreModal()" style="border: none; background: transparent; color: #fff; font-size: 14px; font-weight: bold; cursor: pointer; line-height: 1;">✕</button>
+      </div>
+
+      <!-- Modal Body -->
+      <div style="padding: 16px; background: #ffffff; display: flex; gap: 14px; align-items: flex-start; border-bottom: 1px solid #d4d0c8;">
+        <div style="font-size: 32px; line-height: 1; flex-shrink: 0;">⚠️</div>
+        <div style="display: flex; flex-direction: column; gap: 8px; flex: 1;">
+          <div style="font-weight: bold; font-size: 12px; color: #002060;" id="pdeCacheModalTitle">
+            Sənəd üzrə lokal keşdə saxlanılmış məlumatlar mövcuddur!
+          </div>
+
+          <div style="font-size: 11px; color: #333; line-height: 1.45;">
+            Bu sənəd üzrə əvvəllər <b>"Записать"</b> düyməsi ilə yaddaşa verilmiş dəyişikliklər var. Köhnə məlumatlarla davam etmək istəyirsinizsə <b>"Hə (Köhnə məlumatlar)"</b> seçin. Əks halda <b>"Xeyr"</b> seçin və sənəd yenilənərək <b>1C bazasından</b> çəkiləcək.
+          </div>
+
+          <div style="background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 3px; padding: 8px 10px; display: flex; flex-direction: column; gap: 4px; font-size: 11px;">
+            <div style="display: flex; justify-content: space-between;">
+              <span style="color: #64748b;">Saxlanma tarixi:</span>
+              <strong id="pdeCacheModalDate" style="color: #0f172a;">-</strong>
+            </div>
+            <div style="display: flex; justify-content: space-between;">
+              <span style="color: #64748b;">Sətir sayı:</span>
+              <strong id="pdeCacheModalItemsCount" style="color: #004080;">0</strong>
+            </div>
+            <div style="display: flex; justify-content: space-between;">
+              <span style="color: #64748b;">Qiymət növləri:</span>
+              <span id="pdeCacheModalPriceTypes" style="color: #0f172a; max-width: 280px; text-overflow: ellipsis; overflow: hidden; white-space: nowrap;">-</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Modal Footer -->
+      <div style="padding: 10px 14px; background: #f0eee3; display: flex; justify-content: flex-end; align-items: center; gap: 8px;">
+        <button type="button" class="btn-1c btn-1c-primary" onclick="PriceDocEditor.applyCacheAndOpen()" style="height: 25px; padding: 0 12px; font-weight: bold; background: linear-gradient(to bottom, #ffea88, #d8a020); border: 1px solid #7c6817; color: #000; cursor: pointer; display: inline-flex; align-items: center; gap: 4px;">
+          <span>✓</span>
+          <span>Hə (Köhnə məlumatlar)</span>
+        </button>
+
+        <button type="button" class="btn-1c" onclick="PriceDocEditor.discardCacheAndFetch1C()" style="height: 25px; padding: 0 12px; border: 1px solid #7f9db9; background: #e0dfd5; cursor: pointer; display: inline-flex; align-items: center; gap: 4px; font-weight: 500;">
+          <span>🔄</span>
+          <span>Xeyr (1C bazasından yenilə)</span>
+        </button>
+
+        <button type="button" class="btn-1c" onclick="PriceDocEditor.cancelCacheRestoreModal()" style="height: 25px; padding: 0 10px; border: 1px solid #7f9db9; background: #e0dfd5; cursor: pointer;">
+          İmtina
         </button>
       </div>
 
