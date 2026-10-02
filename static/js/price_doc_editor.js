@@ -320,16 +320,19 @@ const PriceDocEditor = {
 
   deleteSelectedRow: function() {
     if (this.selectedRowIdx === null || this.selectedRowIdx < 0 || this.selectedRowIdx >= this.filteredItems.length) {
-      alert("Zəhmət olmasa silmək üçün sətir seçin.");
       return;
     }
     const itm = this.filteredItems[this.selectedRowIdx];
-    if (confirm(`'${itm.name}' sətirini silmək istəyirsiniz?`)) {
-      this.items = this.items.filter(it => it.code !== itm.code);
-      this.filterTableRows();
-      this.selectedRowIdx = null;
-      this.updateRowCount();
+    this.items = this.items.filter(it => it !== itm);
+    this.filterTableRows();
+    if (this.selectedRowIdx >= this.filteredItems.length) {
+      this.selectedRowIdx = this.filteredItems.length - 1;
     }
+    if (this.selectedRowIdx < 0) {
+      this.selectedRowIdx = null;
+    }
+    this.renderTable();
+    this.updateRowCount();
   },
 
   clearTable: function() {
@@ -817,12 +820,14 @@ const PriceDocEditor = {
     }
 
     const btn = document.getElementById("pdeBtnSave");
+    const btnTop = document.getElementById("pdeBtnSaveTop");
     const commInp = document.getElementById("pdeDocComment");
     const dateInp = document.getElementById("pdeDocDate");
     const comment = commInp ? commInp.value.trim() : "";
     const docDate = (dateInp && dateInp.value.trim()) ? dateInp.value.trim() : ((this.docData && this.docData.date) ? this.docData.date : "");
 
     if (btn) btn.disabled = true;
+    if (btnTop) btnTop.disabled = true;
 
     const creds = window.SessionManager ? SessionManager.getCredentials() : {};
     const payload = {
@@ -842,6 +847,7 @@ const PriceDocEditor = {
     .then(r => r.json())
     .then(res => {
       if (btn) btn.disabled = false;
+      if (btnTop) btnTop.disabled = false;
       if (!res.success) {
         alert("1C Yazılma Xətası: " + (res.error || "Məlumat yadda saxlanıla bilmədi"));
         return;
@@ -855,6 +861,7 @@ const PriceDocEditor = {
     })
     .catch(err => {
       if (btn) btn.disabled = false;
+      if (btnTop) btnTop.disabled = false;
       console.error("Save error:", err);
       alert("Xəta: " + err.message);
     });
@@ -1487,13 +1494,29 @@ document.addEventListener("click", function(e) {
   }
 });
 
-// Global F4 shortcut handler for 1C nomenclature picker
+// Global shortcut handlers for 1C document editor (F4, Ctrl+S, Delete)
 document.addEventListener("keydown", function(e) {
+  const docWin = document.getElementById("priceDocEditorWindow");
+  if (!docWin || docWin.style.display === "none") return;
+
+  // F4: Open nomenclature picker
   if (e.key === "F4") {
-    const docWin = document.getElementById("priceDocEditorWindow");
-    if (docWin && docWin.style.display !== "none") {
+    e.preventDefault();
+    PriceDocEditor.openNomPickerForRow(PriceDocEditor.selectedRowIdx >= 0 ? PriceDocEditor.selectedRowIdx : 0);
+  }
+
+  // Ctrl+S: Save document to 1C
+  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "s") {
+    e.preventDefault();
+    PriceDocEditor.saveTo1C();
+  }
+
+  // Delete key: Delete selected row without popup if not inside text input
+  if (e.key === "Delete") {
+    const tag = document.activeElement ? document.activeElement.tagName : "";
+    if (tag !== "INPUT" && tag !== "TEXTAREA") {
       e.preventDefault();
-      PriceDocEditor.openNomPickerForRow(PriceDocEditor.selectedRowIdx >= 0 ? PriceDocEditor.selectedRowIdx : 0);
+      PriceDocEditor.deleteSelectedRow();
     }
   }
 });
