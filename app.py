@@ -3598,19 +3598,6 @@ def resolve_nomenclature_endpoint():
         print_server_error("/api/documents/resolve_nomenclature", e, data)
         return jsonify({"success": False, "error": str(e), "found": {}})
 
-@app.route("/api/documents/item_prices", methods=["POST"])
-def get_item_prices_endpoint():
-    data = request.json or {}
-    try:
-        res = one_c.execute("get_item_prices", data)
-        return jsonify({
-            "success": True,
-            "prices": res.get("prices", {})
-        })
-    except Exception as e:
-        print_server_error("/api/documents/item_prices", e, data)
-        return jsonify({"success": False, "error": str(e), "prices": {}})
-
 @app.route("/api/documents/batch_item_prices", methods=["POST"])
 def get_batch_item_prices_endpoint():
     data = request.json or {}

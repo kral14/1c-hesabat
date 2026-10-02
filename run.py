@@ -13,6 +13,13 @@ from app import app
 
 def open_electron():
     time.sleep(2.0)
+    try:
+        out = subprocess.check_output('tasklist /FI "IMAGENAME eq electron.exe"', shell=True).decode(errors="ignore")
+        if "electron.exe" in out:
+            print("Electron artiq isleyir, elave pencere acilmir.", flush=True)
+            return
+    except Exception:
+        pass
     print("Masaüstü Electron Pəncərəsi açılır...", flush=True)
     try:
         subprocess.Popen("npx electron .", cwd=app_dir, shell=True)

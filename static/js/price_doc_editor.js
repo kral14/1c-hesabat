@@ -1314,9 +1314,15 @@ const PriceDocEditor = {
     // Close modal
     this.closePriceTypesModal();
 
-    // If new price types were added and we have items, automatically query 1C for their existing active prices!
-    if (newlyAdded.length > 0 && this.items && this.items.length > 0) {
-      await this.fetchAndFillPricesForTypes(newlyAdded, false);
+    // Automatically find all price types that need prices from 1C
+    // (both newly added types and any selected types that have empty cells in the table)
+    const ptsNeedingPrices = selected.filter(pt => {
+      if (newlyAdded.includes(pt)) return true;
+      return this.items.some(it => !it.prices || it.prices[pt] === undefined || it.prices[pt] === "" || it.prices[pt] === 0 || it.prices[pt] === null);
+    });
+
+    if (ptsNeedingPrices.length > 0 && this.items && this.items.length > 0) {
+      await this.fetchAndFillPricesForTypes(ptsNeedingPrices, false);
     }
   },
 
@@ -1324,16 +1330,19 @@ const PriceDocEditor = {
     if (!targetPriceTypes || !targetPriceTypes.length) return 0;
     if (!this.items || !this.items.length) return 0;
 
-    const codes = this.items.map(it => it.code).filter(Boolean);
-    const names = this.items.map(it => it.name).filter(Boolean);
     const docDate = document.getElementById("pdeDocDate")?.value?.trim() || "";
-
     const loading = document.getElementById("pdeLoadingState");
     if (loading) loading.style.display = "flex";
 
     let filledCount = 0;
+    let batchSucceeded = false;
+
+    // 1. Try batch endpoint first
     try {
       const creds = window.SessionManager ? SessionManager.getCredentials() : {};
+      const codes = this.items.map(it => it.code).filter(Boolean);
+      const names = this.items.map(it => it.name).filter(Boolean);
+
       const resp = await fetch("/api/documents/batch_item_prices", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -1346,37 +1355,88 @@ const PriceDocEditor = {
         })
       });
 
-      const res = await resp.json();
-      if (res.success) {
-        const pricesByCode = res.prices_by_code || {};
-        const pricesByName = res.prices_by_name || {};
+      if (resp.ok) {
+        const res = await resp.json();
+        if (res.success && (res.prices_by_code || res.prices_by_name)) {
+          batchSucceeded = true;
+          const pricesByCode = res.prices_by_code || {};
+          const pricesByName = res.prices_by_name || {};
 
-        this.items.forEach(itm => {
-          if (!itm.prices) itm.prices = {};
+          this.items.forEach(itm => {
+            if (!itm.prices) itm.prices = {};
+            const codePrices = pricesByCode[itm.code] || {};
+            const namePrices = pricesByName[itm.name] || {};
 
-          const codePrices = pricesByCode[itm.code] || {};
-          const namePrices = pricesByName[itm.name] || {};
-
-          targetPriceTypes.forEach(pt => {
-            const hasExisting = itm.prices[pt] !== undefined && itm.prices[pt] !== "" && itm.prices[pt] !== 0 && itm.prices[pt] !== null;
-            if (!hasExisting || overwriteExisting) {
-              const p = (codePrices[pt] !== undefined) ? codePrices[pt] : namePrices[pt];
-              if (p !== undefined && p > 0) {
-                itm.prices[pt] = p;
-                filledCount++;
+            targetPriceTypes.forEach(pt => {
+              const hasExisting = itm.prices[pt] !== undefined && itm.prices[pt] !== "" && itm.prices[pt] !== 0 && itm.prices[pt] !== null;
+              if (!hasExisting || overwriteExisting) {
+                const p = (codePrices[pt] !== undefined) ? codePrices[pt] : namePrices[pt];
+                if (p !== undefined && p > 0) {
+                  itm.prices[pt] = p;
+                  filledCount++;
+                }
               }
-            }
+            });
           });
-        });
-
-        this.filteredItems = [...this.items];
-        this.renderTable();
+        }
       }
     } catch (err) {
-      console.warn("Could not batch-fetch active prices from 1C:", err);
-    } finally {
-      if (loading) loading.style.display = "none";
+      console.warn("Batch prices endpoint not available, falling back to per-item fetch:", err);
     }
+
+    // 2. Fallback: query via /api/documents/item_prices in parallel chunks of 15 items
+    if (!batchSucceeded) {
+      console.log(`[PRICE DOC] Auto-filling active 1C prices for ${this.items.length} items across [${targetPriceTypes.join(', ')}]...`);
+      const chunkSize = 15;
+      for (let i = 0; i < this.items.length; i += chunkSize) {
+        const chunk = this.items.slice(i, i + chunkSize);
+        await Promise.all(chunk.map(async itm => {
+          if (!itm.prices) itm.prices = {};
+
+          const needsFetch = targetPriceTypes.some(pt => {
+            const has = itm.prices[pt] !== undefined && itm.prices[pt] !== "" && itm.prices[pt] !== 0 && itm.prices[pt] !== null;
+            return !has || overwriteExisting;
+          });
+
+          if (!needsFetch) return;
+
+          try {
+            const resp = await fetch("/api/documents/item_prices", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                code: itm.code,
+                name: itm.name,
+                date: docDate,
+                price_types: targetPriceTypes
+              })
+            });
+
+            if (resp.ok) {
+              const res = await resp.json();
+              if (res.success && res.prices) {
+                targetPriceTypes.forEach(pt => {
+                  const has = itm.prices[pt] !== undefined && itm.prices[pt] !== "" && itm.prices[pt] !== 0 && itm.prices[pt] !== null;
+                  if (!has || overwriteExisting) {
+                    const p = res.prices[pt];
+                    if (p !== undefined && p > 0) {
+                      itm.prices[pt] = p;
+                      filledCount++;
+                    }
+                  }
+                });
+              }
+            }
+          } catch(e) {
+            console.warn(`Could not fetch price for item ${itm.code}:`, e);
+          }
+        }));
+      }
+    }
+
+    this.filteredItems = [...this.items];
+    this.renderTable();
+    if (loading) loading.style.display = "none";
 
     return filledCount;
   },
