@@ -2596,6 +2596,8 @@ class OneCService(threading.Thread):
                         prices = item.get("prices", {})
                         for pt_name, pt_ref in pt_cache.items():
                             p_val = float(prices.get(pt_name, 0) or 0)
+                            if p_val <= 0:
+                                continue
                             # Add line
                             row = doc_obj.Товары.Добавить()
                             row.Номенклатура = nom_ref
@@ -2616,6 +2618,57 @@ class OneCService(threading.Thread):
                         "total_items": len(items_data),
                         "total_rows": total_rows_added
                     }))
+
+                # Action: Resolve Nomenclature Batch (for fast Excel paste / lookup)
+                elif action == "resolve_nomenclature_batch":
+                    codes = payload.get("codes", [])
+                    if not codes:
+                        resp_q.put((True, {"found": {}}))
+                        continue
+
+                    unique_codes = list(set([str(c).strip() for c in codes if str(c).strip()]))[:1000]
+                    if not unique_codes:
+                        resp_q.put((True, {"found": {}}))
+                        continue
+
+                    arr = conn.NewObject("Массив")
+                    for c in unique_codes:
+                        arr.Add(c)
+
+                    q_nom = conn.NewObject("Запрос")
+                    q_nom.SetParameter("Codes", arr)
+                    q_nom.Text = """
+                    ВЫБРАТЬ
+                        Т.Код КАК Code,
+                        Т.Наименование КАК Name,
+                        Т.Артикул КАК Artikul,
+                        ЕСТЬNULL(Т.ЕдиницаХраненияОстатков.Наименование, Т.БазоваяЕдиницаИзмерения.Наименование) КАК Unit
+                    ИЗ
+                        Справочник.Номенклатура КАК Т
+                    ГДЕ
+                        НЕ Т.ЭтоГруппа
+                        И (Т.Код В (&Codes) ИЛИ Т.Артикул В (&Codes))
+                    """
+                    sel_nom = q_nom.Execute().Choose()
+                    found_map = {}
+                    while sel_nom.Next():
+                        c_code = str(getattr(sel_nom, "Code", "") or "").strip()
+                        c_name = str(getattr(sel_nom, "Name", "") or "").strip()
+                        c_artikul = str(getattr(sel_nom, "Artikul", "") or "").strip()
+                        c_unit = str(getattr(sel_nom, "Unit", "") or "шт").strip()
+
+                        info = {
+                            "code": c_code,
+                            "name": c_name,
+                            "artikul": c_artikul,
+                            "unit": c_unit
+                        }
+                        if c_code:
+                            found_map[c_code] = info
+                        if c_artikul:
+                            found_map[c_artikul] = info
+
+                    resp_q.put((True, {"found": found_map}))
 
             except Exception as e:
                 err_str = str(e)
@@ -3221,6 +3274,66 @@ def save_price_doc_endpoint():
         })
     except Exception as e:
         print_server_error("/api/documents/save_price_doc", e, data)
+        return jsonify({"success": False, "error": str(e)})
+
+@app.route("/api/documents/resolve_nomenclature", methods=["POST"])
+def resolve_nomenclature_endpoint():
+    data = request.json or {}
+    try:
+        res = one_c.execute("resolve_nomenclature_batch", data)
+        return jsonify({
+            "success": True,
+            "found": res.get("found", {})
+        })
+    except Exception as e:
+        print_server_error("/api/documents/resolve_nomenclature", e, data)
+        return jsonify({"success": False, "error": str(e), "found": {}})
+
+@app.route("/api/documents/parse_excel_file", methods=["POST"])
+def parse_excel_file_endpoint():
+    try:
+        import openpyxl
+        import io
+
+        if "file" not in request.files:
+            return jsonify({"success": False, "error": "Fayl seçilməyib"})
+
+        file = request.files["file"]
+        if not file.filename:
+            return jsonify({"success": False, "error": "Boş fayl adı"})
+
+        wb = openpyxl.load_workbook(io.BytesIO(file.read()), data_only=True)
+        sheet = wb.active
+
+        rows = []
+        # Find which column has code and which has price
+        # Default: col 0 is code, col 1 is price
+        for r_idx, row in enumerate(sheet.iter_rows(values_only=True)):
+            if not row or len(row) < 2:
+                continue
+            v1 = str(row[0] or "").strip()
+            v2 = row[1]
+            if not v1:
+                continue
+            # Try parsing price
+            try:
+                if isinstance(v2, (int, float)):
+                    p_val = float(v2)
+                else:
+                    s_p = str(v2 or "").replace(",", ".").replace(" ", "").strip()
+                    p_val = float(s_p)
+                rows.append({"code": v1, "price": p_val})
+            except Exception:
+                # Might be header row, skip
+                continue
+
+        return jsonify({
+            "success": True,
+            "rows": rows,
+            "total": len(rows)
+        })
+    except Exception as e:
+        print_server_error("/api/documents/parse_excel_file", e, {})
         return jsonify({"success": False, "error": str(e)})
 
 if __name__ == "__main__":

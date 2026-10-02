@@ -71,13 +71,23 @@
 
       <div class="mdi-tool-sep" style="height: 16px; width: 1px; background: #b0af9f; margin: 0 3px;"></div>
 
+      <!-- 📊 Загрузить из Excel -->
+      <button type="button" class="btn-1c" onclick="PriceDocEditor.openExcelImportModal()" title="Загрузить цены номенклатуры из Excel" style="height: 23px; padding: 0 8px; display: inline-flex; align-items: center; gap: 4px; font-weight: bold; color: #1e7145; cursor: pointer; border: 1px solid #7f9db9; background: #eaf5ea;">
+        <span style="font-size: 13px;">📊</span>
+        <span>Загрузить из Excel</span>
+      </button>
+
+      <div class="mdi-tool-sep" style="height: 16px; width: 1px; background: #b0af9f; margin: 0 3px;"></div>
+
       <!-- Заполнить Dropdown (Image 3) -->
       <div style="position: relative; display: inline-block;">
         <button type="button" class="btn-1c" onclick="PriceDocEditor.toggleMenu('zapMenu')" style="height: 23px; padding: 0 7px; display: inline-flex; align-items: center; gap: 4px; cursor: pointer; font-size: 11px;">
           <span>Заполнить</span>
           <span style="font-size: 8px;">▼</span>
         </button>
-        <div id="pdeZapMenu" style="display: none; position: absolute; top: 24px; left: 0; background: #fff; border: 1px solid #7f9db9; box-shadow: 2px 2px 10px rgba(0,0,0,0.25); z-index: 1000; min-width: 220px; padding: 4px 0;">
+        <div id="pdeZapMenu" style="display: none; position: absolute; top: 24px; left: 0; background: #fff; border: 1px solid #7f9db9; box-shadow: 2px 2px 10px rgba(0,0,0,0.25); z-index: 1000; min-width: 230px; padding: 4px 0;">
+          <a href="javascript:void(0)" onclick="PriceDocEditor.openExcelImportModal()" style="display: block; padding: 5px 10px; color: #1e7145; font-weight: bold; text-decoration: none; background: #f0fdf4;">📊 Загрузить цены из Excel...</a>
+          <div style="height: 1px; background: #e0dfd5; margin: 3px 0;"></div>
           <a href="javascript:void(0)" onclick="PriceDocEditor.fillByPortfolio()" style="display: block; padding: 4px 10px; color: #000; text-decoration: none;">📁 По портфелю...</a>
           <a href="javascript:void(0)" onclick="PriceDocEditor.fillByNomGroup()" style="display: block; padding: 4px 10px; color: #000; text-decoration: none;">📑 По номенклатурной группе...</a>
           <div style="height: 1px; background: #e0dfd5; margin: 3px 0;"></div>
@@ -101,7 +111,7 @@
         </button>
         <div id="pdeChgMenu" style="display: none; position: absolute; top: 24px; left: 0; background: #fff; border: 1px solid #7f9db9; box-shadow: 2px 2px 10px rgba(0,0,0,0.25); z-index: 1000; min-width: 220px; padding: 4px 0;">
           <a href="javascript:void(0)" onclick="PriceDocEditor.promptPercentChange()" style="display: block; padding: 4px 10px; color: #000; text-decoration: none;">📈 Изменить на процент (+% / -%)...</a>
-          <a href="javascript:void(0)" onclick="PriceDocEditor.openExcelPasteModal()" style="display: block; padding: 4px 10px; color: #000; text-decoration: none;">📋 Вставить цены из Excel...</a>
+          <a href="javascript:void(0)" onclick="PriceDocEditor.openExcelImportModal()" style="display: block; padding: 4px 10px; color: #1e7145; font-weight: bold; text-decoration: none;">📊 Загрузить цены из Excel...</a>
           <a href="javascript:void(0)" onclick="PriceDocEditor.roundPrices()" style="display: block; padding: 4px 10px; color: #000; text-decoration: none;">🎯 Округлить цены (до 0.01 / 0.10)</a>
         </div>
       </div>
@@ -166,6 +176,124 @@
 
         <button type="button" class="btn-1c" onclick="PriceDocEditor.close()" style="height: 24px; min-width: 80px; cursor: pointer;">
           Закрыть
+        </button>
+      </div>
+
+    </div>
+
+  </div>
+
+  <!-- Authentic 1C Dialog: Загрузка цен из Excel Modal -->
+  <div id="pdeExcelImportModal" style="display: none; position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.45); z-index: 1000; align-items: center; justify-content: center;">
+    
+    <div style="width: 720px; max-width: 95vw; background: #f0eee3; border: 2px solid #0055ea; border-radius: 4px; box-shadow: 0 10px 35px rgba(0,0,0,0.5); display: flex; flex-direction: column; overflow: hidden; font-family: Tahoma, 'MS Sans Serif', Arial, sans-serif;">
+      
+      <!-- Modal Titlebar -->
+      <div style="height: 26px; background: linear-gradient(to bottom, #0055ea, #0040b0); color: #fff; padding: 0 8px; display: flex; align-items: center; justify-content: space-between; user-select: none;">
+        <div style="font-weight: bold; font-size: 12px; display: flex; align-items: center; gap: 6px;">
+          <span>📊</span>
+          <span>Загрузка цен номенклатуры из Excel</span>
+        </div>
+        <button type="button" onclick="PriceDocEditor.closeExcelImportModal()" style="border: none; background: transparent; color: #fff; font-weight: bold; font-size: 14px; cursor: pointer; padding: 0 4px; line-height: 1;">✕</button>
+      </div>
+
+      <!-- Modal Body -->
+      <div style="padding: 10px 14px; display: flex; flex-direction: column; gap: 8px;">
+
+        <!-- Section 1: Price Type Selector -->
+        <div style="background: #ffffff; border: 1px solid #7f9db9; padding: 8px 10px; border-radius: 2px;">
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <span style="font-weight: bold; color: #222; font-size: 11px; white-space: nowrap;">Тип цен для загрузки:</span>
+            <select id="pdeExcelPtSelect" onchange="PriceDocEditor.onExcelInputChanged()" style="flex: 1; height: 24px; border: 1px solid #7f9db9; font-weight: bold; font-size: 12px; color: #002060; background: #fffde7; padding: 0 6px;">
+              <!-- Populated dynamically -->
+            </select>
+          </div>
+          <div style="margin-top: 5px; font-size: 11px; color: #2e7d32; display: flex; align-items: center; gap: 4px;">
+            <span>ℹ️</span>
+            <span><b>Smart Merge qaydası:</b> Yalnız bu qiymət növü doldurulacaq. Cədvəldəki digər mövcud qiymətlər tam toxunulmaz qalır!</span>
+          </div>
+        </div>
+
+        <!-- Section 2: Input Methods (Clipboard vs File) -->
+        <div style="display: flex; flex-direction: column; gap: 4px;">
+          <div style="display: flex; align-items: center; justify-content: space-between;">
+            <div style="display: flex; gap: 4px;">
+              <button type="button" id="pdeBtnTabPaste" class="btn-1c" onclick="PriceDocEditor.switchExcelTab('paste')" style="height: 22px; padding: 0 8px; font-size: 11px; font-weight: bold; background: #fff; border: 1px solid #7f9db9; cursor: pointer;">
+                📋 Buferdən yapışdır (Ctrl+V)
+              </button>
+              <button type="button" id="pdeBtnTabFile" class="btn-1c" onclick="PriceDocEditor.switchExcelTab('file')" style="height: 22px; padding: 0 8px; font-size: 11px; cursor: pointer;">
+                📁 Excel faylı (.xlsx, .xls)
+              </button>
+            </div>
+            <a href="javascript:void(0)" onclick="PriceDocEditor.clearExcelInput()" style="font-size: 11px; color: #c62828; text-decoration: none;">Təmizlə ✕</a>
+          </div>
+
+          <!-- Paste View -->
+          <div id="pdeExcelViewPaste" style="display: block;">
+            <textarea id="pdeExcelPasteArea" rows="5" placeholder="Excel-dən [Kod / Artikul] və [Qiymət] sütunlarını kopyalayıb bura yapışdırın (Ctrl+V)...&#10;Məsələn:&#10;9323-RB&#9;5.42&#10;7433-RB&#9;6.10&#10;8078306&#9;9.59" oninput="PriceDocEditor.onExcelInputChanged()" style="width: 100%; box-sizing: border-box; font-family: Consolas, 'Courier New', monospace; font-size: 11px; padding: 6px; border: 1px solid #7f9db9; outline: none; resize: vertical; line-height: 1.3;"></textarea>
+          </div>
+
+          <!-- File Upload View -->
+          <div id="pdeExcelViewFile" style="display: none; padding: 16px; text-align: center; background: #fff; border: 1px dashed #7f9db9; border-radius: 2px;">
+            <input type="file" id="pdeExcelFileInput" accept=".xlsx,.xls,.csv" onchange="PriceDocEditor.onExcelFileSelected(event)" style="display: none;">
+            <button type="button" class="btn-1c" onclick="document.getElementById('pdeExcelFileInput').click()" style="height: 26px; padding: 0 16px; font-weight: bold; cursor: pointer; background: #eaf5ea; color: #1e7145; border: 1px solid #7f9db9;">
+              📁 Excel faylı seçin (.xlsx)...
+            </button>
+            <div id="pdeExcelFileStatus" style="margin-top: 6px; font-size: 11px; color: #555;">Fayl seçilməyib</div>
+          </div>
+        </div>
+
+        <!-- Section 3: Analysis & Preview -->
+        <div style="display: flex; flex-direction: column; gap: 4px;">
+          
+          <!-- Summary Bar -->
+          <div style="display: flex; align-items: center; justify-content: space-between; padding: 4px 8px; background: #e5e2cf; border: 1px solid #b0af9f; font-size: 11px;">
+            <div style="display: flex; gap: 12px;">
+              <span>Oxunan: <b id="pdeExcelStatTotal">0</b></span>
+              <span style="color: #0d47a1;">Mövcud mallar (yenilənəcək): <b id="pdeExcelStatExisting">0</b></span>
+              <span style="color: #2e7d32;">Yeni mallar (əlavə olunacaq): <b id="pdeExcelStatNew">0</b></span>
+            </div>
+            <div id="pdeExcelResolvingSpinner" style="display: none; align-items: center; gap: 4px; font-weight: bold; color: #d8a020;">
+              <span>⏳ 1C-dən axtarılır...</span>
+            </div>
+          </div>
+
+          <!-- Preview Table -->
+          <div style="height: 160px; overflow-y: auto; background: #ffffff; border: 1px solid #7f9db9;">
+            <table style="width: 100%; border-collapse: collapse; font-size: 11px;">
+              <thead style="background: #e3dec9; border-bottom: 2px solid #5a5a5a; position: sticky; top: 0; z-index: 5;">
+                <tr style="height: 20px; text-align: left;">
+                  <th style="padding: 2px 4px; border-right: 1px solid #d4d0c8; width: 30px; text-align: center;">№</th>
+                  <th style="padding: 2px 4px; border-right: 1px solid #d4d0c8; width: 100px;">Код / Артикул</th>
+                  <th style="padding: 2px 4px; border-right: 1px solid #d4d0c8;">Наименование</th>
+                  <th style="padding: 2px 4px; border-right: 1px solid #d4d0c8; width: 45px; text-align: center;">Ед.</th>
+                  <th style="padding: 2px 4px; border-right: 1px solid #d4d0c8; width: 110px; text-align: center;">Действие</th>
+                  <th style="padding: 2px 4px; width: 85px; text-align: right;">Новая цена</th>
+                </tr>
+              </thead>
+              <tbody id="pdeExcelPreviewBody">
+                <tr>
+                  <td colspan="6" style="padding: 20px; text-align: center; color: #888; font-style: italic;">
+                    Məlumat yapışdırılmayıb. Excel-dən kopyaladığınız sütunları yuxarıdakı sahəyə yapışdırın (Ctrl+V).
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+        </div>
+
+      </div>
+
+      <!-- Modal Footer -->
+      <div style="padding: 8px 14px; background: #e5e2cf; border-top: 1px solid #b0af9f; display: flex; justify-content: flex-end; align-items: center; gap: 8px;">
+        <button type="button" id="pdeBtnApplyExcel" class="btn-1c btn-1c-primary" onclick="PriceDocEditor.applyExcelImport()" disabled style="height: 24px; min-width: 170px; font-weight: bold; background: linear-gradient(to bottom, #ffea88, #d8a020); border: 1px solid #7c6817; color: #000; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 4px;">
+          <span>✅</span>
+          <span>Применить в документ</span>
+        </button>
+
+        <button type="button" class="btn-1c" onclick="PriceDocEditor.closeExcelImportModal()" style="height: 24px; min-width: 80px; cursor: pointer;">
+          Отмена
         </button>
       </div>
 

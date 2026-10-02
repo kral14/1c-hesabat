@@ -359,26 +359,328 @@ const PriceDocEditor = {
   },
 
   openExcelPasteModal: function() {
+    this.openExcelImportModal();
+  },
+
+  openExcelImportModal: function() {
     this.closeAllMenus();
-    const pt = prompt(`Hansı qiymət növünə Excel sütununu yapışdırmaq istəyirsiniz? (${this.priceTypes.join(", ")}):`, this.priceTypes[0]);
-    if (!pt || !this.priceTypes.includes(pt.trim())) return;
-
-    const raw = prompt("Excel-dən kopyaladığınız qiymətlər sütununu bura yapışdırın (Ctrl+V):");
-    if (!raw) return;
-
-    const lines = raw.split(/[\r\n]+/).map(s => parseFloat(s.replace(",", ".").trim())).filter(n => !isNaN(n));
-    if (!lines.length) {
-      alert("Yapışdırılan mətndə rəqəm tapılmadı.");
+    if (!this.priceTypes || !this.priceTypes.length) {
+      alert("Bu sənəddə qiymət növləri tapılmadı.");
       return;
     }
 
-    for (let i = 0; i < Math.min(lines.length, this.items.length); i++) {
-      if (!this.items[i].prices) this.items[i].prices = {};
-      this.items[i].prices[pt.trim()] = lines[i];
+    const sel = document.getElementById("pdeExcelPtSelect");
+    if (sel) {
+      sel.innerHTML = "";
+      this.priceTypes.forEach(pt => {
+        const opt = document.createElement("option");
+        opt.value = pt;
+        opt.textContent = `${pt} (Tip qiymət)`;
+        sel.appendChild(opt);
+      });
     }
 
+    const modal = document.getElementById("pdeExcelImportModal");
+    if (modal) {
+      modal.style.display = "flex";
+      this.switchExcelTab("paste");
+      const ta = document.getElementById("pdeExcelPasteArea");
+      if (ta) {
+        setTimeout(() => ta.focus(), 100);
+      }
+    }
+  },
+
+  closeExcelImportModal: function() {
+    const modal = document.getElementById("pdeExcelImportModal");
+    if (modal) modal.style.display = "none";
+  },
+
+  switchExcelTab: function(tab) {
+    const btnPaste = document.getElementById("pdeBtnTabPaste");
+    const btnFile = document.getElementById("pdeBtnTabFile");
+    const viewPaste = document.getElementById("pdeExcelViewPaste");
+    const viewFile = document.getElementById("pdeExcelViewFile");
+
+    if (tab === "paste") {
+      if (btnPaste) { btnPaste.style.fontWeight = "bold"; btnPaste.style.background = "#fff"; }
+      if (btnFile) { btnFile.style.fontWeight = "normal"; btnFile.style.background = "#ece9d8"; }
+      if (viewPaste) viewPaste.style.display = "block";
+      if (viewFile) viewFile.style.display = "none";
+    } else {
+      if (btnFile) { btnFile.style.fontWeight = "bold"; btnFile.style.background = "#fff"; }
+      if (btnPaste) { btnPaste.style.fontWeight = "normal"; btnPaste.style.background = "#ece9d8"; }
+      if (viewFile) viewFile.style.display = "block";
+      if (viewPaste) viewPaste.style.display = "none";
+    }
+  },
+
+  clearExcelInput: function() {
+    const ta = document.getElementById("pdeExcelPasteArea");
+    if (ta) ta.value = "";
+    const finp = document.getElementById("pdeExcelFileInput");
+    if (finp) finp.value = "";
+    const fstat = document.getElementById("pdeExcelFileStatus");
+    if (fstat) fstat.textContent = "Fayl seçilməyib";
+    this.excelParsedRows = [];
+    this.renderExcelPreview();
+  },
+
+  onExcelInputChanged: function() {
+    const ta = document.getElementById("pdeExcelPasteArea");
+    const text = ta ? ta.value : "";
+    this.parseExcelText(text);
+  },
+
+  onExcelFileSelected: function(event) {
+    const file = event.target.files && event.target.files[0];
+    if (!file) return;
+
+    const fstat = document.getElementById("pdeExcelFileStatus");
+    if (fstat) fstat.textContent = `Yüklənir: ${file.name} (${Math.round(file.size / 1024)} KB)...`;
+
+    const formData = new FormData();
+    formData.append("file", file);
+
+    const creds = window.SessionManager ? SessionManager.getCredentials() : {};
+    formData.append("server", creds.server || "");
+    formData.append("base", creds.base || "");
+
+    fetch("/api/documents/parse_excel_file", {
+      method: "POST",
+      body: formData
+    })
+    .then(r => r.json())
+    .then(res => {
+      if (!res.success) {
+        if (fstat) fstat.textContent = `Xəta: ${res.error}`;
+        alert("Excel oxuma xətası: " + res.error);
+        return;
+      }
+
+      if (fstat) fstat.textContent = `✅ Oxundu: ${file.name} (${res.total} sətir)`;
+      
+      const lines = res.rows.map(r => `${r.code}\t${r.price}`).join("\n");
+      const ta = document.getElementById("pdeExcelPasteArea");
+      if (ta) ta.value = lines;
+      this.parseExcelText(lines);
+      this.switchExcelTab("paste");
+    })
+    .catch(err => {
+      if (fstat) fstat.textContent = `Xəta: ${err.message}`;
+      alert("Fayl yüklənmədi: " + err.message);
+    });
+  },
+
+  excelParsedRows: [],
+  excelResolvedMap: {},
+
+  parseExcelText: function(rawText) {
+    if (!rawText || !rawText.trim()) {
+      this.excelParsedRows = [];
+      this.renderExcelPreview();
+      return;
+    }
+
+    const lines = rawText.split(/[\r\n]+/);
+    const parsed = [];
+    const missingCodes = new Set();
+
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i].trim();
+      if (!line) continue;
+
+      let parts = line.split(/\t/);
+      if (parts.length < 2) {
+        parts = line.split(/;/);
+      }
+      if (parts.length < 2) {
+        const tokens = line.split(/\s+/);
+        if (tokens.length >= 2) {
+          const lastTok = tokens[tokens.length - 1].replace(",", ".");
+          if (!isNaN(parseFloat(lastTok))) {
+            const codeTok = tokens.slice(0, tokens.length - 1).join(" ");
+            parts = [codeTok, lastTok];
+          }
+        }
+      }
+
+      if (parts.length >= 2) {
+        const code = parts[0].trim();
+        const priceStr = parts[1].replace(",", ".").replace(/\s+/g, "").trim();
+        const price = parseFloat(priceStr);
+
+        if (code && !isNaN(price) && price >= 0) {
+          const existingItem = this.findItemByCodeOrArtikul(code);
+          const rowInfo = {
+            rawCode: code,
+            price: price,
+            isExisting: !!existingItem,
+            item: existingItem || (this.excelResolvedMap[code] || null)
+          };
+
+          if (!existingItem && !this.excelResolvedMap[code]) {
+            missingCodes.add(code);
+          }
+          parsed.push(rowInfo);
+        }
+      }
+    }
+
+    this.excelParsedRows = parsed;
+    this.renderExcelPreview();
+
+    if (missingCodes.size > 0) {
+      this.resolveMissingNomenclature(Array.from(missingCodes));
+    }
+  },
+
+  findItemByCodeOrArtikul: function(identifier) {
+    if (!identifier) return null;
+    const target = String(identifier).trim().toLowerCase();
+    return this.items.find(it => {
+      const c = String(it.code || "").trim().toLowerCase();
+      const a = String(it.artikul || "").trim().toLowerCase();
+      return c === target || a === target;
+    });
+  },
+
+  resolveMissingNomenclature: function(codesList) {
+    const spinner = document.getElementById("pdeExcelResolvingSpinner");
+    if (spinner) spinner.style.display = "flex";
+
+    const creds = window.SessionManager ? SessionManager.getCredentials() : {};
+    fetch("/api/documents/resolve_nomenclature", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ...creds, codes: codesList })
+    })
+    .then(r => r.json())
+    .then(res => {
+      if (spinner) spinner.style.display = "none";
+      if (res.success && res.found) {
+        Object.assign(this.excelResolvedMap, res.found);
+
+        this.excelParsedRows.forEach(r => {
+          if (!r.isExisting && !r.item && this.excelResolvedMap[r.rawCode]) {
+            r.item = this.excelResolvedMap[r.rawCode];
+          }
+        });
+
+        this.renderExcelPreview();
+      }
+    })
+    .catch(err => {
+      if (spinner) spinner.style.display = "none";
+      console.warn("Could not resolve nomenclature batch:", err);
+    });
+  },
+
+  renderExcelPreview: function() {
+    const tbody = document.getElementById("pdeExcelPreviewBody");
+    const statTotal = document.getElementById("pdeExcelStatTotal");
+    const statExisting = document.getElementById("pdeExcelStatExisting");
+    const statNew = document.getElementById("pdeExcelStatNew");
+    const btnApply = document.getElementById("pdeBtnApplyExcel");
+
+    if (!tbody) return;
+
+    if (!this.excelParsedRows || !this.excelParsedRows.length) {
+      tbody.innerHTML = `
+        <tr>
+          <td colspan="6" style="padding: 20px; text-align: center; color: #888; font-style: italic;">
+            Məlumat yapışdırılmayıb. Excel-dən kopyaladığınız sütunları yuxarıdakı sahəyə yapışdırın (Ctrl+V).
+          </td>
+        </tr>
+      `;
+      if (statTotal) statTotal.textContent = "0";
+      if (statExisting) statExisting.textContent = "0";
+      if (statNew) statNew.textContent = "0";
+      if (btnApply) btnApply.disabled = true;
+      return;
+    }
+
+    let existingCount = 0;
+    let newCount = 0;
+    let html = "";
+
+    this.excelParsedRows.forEach((row, idx) => {
+      const isExisting = row.isExisting;
+      if (isExisting) existingCount++;
+      else newCount++;
+
+      const itemInfo = row.item || (this.excelResolvedMap[row.rawCode] || null);
+      const name = itemInfo ? itemInfo.name : "(1C-də axtarılır...)";
+      const unit = itemInfo ? itemInfo.unit : "əd";
+      const displayCode = itemInfo ? (itemInfo.code || row.rawCode) : row.rawCode;
+
+      const statusBadge = isExisting 
+        ? `<span style="background: #e3f2fd; color: #0d47a1; padding: 1px 6px; border-radius: 2px; border: 1px solid #90caf9; font-weight: bold; font-size: 10px;">🔄 Yenilənəcək</span>`
+        : `<span style="background: #e8f5e9; color: #2e7d32; padding: 1px 6px; border-radius: 2px; border: 1px solid #a5d6a7; font-weight: bold; font-size: 10px;">➕ Yeni əlavə</span>`;
+
+      html += `
+        <tr style="height: 20px; border-bottom: 1px solid #e0dfd5; background: ${idx % 2 === 1 ? '#fcfbf7' : '#fff'};">
+          <td style="padding: 2px 4px; text-align: center; border-right: 1px solid #e0dfd5; color: #888;">${idx + 1}</td>
+          <td style="padding: 2px 4px; font-weight: bold; border-right: 1px solid #e0dfd5;">${this.escapeHtml(displayCode)}</td>
+          <td style="padding: 2px 4px; border-right: 1px solid #e0dfd5; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 250px;" title="${this.escapeHtml(name)}">${this.escapeHtml(name)}</td>
+          <td style="padding: 2px 4px; text-align: center; border-right: 1px solid #e0dfd5;">${this.escapeHtml(unit)}</td>
+          <td style="padding: 2px 4px; text-align: center; border-right: 1px solid #e0dfd5;">${statusBadge}</td>
+          <td style="padding: 2px 4px; text-align: right; font-weight: bold; color: #000;">${row.price.toFixed(3)}</td>
+        </tr>
+      `;
+    });
+
+    tbody.innerHTML = html;
+
+    if (statTotal) statTotal.textContent = String(this.excelParsedRows.length);
+    if (statExisting) statExisting.textContent = String(existingCount);
+    if (statNew) statNew.textContent = String(newCount);
+    if (btnApply) btnApply.disabled = false;
+  },
+
+  applyExcelImport: function() {
+    if (!this.excelParsedRows || !this.excelParsedRows.length) return;
+
+    const sel = document.getElementById("pdeExcelPtSelect");
+    const targetPt = sel ? sel.value : "";
+    if (!targetPt) {
+      alert("Zəhmət olmasa qiymət növünü seçin.");
+      return;
+    }
+
+    let existingUpdated = 0;
+    let newAdded = 0;
+
+    this.excelParsedRows.forEach(row => {
+      let itm = this.findItemByCodeOrArtikul(row.rawCode);
+
+      if (itm) {
+        if (!itm.prices) itm.prices = {};
+        itm.prices[targetPt] = row.price;
+        existingUpdated++;
+      } else {
+        const resolved = row.item || this.excelResolvedMap[row.rawCode] || {};
+        const newItem = {
+          code: resolved.code || row.rawCode,
+          name: resolved.name || `Товар (${row.rawCode})`,
+          artikul: resolved.artikul || "",
+          unit: resolved.unit || "əd",
+          prices: {
+            [targetPt]: row.price
+          }
+        };
+        this.items.push(newItem);
+        newAdded++;
+      }
+    });
+
+    this.closeExcelImportModal();
+
+    this.filteredItems = [...this.items];
     this.renderTable();
-    alert(`${Math.min(lines.length, this.items.length)} sayda sətir üçün '${pt.trim()}' qiymətləri uğurla yeniləndi!`);
+    this.updateRowCount();
+
+    alert(`✅ '${targetPt}' qiymət növü üzrə Excel yüklənməsi tamamlandı!\n\n• Yenilənən mövcud mallar: ${existingUpdated}\n• Cədvələ yeni əlavə edilən mallar: ${newAdded}\n• Cəmi sənəddə: ${this.items.length} mal`);
   },
 
   roundPrices: function() {
