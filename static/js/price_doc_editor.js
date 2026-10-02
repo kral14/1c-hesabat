@@ -328,7 +328,7 @@ const PriceDocEditor = {
             </td>
           `;
         } else if (col.id === "unit") {
-          rowCellsHtml += `<td style="text-align: center; border: 1px solid #d4d0c8; padding: 2px; color: #555; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; box-sizing: border-box;">${this.escapeHtml(itm.unit || 'шт')}</td>`;
+          rowCellsHtml += `<td style="text-align: center; border: 1px solid #d4d0c8; padding: 2px; color: #555; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; box-sizing: border-box;">${this.escapeHtml(itm.unit || 'əd')}</td>`;
         }
       });
 
@@ -494,12 +494,21 @@ const PriceDocEditor = {
       return idx > max ? idx : max;
     }, -1);
 
+    // Determine default unit from existing items (e.g. "əd") or fallback to "əd"
+    let defaultUnit = "əd";
+    for (let it of this.items) {
+      if (it.unit && it.unit.trim()) {
+        defaultUnit = it.unit.trim();
+        break;
+      }
+    }
+
     const newItm = {
       _origIdx: maxOrigIdx + 1,
       code: "",
       name: "",
       artikul: "",
-      unit: "шт",
+      unit: defaultUnit,
       barcode: "",
       prices: {}
     };
@@ -585,7 +594,7 @@ const PriceDocEditor = {
             code: it.code,
             name: it.name,
             artikul: it.artikul,
-            unit: it.unit || "шт",
+            unit: it.unit || "əd",
             prices: it.prices || {}
           });
         }
@@ -620,7 +629,7 @@ const PriceDocEditor = {
             code: it.code,
             name: it.name,
             artikul: it.artikul,
-            unit: it.unit || "шт",
+            unit: it.unit || "əd",
             prices: it.prices || {}
           });
         }
@@ -2197,7 +2206,7 @@ const PriceDocEditor = {
         name: "",
         code: "",
         artikul: "",
-        unit: "шт",
+        unit: "əd",
         barcode: "",
         prices: {}
       };
@@ -2210,7 +2219,7 @@ const PriceDocEditor = {
     row.name = itemInfo.name || "";
     row.code = itemInfo.code || "";
     row.artikul = itemInfo.artikul || "";
-    row.unit = itemInfo.unit || "шт";
+    row.unit = itemInfo.unit || "əd";
     row.barcode = itemInfo.barcode || "";
 
     // Clear previous product's prices so old prices never remain
@@ -2366,7 +2375,7 @@ const PriceDocEditor = {
           <td style="padding: 2px 4px; border: 1px solid #d4d0c8;">${this.escapeHtml(itm.artikul)}</td>
           <td style="padding: 2px 4px; border: 1px solid #d4d0c8; text-align: center; font-family: Consolas, monospace;">${this.escapeHtml(itm.barcode || '')}</td>
           <td style="padding: 2px 4px; border: 1px solid #d4d0c8; font-weight: 500;">${this.escapeHtml(itm.name)}</td>
-          <td style="padding: 2px 4px; border: 1px solid #d4d0c8; text-align: center;">${this.escapeHtml(itm.unit || 'шт')}</td>
+          <td style="padding: 2px 4px; border: 1px solid #d4d0c8; text-align: center;">${this.escapeHtml(itm.unit || 'əd')}</td>
         </tr>
       `;
     });
