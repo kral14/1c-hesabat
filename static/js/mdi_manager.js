@@ -48,6 +48,25 @@ const MdiManager = {
   topZIndex: 100,
   windowCounter: 1,
 
+  getWindowState(id) {
+    try {
+      const raw = localStorage.getItem("1c_mdi_window_states");
+      const states = raw ? JSON.parse(raw) : {};
+      return states[id] || {};
+    } catch (e) {
+      return {};
+    }
+  },
+
+  saveWindowState(id, state) {
+    try {
+      const raw = localStorage.getItem("1c_mdi_window_states");
+      const states = raw ? JSON.parse(raw) : {};
+      states[id] = Object.assign(states[id] || {}, state);
+      localStorage.setItem("1c_mdi_window_states", JSON.stringify(states));
+    } catch (e) {}
+  },
+
   auditStack(trigger) {
     if (!window.ENABLE_RENDER_LOGS) return;
     try {
@@ -266,22 +285,35 @@ const MdiManager = {
     const el = options.element || document.getElementById(id);
     if (!el) return;
 
+    const savedState = this.getWindowState(id);
+    const wasMax = (savedState && savedState.isMaximized === true);
+    const initialSavedRect = (savedState && savedState.savedRect) ? savedState.savedRect : {
+      top: el.style.top || "20px",
+      left: el.style.left || "20px",
+      width: el.style.width || "calc(100% - 40px)",
+      height: el.style.height || "calc(100% - 40px)"
+    };
+
     const winObj = {
       id: id,
       title: options.title || "Окно",
       icon: options.icon || "📄",
       element: el,
-      isMaximized: false,
+      isMaximized: wasMax,
       isMinimized: !!options.startHidden,
       isDefault: !!options.isDefault,
       isDialog: !!options.isDialog,
-      savedRect: {
-        top: el.style.top || "20px",
-        left: el.style.left || "20px",
-        width: el.style.width || "calc(100% - 40px)",
-        height: el.style.height || "calc(100% - 40px)"
-      }
+      savedRect: initialSavedRect
     };
+
+    if (wasMax) {
+      el.classList.add("maximized");
+      const maxBtn = el.querySelector(".mdi-win-btn-max");
+      if (maxBtn) {
+        maxBtn.textContent = "🗗";
+        maxBtn.title = "Восстановить (Bərpa et)";
+      }
+    }
 
     this.windows[id] = winObj;
 
@@ -298,7 +330,7 @@ const MdiManager = {
     }
 
     // Initial positioning if not set
-    if (!el.style.top || el.style.top === "auto") {
+    if (!wasMax && (!el.style.top || el.style.top === "auto")) {
       const offset = (Object.keys(this.windows).length - 1) * 28;
       el.style.top = `${20 + offset}px`;
       el.style.left = `${20 + offset}px`;
@@ -359,6 +391,9 @@ const MdiManager = {
         isDragging = false;
         document.onmousemove = null;
         document.onmouseup = null;
+        if (winObj.savedRect) {
+          this.saveWindowState(winObj.id, { savedRect: winObj.savedRect });
+        }
       };
     };
 
@@ -486,6 +521,18 @@ const MdiManager = {
 
       console.log(`[MDI ACTIVATE] Window #${id} ("${winObj.title}") -> assigned zIndex = ${this.topZIndex}`);
 
+      // Restore maximized state from localStorage if remembered
+      const savedState = this.getWindowState(id);
+      if (savedState && savedState.isMaximized) {
+        if (!winObj.isMaximized) {
+          this.maximizeWindow(id, false);
+        }
+      } else if (savedState && savedState.isMaximized === false) {
+        if (winObj.isMaximized) {
+          this.restoreWindow(id, false);
+        }
+      }
+
       this.updateWindowTitlebar(id);
       this.updateWindowMenu();
       this.auditStack("activateWindow: " + id);
@@ -505,7 +552,7 @@ const MdiManager = {
     }
   },
 
-  maximizeWindow(id) {
+  maximizeWindow(id, doActivate = true) {
     const winObj = this.windows[id];
     if (!winObj) return;
 
@@ -529,10 +576,15 @@ const MdiManager = {
       maxBtn.textContent = "🗗";
       maxBtn.title = "Восстановить (Bərpa et)";
     }
-    this.activateWindow(id);
+
+    this.saveWindowState(id, { isMaximized: true, savedRect: winObj.savedRect });
+
+    if (doActivate) {
+      this.activateWindow(id);
+    }
   },
 
-  restoreWindow(id) {
+  restoreWindow(id, doActivate = true) {
     const winObj = this.windows[id];
     if (!winObj) return;
 
@@ -542,17 +594,24 @@ const MdiManager = {
     winObj.element.classList.remove("minimized");
 
     // Restore saved rect
-    winObj.element.style.top = winObj.savedRect.top || "20px";
-    winObj.element.style.left = winObj.savedRect.left || "20px";
-    winObj.element.style.width = winObj.savedRect.width || "calc(100% - 40px)";
-    winObj.element.style.height = winObj.savedRect.height || "calc(100% - 40px)";
+    if (winObj.savedRect) {
+      winObj.element.style.top = winObj.savedRect.top || "20px";
+      winObj.element.style.left = winObj.savedRect.left || "20px";
+      winObj.element.style.width = winObj.savedRect.width || "calc(100% - 40px)";
+      winObj.element.style.height = winObj.savedRect.height || "calc(100% - 40px)";
+    }
 
     const maxBtn = winObj.element.querySelector(".mdi-win-btn-max");
     if (maxBtn) {
       maxBtn.textContent = "□";
       maxBtn.title = "Развернуть (Böyüt)";
     }
-    this.activateWindow(id);
+
+    this.saveWindowState(id, { isMaximized: false, savedRect: winObj.savedRect });
+
+    if (doActivate) {
+      this.activateWindow(id);
+    }
   },
 
   minimizeWindow(id) {

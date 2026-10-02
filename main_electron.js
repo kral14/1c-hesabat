@@ -17,6 +17,9 @@ function createWindow() {
     }
   });
 
+  // Always open maximized
+  win.maximize();
+
   // Remove top menu bar for clean native 1C desktop look
   Menu.setApplicationMenu(null);
 
