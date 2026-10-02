@@ -479,20 +479,54 @@ const PriceDocEditor = {
   },
 
   addRow: function() {
-    const code = prompt("Daxil ediləcək malın 1C Kodunu və ya Artikulunu yazın:");
-    if (!code || !code.trim()) return;
+    // If search filter is active, clear it so the newly added row is visible
+    const searchInp = document.getElementById("pdeTableSearchInp");
+    if (searchInp && searchInp.value.trim()) {
+      searchInp.value = "";
+    }
 
     const newItm = {
-      code: code.trim(),
-      name: `Mal [${code.trim()}]`,
+      code: "",
+      name: "",
       artikul: "",
       unit: "шт",
+      barcode: "",
       prices: {}
     };
-    this.items.unshift(newItm);
+
+    // If a row is currently selected, insert immediately after it; otherwise append to end
+    let insertIdx = this.items.length;
+    if (this.selectedRowIdx !== null && this.selectedRowIdx >= 0 && this.selectedRowIdx < this.filteredItems.length) {
+      const currentSelected = this.filteredItems[this.selectedRowIdx];
+      const realIdx = this.items.indexOf(currentSelected);
+      if (realIdx !== -1) {
+        insertIdx = realIdx + 1;
+      }
+    }
+
+    this.items.splice(insertIdx, 0, newItm);
     this.filterTableRows();
+
+    // Select the new row
+    const newRowIdx = this.filteredItems.indexOf(newItm);
+    this.selectedRowIdx = (newRowIdx !== -1) ? newRowIdx : (this.filteredItems.length - 1);
+
+    this.renderTable();
     this.updateRowCount();
     this.triggerAutoSave();
+
+    // Smoothly scroll to and focus the nomenclature input of the newly created empty row
+    setTimeout(() => {
+      const targetIdx = this.selectedRowIdx;
+      const nomInput = document.getElementById(`pdeNomInput_${targetIdx}`);
+      if (nomInput) {
+        nomInput.focus();
+      }
+      const trs = document.querySelectorAll("#pdeTableBody tr");
+      if (trs && trs[targetIdx]) {
+        trs[targetIdx].scrollIntoView({ block: "nearest", behavior: "smooth" });
+      }
+    }, 50);
   },
 
   deleteSelectedRow: function() {
@@ -2479,6 +2513,15 @@ document.addEventListener("keydown", function(e) {
   if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "s") {
     e.preventDefault();
     PriceDocEditor.saveTo1C();
+  }
+
+  // Insert key: Add empty row (1C standard)
+  if (e.key === "Insert") {
+    const tag = document.activeElement ? document.activeElement.tagName : "";
+    if (tag !== "TEXTAREA") {
+      e.preventDefault();
+      PriceDocEditor.addRow();
+    }
   }
 
   // Delete key: Delete selected row without popup if not inside text input
