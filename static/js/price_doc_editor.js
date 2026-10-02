@@ -29,6 +29,13 @@ const PriceDocEditor = {
     this.currentDocNumber = docNumber;
 
     try {
+      localStorage.setItem("1c_last_open_price_doc", JSON.stringify({
+        number: docNumber,
+        date: docDate || ""
+      }));
+    } catch(e) {}
+
+    try {
       const savedCols = localStorage.getItem("1c_price_doc_columns");
       if (savedCols) {
         const parsed = JSON.parse(savedCols);
@@ -60,6 +67,9 @@ const PriceDocEditor = {
   },
 
   close: function() {
+    try {
+      localStorage.removeItem("1c_last_open_price_doc");
+    } catch(e) {}
     if (window.MdiManager) {
       MdiManager.closeWindow("priceDocEditorWindow");
     } else {

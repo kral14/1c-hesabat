@@ -67,6 +67,117 @@ const MdiManager = {
     } catch (e) {}
   },
 
+  saveOpenWindowsSession() {
+    try {
+      const openWins = [];
+      Object.values(this.windows).forEach(w => {
+        if (w.isOpen && !w.isMinimized && w.element && w.element.style.display !== "none") {
+          let docNum = null;
+          let docDate = null;
+          if (w.id === "priceDocEditorWindow") {
+            try {
+              const rawDoc = localStorage.getItem("1c_last_open_price_doc");
+              if (rawDoc) {
+                const parsed = JSON.parse(rawDoc);
+                docNum = parsed.number;
+                docDate = parsed.date;
+              }
+            } catch(e) {}
+            if (!docNum && window.PriceDocEditor) {
+              docNum = PriceDocEditor.currentDocNumber;
+            }
+          }
+
+          openWins.push({
+            id: w.id,
+            title: w.title,
+            icon: w.icon,
+            isActive: (w.id === this.activeWindowId),
+            isMinimized: !!w.isMinimized,
+            isMaximized: !!w.isMaximized,
+            zIndex: parseInt(w.element.style.zIndex) || 0,
+            docNumber: docNum,
+            docDate: docDate,
+            journalType: (w.id === "universalJournalWindow" && window.UniversalJournal) ? UniversalJournal.activeDocType : null
+          });
+        }
+      });
+
+      // Sort by zIndex so bottom windows are restored first, top window last
+      openWins.sort((a, b) => a.zIndex - b.zIndex);
+      localStorage.setItem("1c_mdi_session_windows", JSON.stringify(openWins));
+    } catch(e) {}
+  },
+
+  restoreOpenWindowsSession() {
+    try {
+      const raw = localStorage.getItem("1c_mdi_session_windows");
+      if (!raw) return;
+      const list = JSON.parse(raw);
+      if (!Array.isArray(list) || !list.length) return;
+
+      console.log(`[MDI SESSION RESTORE] Restoring ${list.length} open windows after page reload:`, list);
+
+      let topActiveId = null;
+
+      list.forEach(item => {
+        if (item.isActive) topActiveId = item.id;
+
+        if (item.id === "priceDocEditorWindow") {
+          let docNum = item.docNumber;
+          let docDate = item.docDate;
+          if (!docNum) {
+            try {
+              const rawDoc = localStorage.getItem("1c_last_open_price_doc");
+              if (rawDoc) {
+                const parsed = JSON.parse(rawDoc);
+                docNum = parsed.number;
+                docDate = parsed.date;
+              }
+            } catch(e) {}
+          }
+
+          if (docNum && window.PriceDocEditor && typeof PriceDocEditor.open === "function") {
+            PriceDocEditor.open(docNum, docDate);
+          } else {
+            this.activateWindow(item.id, { title: item.title, icon: item.icon });
+          }
+        } else if (item.id === "universalJournalWindow") {
+          if (window.UniversalJournal && typeof UniversalJournal.open === "function") {
+            UniversalJournal.open(item.journalType);
+          } else {
+            this.activateWindow(item.id, { title: item.title, icon: item.icon });
+          }
+        } else if (item.id === "portfolioCatalogWindow") {
+          if (window.PortfolioCatalog && typeof PortfolioCatalog.open === "function") {
+            PortfolioCatalog.open();
+          } else {
+            this.activateWindow(item.id, { title: item.title, icon: item.icon });
+          }
+        } else if (item.id === "mdiWindow-1") {
+          this.activateWindow("mdiWindow-1");
+        } else {
+          const el = document.getElementById(item.id);
+          if (el) {
+            this.activateWindow(item.id, { title: item.title, icon: item.icon });
+          }
+        }
+
+        if (item.isMaximized) {
+          setTimeout(() => this.maximizeWindow(item.id, false), 60);
+        }
+      });
+
+      if (topActiveId) {
+        setTimeout(() => {
+          this.activateWindow(topActiveId);
+        }, 220);
+      }
+    } catch(e) {
+      console.warn("[MDI SESSION RESTORE ERROR]", e);
+    }
+  },
+
   auditStack(trigger) {
     if (!window.ENABLE_RENDER_LOGS) return;
     try {
@@ -279,6 +390,46 @@ const MdiManager = {
         }
       });
     }
+
+    // 11. Universal Document Journal Window (Журнал документов - starts hidden)
+    const ujWin = document.getElementById("universalJournalWindow");
+    if (ujWin) {
+      this.registerWindow("universalJournalWindow", {
+        title: "Журнал документов",
+        icon: "🗂️",
+        element: ujWin,
+        isDefault: true,
+        startHidden: true,
+        closeFn: () => {
+          if (typeof UniversalJournal !== "undefined" && UniversalJournal.close) UniversalJournal.close();
+        }
+      });
+    }
+
+    // 12. Price Document Editor Window (Установка цен номенклатуры - starts hidden)
+    const pdeWin = document.getElementById("priceDocEditorWindow");
+    if (pdeWin) {
+      this.registerWindow("priceDocEditorWindow", {
+        title: "Установка цен номенклатуры",
+        icon: "📋",
+        element: pdeWin,
+        isDefault: true,
+        startHidden: true,
+        closeFn: () => {
+          if (typeof PriceDocEditor !== "undefined" && PriceDocEditor.close) PriceDocEditor.close();
+        }
+      });
+    }
+
+    // Auto-restore open windows after F5 page reload
+    setTimeout(() => {
+      this.restoreOpenWindowsSession();
+    }, 120);
+
+    // Save open windows state before page unload / F5
+    window.addEventListener("beforeunload", () => {
+      this.saveOpenWindowsSession();
+    });
   },
 
   registerWindow(id, options = {}) {
@@ -536,6 +687,7 @@ const MdiManager = {
       this.updateWindowTitlebar(id);
       this.updateWindowMenu();
       this.auditStack("activateWindow: " + id);
+      this.saveOpenWindowsSession();
     } catch (actErr) {
       console.error("[MDI ACTIVATE FATAL ERROR]", actErr);
     }
@@ -637,6 +789,7 @@ const MdiManager = {
       this.activeWindowId = null;
       this.updateWindowTitlebar(null);
     }
+    this.saveOpenWindowsSession();
   },
 
   restoreFromMinimize(id) {
@@ -719,6 +872,7 @@ const MdiManager = {
 
     this.updateWindowMenu();
     this.auditStack("closeWindow: " + id);
+    this.saveOpenWindowsSession();
   },
 
   openOrRestoreReportWindow() {
@@ -1164,10 +1318,20 @@ const MdiManager = {
       }
     }
 
+    // Topmost: Price Document Editor Window ("Установка цен номенклатуры")
+    if (topWin.id === "priceDocEditorWindow") {
+      if (typeof PriceDocEditor !== "undefined" && PriceDocEditor.currentDocNumber) {
+        console.log(`[MDI F5 REFRESH] Refreshing price doc №${PriceDocEditor.currentDocNumber}...`);
+        const docDate = document.getElementById("pdeDocDate")?.value;
+        PriceDocEditor.loadDocumentData(PriceDocEditor.currentDocNumber, docDate);
+        return true;
+      }
+    }
+
     // Topmost: Universal Journal Window ("Журнал документов")
     if (topWin.id === "universalJournalWindow") {
-      if (typeof UniversalJournal !== "undefined" && UniversalJournal.editSelectedDocument) {
-        UniversalJournal.editSelectedDocument();
+      if (typeof UniversalJournal !== "undefined" && UniversalJournal.loadDocuments) {
+        UniversalJournal.loadDocuments();
         return true;
       }
     }
