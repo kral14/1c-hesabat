@@ -2421,6 +2421,172 @@ class OneCService(threading.Thread):
                         "total_lines": len(lines)
                     }))
 
+                # Action: Get Full Price Document for Editor (Pivoted by Items & Price Types)
+                elif action == "get_price_document":
+                    doc_number = payload.get("number", "").strip()
+
+                    q_pdoc = conn.NewObject("Запрос")
+                    q_pdoc.Text = """
+                    ВЫБРАТЬ ПЕРВЫЕ 1
+                        Т.Ссылка КАК Ref
+                    ИЗ
+                        Документ.УстановкаЦенНоменклатуры КАК Т
+                    ГДЕ
+                        Т.Номер = &DocNum
+                    """
+                    q_pdoc.SetParameter("DocNum", doc_number)
+                    res_pdoc = q_pdoc.Execute().Choose()
+                    if not res_pdoc.Next():
+                        raise ValueError(f"Sənəd №{doc_number} tapılmadı")
+
+                    doc_obj = res_pdoc.Ref.ПолучитьОбъект()
+                    raw_date = doc_obj.Дата
+                    date_str = ""
+                    if raw_date:
+                        try:
+                            date_str = raw_date.strftime("%d.%m.%Y %H:%M:%S")
+                        except Exception:
+                            date_str = str(raw_date)[:19]
+
+                    # Read Price Types from doc
+                    doc_price_types = []
+                    if hasattr(doc_obj, "ТипыЦен"):
+                        for i in range(doc_obj.ТипыЦен.Количество()):
+                            pt_row = doc_obj.ТипыЦен.Получить(i)
+                            pt_name = str(pt_row.ТипЦен.Наименование).strip()
+                            if pt_name and pt_name not in doc_price_types:
+                                doc_price_types.append(pt_name)
+
+                    # Pivot items
+                    item_dict = {}
+                    item_order = []
+                    if hasattr(doc_obj, "Товары"):
+                        for i in range(doc_obj.Товары.Количество()):
+                            r = doc_obj.Товары.Получить(i)
+                            nom = r.Номенклатура
+                            code = str(getattr(nom, "Код", "") or "").strip()
+                            if not code:
+                                continue
+                            name = str(getattr(nom, "Наименование", "") or "").strip()
+                            artikul = str(getattr(nom, "Артикул", "") or "").strip()
+                            unit_name = str(getattr(r.ЕдиницаИзмерения, "Наименование", "шт") or "шт")
+                            pt_name = str(getattr(r.ТипЦен, "Наименование", "") or "").strip()
+                            price = float(getattr(r, "Цена", 0) or 0)
+
+                            if code not in item_dict:
+                                item_dict[code] = {
+                                    "code": code,
+                                    "name": name,
+                                    "artikul": artikul,
+                                    "unit": unit_name,
+                                    "prices": {}
+                                }
+                                item_order.append(code)
+
+                            if pt_name:
+                                item_dict[code]["prices"][pt_name] = price
+                                if pt_name not in doc_price_types:
+                                    doc_price_types.append(pt_name)
+
+                    items = [item_dict[c] for c in item_order]
+
+                    resp_q.put((True, {
+                        "number": str(doc_obj.Номер),
+                        "date": date_str,
+                        "posted": bool(doc_obj.Проведен),
+                        "responsible": str(getattr(doc_obj.Ответственный, "Наименование", "") if hasattr(doc_obj, "Ответственный") else ""),
+                        "comment": str(getattr(doc_obj, "Комментарий", "") or ""),
+                        "zero_prices": bool(getattr(doc_obj, "НеПроводитьНулевыеЗначения", False)),
+                        "price_types": doc_price_types,
+                        "items": items,
+                        "total_items": len(items)
+                    }))
+
+                # Action: Save Price Document to 1C (Draft / Запись mode strictly)
+                elif action == "save_price_document":
+                    doc_number = payload.get("number", "").strip()
+                    comment_text = payload.get("comment", "").strip()
+                    items_data = payload.get("items", [])
+                    price_types = payload.get("price_types", [])
+
+                    q_find = conn.NewObject("Запрос")
+                    q_find.Text = """
+                    ВЫБРАТЬ ПЕРВЫЕ 1
+                        Т.Ссылка КАК Ref
+                    ИЗ
+                        Документ.УстановкаЦенНоменклатуры КАК Т
+                    ГДЕ
+                        Т.Номер = &DocNum
+                    """
+                    q_find.SetParameter("DocNum", doc_number)
+                    res_find = q_find.Execute().Choose()
+                    if not res_find.Next():
+                        raise ValueError(f"1C-də №{doc_number} nömrəli sənəd tapılmadı")
+
+                    doc_obj = res_find.Ref.ПолучитьОбъект()
+
+                    # Audit timestamp in comment
+                    now_str = datetime.datetime.now().strftime("%d.%m.%Y %H:%M")
+                    user_str = payload.get("user") or "Nesib"
+                    audit_entry = f"[Web Audit] {now_str} | {user_str} tərəfindən {len(items_data)} mal üzrə qiymətlər yeniləndi (Qaralama)."
+
+                    if audit_entry not in comment_text:
+                        if comment_text:
+                            doc_obj.Комментарий = f"{comment_text} | {audit_entry}"
+                        else:
+                            doc_obj.Комментарий = audit_entry
+                    else:
+                        doc_obj.Комментарий = comment_text
+
+                    # Clear existing goods table
+                    doc_obj.Товары.Очистить()
+
+                    # Cache price type and nomenclature COM references for speed
+                    pt_cache = {}
+                    for pt_name in price_types:
+                        pt_ref = conn.Справочники.ТипыЦенНоменклатуры.НайтиПоНаименованию(pt_name)
+                        if pt_ref and not pt_ref.Пустая():
+                            pt_cache[pt_name] = pt_ref
+
+                    total_rows_added = 0
+                    for item in items_data:
+                        code = item.get("code")
+                        if not code:
+                            continue
+                        nom_ref = conn.Справочники.Номенклатура.НайтиПоКоду(code)
+                        if not nom_ref or nom_ref.Пустая():
+                            continue
+
+                        u_ref = None
+                        if hasattr(nom_ref, "ЕдиницаХраненияОстатков") and not nom_ref.ЕдиницаХраненияОстатков.Пустая():
+                            u_ref = nom_ref.ЕдиницаХраненияОстатков
+                        elif hasattr(nom_ref, "БазоваяЕдиницаИзмерения") and not nom_ref.БазоваяЕдиницаИзмерения.Пустая():
+                            u_ref = nom_ref.БазоваяЕдиницаИзмерения
+
+                        prices = item.get("prices", {})
+                        for pt_name, pt_ref in pt_cache.items():
+                            p_val = float(prices.get(pt_name, 0) or 0)
+                            # Add line
+                            row = doc_obj.Товары.Добавить()
+                            row.Номенклатура = nom_ref
+                            row.ТипЦен = pt_ref
+                            row.Цена = p_val
+                            if hasattr(pt_ref, "ВалютаЦены") and not pt_ref.ВалютаЦены.Пустая():
+                                row.Валюта = pt_ref.ВалютаЦены
+                            if u_ref:
+                                row.ЕдиницаИзмерения = u_ref
+                            total_rows_added += 1
+
+                    # Save as draft without posting!
+                    doc_obj.Записать(conn.РежимЗаписиДокумента.Запись)
+
+                    resp_q.put((True, {
+                        "number": str(doc_obj.Номер),
+                        "comment": str(doc_obj.Комментарий),
+                        "total_items": len(items_data),
+                        "total_rows": total_rows_added
+                    }))
+
             except Exception as e:
                 err_str = str(e)
                 if any(k in err_str for k in ["Сеанс отсутствует", "ClusterDistribImpl", "Соединение разорвано"]):
@@ -2999,6 +3165,30 @@ def document_details_endpoint():
         })
     except Exception as e:
         print_server_error("/api/documents/details", e, data)
+@app.route("/api/documents/price_doc", methods=["POST"])
+def get_price_doc_endpoint():
+    data = request.json or {}
+    try:
+        res = one_c.execute("get_price_document", data)
+        return jsonify({
+            "success": True,
+            "data": res
+        })
+    except Exception as e:
+        print_server_error("/api/documents/price_doc", e, data)
+        return jsonify({"success": False, "error": str(e)})
+
+@app.route("/api/documents/save_price_doc", methods=["POST"])
+def save_price_doc_endpoint():
+    data = request.json or {}
+    try:
+        res = one_c.execute("save_price_document", data)
+        return jsonify({
+            "success": True,
+            "data": res
+        })
+    except Exception as e:
+        print_server_error("/api/documents/save_price_doc", e, data)
         return jsonify({"success": False, "error": str(e)})
 
 if __name__ == "__main__":

@@ -273,6 +273,12 @@ const UniversalJournal = {
     const docType = this.activeDocType;
     const docNum = this.selectedRow.number;
 
+    if (docType === "УстановкаЦенНоменклатуры" && window.PriceDocEditor) {
+      PriceDocEditor.open(docNum);
+      this.updateStatus(`Открыт документ установки цен № ${docNum}`);
+      return;
+    }
+
     console.log(`[UNIVERSAL JOURNAL] Opening document ${docType} № ${docNum}...`);
     this.updateStatus(`Загрузка деталей документа № ${docNum}...`);
 

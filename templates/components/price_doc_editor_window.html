@@ -1,0 +1,176 @@
+<!-- ========================================================
+     1C:ENTERPRISE - PRICE DOCUMENT EDITOR WINDOW (Установка цен номенклатуры)
+     templates/components/price_doc_editor_window.html
+     ======================================================== -->
+
+<div class="mdi-window" id="priceDocEditorWindow" style="display: none; top: 20px; left: 25px; width: calc(100% - 50px); height: calc(100% - 40px); min-width: 900px; min-height: 500px; z-index: 120;" onmousedown="MdiManager.activateWindow('priceDocEditorWindow')">
+  
+  <!-- Window Header -->
+  <div class="mdi-window-header" ondblclick="MdiManager.toggleMaximize('priceDocEditorWindow')">
+    <div class="mdi-win-title-left">
+      <span class="mdi-win-icon">📋</span>
+      <span class="mdi-win-title-text" id="pdeWindowTitle">Установка цен номенклатуры: Не проведен</span>
+      <span id="pdeStatusBadge" style="background: #ed6c02; color: #fff; padding: 1px 6px; border-radius: 2px; font-size: 10px; font-weight: bold; margin-left: 6px;">НЕ ПРОВЕДЕН</span>
+    </div>
+    <div class="mdi-win-controls">
+      <button class="mdi-win-btn mdi-win-btn-min" title="Qatla" onclick="MdiManager.minimizeWindow('priceDocEditorWindow')" onmousedown="event.stopPropagation()">_</button>
+      <button class="mdi-win-btn mdi-win-btn-max" title="Böyüt / Bərpa et" onclick="MdiManager.toggleMaximize('priceDocEditorWindow')" onmousedown="event.stopPropagation()">□</button>
+      <button class="mdi-win-btn mdi-win-btn-close" title="Bağla" onclick="PriceDocEditor.close()" onmousedown="event.stopPropagation()">✕</button>
+    </div>
+  </div>
+
+  <!-- Window Body -->
+  <div class="mdi-window-body" style="background-color: #f0eee3; display: flex; flex-direction: column; height: 100%; overflow: hidden; font-family: Tahoma, 'MS Sans Serif', Arial, sans-serif; font-size: 11px;">
+    
+    <!-- Top Document Header Information (Exact 1C Layout) -->
+    <div style="padding: 6px 12px 6px 12px; background: #f0eee3; border-bottom: 1px solid #c0beaf; display: flex; flex-direction: column; gap: 5px;">
+      
+      <!-- Row 1: Number & Date -->
+      <div style="display: flex; align-items: center; gap: 14px;">
+        <div style="display: flex; align-items: center; gap: 4px;">
+          <span style="color: #222;">Номер:</span>
+          <input type="text" id="pdeDocNumber" style="width: 110px; height: 21px; border: 1px solid #7f9db9; padding: 0 4px; font-weight: bold; background: #fff;" readonly>
+        </div>
+
+        <div style="display: flex; align-items: center; gap: 4px;">
+          <span style="color: #222;">от:</span>
+          <input type="text" id="pdeDocDate" style="width: 140px; height: 21px; border: 1px solid #7f9db9; padding: 0 4px; background: #fff;" readonly>
+        </div>
+      </div>
+
+      <!-- Row 2: Price Types -->
+      <div style="display: flex; align-items: center; gap: 6px;">
+        <span style="color: #222; min-width: 50px;">Тип цен:</span>
+        <div style="flex: 1; min-height: 22px; max-height: 40px; overflow-y: auto; background: #ffffff; border: 1px solid #7f9db9; padding: 2px 6px; font-size: 11px; color: #002060; font-weight: 500;" id="pdePriceTypesDisplay">
+          <!-- Populated via JS -->
+        </div>
+      </div>
+
+      <!-- Row 3: Zero Prices Checkbox -->
+      <div style="display: flex; align-items: center;">
+        <label style="display: flex; align-items: center; gap: 5px; cursor: pointer; color: #222;">
+          <input type="checkbox" id="pdeZeroPricesChk" checked style="cursor: pointer;">
+          <span>Не регистрировать нулевые цены номенклатуры</span>
+        </label>
+      </div>
+
+    </div>
+
+    <!-- Tabular Section Action Toolbar (Images 2, 3, 4) -->
+    <div style="padding: 4px 8px; background: #e5e2cf; border-bottom: 1px solid #b0af9f; display: flex; align-items: center; gap: 4px; flex-wrap: wrap;">
+      
+      <!-- ➕ Add Row -->
+      <button type="button" class="btn-1c" onclick="PriceDocEditor.addRow()" title="Добавить строку (Ins)" style="height: 23px; padding: 0 6px; display: inline-flex; align-items: center; gap: 3px; font-size: 11px; cursor: pointer;">
+        <span style="color: #2e7d32; font-weight: bold; font-size: 13px;">➕</span>
+      </button>
+
+      <!-- ❌ Delete Row -->
+      <button type="button" class="btn-1c" onclick="PriceDocEditor.deleteSelectedRow()" title="Удалить строку (Del)" style="height: 23px; padding: 0 6px; display: inline-flex; align-items: center; gap: 3px; font-size: 11px; cursor: pointer;">
+        <span style="color: #c62828; font-weight: bold; font-size: 12px;">❌</span>
+      </button>
+
+      <div class="mdi-tool-sep" style="height: 16px; width: 1px; background: #b0af9f; margin: 0 3px;"></div>
+
+      <!-- Заполнить Dropdown (Image 3) -->
+      <div style="position: relative; display: inline-block;">
+        <button type="button" class="btn-1c" onclick="PriceDocEditor.toggleMenu('zapMenu')" style="height: 23px; padding: 0 7px; display: inline-flex; align-items: center; gap: 4px; cursor: pointer; font-size: 11px;">
+          <span>Заполнить</span>
+          <span style="font-size: 8px;">▼</span>
+        </button>
+        <div id="pdeZapMenu" style="display: none; position: absolute; top: 24px; left: 0; background: #fff; border: 1px solid #7f9db9; box-shadow: 2px 2px 10px rgba(0,0,0,0.25); z-index: 1000; min-width: 220px; padding: 4px 0;">
+          <a href="javascript:void(0)" onclick="PriceDocEditor.fillByPortfolio()" style="display: block; padding: 4px 10px; color: #000; text-decoration: none;">📁 По портфелю...</a>
+          <a href="javascript:void(0)" onclick="PriceDocEditor.fillByNomGroup()" style="display: block; padding: 4px 10px; color: #000; text-decoration: none;">📑 По номенклатурной группе...</a>
+          <div style="height: 1px; background: #e0dfd5; margin: 3px 0;"></div>
+          <a href="javascript:void(0)" onclick="PriceDocEditor.fillCurrentPrices()" style="display: block; padding: 4px 10px; color: #000; text-decoration: none;">🔄 Заполнить по действующим ценам</a>
+          <a href="javascript:void(0)" onclick="PriceDocEditor.clearTable()" style="display: block; padding: 4px 10px; color: #a00; text-decoration: none;">🗑️ Очистить таблицу</a>
+        </div>
+      </div>
+
+      <!-- Подбор (Image 3) -->
+      <button type="button" class="btn-1c" onclick="PriceDocEditor.openItemPicker()" title="Подбор товаров из справочника" style="height: 23px; padding: 0 8px; font-size: 11px; cursor: pointer;">
+        Подбор
+      </button>
+
+      <div class="mdi-tool-sep" style="height: 16px; width: 1px; background: #b0af9f; margin: 0 3px;"></div>
+
+      <!-- Изменить Dropdown (Image 4) -->
+      <div style="position: relative; display: inline-block;">
+        <button type="button" class="btn-1c" onclick="PriceDocEditor.toggleMenu('chgMenu')" style="height: 23px; padding: 0 7px; display: inline-flex; align-items: center; gap: 4px; cursor: pointer; font-size: 11px;">
+          <span>Изменить</span>
+          <span style="font-size: 8px;">▼</span>
+        </button>
+        <div id="pdeChgMenu" style="display: none; position: absolute; top: 24px; left: 0; background: #fff; border: 1px solid #7f9db9; box-shadow: 2px 2px 10px rgba(0,0,0,0.25); z-index: 1000; min-width: 220px; padding: 4px 0;">
+          <a href="javascript:void(0)" onclick="PriceDocEditor.promptPercentChange()" style="display: block; padding: 4px 10px; color: #000; text-decoration: none;">📈 Изменить на процент (+% / -%)...</a>
+          <a href="javascript:void(0)" onclick="PriceDocEditor.openExcelPasteModal()" style="display: block; padding: 4px 10px; color: #000; text-decoration: none;">📋 Вставить цены из Excel...</a>
+          <a href="javascript:void(0)" onclick="PriceDocEditor.roundPrices()" style="display: block; padding: 4px 10px; color: #000; text-decoration: none;">🎯 Округлить цены (до 0.01 / 0.10)</a>
+        </div>
+      </div>
+
+      <div class="mdi-tool-sep" style="height: 16px; width: 1px; background: #b0af9f; margin: 0 3px;"></div>
+
+      <!-- Search in Table Filter Input -->
+      <div style="flex: 1; min-width: 140px; display: flex; align-items: center; margin-left: auto;">
+        <input type="text" id="pdeTableSearchInp" placeholder="Быстрый поиск по товарам..." style="width: 100%; height: 21px; padding: 1px 5px; font-size: 11px; border: 1px solid #7f9db9;" oninput="PriceDocEditor.filterTableRows()">
+      </div>
+
+      <!-- Rows counter badge -->
+      <div id="pdeRowCountBadge" style="background: #ffffff; border: 1px solid #7f9db9; padding: 2px 8px; border-radius: 2px; font-size: 11px; font-weight: bold; color: #003366; white-space: nowrap;">
+        Строк: 0
+      </div>
+
+    </div>
+
+    <!-- Table Grid Area (Image 5) -->
+    <div style="flex: 1; overflow: auto; background: #ffffff; position: relative;" id="pdeTableWrapper">
+      
+      <!-- Loading State -->
+      <div id="pdeLoadingState" style="display: none; position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: rgba(255,255,255,0.85); z-index: 50; flex-direction: column; align-items: center; justify-content: center; gap: 8px;">
+        <div class="spinner-1c"></div>
+        <div style="font-weight: bold; color: #004080; font-size: 12px;">1C: Загрузка табличной части...</div>
+      </div>
+
+      <table id="pdeTable" style="width: 100%; border-collapse: collapse; font-family: Tahoma, 'MS Sans Serif', Arial, sans-serif; font-size: 11px;">
+        <thead>
+          <tr id="pdeTableHeadRow" style="background: #e3dec9; border-bottom: 2px solid #5a5a5a; position: sticky; top: 0; z-index: 10;">
+            <!-- Generated dynamically via JS -->
+          </tr>
+        </thead>
+        <tbody id="pdeTableBody">
+          <!-- Populated dynamically via JS -->
+        </tbody>
+      </table>
+
+    </div>
+
+    <!-- Bottom Document Footer: Responsible, Comment & Action Buttons (Image 5) -->
+    <div style="padding: 6px 12px; background: #f0eee3; border-top: 1px solid #b0af9f; display: flex; flex-direction: column; gap: 5px;">
+      
+      <!-- Responsible -->
+      <div style="display: flex; align-items: center; gap: 6px;">
+        <span style="color: #222; min-width: 90px;">Ответственный:</span>
+        <input type="text" id="pdeDocResponsible" style="flex: 1; max-width: 320px; height: 21px; border: 1px solid #7f9db9; padding: 0 4px; background: #fff;" readonly>
+      </div>
+
+      <!-- Comment with Audit Tracking -->
+      <div style="display: flex; align-items: center; gap: 6px;">
+        <span style="color: #222; min-width: 90px;">Комментарий:</span>
+        <input type="text" id="pdeDocComment" placeholder="Добавьте примечание или причину изменения цен..." style="flex: 1; height: 21px; border: 1px solid #7f9db9; padding: 0 4px; background: #fff; font-size: 11px;">
+      </div>
+
+      <!-- Save & Close Buttons -->
+      <div style="display: flex; justify-content: flex-end; align-items: center; gap: 8px; margin-top: 4px; padding-top: 4px; border-top: 1px solid #d5d3c3;">
+        <button type="button" class="btn-1c btn-1c-primary" id="pdeBtnSave" onclick="PriceDocEditor.saveTo1C()" style="height: 24px; min-width: 140px; font-weight: bold; background: linear-gradient(to bottom, #ffea88, #d8a020); border: 1px solid #7c6817; color: #000; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 5px;">
+          <span>💾</span>
+          <span>Записать в 1С</span>
+        </button>
+
+        <button type="button" class="btn-1c" onclick="PriceDocEditor.close()" style="height: 24px; min-width: 80px; cursor: pointer;">
+          Закрыть
+        </button>
+      </div>
+
+    </div>
+
+  </div>
+
+</div>
