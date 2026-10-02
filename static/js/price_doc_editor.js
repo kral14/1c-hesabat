@@ -26,6 +26,8 @@ const PriceDocEditor = {
   pendingCacheData: null,
   pendingDocNumber: null,
   pendingDocDate: null,
+  isAutoSaveEnabled: false,
+  _autoSaveTimer: null,
 
   open: function(docNumber, docDate, forceRefreshFrom1C) {
     if (!docNumber) return;
@@ -66,8 +68,22 @@ const PriceDocEditor = {
       win.classList.add("active");
     }
 
-    // Check if there is cached data for this document in localStorage
-    if (!forceRefreshFrom1C) {
+    // Check if auto-save is enabled (defaults to false so user is not prompted unless enabled)
+    const autoSavePref = localStorage.getItem("1c_price_doc_autosave_enabled");
+    this.isAutoSaveEnabled = (autoSavePref === "1");
+
+    const chk = document.getElementById("pdeAutoSaveChk");
+    if (chk) chk.checked = this.isAutoSaveEnabled;
+
+    const statusEl = document.getElementById("pdeAutoSaveStatus");
+    if (statusEl) {
+      statusEl.textContent = this.isAutoSaveEnabled ? "⚡ Avto-yaddaş aktivdir" : "";
+      statusEl.style.color = "#006000";
+    }
+
+    // ONLY check cache and show confirmation modal IF auto-save is enabled!
+    // If auto-save is OFF: never prompt and always load fresh from 1C!
+    if (!forceRefreshFrom1C && this.isAutoSaveEnabled) {
       const cachedRaw = localStorage.getItem(`1c_price_doc_cache_${docNumber}`);
       if (cachedRaw) {
         try {
@@ -443,6 +459,7 @@ const PriceDocEditor = {
       if (!itm.prices) itm.prices = {};
       itm.prices[pt] = val;
       inpEl.value = val > 0 ? val.toFixed(3) : "";
+      this.triggerAutoSave();
     }
   },
 
@@ -475,6 +492,7 @@ const PriceDocEditor = {
     this.items.unshift(newItm);
     this.filterTableRows();
     this.updateRowCount();
+    this.triggerAutoSave();
   },
 
   deleteSelectedRow: function() {
@@ -492,6 +510,7 @@ const PriceDocEditor = {
     }
     this.renderTable();
     this.updateRowCount();
+    this.triggerAutoSave();
   },
 
   clearTable: function() {
@@ -1427,9 +1446,9 @@ const PriceDocEditor = {
   },
 
   // Save current document state to local cache (draft)
-  saveToCache: function() {
+  saveToCache: function(isSilent = false) {
     if (!this.currentDocNumber) {
-      alert("Sənəd nömrəsi təyin edilməyib.");
+      if (!isSilent) alert("Sənəd nömrəsi təyin edilməyib.");
       return;
     }
 
@@ -1447,7 +1466,7 @@ const PriceDocEditor = {
       priceTypes: [...this.priceTypes],
       items: JSON.parse(JSON.stringify(this.items)),
       savedAt: new Date().toISOString(),
-      savedTimeFormatted: new Date().toLocaleString("az-AZ")
+      savedTimeFormatted: new Date().toLocaleTimeString("az-AZ")
     };
 
     try {
@@ -1464,10 +1483,60 @@ const PriceDocEditor = {
       };
       localStorage.setItem("1c_price_doc_drafts", JSON.stringify(draftRegistry));
 
-      this.showCacheToast(`💾 Sənəd №${this.currentDocNumber} lokal keşdə saxlanıldı! (${cacheData.items.length} mal)`);
+      const statusEl = document.getElementById("pdeAutoSaveStatus");
+      if (statusEl && this.isAutoSaveEnabled) {
+        statusEl.textContent = `⚡ Keş: ${cacheData.savedTimeFormatted}`;
+        statusEl.style.color = "#006000";
+      }
+
+      if (!isSilent) {
+        this.showCacheToast(`💾 Sənəd №${this.currentDocNumber} lokal keşdə saxlanıldı! (${cacheData.items.length} mal)`);
+      }
     } catch (err) {
       console.error("Cache save error:", err);
-      alert("Lokal keşdə saxlamaq mümkün olmadı: " + err.message);
+      if (!isSilent) alert("Lokal keşdə saxlamaq mümkün olmadı: " + err.message);
+    }
+  },
+
+  // Trigger debounced auto-save when user edits document
+  triggerAutoSave: function() {
+    if (!this.isAutoSaveEnabled || !this.currentDocNumber) return;
+    clearTimeout(this._autoSaveTimer);
+    this._autoSaveTimer = setTimeout(() => {
+      this.saveToCache(true);
+    }, 700);
+  },
+
+  // Toggle auto-save feature ON / OFF
+  toggleAutoSave: function(enabled) {
+    this.isAutoSaveEnabled = !!enabled;
+    try {
+      localStorage.setItem("1c_price_doc_autosave_enabled", this.isAutoSaveEnabled ? "1" : "0");
+    } catch(e) {}
+
+    const chk = document.getElementById("pdeAutoSaveChk");
+    if (chk) chk.checked = this.isAutoSaveEnabled;
+
+    const statusEl = document.getElementById("pdeAutoSaveStatus");
+
+    if (this.isAutoSaveEnabled) {
+      if (statusEl) {
+        statusEl.textContent = "⚡ Avto-yaddaş aktivdir";
+        statusEl.style.color = "#006000";
+      }
+      this.showCacheToast("⚡ Avto-yaddaş aktiv edildi. Dəyişikliklər avtomatik keşə yazılacaq.");
+      this.saveToCache(true);
+    } else {
+      // User turned off auto-save: Remove cache for this doc so next time it opens directly from 1C without asking!
+      if (this.currentDocNumber) {
+        try {
+          localStorage.removeItem(`1c_price_doc_cache_${this.currentDocNumber}`);
+        } catch(e) {}
+      }
+      if (statusEl) {
+        statusEl.textContent = "";
+      }
+      this.showCacheToast("⚡ Avto-yaddaş söndürüldü. Növbəti dəfə sənəd xəbərdarlıqsız birbaşa 1C-dən açılacaq.");
     }
   },
 
@@ -1538,6 +1607,11 @@ const PriceDocEditor = {
 
   // User chooses "Xeyr (1C bazasından yenilə)" -> delete cache and fetch from 1C
   discardCacheAndFetch1C: function() {
+    const disableChk = document.getElementById("pdeModalDisableAutoSave");
+    if (disableChk && disableChk.checked) {
+      this.toggleAutoSave(false);
+    }
+
     this.closeCacheRestoreModal();
     const docNum = this.pendingDocNumber || this.currentDocNumber;
     const docDate = this.pendingDocDate || "";
