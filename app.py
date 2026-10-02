@@ -3165,6 +3165,8 @@ def document_details_endpoint():
         })
     except Exception as e:
         print_server_error("/api/documents/details", e, data)
+        return jsonify({"success": False, "error": str(e)})
+
 @app.route("/api/documents/price_doc", methods=["POST"])
 def get_price_doc_endpoint():
     data = request.json or {}
