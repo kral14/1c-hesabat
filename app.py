@@ -2472,6 +2472,12 @@ class OneCService(threading.Thread):
                             if pt_name and pt_name not in doc_price_types:
                                 doc_price_types.append(pt_name)
 
+                    # Barcodes map
+                    b_map = {}
+                    try:
+                        b_map = get_barcodes_map(conn, key)
+                    except Exception: pass
+
                     # Pivot items
                     item_dict = {}
                     item_order = []
@@ -2487,12 +2493,16 @@ class OneCService(threading.Thread):
                             unit_name = str(getattr(r.ЕдиницаИзмерения, "Наименование", "шт") or "шт")
                             pt_name = str(getattr(r.ТипЦен, "Наименование", "") or "").strip()
                             price = float(getattr(r, "Цена", 0) or 0)
+                            bc = ""
+                            if name in b_map:
+                                bc = b_map[name].get("unit") or b_map[name].get("box") or ""
 
                             if code not in item_dict:
                                 item_dict[code] = {
                                     "code": code,
                                     "name": name,
                                     "artikul": artikul,
+                                    "barcode": bc,
                                     "unit": unit_name,
                                     "prices": {}
                                 }
@@ -2582,18 +2592,8 @@ class OneCService(threading.Thread):
 
                     doc_obj = res_find.Ref.ПолучитьОбъект()
 
-                    # Audit timestamp in comment
-                    now_str = datetime.datetime.now().strftime("%d.%m.%Y %H:%M")
-                    user_str = payload.get("user") or "Nesib"
-                    audit_entry = f"[Web Audit] {now_str} | {user_str} tərəfindən {len(items_data)} mal üzrə qiymətlər yeniləndi (Qaralama)."
-
-                    if audit_entry not in comment_text:
-                        if comment_text:
-                            doc_obj.Комментарий = f"{comment_text} | {audit_entry}"
-                        else:
-                            doc_obj.Комментарий = audit_entry
-                    else:
-                        doc_obj.Комментарий = comment_text
+                    # Save exact comment entered/modified by user without any automatic audit appending
+                    doc_obj.Комментарий = comment_text
 
                     # Clear existing goods table
                     doc_obj.Товары.Очистить()
@@ -2705,6 +2705,54 @@ class OneCService(threading.Thread):
                             found_map[c_artikul] = info
 
                     resp_q.put((True, {"found": found_map}))
+
+                # Action: Search Nomenclature for quick autocomplete and picker
+                elif action == "search_nomenclature":
+                    query = str(payload.get("query", "")).strip()
+                    if not query or len(query) < 1:
+                        resp_q.put((True, {"items": []}))
+                        continue
+
+                    b_map = {}
+                    try:
+                        b_map = get_barcodes_map(conn, key)
+                    except Exception: pass
+
+                    q_search = conn.NewObject("Запрос")
+                    q_search.SetParameter("QText", f"%{query}%")
+                    q_search.Text = """
+                    ВЫБРАТЬ ПЕРВЫЕ 35
+                        Т.Код КАК Code,
+                        Т.Наименование КАК Name,
+                        Т.Артикул КАК Artikul,
+                        ЕСТЬNULL(Т.ЕдиницаХраненияОстатков.Наименование, Т.БазоваяЕдиницаИзмерения.Наименование) КАК Unit
+                    ИЗ
+                        Справочник.Номенклатура КАК Т
+                    ГДЕ
+                        НЕ Т.ЭтоГруппа
+                        И (Т.Наименование ПОДОБНО &QText ИЛИ Т.Код ПОДОБНО &QText ИЛИ Т.Артикул ПОДОБНО &QText)
+                    УПОРЯДОЧИТЬ ПО
+                        Т.Наименование
+                    """
+                    sel_s = q_search.Execute().Choose()
+                    items_list = []
+                    while sel_s.Next():
+                        c_code = str(getattr(sel_s, "Code", "") or "").strip()
+                        c_name = str(getattr(sel_s, "Name", "") or "").strip()
+                        c_artikul = str(getattr(sel_s, "Artikul", "") or "").strip()
+                        c_unit = str(getattr(sel_s, "Unit", "") or "шт").strip()
+                        bc = ""
+                        if c_name in b_map:
+                            bc = b_map[c_name].get("unit") or b_map[c_name].get("box") or ""
+
+                        items_list.append({
+                            "code": c_code,
+                            "name": c_name,
+                            "artikul": c_artikul,
+                            "unit": c_unit,
+                            "barcode": bc
+                        })
+                    resp_q.put((True, {"items": items_list}))
 
             except Exception as e:
                 err_str = str(e)
@@ -3371,6 +3419,20 @@ def parse_excel_file_endpoint():
     except Exception as e:
         print_server_error("/api/documents/parse_excel_file", e, {})
         return jsonify({"success": False, "error": str(e)})
+
+@app.route("/api/nomenclature/search", methods=["POST"])
+@app.route("/api/documents/search_nomenclature", methods=["POST"])
+def search_nomenclature_endpoint():
+    data = request.json or {}
+    try:
+        res = one_c.execute("search_nomenclature", data)
+        return jsonify({
+            "success": True,
+            "items": res.get("items", [])
+        })
+    except Exception as e:
+        print_server_error("/api/nomenclature/search", e, data)
+        return jsonify({"success": False, "error": str(e), "items": []})
 
 if __name__ == "__main__":
     app.run(host="127.0.0.1", port=5050, debug=False)

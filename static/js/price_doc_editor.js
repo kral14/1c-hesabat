@@ -7,13 +7,32 @@ const PriceDocEditor = {
   currentDocNumber: "",
   docData: null,
   priceTypes: [],
+  allPriceTypes: [],
   items: [],
   filteredItems: [],
   selectedRowIdx: null,
+  columnsConfig: [
+    { id: "num", label: "№", visible: true, width: 35 },
+    { id: "code", label: "Код", visible: true, width: 85 },
+    { id: "artikul", label: "Артикул", visible: true, width: 85 },
+    { id: "barcode", label: "Штрихкод", visible: false, width: 110 },
+    { id: "name", label: "Номенклатура", visible: true, width: 300 },
+    { id: "unit", label: "Единица", visible: true, width: 45 }
+  ],
 
   open: function(docNumber, docDate) {
     if (!docNumber) return;
     this.currentDocNumber = docNumber;
+
+    try {
+      const savedCols = localStorage.getItem("1c_price_doc_columns");
+      if (savedCols) {
+        const parsed = JSON.parse(savedCols);
+        if (Array.isArray(parsed) && parsed.length) {
+          this.columnsConfig = parsed;
+        }
+      }
+    } catch(e) {}
 
     const win = document.getElementById("priceDocEditorWindow");
     if (!win) return;
@@ -120,6 +139,70 @@ const PriceDocEditor = {
       const defaultBg = (i % 2 === 1) ? "#f7f6f0" : "#ffffff";
       const rowBg = isSel ? "#e4edf7" : defaultBg;
 
+      let rowCellsHtml = "";
+      this.columnsConfig.forEach(col => {
+        if (!col.visible) return;
+
+        if (col.id === "num") {
+          rowCellsHtml += `<td style="text-align: center; border: 1px solid #d4d0c8; padding: 2px; color: #555; width: ${col.width}px;">${i + 1}</td>`;
+        } else if (col.id === "code") {
+          rowCellsHtml += `
+            <td style="padding: 1px 3px; border: 1px solid #d4d0c8; width: ${col.width}px;">
+              <input type="text" value="${this.escapeHtml(itm.code || '')}"
+                     onchange="PriceDocEditor.onCodeCellChange(${i}, this.value)"
+                     onfocus="this.select()"
+                     title="Код товара (введите для поиска)"
+                     style="width: 100%; height: 19px; border: 1px solid transparent; background: transparent; font-family: Tahoma, sans-serif; font-size: 11px; outline: none; padding: 0 2px;"
+                     onmouseover="this.style.border='1px solid #7f9db9'"
+                     onmouseout="if(document.activeElement!==this) this.style.border='1px solid transparent'"
+                     onfocusin="this.style.border='1px solid #0055ea'; this.style.background='#fff'; PriceDocEditor.selectedRowIdx=${i};"
+                     onfocusout="this.style.border='1px solid transparent'; this.style.background='transparent';">
+            </td>
+          `;
+        } else if (col.id === "artikul") {
+          rowCellsHtml += `
+            <td style="padding: 1px 3px; border: 1px solid #d4d0c8; width: ${col.width}px;">
+              <input type="text" value="${this.escapeHtml(itm.artikul || '')}"
+                     onchange="PriceDocEditor.onArtikulCellChange(${i}, this.value)"
+                     onfocus="this.select()"
+                     title="Артикул товара (введите для поиска)"
+                     style="width: 100%; height: 19px; border: 1px solid transparent; background: transparent; font-family: Tahoma, sans-serif; font-size: 11px; outline: none; padding: 0 2px;"
+                     onmouseover="this.style.border='1px solid #7f9db9'"
+                     onmouseout="if(document.activeElement!==this) this.style.border='1px solid transparent'"
+                     onfocusin="this.style.border='1px solid #0055ea'; this.style.background='#fff'; PriceDocEditor.selectedRowIdx=${i};"
+                     onfocusout="this.style.border='1px solid transparent'; this.style.background='transparent';">
+            </td>
+          `;
+        } else if (col.id === "barcode") {
+          rowCellsHtml += `<td style="padding: 2px 4px; border: 1px solid #d4d0c8; text-align: center; font-family: Consolas, monospace; color: #555; width: ${col.width}px;">${this.escapeHtml(itm.barcode || '')}</td>`;
+        } else if (col.id === "name") {
+          rowCellsHtml += `
+            <td style="padding: 1px 2px; border: 1px solid #d4d0c8; position: relative;">
+              <div class="pde-nom-cell-wrapper" style="display: flex; align-items: stretch; width: 100%; height: 19px;">
+                <input type="text" value="${this.escapeHtml(itm.name || '')}"
+                       data-row="${i}"
+                       id="pdeNomInput_${i}"
+                       oninput="PriceDocEditor.onNomSearchInput(this, event, ${i})"
+                       onkeydown="PriceDocEditor.onNomKeyDown(this, event, ${i})"
+                       title="${this.escapeHtml(itm.name || '')}"
+                       style="flex: 1; min-width: 120px; height: 100%; border: 1px solid transparent; background: transparent; font-family: Tahoma, sans-serif; font-size: 11px; padding: 0 4px; outline: none; text-overflow: ellipsis;"
+                       onmouseover="this.style.border='1px solid #7f9db9'"
+                       onmouseout="if(document.activeElement!==this) this.style.border='1px solid transparent'"
+                       onfocusin="this.style.border='1px solid #0055ea'; this.style.background='#fff'; PriceDocEditor.selectedRowIdx=${i};"
+                       onfocusout="this.style.border='1px solid transparent'; this.style.background='transparent';">
+                <button type="button" onclick="PriceDocEditor.openNomPickerForRow(${i})" 
+                        title="Подбор номенклатуры (F4)"
+                        style="height: 100%; padding: 0 5px; border: 1px solid #7f9db9; border-left: none; background: #e0dfd5; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: bold; line-height: 1; user-select: none;">
+                  ... 🔍
+                </button>
+              </div>
+            </td>
+          `;
+        } else if (col.id === "unit") {
+          rowCellsHtml += `<td style="text-align: center; border: 1px solid #d4d0c8; padding: 2px; color: #555; width: ${col.width}px;">${this.escapeHtml(itm.unit || 'шт')}</td>`;
+        }
+      });
+
       let priceCells = "";
       this.priceTypes.forEach(pt => {
         const val = itm.prices && itm.prices[pt] !== undefined ? Number(itm.prices[pt]) : 0;
@@ -142,11 +225,7 @@ const PriceDocEditor = {
 
       html += `
         <tr style="background: ${rowBg}; height: 21px;" onclick="PriceDocEditor.selectRow(${i})">
-          <td style="text-align: center; border: 1px solid #d4d0c8; padding: 2px; color: #555; width: 35px;">${i + 1}</td>
-          <td style="padding: 2px 6px; border: 1px solid #d4d0c8; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 320px;">
-            <span style="font-weight: 500; color: #000;">${this.escapeHtml(itm.name)}</span>
-            <span style="font-size: 10px; color: #777; margin-left: 6px;">[${this.escapeHtml(itm.code)}]</span>
-          </td>
+          ${rowCellsHtml}
           ${priceCells}
         </tr>
       `;
@@ -159,16 +238,29 @@ const PriceDocEditor = {
     const headRow = document.getElementById("pdeTableHeadRow");
     if (!headRow) return;
 
-    let priceHeaders = "";
-    this.priceTypes.forEach(pt => {
-      priceHeaders += `<th style="width: 85px; min-width: 80px; padding: 4px; border: 1px solid #b0af9f; text-align: right; white-space: nowrap; font-size: 11px;">${this.escapeHtml(pt)}</th>`;
+    let headersHtml = "";
+    this.columnsConfig.forEach(col => {
+      if (!col.visible) return;
+      if (col.id === "num") {
+        headersHtml += `<th style="width: ${col.width}px; padding: 4px; border: 1px solid #b0af9f; text-align: center;">№</th>`;
+      } else if (col.id === "code") {
+        headersHtml += `<th style="width: ${col.width}px; padding: 4px; border: 1px solid #b0af9f; text-align: left;">Код</th>`;
+      } else if (col.id === "artikul") {
+        headersHtml += `<th style="width: ${col.width}px; padding: 4px; border: 1px solid #b0af9f; text-align: left;">Артикул</th>`;
+      } else if (col.id === "barcode") {
+        headersHtml += `<th style="width: ${col.width}px; padding: 4px; border: 1px solid #b0af9f; text-align: center;">Штрихкод</th>`;
+      } else if (col.id === "name") {
+        headersHtml += `<th style="min-width: 250px; padding: 4px 6px; border: 1px solid #b0af9f; text-align: left;">Номенклатура</th>`;
+      } else if (col.id === "unit") {
+        headersHtml += `<th style="width: ${col.width}px; padding: 4px; border: 1px solid #b0af9f; text-align: center;">Ед.</th>`;
+      }
     });
 
-    headRow.innerHTML = `
-      <th style="width: 35px; padding: 4px; border: 1px solid #b0af9f; text-align: center;">№</th>
-      <th style="min-width: 250px; padding: 4px 6px; border: 1px solid #b0af9f; text-align: left;">Номенклатура</th>
-      ${priceHeaders}
-    `;
+    this.priceTypes.forEach(pt => {
+      headersHtml += `<th style="width: 85px; min-width: 80px; padding: 4px; border: 1px solid #b0af9f; text-align: right; white-space: nowrap; font-size: 11px;">${this.escapeHtml(pt)}</th>`;
+    });
+
+    headRow.innerHTML = headersHtml;
   },
 
   selectRow: function(idx) {
@@ -964,13 +1056,412 @@ const PriceDocEditor = {
 
     // Close modal
     this.closePriceTypesModal();
+  },
+
+  // ==========================================
+  // Autocomplete & In-Cell Editing (Screenshots 2 & 3)
+  // ==========================================
+  nomSearchTimer: null,
+  activeNomRowIdx: -1,
+  activeAutocompleteIdx: -1,
+  currentAutocompleteItems: [],
+
+  onNomSearchInput: function(inp, event, rowIdx) {
+    clearTimeout(this.nomSearchTimer);
+    const q = inp.value.trim();
+    if (q.length < 1) {
+      this.hideNomAutocomplete();
+      return;
+    }
+
+    this.activeNomRowIdx = rowIdx;
+    this.nomSearchTimer = setTimeout(() => {
+      fetch("/api/nomenclature/search", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ query: q })
+      })
+      .then(r => r.json())
+      .then(res => {
+        if (res.success && res.items && res.items.length) {
+          PriceDocEditor.showNomAutocomplete(inp, rowIdx, res.items);
+        } else {
+          PriceDocEditor.hideNomAutocomplete();
+        }
+      })
+      .catch(() => PriceDocEditor.hideNomAutocomplete());
+    }, 150);
+  },
+
+  showNomAutocomplete: function(inp, rowIdx, items) {
+    const dropdown = document.getElementById("pdeNomAutocompleteDropdown");
+    if (!dropdown) return;
+
+    this.currentAutocompleteItems = items;
+    this.activeAutocompleteIdx = -1;
+
+    const rect = inp.getBoundingClientRect();
+    dropdown.style.top = (rect.bottom + 1) + "px";
+    dropdown.style.left = rect.left + "px";
+    dropdown.style.width = Math.max(rect.width + 120, 360) + "px";
+    dropdown.style.display = "block";
+
+    let html = "";
+    items.forEach((it, idx) => {
+      html += `
+        <div class="pde-autocomplete-item" id="pdeAutoItem_${idx}" onclick="PriceDocEditor.selectNomItem(${rowIdx}, ${idx})"
+             style="padding: 4px 8px; cursor: pointer; border-bottom: 1px solid #f0eee3; font-size: 11px; display: flex; justify-content: space-between; align-items: center; background: #fff;"
+             onmouseover="PriceDocEditor.highlightAutoItem(${idx})">
+          <span style="font-weight: 500; color: #000; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${this.escapeHtml(it.name)}</span>
+          <span style="color: #666; font-size: 10px; margin-left: 8px; white-space: nowrap;">[${this.escapeHtml(it.artikul || it.code)}]</span>
+        </div>
+      `;
+    });
+
+    dropdown.innerHTML = html;
+  },
+
+  highlightAutoItem: function(idx) {
+    this.activeAutocompleteIdx = idx;
+    const items = document.querySelectorAll(".pde-autocomplete-item");
+    items.forEach((el, i) => {
+      el.style.background = (i === idx) ? "#316ac5" : "#ffffff";
+      el.style.color = (i === idx) ? "#ffffff" : "#000000";
+    });
+  },
+
+  onNomKeyDown: function(inp, event, rowIdx) {
+    const dropdown = document.getElementById("pdeNomAutocompleteDropdown");
+    const isDropOpen = dropdown && dropdown.style.display !== "none";
+
+    if (event.key === "F4") {
+      event.preventDefault();
+      this.hideNomAutocomplete();
+      this.openNomPickerForRow(rowIdx);
+      return;
+    }
+
+    if (!isDropOpen) return;
+
+    if (event.key === "ArrowDown") {
+      event.preventDefault();
+      if (this.currentAutocompleteItems.length) {
+        this.activeAutocompleteIdx = (this.activeAutocompleteIdx + 1) % this.currentAutocompleteItems.length;
+        this.highlightAutoItem(this.activeAutocompleteIdx);
+      }
+    } else if (event.key === "ArrowUp") {
+      event.preventDefault();
+      if (this.currentAutocompleteItems.length) {
+        this.activeAutocompleteIdx = (this.activeAutocompleteIdx - 1 + this.currentAutocompleteItems.length) % this.currentAutocompleteItems.length;
+        this.highlightAutoItem(this.activeAutocompleteIdx);
+      }
+    } else if (event.key === "Enter") {
+      if (this.activeAutocompleteIdx >= 0 && this.activeAutocompleteIdx < this.currentAutocompleteItems.length) {
+        event.preventDefault();
+        this.selectNomItem(rowIdx, this.activeAutocompleteIdx);
+      }
+    } else if (event.key === "Escape") {
+      this.hideNomAutocomplete();
+    }
+  },
+
+  selectNomItem: function(rowIdx, itemIdx) {
+    const itm = this.currentAutocompleteItems[itemIdx];
+    if (!itm) return;
+
+    const row = this.filteredItems[rowIdx];
+    if (row) {
+      row.name = itm.name;
+      row.code = itm.code;
+      row.artikul = itm.artikul;
+      row.unit = itm.unit;
+      row.barcode = itm.barcode || "";
+    }
+
+    this.hideNomAutocomplete();
+    this.renderTable();
+  },
+
+  hideNomAutocomplete: function() {
+    const dropdown = document.getElementById("pdeNomAutocompleteDropdown");
+    if (dropdown) dropdown.style.display = "none";
+    this.currentAutocompleteItems = [];
+    this.activeAutocompleteIdx = -1;
+  },
+
+  onCodeCellChange: function(rowIdx, val) {
+    const cleanVal = String(val || "").trim();
+    if (!cleanVal) return;
+    fetch("/api/documents/resolve_nomenclature", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ codes: [cleanVal] })
+    })
+    .then(r => r.json())
+    .then(res => {
+      if (res.success && res.found && res.found[cleanVal]) {
+        const info = res.found[cleanVal];
+        const row = this.filteredItems[rowIdx];
+        if (row) {
+          row.name = info.name;
+          row.code = info.code;
+          row.artikul = info.artikul;
+          row.unit = info.unit;
+          row.barcode = info.barcode || "";
+          this.renderTable();
+        }
+      }
+    });
+  },
+
+  onArtikulCellChange: function(rowIdx, val) {
+    this.onCodeCellChange(rowIdx, val);
+  },
+
+  // ==========================================
+  // Dedicated Nomenclature Picker Modal (F4)
+  // ==========================================
+  pickerTargetRowIdx: -1,
+  nomPickerItems: [],
+  nomPickerSelectedIdx: -1,
+
+  openNomPickerForRow: function(rowIdx) {
+    this.pickerTargetRowIdx = (typeof rowIdx === "number") ? rowIdx : this.selectedRowIdx;
+    const modal = document.getElementById("pdeNomPickerModal");
+    if (modal) modal.style.display = "flex";
+
+    const searchInp = document.getElementById("pdeNomPickerSearchInp");
+    let initQ = "";
+    if (this.pickerTargetRowIdx >= 0 && this.filteredItems[this.pickerTargetRowIdx]) {
+      initQ = this.filteredItems[this.pickerTargetRowIdx].name || "";
+      initQ = initQ.split(" ").slice(0, 2).join(" ");
+    }
+    if (searchInp) {
+      searchInp.value = initQ;
+      setTimeout(() => {
+        searchInp.focus();
+        searchInp.select();
+      }, 100);
+    }
+    this.onNomPickerSearchInput();
+  },
+
+  closeNomPickerModal: function() {
+    const modal = document.getElementById("pdeNomPickerModal");
+    if (modal) modal.style.display = "none";
+  },
+
+  onNomPickerSearchInput: function() {
+    const searchInp = document.getElementById("pdeNomPickerSearchInp");
+    const q = searchInp ? searchInp.value.trim() : "";
+    if (!q) {
+      const tbody = document.getElementById("pdeNomPickerTableBody");
+      if (tbody) tbody.innerHTML = `<tr><td colspan="5" style="padding: 25px; text-align: center; color: #888;">Введите поисковый запрос выше...</td></tr>`;
+      return;
+    }
+
+    fetch("/api/nomenclature/search", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ query: q })
+    })
+    .then(r => r.json())
+    .then(res => {
+      const items = res.success ? (res.items || []) : [];
+      PriceDocEditor.nomPickerItems = items;
+      PriceDocEditor.nomPickerSelectedIdx = 0;
+      PriceDocEditor.renderNomPickerTable();
+    });
+  },
+
+  renderNomPickerTable: function() {
+    const tbody = document.getElementById("pdeNomPickerTableBody");
+    if (!tbody) return;
+
+    if (!this.nomPickerItems.length) {
+      tbody.innerHTML = `<tr><td colspan="5" style="padding: 25px; text-align: center; color: #c62828;">Товары не найдены</td></tr>`;
+      return;
+    }
+
+    let html = "";
+    this.nomPickerItems.forEach((itm, idx) => {
+      const isSel = (idx === this.nomPickerSelectedIdx);
+      const bg = isSel ? "#316ac5" : (idx % 2 === 1 ? "#faf9f5" : "#ffffff");
+      const fg = isSel ? "#ffffff" : "#000000";
+
+      html += `
+        <tr onclick="PriceDocEditor.selectNomPickerRow(${idx})" 
+            ondblclick="PriceDocEditor.confirmNomPickerSelection()"
+            style="background: ${bg}; color: ${fg}; height: 21px; cursor: pointer; user-select: none;">
+          <td style="padding: 2px 4px; border: 1px solid #d4d0c8;">${this.escapeHtml(itm.code)}</td>
+          <td style="padding: 2px 4px; border: 1px solid #d4d0c8;">${this.escapeHtml(itm.artikul)}</td>
+          <td style="padding: 2px 4px; border: 1px solid #d4d0c8; text-align: center; font-family: Consolas, monospace;">${this.escapeHtml(itm.barcode || '')}</td>
+          <td style="padding: 2px 4px; border: 1px solid #d4d0c8; font-weight: 500;">${this.escapeHtml(itm.name)}</td>
+          <td style="padding: 2px 4px; border: 1px solid #d4d0c8; text-align: center;">${this.escapeHtml(itm.unit || 'шт')}</td>
+        </tr>
+      `;
+    });
+
+    tbody.innerHTML = html;
+  },
+
+  selectNomPickerRow: function(idx) {
+    this.nomPickerSelectedIdx = idx;
+    this.renderNomPickerTable();
+  },
+
+  confirmNomPickerSelection: function() {
+    if (this.nomPickerSelectedIdx < 0 || !this.nomPickerItems[this.nomPickerSelectedIdx]) return;
+    const itm = this.nomPickerItems[this.nomPickerSelectedIdx];
+
+    if (this.pickerTargetRowIdx >= 0 && this.pickerTargetRowIdx < this.filteredItems.length) {
+      const target = this.filteredItems[this.pickerTargetRowIdx];
+      target.name = itm.name;
+      target.code = itm.code;
+      target.artikul = itm.artikul;
+      target.unit = itm.unit;
+      target.barcode = itm.barcode || "";
+    } else {
+      this.items.push({
+        name: itm.name,
+        code: itm.code,
+        artikul: itm.artikul,
+        unit: itm.unit,
+        barcode: itm.barcode || "",
+        prices: {}
+      });
+      this.filteredItems = [...this.items];
+      this.updateRowCount();
+    }
+
+    this.closeNomPickerModal();
+    this.renderTable();
+  },
+
+  // ==========================================
+  // Column Settings Modal (Screenshot 4)
+  // ==========================================
+  colModalItems: [],
+  colSelectedIdx: 0,
+
+  openColumnSettingsModal: function() {
+    this.closeAllMenus();
+
+    this.colModalItems = JSON.parse(JSON.stringify(this.columnsConfig));
+    this.colSelectedIdx = 0;
+    this.renderColChecklist();
+
+    const modal = document.getElementById("pdeColumnSettingsModal");
+    if (modal) modal.style.display = "flex";
+  },
+
+  closeColumnSettingsModal: function() {
+    const modal = document.getElementById("pdeColumnSettingsModal");
+    if (modal) modal.style.display = "none";
+  },
+
+  renderColChecklist: function() {
+    const container = document.getElementById("pdeColChecklistContainer");
+    if (!container) return;
+
+    let html = "";
+    this.colModalItems.forEach((col, idx) => {
+      const isSel = (idx === this.colSelectedIdx);
+      const bg = isSel ? "#316ac5" : (idx % 2 === 1 ? "#faf9f5" : "#ffffff");
+      const fg = isSel ? "#ffffff" : "#000000";
+
+      html += `
+        <div onclick="PriceDocEditor.selectColRow(${idx})"
+             style="display: flex; align-items: center; gap: 6px; padding: 2px 6px; cursor: pointer; user-select: none; background: ${bg}; color: ${fg}; border-bottom: 1px dotted #e0dfd5; height: 20px; box-sizing: border-box;">
+          <input type="checkbox" ${col.visible ? 'checked' : ''}
+                 onchange="PriceDocEditor.toggleColVisible(${idx}, this.checked)"
+                 onclick="event.stopPropagation()"
+                 style="cursor: pointer; margin: 0; padding: 0;">
+          <span style="font-size: 11px;">${this.escapeHtml(col.label)}</span>
+        </div>
+      `;
+    });
+
+    container.innerHTML = html;
+  },
+
+  selectColRow: function(idx) {
+    this.colSelectedIdx = idx;
+    this.renderColChecklist();
+  },
+
+  toggleColVisible: function(idx, isChecked) {
+    if (this.colModalItems[idx]) {
+      this.colModalItems[idx].visible = isChecked;
+    }
+    this.renderColChecklist();
+  },
+
+  colMoveUp: function() {
+    if (this.colSelectedIdx > 0 && this.colSelectedIdx < this.colModalItems.length) {
+      const tmp = this.colModalItems[this.colSelectedIdx];
+      this.colModalItems[this.colSelectedIdx] = this.colModalItems[this.colSelectedIdx - 1];
+      this.colModalItems[this.colSelectedIdx - 1] = tmp;
+      this.colSelectedIdx--;
+      this.renderColChecklist();
+    }
+  },
+
+  colMoveDown: function() {
+    if (this.colSelectedIdx >= 0 && this.colSelectedIdx < this.colModalItems.length - 1) {
+      const tmp = this.colModalItems[this.colSelectedIdx];
+      this.colModalItems[this.colSelectedIdx] = this.colModalItems[this.colSelectedIdx + 1];
+      this.colModalItems[this.colSelectedIdx + 1] = tmp;
+      this.colSelectedIdx++;
+      this.renderColChecklist();
+    }
+  },
+
+  colResetDefault: function() {
+    this.colModalItems = [
+      { id: "num", label: "№", visible: true, width: 35, align: "center" },
+      { id: "code", label: "Код", visible: true, width: 85, align: "left" },
+      { id: "artikul", label: "Артикул", visible: true, width: 85, align: "left" },
+      { id: "barcode", label: "Штрихкод", visible: false, width: 110, align: "center" },
+      { id: "name", label: "Номенклатура", visible: true, width: 300, align: "left" },
+      { id: "unit", label: "Единица", visible: true, width: 45, align: "center" }
+    ];
+    this.colSelectedIdx = 0;
+    this.renderColChecklist();
+  },
+
+  applyColumnSettings: function(shouldClose) {
+    this.columnsConfig = JSON.parse(JSON.stringify(this.colModalItems));
+    try {
+      localStorage.setItem("1c_price_doc_columns", JSON.stringify(this.columnsConfig));
+    } catch(e) {}
+
+    this.renderTable();
+
+    if (shouldClose) {
+      this.closeColumnSettingsModal();
+    }
   }
 };
 
-// Global click handler to close dropdown menus
+// Global click handler to close dropdown menus & autocomplete
 document.addEventListener("click", function(e) {
   if (!e.target.closest("#priceDocEditorWindow button")) {
     PriceDocEditor.closeAllMenus();
+  }
+  if (!e.target.closest("#pdeNomAutocompleteDropdown") && !e.target.closest(".pde-nom-cell-wrapper")) {
+    PriceDocEditor.hideNomAutocomplete();
+  }
+});
+
+// Global F4 shortcut handler for 1C nomenclature picker
+document.addEventListener("keydown", function(e) {
+  if (e.key === "F4") {
+    const docWin = document.getElementById("priceDocEditorWindow");
+    if (docWin && docWin.style.display !== "none") {
+      e.preventDefault();
+      PriceDocEditor.openNomPickerForRow(PriceDocEditor.selectedRowIdx >= 0 ? PriceDocEditor.selectedRowIdx : 0);
+    }
   }
 });
 

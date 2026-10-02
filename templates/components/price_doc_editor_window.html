@@ -119,6 +119,12 @@
         </div>
       </div>
 
+      <!-- ⚙️ Настройка списка (Screenshot 4) -->
+      <button type="button" class="btn-1c" onclick="PriceDocEditor.openColumnSettingsModal()" title="Настройка списка (колонки)" style="height: 23px; padding: 0 7px; display: inline-flex; align-items: center; gap: 4px; cursor: pointer; font-size: 11px;">
+        <span style="font-size: 12px;">⚙️</span>
+        <span>Настройка списка...</span>
+      </button>
+
       <div class="mdi-tool-sep" style="height: 16px; width: 1px; background: #b0af9f; margin: 0 3px;"></div>
 
       <!-- Search in Table Filter Input -->
@@ -361,6 +367,125 @@
         <a href="javascript:void(0)" onclick="PriceDocEditor.applySelectedPriceTypes()" style="color: #000; font-weight: bold; text-decoration: none; cursor: pointer; padding: 2px 6px;">OK</a>
         <span style="color: #b5b19c;">|</span>
         <a href="javascript:void(0)" onclick="PriceDocEditor.closePriceTypesModal()" style="color: #000; text-decoration: none; cursor: pointer; padding: 2px 6px;">Закрыть</a>
+      </div>
+
+    </div>
+
+  </div>
+
+  <!-- Nomenclature Autocomplete Popup Dropdown (Screenshot 2) -->
+  <div id="pdeNomAutocompleteDropdown" style="display: none; position: fixed; z-index: 10000; background: #ffffff; border: 1px solid #7f9db9; box-shadow: 2px 4px 14px rgba(0,0,0,0.3); max-height: 240px; overflow-y: auto; font-family: Tahoma, 'MS Sans Serif', Arial, sans-serif; font-size: 11px;">
+    <!-- Rendered dynamically -->
+  </div>
+
+  <!-- Authentic 1C Dialog: Настройка списка (Screenshot 4) -->
+  <div id="pdeColumnSettingsModal" style="display: none; position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.35); z-index: 1250; align-items: center; justify-content: center;">
+    
+    <div style="width: 320px; background: #fdfcee; border: 2px solid #7f9db9; box-shadow: 2px 2px 14px rgba(0,0,0,0.4); font-family: Tahoma, 'MS Sans Serif', Arial, sans-serif; font-size: 11px; display: flex; flex-direction: column; overflow: hidden;">
+      
+      <!-- Titlebar -->
+      <div style="height: 24px; background: #dcd7bf; border-bottom: 1px solid #b5b19c; display: flex; align-items: center; justify-content: space-between; padding: 0 8px; user-select: none;">
+        <span style="font-weight: bold; color: #222; font-size: 11px;">Настройка списка</span>
+        <button type="button" onclick="PriceDocEditor.closeColumnSettingsModal()" style="border: none; background: transparent; font-weight: bold; font-size: 13px; color: #333; cursor: pointer; line-height: 1; padding: 0 2px;">✕</button>
+      </div>
+
+      <!-- Tab header: Колонки | Прочее (Screenshot 4) -->
+      <div style="display: flex; background: #e5e2cf; border-bottom: 1px solid #b0af9f; padding: 4px 6px 0 6px; gap: 2px;">
+        <button type="button" class="btn-1c" style="background: #fdfcee; border: 1px solid #b0af9f; border-bottom: 1px solid #fdfcee; padding: 3px 12px; font-weight: bold; font-size: 11px; border-radius: 3px 3px 0 0; margin-bottom: -1px;">
+          Колонки
+        </button>
+        <button type="button" class="btn-1c" style="background: #e5e2cf; border: 1px solid transparent; padding: 3px 10px; font-size: 11px; color: #555;" onclick="alert('Дополнительные параметры в разработке')">
+          Прочее
+        </button>
+      </div>
+
+      <!-- Toolbar: ⬆ ⬇ Стандартная настройка (Screenshot 4) -->
+      <div style="padding: 4px 8px; background: #f0eee3; border-bottom: 1px solid #d4d0c8; display: flex; align-items: center; gap: 6px;">
+        <button type="button" class="btn-1c" onclick="PriceDocEditor.colMoveUp()" title="Переместить вверх" style="height: 22px; width: 22px; padding: 0; cursor: pointer; font-size: 11px; color: #0055ea; font-weight: bold;">⬆</button>
+        <button type="button" class="btn-1c" onclick="PriceDocEditor.colMoveDown()" title="Переместить вниз" style="height: 22px; width: 22px; padding: 0; cursor: pointer; font-size: 11px; color: #0055ea; font-weight: bold;">⬇</button>
+        <button type="button" class="btn-1c" onclick="PriceDocEditor.colResetDefault()" style="height: 22px; padding: 0 8px; cursor: pointer; font-size: 11px;">Стандартная настройка</button>
+      </div>
+
+      <!-- Checklist container (Screenshot 4) -->
+      <div style="padding: 6px; background: #fdfcee; display: flex; flex-direction: column;">
+        <div id="pdeColChecklistContainer" style="height: 220px; overflow-y: auto; background: #ffffff; border: 1px solid #7f9db9; padding: 1px; outline: none;">
+          <!-- Populated dynamically via JS -->
+        </div>
+      </div>
+
+      <!-- Footer Bar: OK | Закрыть | Применить (Screenshot 4) -->
+      <div style="padding: 6px 10px; background: #fdfcee; border-top: 1px solid #e0dfd5; display: flex; justify-content: flex-end; align-items: center; gap: 8px; font-size: 11px;">
+        <button type="button" class="btn-1c btn-1c-primary" onclick="PriceDocEditor.applyColumnSettings(true)" style="height: 22px; min-width: 55px; font-weight: bold; background: linear-gradient(to bottom, #ffea88, #d8a020); border: 1px solid #7c6817; color: #000; cursor: pointer;">
+          OK
+        </button>
+        <button type="button" class="btn-1c" onclick="PriceDocEditor.closeColumnSettingsModal()" style="height: 22px; min-width: 60px; cursor: pointer;">
+          Закрыть
+        </button>
+        <button type="button" class="btn-1c" onclick="PriceDocEditor.applyColumnSettings(false)" style="height: 22px; min-width: 70px; cursor: pointer;">
+          Применить
+        </button>
+      </div>
+
+    </div>
+
+  </div>
+
+  <!-- Dedicated 1C Dialog: Подбор номенклатуры (F4) -->
+  <div id="pdeNomPickerModal" style="display: none; position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.35); z-index: 1300; align-items: center; justify-content: center;">
+    
+    <div style="width: 680px; max-width: 95vw; background: #fdfcee; border: 2px solid #7f9db9; box-shadow: 0 8px 30px rgba(0,0,0,0.5); font-family: Tahoma, 'MS Sans Serif', Arial, sans-serif; font-size: 11px; display: flex; flex-direction: column; overflow: hidden;">
+      
+      <!-- Titlebar -->
+      <div style="height: 24px; background: #dcd7bf; border-bottom: 1px solid #b5b19c; display: flex; align-items: center; justify-content: space-between; padding: 0 8px; user-select: none;">
+        <div style="font-weight: bold; color: #222; font-size: 11px; display: flex; align-items: center; gap: 6px;">
+          <span>📦</span>
+          <span>Подбор номенклатуры (Справочник.Номенклатура)</span>
+        </div>
+        <button type="button" onclick="PriceDocEditor.closeNomPickerModal()" style="border: none; background: transparent; font-weight: bold; font-size: 13px; color: #333; cursor: pointer; line-height: 1; padding: 0 2px;">✕</button>
+      </div>
+
+      <!-- Quick Search Toolbar -->
+      <div style="padding: 6px 10px; background: #f0eee3; border-bottom: 1px solid #d4d0c8; display: flex; align-items: center; gap: 8px;">
+        <span style="font-weight: bold; color: #222;">Поиск:</span>
+        <input type="text" id="pdeNomPickerSearchInp" placeholder="Введите наименование, код или артикул..." oninput="PriceDocEditor.onNomPickerSearchInput()" style="flex: 1; height: 22px; padding: 0 6px; border: 1px solid #7f9db9; font-size: 11px;">
+        <button type="button" class="btn-1c" onclick="PriceDocEditor.onNomPickerSearchInput()" style="height: 22px; padding: 0 10px; cursor: pointer;">🔍 Найти</button>
+      </div>
+
+      <!-- Table Container -->
+      <div style="height: 280px; overflow-y: auto; background: #ffffff; border: 1px solid #7f9db9; margin: 8px 10px;">
+        <table style="width: 100%; border-collapse: collapse; font-size: 11px;">
+          <thead style="background: #e3dec9; border-bottom: 2px solid #5a5a5a; position: sticky; top: 0; z-index: 5;">
+            <tr style="height: 20px; text-align: left;">
+              <th style="padding: 2px 4px; border-right: 1px solid #d4d0c8; width: 85px;">Код</th>
+              <th style="padding: 2px 4px; border-right: 1px solid #d4d0c8; width: 90px;">Артикул</th>
+              <th style="padding: 2px 4px; border-right: 1px solid #d4d0c8; width: 110px;">Штрихкод</th>
+              <th style="padding: 2px 4px; border-right: 1px solid #d4d0c8;">Наименование</th>
+              <th style="padding: 2px 4px; width: 40px; text-align: center;">Ед.</th>
+            </tr>
+          </thead>
+          <tbody id="pdeNomPickerTableBody">
+            <tr>
+              <td colspan="5" style="padding: 30px; text-align: center; color: #888; font-style: italic;">
+                Введите поисковый запрос выше, чтобы найти товары...
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Footer -->
+      <div style="padding: 6px 12px; background: #fdfcee; border-top: 1px solid #e0dfd5; display: flex; justify-content: space-between; align-items: center;">
+        <div style="font-size: 10px; color: #666;">
+          💡 Подсказка: Дважды кликните по товару для выбора
+        </div>
+        <div style="display: flex; gap: 8px;">
+          <button type="button" class="btn-1c btn-1c-primary" onclick="PriceDocEditor.confirmNomPickerSelection()" style="height: 24px; min-width: 90px; font-weight: bold; background: linear-gradient(to bottom, #ffea88, #d8a020); border: 1px solid #7c6817; color: #000; cursor: pointer;">
+            Выбрать
+          </button>
+          <button type="button" class="btn-1c" onclick="PriceDocEditor.closeNomPickerModal()" style="height: 24px; min-width: 70px; cursor: pointer;">
+            Отмена
+          </button>
+        </div>
       </div>
 
     </div>
