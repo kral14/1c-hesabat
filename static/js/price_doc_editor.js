@@ -175,6 +175,26 @@ const PriceDocEditor = {
     this.applySortAndFilter();
   },
 
+  renderColGroup: function() {
+    const colGroup = document.getElementById("pdeColGroup");
+    if (!colGroup) return;
+
+    let html = "";
+    this.columnsConfig.forEach(col => {
+      if (!col.visible) return;
+      const w = col.width || 85;
+      html += `<col id="pdeCol_standard_${col.id}" style="width: ${w}px;">`;
+    });
+
+    this.priceTypes.forEach(pt => {
+      const w = (this.ptWidths && this.ptWidths[pt]) || 85;
+      const cleanPtAttr = pt.replace(/[^a-zA-Z0-9_-]/g, '_');
+      html += `<col id="pdeCol_pt_${cleanPtAttr}" style="width: ${w}px;">`;
+    });
+
+    colGroup.innerHTML = html;
+  },
+
   renderTable: function() {
     this.renderTableHead();
     const tbody = document.getElementById("pdeTableBody");
@@ -190,13 +210,12 @@ const PriceDocEditor = {
       let rowCellsHtml = "";
       this.columnsConfig.forEach(col => {
         if (!col.visible) return;
-        const colW = col.width || 85;
 
         if (col.id === "num") {
-          rowCellsHtml += `<td style="text-align: center; border: 1px solid #d4d0c8; padding: 2px; color: #555; width: ${colW}px; min-width: ${colW}px; max-width: ${colW}px; overflow: hidden; text-overflow: ellipsis; box-sizing: border-box;">${i + 1}</td>`;
+          rowCellsHtml += `<td style="text-align: center; border: 1px solid #d4d0c8; padding: 2px; color: #555; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; box-sizing: border-box;">${i + 1}</td>`;
         } else if (col.id === "code") {
           rowCellsHtml += `
-            <td style="padding: 1px 3px; border: 1px solid #d4d0c8; width: ${colW}px; min-width: ${colW}px; max-width: ${colW}px; box-sizing: border-box;">
+            <td style="padding: 1px 3px; border: 1px solid #d4d0c8; box-sizing: border-box; overflow: hidden;">
               <input type="text" value="${this.escapeHtml(itm.code || '')}"
                      onchange="PriceDocEditor.onCodeCellChange(${i}, this.value)"
                      onfocus="this.select()"
@@ -210,7 +229,7 @@ const PriceDocEditor = {
           `;
         } else if (col.id === "artikul") {
           rowCellsHtml += `
-            <td style="padding: 1px 3px; border: 1px solid #d4d0c8; width: ${colW}px; min-width: ${colW}px; max-width: ${colW}px; box-sizing: border-box;">
+            <td style="padding: 1px 3px; border: 1px solid #d4d0c8; box-sizing: border-box; overflow: hidden;">
               <input type="text" value="${this.escapeHtml(itm.artikul || '')}"
                      onchange="PriceDocEditor.onArtikulCellChange(${i}, this.value)"
                      onfocus="this.select()"
@@ -223,10 +242,10 @@ const PriceDocEditor = {
             </td>
           `;
         } else if (col.id === "barcode") {
-          rowCellsHtml += `<td style="padding: 2px 4px; border: 1px solid #d4d0c8; text-align: center; font-family: Consolas, monospace; color: #555; width: ${colW}px; min-width: ${colW}px; max-width: ${colW}px; overflow: hidden; text-overflow: ellipsis; box-sizing: border-box;">${this.escapeHtml(itm.barcode || '')}</td>`;
+          rowCellsHtml += `<td style="padding: 2px 4px; border: 1px solid #d4d0c8; text-align: center; font-family: Consolas, monospace; color: #555; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; box-sizing: border-box;">${this.escapeHtml(itm.barcode || '')}</td>`;
         } else if (col.id === "name") {
           rowCellsHtml += `
-            <td style="padding: 1px 2px; border: 1px solid #d4d0c8; position: relative; width: ${colW}px; min-width: ${colW}px; max-width: ${colW}px; box-sizing: border-box;">
+            <td style="padding: 1px 2px; border: 1px solid #d4d0c8; position: relative; box-sizing: border-box; overflow: hidden;">
               <div class="pde-nom-cell-wrapper" style="display: flex; align-items: stretch; width: 100%; height: 19px;">
                 <input type="text" value="${this.escapeHtml(itm.name || '')}"
                        data-row="${i}"
@@ -248,18 +267,17 @@ const PriceDocEditor = {
             </td>
           `;
         } else if (col.id === "unit") {
-          rowCellsHtml += `<td style="text-align: center; border: 1px solid #d4d0c8; padding: 2px; color: #555; width: ${colW}px; min-width: ${colW}px; max-width: ${colW}px; overflow: hidden; text-overflow: ellipsis; box-sizing: border-box;">${this.escapeHtml(itm.unit || 'шт')}</td>`;
+          rowCellsHtml += `<td style="text-align: center; border: 1px solid #d4d0c8; padding: 2px; color: #555; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; box-sizing: border-box;">${this.escapeHtml(itm.unit || 'шт')}</td>`;
         }
       });
 
       let priceCells = "";
       this.priceTypes.forEach(pt => {
-        const ptWidth = (this.ptWidths && this.ptWidths[pt]) || 85;
         const val = itm.prices && itm.prices[pt] !== undefined ? Number(itm.prices[pt]) : 0;
         const formatted = val > 0 ? val.toFixed(3) : "";
 
         priceCells += `
-          <td style="padding: 1px 3px; border: 1px solid #d4d0c8; text-align: right; width: ${ptWidth}px; min-width: ${ptWidth}px; max-width: ${ptWidth}px; box-sizing: border-box;">
+          <td style="padding: 1px 3px; border: 1px solid #d4d0c8; text-align: right; box-sizing: border-box; overflow: hidden;">
             <input type="text" value="${formatted}" 
                    data-row="${i}" data-pt="${this.escapeHtml(pt)}"
                    onchange="PriceDocEditor.onPriceCellChange(this)"
@@ -285,6 +303,7 @@ const PriceDocEditor = {
   },
 
   renderTableHead: function() {
+    this.renderColGroup();
     const headRow = document.getElementById("pdeTableHeadRow");
     if (!headRow) return;
 
@@ -311,7 +330,7 @@ const PriceDocEditor = {
             <span style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${this.escapeHtml(col.label)}</span>
             ${sortArrow}
           </div>
-          <div class="pde-col-resizer" onmousedown="PriceDocEditor.onStartColResize(event, '${col.id}', 'standard')" onclick="event.stopPropagation()"></div>
+          <div class="pde-col-resizer" draggable="false" onmousedown="PriceDocEditor.onStartColResize(event, '${col.id}', 'standard')" onclick="event.stopPropagation()"></div>
         </th>
       `;
     });
@@ -345,7 +364,7 @@ const PriceDocEditor = {
               ✕
             </button>
           </div>
-          <div class="pde-col-resizer" onmousedown="PriceDocEditor.onStartColResize(event, '${safePt}', 'pt')" onclick="event.stopPropagation()"></div>
+          <div class="pde-col-resizer" draggable="false" onmousedown="PriceDocEditor.onStartColResize(event, '${safePt}', 'pt')" onclick="event.stopPropagation()"></div>
         </th>
       `;
     });
@@ -1142,11 +1161,26 @@ const PriceDocEditor = {
     event.preventDefault();
     event.stopPropagation();
 
-    const startX = event.clientX;
-    const thEl = event.target.closest("th");
-    const startWidth = thEl ? thEl.offsetWidth : 85;
+    // 1. Temporarily disable draggable so drag events never conflict
+    document.querySelectorAll(".pde-th").forEach(th => th.removeAttribute("draggable"));
+    document.body.style.userSelect = "none";
+    document.body.style.cursor = "col-resize";
 
-    this.resizingCol = { colId, colType, startX, startWidth, thEl };
+    const startX = event.clientX;
+    let startWidth = 85;
+
+    if (colType === "standard") {
+      const col = this.columnsConfig.find(c => c.id === colId);
+      startWidth = col ? (col.width || 85) : 85;
+    } else {
+      startWidth = (this.ptWidths && this.ptWidths[colId]) || 85;
+    }
+
+    const thEl = event.target.closest("th");
+    const cleanAttr = (colType === "standard") ? colId : colId.replace(/[^a-zA-Z0-9_-]/g, '_');
+    const colEl = document.getElementById(`pdeCol_${colType}_${cleanAttr}`);
+
+    this.resizingCol = { colId, colType, startX, startWidth, thEl, colEl, currentWidth: startWidth };
 
     const resizerEl = event.target;
     if (resizerEl) resizerEl.classList.add("resizing");
@@ -1155,16 +1189,12 @@ const PriceDocEditor = {
       if (!this.resizingCol) return;
       const delta = e.clientX - this.resizingCol.startX;
       const minW = (this.resizingCol.colId === "num") ? 25 : 45;
-      const newWidth = Math.max(minW, this.resizingCol.startWidth + delta);
+      const newWidth = Math.max(minW, Math.round(this.resizingCol.startWidth + delta));
+      this.resizingCol.currentWidth = newWidth;
 
-      if (this.resizingCol.colType === "standard") {
-        const col = this.columnsConfig.find(c => c.id === this.resizingCol.colId);
-        if (col) col.width = newWidth;
-      } else {
-        if (!this.ptWidths) this.ptWidths = {};
-        this.ptWidths[this.resizingCol.colId] = newWidth;
+      if (this.resizingCol.colEl) {
+        this.resizingCol.colEl.style.width = newWidth + "px";
       }
-
       if (this.resizingCol.thEl) {
         this.resizingCol.thEl.style.width = newWidth + "px";
         this.resizingCol.thEl.style.minWidth = newWidth + "px";
@@ -1177,17 +1207,27 @@ const PriceDocEditor = {
       document.removeEventListener("mousemove", onMouseMove);
       document.removeEventListener("mouseup", onMouseUp);
 
+      document.body.style.userSelect = "";
+      document.body.style.cursor = "";
+      document.querySelectorAll(".pde-th").forEach(th => th.setAttribute("draggable", "true"));
+
       if (this.resizingCol) {
-        try {
-          if (this.resizingCol.colType === "standard") {
+        const finalWidth = this.resizingCol.currentWidth;
+        if (this.resizingCol.colType === "standard") {
+          const col = this.columnsConfig.find(c => c.id === this.resizingCol.colId);
+          if (col) col.width = finalWidth;
+          try {
             localStorage.setItem("1c_price_doc_columns", JSON.stringify(this.columnsConfig));
-          } else {
+          } catch(e) {}
+        } else {
+          if (!this.ptWidths) this.ptWidths = {};
+          this.ptWidths[this.resizingCol.colId] = finalWidth;
+          try {
             localStorage.setItem("1c_price_doc_pt_widths", JSON.stringify(this.ptWidths));
-          }
-        } catch(e) {}
+          } catch(e) {}
+        }
 
         this.resizingCol = null;
-        this.renderTable();
       }
     };
 
