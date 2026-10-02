@@ -62,6 +62,42 @@ const PriceDocEditor = {
 
   loadDocumentData: function(docNumber, docDate) {
     const loading = document.getElementById("pdeLoadingState");
+
+    // 1. Check if document is already prefetched in background by UniversalJournal
+    if (window.UniversalJournal && typeof UniversalJournal.getPrefetchedPriceDoc === "function") {
+      const prefetched = UniversalJournal.getPrefetchedPriceDoc(docNumber);
+      if (prefetched) {
+        console.log(`[PRICE DOC] Opened INSTANTLY (0ms) from prefetch cache: №${docNumber}`);
+        if (loading) loading.style.display = "none";
+        this.populateDocumentData(prefetched, docNumber);
+        return;
+      }
+
+      // 2. Check if prefetch request is currently in-flight
+      const pendingPromise = UniversalJournal.getPendingPrefetchPromise(docNumber);
+      if (pendingPromise) {
+        console.log(`[PRICE DOC] In-flight prefetch detected for №${docNumber}, awaiting response...`);
+        if (loading) loading.style.display = "flex";
+        pendingPromise.then(data => {
+          if (loading) loading.style.display = "none";
+          if (data) {
+            this.populateDocumentData(data, docNumber);
+          } else {
+            this.fetchDocumentDataDirectly(docNumber, docDate);
+          }
+        }).catch(() => {
+          this.fetchDocumentDataDirectly(docNumber, docDate);
+        });
+        return;
+      }
+    }
+
+    // 3. Fallback: Direct network fetch
+    this.fetchDocumentDataDirectly(docNumber, docDate);
+  },
+
+  fetchDocumentDataDirectly: function(docNumber, docDate) {
+    const loading = document.getElementById("pdeLoadingState");
     if (loading) loading.style.display = "flex";
 
     const creds = window.SessionManager ? SessionManager.getCredentials() : {};
@@ -77,54 +113,56 @@ const PriceDocEditor = {
         alert("1C Xətası: " + (res.error || "Sənəd yüklənə bilmədi"));
         return;
       }
-
-      const data = res.data;
-      this.docData = data;
-      this.priceTypes = data.price_types || [];
-      this.allPriceTypes = data.all_price_types || data.price_types || [];
-      this.items = data.items || [];
-      this.filteredItems = [...this.items];
-
-      // Update header inputs
-      const inpNum = document.getElementById("pdeDocNumber");
-      const inpDate = document.getElementById("pdeDocDate");
-      const inpResp = document.getElementById("pdeDocResponsible");
-      const inpComm = document.getElementById("pdeDocComment");
-      const dispPt = document.getElementById("pdePriceTypesDisplay");
-      const badge = document.getElementById("pdeStatusBadge");
-      const winTitle = document.getElementById("pdeWindowTitle");
-
-      if (inpNum) inpNum.value = data.number || docNumber;
-      if (inpDate) inpDate.value = data.date || "";
-      if (inpResp) inpResp.value = data.responsible || "";
-      if (inpComm) inpComm.value = data.comment || "";
-      if (dispPt) {
-        if ("value" in dispPt) dispPt.value = this.priceTypes.join("; ");
-        else dispPt.textContent = this.priceTypes.join("; ");
-      }
-
-      if (badge) {
-        if (data.posted) {
-          badge.textContent = "ПРОВЕДЕН";
-          badge.style.background = "#2e7d32";
-        } else {
-          badge.textContent = "НЕ ПРОВЕДЕН";
-          badge.style.background = "#ed6c02";
-        }
-      }
-
-      if (winTitle) {
-        winTitle.textContent = `Установка цен номенклатуры: ${data.posted ? 'Проведен' : 'Не проведен'}`;
-      }
-
-      this.renderTable();
-      this.updateRowCount();
+      this.populateDocumentData(res.data, docNumber);
     })
     .catch(err => {
       if (loading) loading.style.display = "none";
       console.error("Error loading price document:", err);
       alert("Xəta: " + err.message);
     });
+  },
+
+  populateDocumentData: function(data, docNumber) {
+    this.docData = data;
+    this.priceTypes = data.price_types || [];
+    this.allPriceTypes = data.all_price_types || data.price_types || [];
+    this.items = data.items || [];
+    this.filteredItems = [...this.items];
+
+    // Update header inputs
+    const inpNum = document.getElementById("pdeDocNumber");
+    const inpDate = document.getElementById("pdeDocDate");
+    const inpResp = document.getElementById("pdeDocResponsible");
+    const inpComm = document.getElementById("pdeDocComment");
+    const dispPt = document.getElementById("pdePriceTypesDisplay");
+    const badge = document.getElementById("pdeStatusBadge");
+    const winTitle = document.getElementById("pdeWindowTitle");
+
+    if (inpNum) inpNum.value = data.number || docNumber;
+    if (inpDate) inpDate.value = data.date || "";
+    if (inpResp) inpResp.value = data.responsible || "";
+    if (inpComm) inpComm.value = data.comment || "";
+    if (dispPt) {
+      if ("value" in dispPt) dispPt.value = this.priceTypes.join("; ");
+      else dispPt.textContent = this.priceTypes.join("; ");
+    }
+
+    if (badge) {
+      if (data.posted) {
+        badge.textContent = "ПРОВЕДЕН";
+        badge.style.background = "#2e7d32";
+      } else {
+        badge.textContent = "НЕ ПРОВЕДЕН";
+        badge.style.background = "#ed6c02";
+      }
+    }
+
+    if (winTitle) {
+      winTitle.textContent = `Установка цен номенклатуры: ${data.posted ? 'Проведен' : 'Не проведен'}`;
+    }
+
+    this.renderTable();
+    this.updateRowCount();
   },
 
   renderTable: function() {
@@ -854,6 +892,10 @@ const PriceDocEditor = {
       }
 
       alert(`✅ Sənəd №${this.currentDocNumber} 1C-yə uğurla QARALAMA (Təsdiqsiz) olaraq yazıldı!\n\nCəmi: ${res.data.total_items} mal (${res.data.total_rows} qiymət sətri).\n\nİndi 1C-də sənədi açıb öz adınızla 'Провести' edə bilərsiniz.`);
+
+      if (window.UniversalJournal && typeof UniversalJournal.invalidatePrefetch === "function") {
+        UniversalJournal.invalidatePrefetch(this.currentDocNumber);
+      }
 
       if (commInp && res.data.comment) {
         commInp.value = res.data.comment;

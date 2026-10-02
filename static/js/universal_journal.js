@@ -15,6 +15,178 @@ const UniversalJournal = {
   currentSortCol: "date",
   currentSortAsc: false, // Descending by default
 
+  // ==========================================
+  // Smart Background Prefetch & Memory Cache Engine
+  // ==========================================
+  prefetchCache: new Map(),
+  prefetchQueue: [],
+  activePrefetchCount: 0,
+  maxConcurrentPrefetches: 1, // STA COM safe concurrency
+  prefetchAbortController: null,
+
+  clearPrefetchCache: function() {
+    if (this.prefetchAbortController) {
+      try { this.prefetchAbortController.abort(); } catch (e) {}
+    }
+    this.prefetchAbortController = new AbortController();
+    this.prefetchCache.clear();
+    this.prefetchQueue = [];
+    this.activePrefetchCount = 0;
+    console.log("[PREFETCH] Cache cleared and memory released on journal close/reset.");
+  },
+
+  getPrefetchedPriceDoc: function(docNumber) {
+    if (!docNumber) return null;
+    const key = `УстановкаЦенНоменклатуры_${docNumber}`;
+    const entry = this.prefetchCache.get(key) || this.prefetchCache.get(docNumber);
+    if (entry && entry.status === "ready" && entry.data) {
+      return entry.data;
+    }
+    return null;
+  },
+
+  getPendingPrefetchPromise: function(docNumber) {
+    if (!docNumber) return null;
+    const key = `УстановкаЦенНоменклатуры_${docNumber}`;
+    const entry = this.prefetchCache.get(key) || this.prefetchCache.get(docNumber);
+    if (entry && entry.status === "pending" && entry.promise) {
+      return entry.promise;
+    }
+    return null;
+  },
+
+  invalidatePrefetch: function(docNumber) {
+    if (!docNumber) return;
+    const key = `УстановкаЦенНоменклатуры_${docNumber}`;
+    this.prefetchCache.delete(key);
+    this.prefetchCache.delete(docNumber);
+  },
+
+  attachScrollPrefetchListener: function() {
+    const wrapper = document.getElementById("ujTableWrapper");
+    if (!wrapper || wrapper._hasPrefetchListener) return;
+    wrapper._hasPrefetchListener = true;
+
+    let scrollDebounce = null;
+    wrapper.addEventListener("scroll", () => {
+      if (scrollDebounce) clearTimeout(scrollDebounce);
+      scrollDebounce = setTimeout(() => {
+        this.queueVisibleDocumentsForPrefetch();
+      }, 150);
+    }, { passive: true });
+  },
+
+  queueVisibleDocumentsForPrefetch: function() {
+    const wrapper = document.getElementById("ujTableWrapper");
+    if (!wrapper || !this.filteredItems.length) return;
+
+    // Viewport-based document index calculation
+    const scrollTop = wrapper.scrollTop;
+    const clientHeight = wrapper.clientHeight;
+    const rowHeight = 22; // Height of each row in 1C journal
+    const visibleStart = Math.max(0, Math.floor(scrollTop / rowHeight) - 1);
+    const visibleEnd = Math.min(this.filteredItems.length - 1, Math.ceil((scrollTop + clientHeight) / rowHeight) + 4);
+
+    // Prioritize visible items in front of queue
+    for (let i = visibleEnd; i >= visibleStart; i--) {
+      const item = this.filteredItems[i];
+      if (!item || !item.number) continue;
+      const key = `${this.activeDocType}_${item.number}`;
+      if (!this.prefetchCache.has(key)) {
+        const existingIdx = this.prefetchQueue.findIndex(q => q.key === key);
+        if (existingIdx !== -1) {
+          const [existing] = this.prefetchQueue.splice(existingIdx, 1);
+          this.prefetchQueue.unshift(existing);
+        } else {
+          this.prefetchQueue.unshift({
+            key: key,
+            docType: this.activeDocType,
+            number: item.number,
+            date: item.date || ""
+          });
+        }
+      }
+    }
+
+    this.processPrefetchQueue();
+  },
+
+  processPrefetchQueue: function() {
+    if (this.activePrefetchCount >= this.maxConcurrentPrefetches || !this.prefetchQueue.length) {
+      return;
+    }
+
+    const task = this.prefetchQueue.shift();
+    if (!task || this.prefetchCache.has(task.key)) {
+      this.processPrefetchQueue();
+      return;
+    }
+
+    if (!this.prefetchAbortController) {
+      this.prefetchAbortController = new AbortController();
+    }
+    const signal = this.prefetchAbortController.signal;
+
+    this.activePrefetchCount++;
+    const creds = window.SessionManager ? SessionManager.getCredentials() : {};
+
+    let fetchPromise;
+    if (task.docType === "УстановкаЦенНоменклатуры") {
+      fetchPromise = fetch("/api/documents/price_doc", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ...creds, number: task.number, date: task.date || "" }),
+        signal: signal
+      })
+      .then(r => r.json())
+      .then(res => (res.success && res.data) ? res.data : null);
+    } else {
+      fetchPromise = fetch("/api/documents/details", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ...creds, doc_type: task.docType, number: task.number }),
+        signal: signal
+      })
+      .then(r => r.json())
+      .then(res => (res.success && res.data) ? res.data : null);
+    }
+
+    const cacheEntry = {
+      status: "pending",
+      promise: fetchPromise,
+      data: null,
+      timestamp: Date.now()
+    };
+    this.prefetchCache.set(task.key, cacheEntry);
+    if (task.docType === "УстановкаЦенНоменклатуры") {
+      this.prefetchCache.set(task.number, cacheEntry);
+    }
+
+    fetchPromise
+      .then(data => {
+        if (data) {
+          cacheEntry.status = "ready";
+          cacheEntry.data = data;
+          console.log(`[PREFETCH READY] ${task.key} prefetched in background`);
+        } else {
+          this.prefetchCache.delete(task.key);
+          this.prefetchCache.delete(task.number);
+        }
+      })
+      .catch(err => {
+        if (err.name !== "AbortError") {
+          this.prefetchCache.delete(task.key);
+          this.prefetchCache.delete(task.number);
+        }
+      })
+      .finally(() => {
+        this.activePrefetchCount--;
+        setTimeout(() => {
+          this.processPrefetchQueue();
+        }, 80);
+      });
+  },
+
   init: function() {
     // Default period: Current month
     const now = new Date();
@@ -40,7 +212,10 @@ const UniversalJournal = {
     if (window.MdiManager) {
       MdiManager.activateWindow("universalJournalWindow", {
         title: `Журнал документов: ${this.docTitle}`,
-        icon: "🗂️"
+        icon: "🗂️",
+        closeFn: () => {
+          this.clearPrefetchCache();
+        }
       });
     } else {
       win.style.display = "flex";
@@ -52,6 +227,7 @@ const UniversalJournal = {
   },
 
   close: function() {
+    this.clearPrefetchCache();
     if (window.MdiManager) {
       MdiManager.closeWindow("universalJournalWindow");
     } else {
@@ -61,6 +237,7 @@ const UniversalJournal = {
   },
 
   onDocTypeChange: function() {
+    this.clearPrefetchCache();
     const sel = document.getElementById("ujDocTypeSelect");
     if (!sel) return;
     this.activeDocType = sel.value;
@@ -107,6 +284,7 @@ const UniversalJournal = {
   },
 
   loadDocuments: function() {
+    this.clearPrefetchCache();
     const loadingEl = document.getElementById("ujLoadingState");
     const emptyEl = document.getElementById("ujEmptyState");
     const tableEl = document.getElementById("ujTable");
@@ -222,6 +400,10 @@ const UniversalJournal = {
     }
 
     tbody.innerHTML = html;
+    this.attachScrollPrefetchListener();
+    setTimeout(() => {
+      this.queueVisibleDocumentsForPrefetch();
+    }, 80);
   },
 
   renderTableHead: function() {
@@ -272,16 +454,45 @@ const UniversalJournal = {
 
     const docType = this.activeDocType;
     const docNum = this.selectedRow.number;
+    const docDate = this.selectedRow.date || "";
 
     if (docType === "УстановкаЦенНоменклатуры" && window.PriceDocEditor) {
-      PriceDocEditor.open(docNum);
+      PriceDocEditor.open(docNum, docDate);
       this.updateStatus(`Открыт документ установки цен № ${docNum}`);
       return;
     }
 
     console.log(`[UNIVERSAL JOURNAL] Opening document ${docType} № ${docNum}...`);
-    this.updateStatus(`Загрузка деталей документа № ${docNum}...`);
+    const key = `${docType}_${docNum}`;
+    const cached = this.prefetchCache.get(key);
 
+    if (cached && cached.status === "ready" && cached.data) {
+      console.log(`[UNIVERSAL JOURNAL] Opened INSTANTLY from prefetch cache: ${key}`);
+      this.showDocumentViewerModal(cached.data);
+      this.updateStatus(`Открыт документ № ${docNum} (из кэша)`);
+      return;
+    }
+
+    if (cached && cached.status === "pending" && cached.promise) {
+      this.updateStatus(`Загрузка деталей документа № ${docNum}...`);
+      cached.promise.then(data => {
+        if (data) {
+          this.showDocumentViewerModal(data);
+          this.updateStatus(`Открыт документ № ${docNum}`);
+        } else {
+          this.fetchDocumentDetailsDirectly(docType, docNum);
+        }
+      }).catch(() => {
+        this.fetchDocumentDetailsDirectly(docType, docNum);
+      });
+      return;
+    }
+
+    this.fetchDocumentDetailsDirectly(docType, docNum);
+  },
+
+  fetchDocumentDetailsDirectly: function(docType, docNum) {
+    this.updateStatus(`Загрузка деталей документа № ${docNum}...`);
     const creds = window.SessionManager ? SessionManager.getCredentials() : {};
     fetch("/api/documents/details", {
       method: "POST",
@@ -295,7 +506,6 @@ const UniversalJournal = {
         this.updateStatus("Ошибка открытия документа");
         return;
       }
-
       this.showDocumentViewerModal(data);
     })
     .catch(err => {
