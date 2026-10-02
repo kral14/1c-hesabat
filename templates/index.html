@@ -82,6 +82,11 @@
       <div class="mdi-menu-item">
         <button class="mdi-menu-btn" onclick="toggleMdiMenu(event, 'menuOps')">Операции</button>
         <div class="mdi-dropdown-menu" id="menuOps">
+          <div class="mdi-dropdown-entry" onclick="openUniversalJournalWindow()">
+            <span class="mdi-dropdown-entry-icon">🗂️</span>
+            <span style="font-weight: bold; color: #002060;">Журнал документов</span>
+          </div>
+          <div class="mdi-dropdown-sep"></div>
           <div class="mdi-dropdown-entry" onclick="openCatalogDirect('Номенклатура')">
             <span class="mdi-dropdown-entry-icon">📦</span>
             <span>Справочник.Номенклатура</span>
@@ -227,6 +232,15 @@
               <div class="mdi-dash-tile-subtitle">Реестр / Справочник</div>
             </div>
           </div>
+
+          <!-- 5. Журнал документов -->
+          <div class="mdi-dash-tile" onclick="openUniversalJournalWindow()" title="Открыть 'Журнал документов' (Реализация, Цены, Заказы...)">
+            <div class="mdi-dash-tile-icon">🗂️</div>
+            <div class="mdi-dash-tile-content">
+              <div class="mdi-dash-tile-title" style="color: #002060;">Журнал документов</div>
+              <div class="mdi-dash-tile-subtitle">Все виды документов 1С</div>
+            </div>
+          </div>
         </div>
 
         <div class="mdi-dashboard-footer">
@@ -284,6 +298,12 @@
       <!-- 10. Portfolio Catalog Window (Товары по портфелям) -->
       {% include "components/portfolio_catalog_window.html" %}
 
+      <!-- 11. Universal Document Journal Window (Журнал документов) -->
+      {% include "components/universal_journal_window.html" %}
+
+      <!-- 12. Period Picker Modal (Выберите период) -->
+      {% include "components/period_picker_modal.html" %}
+
     </div>
 
     <!-- 5. Bottom 1C Window Taskbar -->
@@ -307,6 +327,8 @@
   <script src="/static/js/settings_presets.js?v=4.0"></script>
   <script src="/static/js/report_engine.js?v=4.0"></script>
   <script src="/static/js/portfolio_catalog.js?v=4.8"></script>
+  <script src="/static/js/period_picker.js?v=1.0"></script>
+  <script src="/static/js/universal_journal.js?v=1.0"></script>
   <script src="/static/js/app.js?v=4.0"></script>
 
 </body>

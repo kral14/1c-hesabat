@@ -1,0 +1,136 @@
+<!-- ========================================================
+     1C:ENTERPRISE UNIVERSAL DOCUMENT JOURNAL WINDOW
+     templates/components/universal_journal_window.html
+     ======================================================== -->
+
+<div class="mdi-window" id="universalJournalWindow" style="display: none; top: 30px; left: 40px; width: calc(100% - 80px); height: calc(100% - 60px); min-width: 850px; min-height: 480px; z-index: 105;" onmousedown="MdiManager.activateWindow('universalJournalWindow')">
+  
+  <!-- Window Header -->
+  <div class="mdi-window-header" ondblclick="MdiManager.toggleMaximize('universalJournalWindow')">
+    <div class="mdi-win-title-left">
+      <span class="mdi-win-icon">🗂️</span>
+      <span class="mdi-win-title-text" id="ujWindowTitle">Журнал документов: Реализация товаров и услуг</span>
+    </div>
+    <div class="mdi-win-controls">
+      <button class="mdi-win-btn mdi-win-btn-min" title="Qatla" onclick="MdiManager.minimizeWindow('universalJournalWindow')" onmousedown="event.stopPropagation()">_</button>
+      <button class="mdi-win-btn mdi-win-btn-max" title="Böyüt / Bərpa et" onclick="MdiManager.toggleMaximize('universalJournalWindow')" onmousedown="event.stopPropagation()">□</button>
+      <button class="mdi-win-btn mdi-win-btn-close" title="Bağla" onclick="UniversalJournal.close()" onmousedown="event.stopPropagation()">✕</button>
+    </div>
+  </div>
+
+  <!-- Window Body -->
+  <div class="mdi-window-body" style="background-color: #f0eee3; display: flex; flex-direction: column; height: 100%; overflow: hidden;">
+    
+    <!-- Top Filter & Action Toolbar -->
+    <div class="uj-toolbar" style="padding: 5px 8px; background: #e5e2cf; border-bottom: 1px solid #b0af9f; display: flex; flex-wrap: wrap; align-items: center; gap: 6px;">
+      
+      <!-- 1. Document Type Selector Combobox -->
+      <div style="display: flex; align-items: center; gap: 4px;">
+        <span style="font-size: 11px; font-weight: bold; color: #222;">Документ:</span>
+        <select id="ujDocTypeSelect" class="select-1c" onchange="UniversalJournal.onDocTypeChange()" style="height: 24px; font-size: 11px; min-width: 210px; font-weight: 500; background: #fff; cursor: pointer;">
+          <option value="РеализацияТоваровУслуг" selected>🚚 Реализация товаров и услуг</option>
+          <option value="УстановкаЦенНоменклатуры">📋 Установка цен номенклатуры</option>
+          <option value="ПоступлениеТоваровУслуг">📥 Поступление товаров и услуг</option>
+          <option value="ЗаказПокупателя">🛒 Заказ покупателя</option>
+          <option value="ИнвентаризацияТоваровНаСкладе">📦 Инвентаризация товаров на складе</option>
+          <option value="СписаниеТоваров">📉 Списание товаров</option>
+          <option value="ОприходованиеТоваров">📈 Оприходование товаров</option>
+        </select>
+      </div>
+
+      <div class="mdi-tool-sep" style="height: 18px; width: 1px; background: #b0af9f; margin: 0 3px;"></div>
+
+      <!-- 2. Period Selector Button (++) / (📅) -->
+      <button type="button" class="btn-1c" id="ujBtnPeriod" onclick="UniversalJournal.openPeriodPicker()" title="Установить интервал дат (Выберите период)" style="height: 24px; display: inline-flex; align-items: center; gap: 5px; padding: 0 7px; cursor: pointer; background: #ffffff;">
+        <span style="font-size: 12px;">📅</span>
+        <span id="ujPeriodLabel" style="font-size: 11px; font-weight: 500; color: #003366;">(Весь период)</span>
+      </button>
+
+      <div class="mdi-tool-sep" style="height: 18px; width: 1px; background: #b0af9f; margin: 0 3px;"></div>
+
+      <!-- 3. Edit Document Button (Green Pencil) -->
+      <button type="button" class="btn-1c" id="ujBtnEdit" onclick="UniversalJournal.editSelectedDocument()" title="Изменить / Редактировать документ (Двойной клик / Enter)" style="height: 24px; padding: 0 6px; display: inline-flex; align-items: center; justify-content: center; cursor: pointer;" disabled>
+        <!-- Authentic 1C Green Pencil Icon -->
+        <svg width="15" height="15" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M12.8 1.2a1.5 1.5 0 0 1 2.1 2.1L13.5 4.7 10.3 1.5l1.5-1.5z" fill="#388e3c"/>
+          <path d="M9.5 2.3 1.2 10.6l-.7 4.1 4.1-.7 8.3-8.3-3.4-3.4z" fill="#4caf50"/>
+          <path d="M.5 14.7l.7-4.1 3.4 3.4-4.1.7z" fill="#c8e6c9"/>
+        </svg>
+      </button>
+
+      <!-- 4. Autofit Columns (↔) -->
+      <button type="button" class="btn-1c" onclick="UniversalJournal.autofitColumns()" title="Автоподбор ширины колонок (↔)" style="height: 24px; padding: 0 6px; display: inline-flex; align-items: center; justify-content: center; cursor: pointer; font-size: 11px; font-weight: bold; color: #004080;">
+        (↔)
+      </button>
+
+      <div class="mdi-tool-sep" style="height: 18px; width: 1px; background: #b0af9f; margin: 0 3px;"></div>
+
+      <!-- 5. Search Button (Найти...) -->
+      <button type="button" class="btn-1c" onclick="UniversalJournal.openFindModal()" title="Найти в списке (Ctrl + F)" style="height: 24px; display: inline-flex; align-items: center; gap: 4px; padding: 0 7px; cursor: pointer;">
+        <span style="font-size: 11px;">🔍</span>
+        <span style="font-size: 11px;">Найти...</span>
+      </button>
+
+      <!-- 6. Clear Search Button (Отменить поиск) -->
+      <button type="button" class="btn-1c" id="ujBtnClearFind" onclick="UniversalJournal.clearSearch()" title="Отменить поиск (Ctrl + Q)" style="height: 24px; padding: 0 6px; display: inline-flex; align-items: center; justify-content: center; cursor: pointer; opacity: 0.6;">
+        <span style="font-size: 11px; color: #a00; font-weight: bold;">✕🔍</span>
+      </button>
+
+      <div class="mdi-tool-sep" style="height: 18px; width: 1px; background: #b0af9f; margin: 0 3px;"></div>
+
+      <!-- 7. Refresh Button (F5) -->
+      <button type="button" class="btn-1c" onclick="UniversalJournal.refresh()" title="Обновить список (F5)" style="height: 24px; padding: 0 7px; display: inline-flex; align-items: center; gap: 4px; cursor: pointer;">
+        <span style="font-size: 12px;">🔄</span>
+        <span style="font-size: 11px;">Обновить</span>
+      </button>
+
+      <!-- Search Filter Input Box -->
+      <div style="flex: 1; min-width: 140px; display: flex; align-items: center; margin-left: 6px;">
+        <input type="text" id="ujSearchInput" class="input-1c" placeholder="Быстрый поиск по списку..." style="width: 100%; height: 22px; padding: 2px 6px; font-size: 11px;" oninput="UniversalJournal.onSearchInput()">
+      </div>
+
+    </div>
+
+    <!-- Table Container -->
+    <div class="uj-table-wrapper" id="ujTableWrapper" style="flex: 1; overflow: auto; background: #ffffff; position: relative;">
+      
+      <!-- Loading State -->
+      <div id="ujLoadingState" style="display: none; position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: rgba(255,255,255,0.85); z-index: 50; flex-direction: column; align-items: center; justify-content: center; gap: 8px;">
+        <div class="spinner-1c"></div>
+        <div style="font-weight: bold; color: #004080; font-size: 12px;">1C: Загрузка списка документов...</div>
+      </div>
+
+      <!-- Empty State -->
+      <div id="ujEmptyState" style="display: none; flex-direction: column; align-items: center; justify-content: center; height: 100%; color: #777; font-size: 12px; gap: 6px;">
+        <span style="font-size: 32px;">📭</span>
+        <span style="font-weight: bold;">Документы не найдены</span>
+        <span>Измените интервал дат или выберите другой вид документа.</span>
+      </div>
+
+      <!-- Documents Table -->
+      <table class="uj-table" id="ujTable" style="width: 100%; border-collapse: collapse; font-family: Tahoma, 'MS Sans Serif', Arial, sans-serif; font-size: 11px;">
+        <thead>
+          <tr id="ujTableHeadRow" style="background: #e3dec9; border-bottom: 2px solid #5a5a5a; position: sticky; top: 0; z-index: 10;">
+            <!-- Populated dynamically via JS -->
+          </tr>
+        </thead>
+        <tbody id="ujTableBody">
+          <!-- Populated dynamically via JS -->
+        </tbody>
+      </table>
+
+    </div>
+
+    <!-- Bottom 1C Status Bar -->
+    <div class="mdi-window-status" style="background: #e5e2cf; border-top: 1px solid #b0af9f; padding: 3px 8px; display: flex; justify-content: space-between; align-items: center; font-size: 11px;">
+      <div id="ujStatusLeft" style="color: #222; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+        Готово
+      </div>
+      <div id="ujStatusRight" style="font-weight: bold; color: #003366; white-space: nowrap;">
+        Всего: 0 документов
+      </div>
+    </div>
+
+  </div>
+
+</div>

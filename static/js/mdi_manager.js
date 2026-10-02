@@ -948,7 +948,21 @@ const MdiManager = {
       return true;
     }
 
-    // 2.5 Close Portfolio Find Modal if open
+    // 2.5 Close Period Picker Modal if open
+    const ppModal = document.getElementById("periodPickerModalOverlay");
+    if (ppModal && ppModal.style.display === "flex") {
+      if (typeof PeriodPicker !== "undefined") PeriodPicker.close();
+      else ppModal.style.display = "none";
+      return true;
+    }
+
+    const ujDetModal = document.getElementById("ujDocDetailsModal");
+    if (ujDetModal && ujDetModal.style.display === "flex") {
+      ujDetModal.style.display = "none";
+      return true;
+    }
+
+    // 2.6 Close Portfolio Find Modal if open
     const pcFindModal = document.getElementById("pcFindModal");
     if (pcFindModal && pcFindModal.style.display === "flex") {
       if (typeof PortfolioCatalog !== "undefined" && PortfolioCatalog.closeFindModal) {
@@ -1084,6 +1098,22 @@ const MdiManager = {
       return true;
     }
 
+    // Topmost: Period Picker Modal
+    if (topWin.id === "periodPickerModalOverlay") {
+      if (typeof PeriodPicker !== "undefined" && PeriodPicker.confirm) {
+        PeriodPicker.confirm();
+        return true;
+      }
+    }
+
+    // Topmost: Universal Journal Window ("Журнал документов")
+    if (topWin.id === "universalJournalWindow") {
+      if (typeof UniversalJournal !== "undefined" && UniversalJournal.editSelectedDocument) {
+        UniversalJournal.editSelectedDocument();
+        return true;
+      }
+    }
+
     // Topmost: Portfolio Catalog Window ("Товары по портфелям")
     if (topWin.id === "portfolioCatalogWindow") {
       if (typeof PortfolioCatalog !== "undefined" && PortfolioCatalog.generate) {
@@ -1136,6 +1166,14 @@ const MdiManager = {
     if (!topWin) return false;
 
     console.log(`[HOTKEY CTRL+F] Search in topmost window #${topWin.id} ("${topWin.title}", z=${topWin.element.style.zIndex || 0})`);
+
+    // 0.5 Universal Journal Window
+    if (topWin.id === "universalJournalWindow") {
+      if (typeof UniversalJournal !== "undefined" && UniversalJournal.openFindModal) {
+        UniversalJournal.openFindModal();
+        return true;
+      }
+    }
 
     // 1. Portfolio Catalog Window
     if (topWin.id === "portfolioCatalogWindow") {
@@ -1215,6 +1253,14 @@ const MdiManager = {
     if (!topWin) return false;
 
     console.log(`[HOTKEY CTRL+Q] Cancel search in topmost window #${topWin.id} ("${topWin.title}", z=${topWin.element.style.zIndex || 0})`);
+
+    // 0.5 Universal Journal Window
+    if (topWin.id === "universalJournalWindow") {
+      if (typeof UniversalJournal !== "undefined" && UniversalJournal.clearSearch) {
+        UniversalJournal.clearSearch();
+        return true;
+      }
+    }
 
     // 1. Portfolio Catalog Window
     if (topWin.id === "portfolioCatalogWindow") {

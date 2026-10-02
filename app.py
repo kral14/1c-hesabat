@@ -2204,6 +2204,223 @@ class OneCService(threading.Thread):
                         "total": len(items)
                     }))
 
+                # Action: Get Universal Documents List
+                elif action == "get_documents_list":
+                    doc_type = payload.get("doc_type") or "УстановкаЦенНоменклатуры"
+                    date_from = payload.get("date_from", "").strip()
+                    date_to = payload.get("date_to", "").strip()
+                    search_str = payload.get("search", "").strip()
+                    limit_count = int(payload.get("limit", 300))
+
+                    doc_meta = conn.Метаданные.Документы.Найти(doc_type)
+                    if not doc_meta:
+                        raise ValueError(f"1C sənədi '{doc_type}' konfiqurasiyada tapılmadı")
+
+                    doc_synonym = str(doc_meta.Синоним or doc_type)
+                    req_names = set(str(r.Имя) for r in doc_meta.Реквизиты)
+                    has_kontr = "Контрагент" in req_names
+                    has_sum = "СуммаДокумента" in req_names
+                    has_sklad = "Склад" in req_names
+                    has_resp = "Ответственный" in req_names
+                    has_comm = "Комментарий" in req_names
+                    has_deal = "Сделка" in req_names
+                    has_contract = "ДоговорКонтрагента" in req_names
+                    has_agent = "Агент" in req_names
+                    has_info = "Информация" in req_names
+
+                    sel_parts = [
+                        "Т.Ссылка КАК Ref",
+                        "Т.Номер КАК Number",
+                        "Т.Дата КАК Date",
+                        "Т.Проведен КАК Posted",
+                        "Т.ПометкаУдаления КАК DeletionMark"
+                    ]
+
+                    columns = [
+                        {"key": "status", "label": "", "width": 30, "align": "center"},
+                        {"key": "date", "label": "Дата", "width": 125, "align": "left"},
+                        {"key": "number", "label": "Номер", "width": 115, "align": "left"}
+                    ]
+
+                    if has_kontr:
+                        sel_parts.append("Т.Контрагент.Наименование КАК Kontragent")
+                        columns.append({"key": "kontragent", "label": "Контрагент", "width": 240, "align": "left"})
+
+                    if has_agent:
+                        sel_parts.append("Т.Агент.Наименование КАК Agent")
+                        columns.append({"key": "agent", "label": "Агент", "width": 160, "align": "left"})
+
+                    if has_sum:
+                        sel_parts.append("Т.СуммаДокумента КАК Amount")
+                        columns.append({"key": "amount", "label": "Сумма", "width": 100, "align": "right"})
+
+                    if has_sklad:
+                        sel_parts.append("Т.Склад.Наименование КАК Warehouse")
+                        columns.append({"key": "warehouse", "label": "Склад", "width": 160, "align": "left"})
+
+                    if has_deal:
+                        sel_parts.append("Т.Сделка.Номер КАК Deal")
+                        columns.append({"key": "deal", "label": "Сделка", "width": 120, "align": "left"})
+
+                    if has_contract:
+                        sel_parts.append("Т.ДоговорКонтрагента.Наименование КАК Contract")
+                        columns.append({"key": "contract", "label": "Договор", "width": 150, "align": "left"})
+
+                    if has_info:
+                        sel_parts.append("Т.Информация КАК Info")
+                        columns.append({"key": "info", "label": "Информация", "width": 180, "align": "left"})
+
+                    if has_resp:
+                        sel_parts.append("Т.Ответственный.Наименование КАК Responsible")
+                        columns.append({"key": "responsible", "label": "Ответственный", "width": 130, "align": "left"})
+
+                    if has_comm:
+                        sel_parts.append("Т.Комментарий КАК Comment")
+                        columns.append({"key": "comment", "label": "Комментарий", "width": 200, "align": "left"})
+
+                    where_parts = []
+                    q_doc = conn.NewObject("Запрос")
+
+                    if date_from:
+                        try:
+                            yf, mf, df = map(int, date_from.split("-"))
+                            dt_f = datetime.datetime(yf, mf, df, 0, 0, 0)
+                            q_doc.SetParameter("DateFrom", dt_f)
+                            where_parts.append("Т.Дата >= &DateFrom")
+                        except Exception: pass
+
+                    if date_to:
+                        try:
+                            yt, mt, dt = map(int, date_to.split("-"))
+                            dt_t = datetime.datetime(yt, mt, dt, 23, 59, 59)
+                            q_doc.SetParameter("DateTo", dt_t)
+                            where_parts.append("Т.Дата <= &DateTo")
+                        except Exception: pass
+
+                    where_sql = ("ГДЕ " + " И ".join(where_parts)) if where_parts else ""
+
+                    q_doc.Text = f"""
+                    ВЫБРАТЬ ПЕРВЫЕ {limit_count}
+                        {", ".join(sel_parts)}
+                    ИЗ
+                        Документ.{doc_type} КАК Т
+                    {where_sql}
+                    УПОРЯДОЧИТЬ ПО
+                        Т.Дата УБЫВ
+                    """
+
+                    res_doc = q_doc.Execute().Choose()
+                    items = []
+                    while res_doc.Next():
+                        raw_date = res_doc.Date
+                        date_str = ""
+                        if raw_date:
+                            try:
+                                date_str = raw_date.strftime("%d.%m.%Y %H:%M:%S")
+                            except Exception:
+                                date_str = str(raw_date)[:19]
+
+                        row_data = {
+                            "number": str(res_doc.Number or "").strip(),
+                            "date": date_str,
+                            "posted": bool(res_doc.Posted),
+                            "deleted": bool(res_doc.DeletionMark),
+                        }
+
+                        if has_kontr:
+                            row_data["kontragent"] = str(res_doc.Kontragent or "").strip()
+                        if has_agent:
+                            row_data["agent"] = str(res_doc.Agent or "").strip()
+                        if has_sum:
+                            row_data["amount"] = float(res_doc.Amount or 0)
+                        if has_sklad:
+                            row_data["warehouse"] = str(res_doc.Warehouse or "").strip()
+                        if has_deal:
+                            row_data["deal"] = str(res_doc.Deal or "").strip()
+                        if has_contract:
+                            row_data["contract"] = str(res_doc.Contract or "").strip()
+                        if has_info:
+                            row_data["info"] = str(res_doc.Info or "").strip()
+                        if has_resp:
+                            row_data["responsible"] = str(res_doc.Responsible or "").strip()
+                        if has_comm:
+                            row_data["comment"] = str(res_doc.Comment or "").strip()
+
+                        # Client side quick filter if search_str
+                        if search_str:
+                            search_target = " ".join(str(v) for v in row_data.values()).lower()
+                            if search_str.lower() not in search_target:
+                                continue
+
+                        items.append(row_data)
+
+                    resp_q.put((True, {
+                        "doc_type": doc_type,
+                        "doc_title": doc_synonym,
+                        "columns": columns,
+                        "items": items,
+                        "total": len(items)
+                    }))
+
+                # Action: Get Document Details (Header and Table Rows)
+                elif action == "get_document_details":
+                    doc_type = payload.get("doc_type") or "УстановкаЦенНоменклатуры"
+                    doc_number = payload.get("number", "").strip()
+
+                    q_det = conn.NewObject("Запрос")
+                    q_det.Text = f"""
+                    ВЫБРАТЬ ПЕРВЫЕ 1
+                        Т.Ссылка КАК Ref
+                    ИЗ
+                        Документ.{doc_type} КАК Т
+                    ГДЕ
+                        Т.Номер = &DocNum
+                    """
+                    q_det.SetParameter("DocNum", doc_number)
+                    res_det = q_det.Execute().Choose()
+                    if not res_det.Next():
+                        raise ValueError(f"Sənəd №{doc_number} tapılmadı")
+
+                    doc_obj = res_det.Ref.ПолучитьОбъект()
+                    raw_date = doc_obj.Дата
+                    date_str = ""
+                    if raw_date:
+                        try:
+                            date_str = raw_date.strftime("%d.%m.%Y %H:%M:%S")
+                        except Exception:
+                            date_str = str(raw_date)[:19]
+
+                    header = {
+                        "number": str(doc_obj.Номер),
+                        "date": date_str,
+                        "posted": bool(doc_obj.Проведен),
+                        "comment": str(getattr(doc_obj, "Комментарий", "") or ""),
+                        "responsible": str(getattr(doc_obj.Ответственный, "Наименование", "") if hasattr(doc_obj, "Ответственный") else "")
+                    }
+
+                    lines = []
+                    if hasattr(doc_obj, "Товары"):
+                        tab = doc_obj.Товары
+                        for i in range(tab.Количество()):
+                            row = tab.Получить(i)
+                            nom = row.Номенклатура
+                            lines.append({
+                                "line_num": i + 1,
+                                "code": str(getattr(nom, "Код", "") or "").strip(),
+                                "name": str(getattr(nom, "Наименование", "") or "").strip(),
+                                "artikul": str(getattr(nom, "Артикул", "") or "").strip(),
+                                "price": float(getattr(row, "Цена", 0) or 0),
+                                "price_type": str(getattr(row.ТипЦен, "Наименование", "") if hasattr(row, "ТипЦен") and row.ТипЦен else ""),
+                                "unit": str(getattr(row.ЕдиницаИзмерения, "Наименование", "") if hasattr(row, "ЕдиницаИзмерения") and row.ЕдиницаИзмерения else "")
+                            })
+
+                    resp_q.put((True, {
+                        "doc_type": doc_type,
+                        "header": header,
+                        "lines": lines,
+                        "total_lines": len(lines)
+                    }))
+
             except Exception as e:
                 err_str = str(e)
                 if any(k in err_str for k in ["Сеанс отсутствует", "ClusterDistribImpl", "Соединение разорвано"]):
@@ -2751,12 +2968,38 @@ def portfolio_catalog_export_excel_endpoint():
         print_server_error("/api/portfolio_catalog/export_excel", e, data)
         return jsonify({"success": False, "error": str(e)})
 
-@app.route("/api/portfolio_catalog/download_excel", methods=["GET"])
-def portfolio_catalog_download_excel_endpoint():
-    if os.path.exists(PORTFOLIO_EXCEL):
-        filename = f"Tovari_po_portfelyam_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx"
-        return send_file(PORTFOLIO_EXCEL, as_attachment=True, download_name=filename)
-    return "Excel faylı tapılmadı.", 404
+@app.route("/api/documents/list", methods=["POST"])
+def documents_list_endpoint():
+    data = request.json or {}
+    try:
+        res = one_c.execute("get_documents_list", data)
+        return jsonify({
+            "success": True,
+            "doc_type": res.get("doc_type"),
+            "doc_title": res.get("doc_title"),
+            "columns": res.get("columns", []),
+            "items": res.get("items", []),
+            "total": res.get("total", 0)
+        })
+    except Exception as e:
+        print_server_error("/api/documents/list", e, data)
+        return jsonify({"success": False, "error": str(e)})
+
+@app.route("/api/documents/details", methods=["POST"])
+def document_details_endpoint():
+    data = request.json or {}
+    try:
+        res = one_c.execute("get_document_details", data)
+        return jsonify({
+            "success": True,
+            "doc_type": res.get("doc_type"),
+            "header": res.get("header", {}),
+            "lines": res.get("lines", []),
+            "total_lines": res.get("total_lines", 0)
+        })
+    except Exception as e:
+        print_server_error("/api/documents/details", e, data)
+        return jsonify({"success": False, "error": str(e)})
 
 if __name__ == "__main__":
     app.run(host="127.0.0.1", port=5050, debug=False)
