@@ -19,6 +19,10 @@ const PriceDocEditor = {
     { id: "name", label: "Номенклатура", visible: true, width: 300 },
     { id: "unit", label: "Единица", visible: true, width: 45 }
   ],
+  currentSort: { colId: null, type: null, dir: "asc" },
+  ptWidths: {},
+  draggedCol: null,
+  resizingCol: null,
 
   open: function(docNumber, docDate) {
     if (!docNumber) return;
@@ -31,6 +35,10 @@ const PriceDocEditor = {
         if (Array.isArray(parsed) && parsed.length) {
           this.columnsConfig = parsed;
         }
+      }
+      const savedPtWidths = localStorage.getItem("1c_price_doc_pt_widths");
+      if (savedPtWidths) {
+        this.ptWidths = JSON.parse(savedPtWidths) || {};
       }
     } catch(e) {}
 
@@ -126,8 +134,11 @@ const PriceDocEditor = {
     this.docData = data;
     this.priceTypes = data.price_types || [];
     this.allPriceTypes = data.all_price_types || data.price_types || [];
-    this.items = data.items || [];
-    this.filteredItems = [...this.items];
+    this.items = (data.items || []).map((it, idx) => {
+      if (it._origIdx === undefined) it._origIdx = idx;
+      return it;
+    });
+    this.currentSort = { colId: null, type: null, dir: "asc" };
 
     // Update header inputs
     const inpNum = document.getElementById("pdeDocNumber");
@@ -161,8 +172,7 @@ const PriceDocEditor = {
       winTitle.textContent = `Установка цен номенклатуры: ${data.posted ? 'Проведен' : 'Не проведен'}`;
     }
 
-    this.renderTable();
-    this.updateRowCount();
+    this.applySortAndFilter();
   },
 
   renderTable: function() {
@@ -180,17 +190,18 @@ const PriceDocEditor = {
       let rowCellsHtml = "";
       this.columnsConfig.forEach(col => {
         if (!col.visible) return;
+        const colW = col.width || 85;
 
         if (col.id === "num") {
-          rowCellsHtml += `<td style="text-align: center; border: 1px solid #d4d0c8; padding: 2px; color: #555; width: ${col.width}px;">${i + 1}</td>`;
+          rowCellsHtml += `<td style="text-align: center; border: 1px solid #d4d0c8; padding: 2px; color: #555; width: ${colW}px; min-width: ${colW}px; max-width: ${colW}px; overflow: hidden; text-overflow: ellipsis; box-sizing: border-box;">${i + 1}</td>`;
         } else if (col.id === "code") {
           rowCellsHtml += `
-            <td style="padding: 1px 3px; border: 1px solid #d4d0c8; width: ${col.width}px;">
+            <td style="padding: 1px 3px; border: 1px solid #d4d0c8; width: ${colW}px; min-width: ${colW}px; max-width: ${colW}px; box-sizing: border-box;">
               <input type="text" value="${this.escapeHtml(itm.code || '')}"
                      onchange="PriceDocEditor.onCodeCellChange(${i}, this.value)"
                      onfocus="this.select()"
                      title="Код товара (введите для поиска)"
-                     style="width: 100%; height: 19px; border: 1px solid transparent; background: transparent; font-family: Tahoma, sans-serif; font-size: 11px; outline: none; padding: 0 2px;"
+                     style="width: 100%; height: 19px; border: 1px solid transparent; background: transparent; font-family: Tahoma, sans-serif; font-size: 11px; outline: none; padding: 0 2px; box-sizing: border-box;"
                      onmouseover="this.style.border='1px solid #7f9db9'"
                      onmouseout="if(document.activeElement!==this) this.style.border='1px solid transparent'"
                      onfocusin="this.style.border='1px solid #0055ea'; this.style.background='#fff'; PriceDocEditor.selectedRowIdx=${i};"
@@ -199,12 +210,12 @@ const PriceDocEditor = {
           `;
         } else if (col.id === "artikul") {
           rowCellsHtml += `
-            <td style="padding: 1px 3px; border: 1px solid #d4d0c8; width: ${col.width}px;">
+            <td style="padding: 1px 3px; border: 1px solid #d4d0c8; width: ${colW}px; min-width: ${colW}px; max-width: ${colW}px; box-sizing: border-box;">
               <input type="text" value="${this.escapeHtml(itm.artikul || '')}"
                      onchange="PriceDocEditor.onArtikulCellChange(${i}, this.value)"
                      onfocus="this.select()"
                      title="Артикул товара (введите для поиска)"
-                     style="width: 100%; height: 19px; border: 1px solid transparent; background: transparent; font-family: Tahoma, sans-serif; font-size: 11px; outline: none; padding: 0 2px;"
+                     style="width: 100%; height: 19px; border: 1px solid transparent; background: transparent; font-family: Tahoma, sans-serif; font-size: 11px; outline: none; padding: 0 2px; box-sizing: border-box;"
                      onmouseover="this.style.border='1px solid #7f9db9'"
                      onmouseout="if(document.activeElement!==this) this.style.border='1px solid transparent'"
                      onfocusin="this.style.border='1px solid #0055ea'; this.style.background='#fff'; PriceDocEditor.selectedRowIdx=${i};"
@@ -212,10 +223,10 @@ const PriceDocEditor = {
             </td>
           `;
         } else if (col.id === "barcode") {
-          rowCellsHtml += `<td style="padding: 2px 4px; border: 1px solid #d4d0c8; text-align: center; font-family: Consolas, monospace; color: #555; width: ${col.width}px;">${this.escapeHtml(itm.barcode || '')}</td>`;
+          rowCellsHtml += `<td style="padding: 2px 4px; border: 1px solid #d4d0c8; text-align: center; font-family: Consolas, monospace; color: #555; width: ${colW}px; min-width: ${colW}px; max-width: ${colW}px; overflow: hidden; text-overflow: ellipsis; box-sizing: border-box;">${this.escapeHtml(itm.barcode || '')}</td>`;
         } else if (col.id === "name") {
           rowCellsHtml += `
-            <td style="padding: 1px 2px; border: 1px solid #d4d0c8; position: relative;">
+            <td style="padding: 1px 2px; border: 1px solid #d4d0c8; position: relative; width: ${colW}px; min-width: ${colW}px; max-width: ${colW}px; box-sizing: border-box;">
               <div class="pde-nom-cell-wrapper" style="display: flex; align-items: stretch; width: 100%; height: 19px;">
                 <input type="text" value="${this.escapeHtml(itm.name || '')}"
                        data-row="${i}"
@@ -223,36 +234,37 @@ const PriceDocEditor = {
                        oninput="PriceDocEditor.onNomSearchInput(this, event, ${i})"
                        onkeydown="PriceDocEditor.onNomKeyDown(this, event, ${i})"
                        title="${this.escapeHtml(itm.name || '')}"
-                       style="flex: 1; min-width: 120px; height: 100%; border: 1px solid transparent; background: transparent; font-family: Tahoma, sans-serif; font-size: 11px; padding: 0 4px; outline: none; text-overflow: ellipsis;"
+                       style="flex: 1; min-width: 0; width: 0; height: 100%; border: 1px solid transparent; background: transparent; font-family: Tahoma, sans-serif; font-size: 11px; padding: 0 4px; outline: none; text-overflow: ellipsis; overflow: hidden; box-sizing: border-box;"
                        onmouseover="this.style.border='1px solid #7f9db9'"
                        onmouseout="if(document.activeElement!==this) this.style.border='1px solid transparent'"
                        onfocusin="this.style.border='1px solid #0055ea'; this.style.background='#fff'; PriceDocEditor.selectedRowIdx=${i};"
                        onfocusout="this.style.border='1px solid transparent'; this.style.background='transparent';">
                 <button type="button" onclick="PriceDocEditor.openNomPickerForRow(${i})" 
                         title="Подбор номенклатуры (F4)"
-                        style="height: 100%; padding: 0 5px; border: 1px solid #7f9db9; border-left: none; background: #e0dfd5; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: bold; line-height: 1; user-select: none;">
+                        style="height: 100%; padding: 0 5px; border: 1px solid #7f9db9; border-left: none; background: #e0dfd5; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: bold; line-height: 1; user-select: none; flex-shrink: 0;">
                   ... 🔍
                 </button>
               </div>
             </td>
           `;
         } else if (col.id === "unit") {
-          rowCellsHtml += `<td style="text-align: center; border: 1px solid #d4d0c8; padding: 2px; color: #555; width: ${col.width}px;">${this.escapeHtml(itm.unit || 'шт')}</td>`;
+          rowCellsHtml += `<td style="text-align: center; border: 1px solid #d4d0c8; padding: 2px; color: #555; width: ${colW}px; min-width: ${colW}px; max-width: ${colW}px; overflow: hidden; text-overflow: ellipsis; box-sizing: border-box;">${this.escapeHtml(itm.unit || 'шт')}</td>`;
         }
       });
 
       let priceCells = "";
       this.priceTypes.forEach(pt => {
+        const ptWidth = (this.ptWidths && this.ptWidths[pt]) || 85;
         const val = itm.prices && itm.prices[pt] !== undefined ? Number(itm.prices[pt]) : 0;
         const formatted = val > 0 ? val.toFixed(3) : "";
 
         priceCells += `
-          <td style="padding: 1px 3px; border: 1px solid #d4d0c8; text-align: right; width: 85px;">
+          <td style="padding: 1px 3px; border: 1px solid #d4d0c8; text-align: right; width: ${ptWidth}px; min-width: ${ptWidth}px; max-width: ${ptWidth}px; box-sizing: border-box;">
             <input type="text" value="${formatted}" 
                    data-row="${i}" data-pt="${this.escapeHtml(pt)}"
                    onchange="PriceDocEditor.onPriceCellChange(this)"
                    onfocus="this.select()"
-                   style="width: 100%; height: 19px; border: 1px solid transparent; background: transparent; text-align: right; font-family: Tahoma, sans-serif; font-size: 11px; outline: none; padding: 0 2px;"
+                   style="width: 100%; height: 19px; border: 1px solid transparent; background: transparent; text-align: right; font-family: Tahoma, sans-serif; font-size: 11px; outline: none; padding: 0 2px; box-sizing: border-box;"
                    onmouseover="this.style.border='1px solid #7f9db9'"
                    onmouseout="if(document.activeElement!==this) this.style.border='1px solid transparent'"
                    onfocusin="this.style.border='1px solid #0055ea'; this.style.background='#fff';"
@@ -279,23 +291,63 @@ const PriceDocEditor = {
     let headersHtml = "";
     this.columnsConfig.forEach(col => {
       if (!col.visible) return;
-      if (col.id === "num") {
-        headersHtml += `<th style="width: ${col.width}px; padding: 4px; border: 1px solid #b0af9f; text-align: center;">№</th>`;
-      } else if (col.id === "code") {
-        headersHtml += `<th style="width: ${col.width}px; padding: 4px; border: 1px solid #b0af9f; text-align: left;">Код</th>`;
-      } else if (col.id === "artikul") {
-        headersHtml += `<th style="width: ${col.width}px; padding: 4px; border: 1px solid #b0af9f; text-align: left;">Артикул</th>`;
-      } else if (col.id === "barcode") {
-        headersHtml += `<th style="width: ${col.width}px; padding: 4px; border: 1px solid #b0af9f; text-align: center;">Штрихкод</th>`;
-      } else if (col.id === "name") {
-        headersHtml += `<th style="min-width: 250px; padding: 4px 6px; border: 1px solid #b0af9f; text-align: left;">Номенклатура</th>`;
-      } else if (col.id === "unit") {
-        headersHtml += `<th style="width: ${col.width}px; padding: 4px; border: 1px solid #b0af9f; text-align: center;">Ед.</th>`;
-      }
+      const colW = col.width || 85;
+      const isSorted = (this.currentSort && this.currentSort.colId === col.id);
+      const sortArrow = isSorted ? `<span class="pde-sort-indicator">${this.currentSort.dir === 'asc' ? '▲' : '▼'}</span>` : '';
+      const align = (col.id === "num" || col.id === "barcode" || col.id === "unit") ? "center" : "left";
+
+      headersHtml += `
+        <th class="pde-th" id="pdeTh_standard_${col.id}"
+            draggable="true"
+            ondragstart="PriceDocEditor.onColDragStart(event, '${col.id}', 'standard')"
+            ondragover="PriceDocEditor.onColDragOver(event, '${col.id}', 'standard')"
+            ondragleave="PriceDocEditor.onColDragLeave(event)"
+            ondrop="PriceDocEditor.onColDrop(event, '${col.id}', 'standard')"
+            ondragend="PriceDocEditor.onColDragEnd(event)"
+            onclick="PriceDocEditor.onColHeaderClick(event, '${col.id}', 'standard')"
+            title="Klikləyin: Çeşidlə (A-Z / Z-A) | Sürükləyin: Yerini dəyişin | Sərhəddən tutun: Enini dəyişin"
+            style="width: ${colW}px; min-width: ${colW}px; max-width: ${colW}px;">
+          <div class="pde-col-header-inner" style="justify-content: ${align === 'center' ? 'center' : 'flex-start'};">
+            <span style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${this.escapeHtml(col.label)}</span>
+            ${sortArrow}
+          </div>
+          <div class="pde-col-resizer" onmousedown="PriceDocEditor.onStartColResize(event, '${col.id}', 'standard')" onclick="event.stopPropagation()"></div>
+        </th>
+      `;
     });
 
     this.priceTypes.forEach(pt => {
-      headersHtml += `<th style="width: 85px; min-width: 80px; padding: 4px; border: 1px solid #b0af9f; text-align: right; white-space: nowrap; font-size: 11px; cursor: pointer;" title="İki dəfə klikləyin: '${this.escapeHtml(pt)}' qiymətlərini təmizlə" ondblclick="PriceDocEditor.promptClearPricesByPriceType('${this.escapeHtml(pt)}')">${this.escapeHtml(pt)}</th>`;
+      const ptWidth = (this.ptWidths && this.ptWidths[pt]) || 85;
+      const isSorted = (this.currentSort && this.currentSort.colId === pt);
+      const sortArrow = isSorted ? `<span class="pde-sort-indicator">${this.currentSort.dir === 'asc' ? '▲' : '▼'}</span>` : '';
+      const safePt = this.escapeHtml(pt);
+      const cleanPtAttr = pt.replace(/[^a-zA-Z0-9_-]/g, '_');
+
+      headersHtml += `
+        <th class="pde-th" id="pdeTh_pt_${cleanPtAttr}"
+            draggable="true"
+            ondragstart="PriceDocEditor.onColDragStart(event, '${safePt}', 'pt')"
+            ondragover="PriceDocEditor.onColDragOver(event, '${safePt}', 'pt')"
+            ondragleave="PriceDocEditor.onColDragLeave(event)"
+            ondrop="PriceDocEditor.onColDrop(event, '${safePt}', 'pt')"
+            ondragend="PriceDocEditor.onColDragEnd(event)"
+            onclick="PriceDocEditor.onColHeaderClick(event, '${safePt}', 'pt')"
+            title="Klikləyin: Qiymətə görə çeşidlə | Sürükləyin: Sütunun yerini dəyişin | Sərhəddən: Enini dəyişin | ✕: Qiymətləri təmizlə"
+            style="width: ${ptWidth}px; min-width: ${ptWidth}px; max-width: ${ptWidth}px; text-align: right;">
+          <div class="pde-col-header-inner" style="justify-content: flex-end; gap: 3px;">
+            <span style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 11px;">${safePt}</span>
+            ${sortArrow}
+            <button type="button" onclick="event.stopPropagation(); PriceDocEditor.promptClearPricesByPriceType('${safePt}')"
+                    title="'${safePt}' sütunundakı qiymətləri təmizlə"
+                    style="border: none; background: transparent; cursor: pointer; padding: 0 2px; font-size: 10px; color: #777; line-height: 1; border-radius: 2px;"
+                    onmouseover="this.style.color='#d32f2f'; this.style.background='#fbe9e7'"
+                    onmouseout="this.style.color='#777'; this.style.background='transparent'">
+              ✕
+            </button>
+          </div>
+          <div class="pde-col-resizer" onmousedown="PriceDocEditor.onStartColResize(event, '${safePt}', 'pt')" onclick="event.stopPropagation()"></div>
+        </th>
+      `;
     });
 
     headRow.innerHTML = headersHtml;
@@ -454,10 +506,6 @@ const PriceDocEditor = {
     .catch(err => alert("Xəta: " + err.message));
   },
 
-  fillCurrentPrices: function() {
-    this.closeAllMenus();
-    alert("Doldurma: Mövcud qiymətlər bazadan çəkilib tətbiq edildi.");
-  },
 
   openItemPicker: function() {
     if (window.openPortfolioReportWindow) {
@@ -1006,21 +1054,217 @@ const PriceDocEditor = {
   },
 
   filterTableRows: function() {
+    this.applySortAndFilter();
+  },
+
+  applySortAndFilter: function() {
     const inp = document.getElementById("pdeTableSearchInp");
     const q = inp ? inp.value.trim().toLowerCase() : "";
 
-    if (!q) {
-      this.filteredItems = [...this.items];
-    } else {
-      this.filteredItems = this.items.filter(it => {
+    // 1. Filter
+    let list = this.items;
+    if (q) {
+      list = this.items.filter(it => {
         return (it.name && it.name.toLowerCase().includes(q)) ||
                (it.code && it.code.toLowerCase().includes(q)) ||
-               (it.artikul && it.artikul.toLowerCase().includes(q));
+               (it.artikul && it.artikul.toLowerCase().includes(q)) ||
+               (it.barcode && it.barcode.toLowerCase().includes(q));
       });
     }
 
+    // 2. Sort
+    if (this.currentSort && this.currentSort.colId) {
+      const { colId, type, dir } = this.currentSort;
+      const isAsc = (dir === "asc");
+
+      list = [...list].sort((a, b) => {
+        if (colId === "num") {
+          const valA = a._origIdx !== undefined ? a._origIdx : 0;
+          const valB = b._origIdx !== undefined ? b._origIdx : 0;
+          return isAsc ? (valA - valB) : (valB - valA);
+        }
+
+        if (type === "pt") {
+          const rawA = a.prices && a.prices[colId] !== undefined ? a.prices[colId] : null;
+          const rawB = b.prices && b.prices[colId] !== undefined ? b.prices[colId] : null;
+          const numA = (rawA !== null && rawA !== "" && !isNaN(Number(rawA))) ? Number(rawA) : null;
+          const numB = (rawB !== null && rawB !== "" && !isNaN(Number(rawB))) ? Number(rawB) : null;
+
+          // Put empty / null prices at bottom in both asc and desc
+          if (numA === null && numB === null) return (a._origIdx || 0) - (b._origIdx || 0);
+          if (numA === null) return 1;
+          if (numB === null) return -1;
+
+          return isAsc ? (numA - numB) : (numB - numA);
+        }
+
+        // Standard column sorting
+        const valA = a[colId] != null ? String(a[colId]).trim() : "";
+        const valB = b[colId] != null ? String(b[colId]).trim() : "";
+
+        if (!valA && !valB) return (a._origIdx || 0) - (b._origIdx || 0);
+        if (!valA) return 1;
+        if (!valB) return -1;
+
+        const cmp = valA.localeCompare(valB, undefined, { numeric: true, sensitivity: "base" });
+        return isAsc ? cmp : -cmp;
+      });
+    } else {
+      // Restore original document order
+      list = [...list].sort((a, b) => (a._origIdx || 0) - (b._origIdx || 0));
+    }
+
+    this.filteredItems = list;
     this.renderTable();
     this.updateRowCount();
+  },
+
+  onColHeaderClick: function(event, colId, colType) {
+    if (event.target.closest(".pde-col-resizer") || event.target.closest("button")) {
+      return;
+    }
+
+    if (this.currentSort && this.currentSort.colId === colId) {
+      if (this.currentSort.dir === "asc") {
+        this.currentSort.dir = "desc";
+      } else {
+        // Reset sort to original document order
+        this.currentSort = { colId: null, type: null, dir: "asc" };
+      }
+    } else {
+      this.currentSort = { colId: colId, type: colType, dir: "asc" };
+    }
+
+    this.applySortAndFilter();
+  },
+
+  onStartColResize: function(event, colId, colType) {
+    event.preventDefault();
+    event.stopPropagation();
+
+    const startX = event.clientX;
+    const thEl = event.target.closest("th");
+    const startWidth = thEl ? thEl.offsetWidth : 85;
+
+    this.resizingCol = { colId, colType, startX, startWidth, thEl };
+
+    const resizerEl = event.target;
+    if (resizerEl) resizerEl.classList.add("resizing");
+
+    const onMouseMove = (e) => {
+      if (!this.resizingCol) return;
+      const delta = e.clientX - this.resizingCol.startX;
+      const minW = (this.resizingCol.colId === "num") ? 25 : 45;
+      const newWidth = Math.max(minW, this.resizingCol.startWidth + delta);
+
+      if (this.resizingCol.colType === "standard") {
+        const col = this.columnsConfig.find(c => c.id === this.resizingCol.colId);
+        if (col) col.width = newWidth;
+      } else {
+        if (!this.ptWidths) this.ptWidths = {};
+        this.ptWidths[this.resizingCol.colId] = newWidth;
+      }
+
+      if (this.resizingCol.thEl) {
+        this.resizingCol.thEl.style.width = newWidth + "px";
+        this.resizingCol.thEl.style.minWidth = newWidth + "px";
+        this.resizingCol.thEl.style.maxWidth = newWidth + "px";
+      }
+    };
+
+    const onMouseUp = () => {
+      if (resizerEl) resizerEl.classList.remove("resizing");
+      document.removeEventListener("mousemove", onMouseMove);
+      document.removeEventListener("mouseup", onMouseUp);
+
+      if (this.resizingCol) {
+        try {
+          if (this.resizingCol.colType === "standard") {
+            localStorage.setItem("1c_price_doc_columns", JSON.stringify(this.columnsConfig));
+          } else {
+            localStorage.setItem("1c_price_doc_pt_widths", JSON.stringify(this.ptWidths));
+          }
+        } catch(e) {}
+
+        this.resizingCol = null;
+        this.renderTable();
+      }
+    };
+
+    document.addEventListener("mousemove", onMouseMove);
+    document.addEventListener("mouseup", onMouseUp);
+  },
+
+  onColDragStart: function(event, colId, colType) {
+    if (event.target.classList.contains("pde-col-resizer") || event.target.tagName === "BUTTON") {
+      event.preventDefault();
+      return;
+    }
+    this.draggedCol = { colId, colType };
+    event.dataTransfer.setData("text/plain", JSON.stringify({ colId, colType }));
+    event.dataTransfer.effectAllowed = "move";
+    event.currentTarget.classList.add("pde-th-dragging");
+  },
+
+  onColDragOver: function(event, targetColId, targetColType) {
+    if (!this.draggedCol) return;
+    if (this.draggedCol.colType !== targetColType) return;
+    if (this.draggedCol.colId === targetColId) return;
+
+    event.preventDefault();
+    event.dataTransfer.dropEffect = "move";
+    event.currentTarget.classList.add("pde-th-drag-over");
+  },
+
+  onColDragLeave: function(event) {
+    event.currentTarget.classList.remove("pde-th-drag-over");
+  },
+
+  onColDrop: function(event, targetColId, targetColType) {
+    event.preventDefault();
+    event.currentTarget.classList.remove("pde-th-drag-over");
+
+    if (!this.draggedCol) return;
+    if (this.draggedCol.colType !== targetColType) return;
+    if (this.draggedCol.colId === targetColId) return;
+
+    const sourceColId = this.draggedCol.colId;
+
+    if (targetColType === "standard") {
+      const fromIdx = this.columnsConfig.findIndex(c => c.id === sourceColId);
+      const toIdx = this.columnsConfig.findIndex(c => c.id === targetColId);
+      if (fromIdx !== -1 && toIdx !== -1) {
+        const item = this.columnsConfig.splice(fromIdx, 1)[0];
+        this.columnsConfig.splice(toIdx, 0, item);
+        try {
+          localStorage.setItem("1c_price_doc_columns", JSON.stringify(this.columnsConfig));
+        } catch(e) {}
+      }
+    } else if (targetColType === "pt") {
+      const fromIdx = this.priceTypes.indexOf(sourceColId);
+      const toIdx = this.priceTypes.indexOf(targetColId);
+      if (fromIdx !== -1 && toIdx !== -1) {
+        const item = this.priceTypes.splice(fromIdx, 1)[0];
+        this.priceTypes.splice(toIdx, 0, item);
+
+        const disp = document.getElementById("pdePriceTypesDisplay");
+        if (disp) {
+          if ("value" in disp) disp.value = this.priceTypes.join("; ");
+          else disp.textContent = this.priceTypes.join("; ");
+        }
+      }
+    }
+
+    this.draggedCol = null;
+    this.renderTable();
+  },
+
+  onColDragEnd: function(event) {
+    this.draggedCol = null;
+    document.querySelectorAll(".pde-th").forEach(th => {
+      th.classList.remove("pde-th-drag-over");
+      th.classList.remove("pde-th-dragging");
+    });
   },
 
   saveTo1C: function() {
