@@ -2780,6 +2780,54 @@ class OneCService(threading.Thread):
                         print("Error reading all price types:", e_pt)
                     resp_q.put((True, {"price_types": pts}))
 
+                # Action: Get active prices from 1C for an item (СрезПоследних)
+                elif action == "get_item_prices":
+                    item_code = str(payload.get("code") or "").strip()
+                    item_name = str(payload.get("name") or "").strip()
+                    date_str = str(payload.get("date") or "").strip()
+
+                    prices = {}
+                    try:
+                        q_pr = conn.NewObject("Запрос")
+                        q_pr.SetParameter("ItemCode", item_code)
+                        q_pr.SetParameter("ItemName", item_name)
+
+                        has_date = False
+                        if date_str:
+                            try:
+                                d_part = date_str.split()[0]
+                                if "." in d_part:
+                                    dp = d_part.split(".")
+                                    dt = datetime.datetime(int(dp[2]), int(dp[1]), int(dp[0]), 23, 59, 59)
+                                    q_pr.SetParameter("DocDate", dt)
+                                    has_date = True
+                            except Exception:
+                                pass
+
+                        date_clause = "&DocDate" if has_date else ""
+                        q_pr.Text = f"""
+                        ВЫБРАТЬ
+                            Т.ТипЦен.Наименование КАК PriceTypeName,
+                            Т.ТипЦен.Код КАК PriceTypeCode,
+                            Т.Цена КАК Price
+                        ИЗ
+                            РегистрСведений.ЦеныНоменклатуры.СрезПоследних(
+                                {date_clause},
+                                (Номенклатура.Код = &ItemCode И &ItemCode <> "")
+                                ИЛИ (Номенклатура.Наименование = &ItemName И &ItemName <> "")
+                            ) КАК Т
+                        """
+                        sel_pr = q_pr.Execute().Choose()
+                        while sel_pr.Next():
+                            pt_name = str(sel_pr.PriceTypeName or "").strip()
+                            p_val = float(sel_pr.Price or 0)
+                            if pt_name and p_val > 0:
+                                prices[pt_name] = p_val
+                    except Exception as e_pr:
+                        print("Error reading item prices:", e_pr)
+                    resp_q.put((True, {"prices": prices}))
+
+
 
             except Exception as e:
                 err_str = str(e)
@@ -3463,7 +3511,19 @@ def search_nomenclature_endpoint():
         })
     except Exception as e:
         print_server_error("/api/nomenclature/search", e, data)
-        return jsonify({"success": False, "error": str(e), "items": []})
+@app.route("/api/nomenclature/prices", methods=["POST"])
+@app.route("/api/documents/item_prices", methods=["POST"])
+def get_item_prices_endpoint():
+    data = request.json or {}
+    try:
+        res = one_c.execute("get_item_prices", data)
+        return jsonify({
+            "success": True,
+            "prices": res.get("prices", {}) if isinstance(res, dict) else {}
+        })
+    except Exception as e:
+        print_server_error("/api/documents/item_prices", e, data)
+        return jsonify({"success": False, "error": str(e), "prices": {}})
 
 if __name__ == "__main__":
     app.run(host="127.0.0.1", port=5050, debug=False)

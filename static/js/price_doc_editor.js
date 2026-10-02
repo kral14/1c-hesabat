@@ -1205,21 +1205,64 @@ const PriceDocEditor = {
     }
   },
 
+  updateRowWithItem: async function(rowIdx, itemInfo) {
+    let row = this.filteredItems[rowIdx];
+    if (!row && rowIdx >= this.filteredItems.length) {
+      row = {
+        name: "",
+        code: "",
+        artikul: "",
+        unit: "шт",
+        barcode: "",
+        prices: {}
+      };
+      this.items.push(row);
+      this.filteredItems = [...this.items];
+      rowIdx = this.filteredItems.length - 1;
+    }
+    if (!row) return;
+
+    row.name = itemInfo.name || "";
+    row.code = itemInfo.code || "";
+    row.artikul = itemInfo.artikul || "";
+    row.unit = itemInfo.unit || "шт";
+    row.barcode = itemInfo.barcode || "";
+
+    // Clear previous product's prices so old prices never remain
+    row.prices = {};
+
+    this.renderTable();
+    this.updateRowCount();
+
+    // Query 1C for active prices (СрезПоследних) for this product
+    const docDate = document.getElementById("pdeDocDate")?.value?.trim() || "";
+    try {
+      const resp = await fetch("/api/documents/item_prices", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          code: row.code,
+          name: row.name,
+          date: docDate,
+          price_types: this.priceTypes
+        })
+      });
+      const data = await resp.json();
+      if (data.success && data.prices) {
+        row.prices = data.prices;
+        this.renderTable();
+      }
+    } catch (err) {
+      console.warn("Could not fetch item prices from 1C:", err);
+    }
+  },
+
   selectNomItem: function(rowIdx, itemIdx) {
     const itm = this.currentAutocompleteItems[itemIdx];
     if (!itm) return;
 
-    const row = this.filteredItems[rowIdx];
-    if (row) {
-      row.name = itm.name;
-      row.code = itm.code;
-      row.artikul = itm.artikul;
-      row.unit = itm.unit;
-      row.barcode = itm.barcode || "";
-    }
-
     this.hideNomAutocomplete();
-    this.renderTable();
+    this.updateRowWithItem(rowIdx, itm);
   },
 
   hideNomAutocomplete: function() {
@@ -1241,15 +1284,7 @@ const PriceDocEditor = {
     .then(res => {
       if (res.success && res.found && res.found[cleanVal]) {
         const info = res.found[cleanVal];
-        const row = this.filteredItems[rowIdx];
-        if (row) {
-          row.name = info.name;
-          row.code = info.code;
-          row.artikul = info.artikul;
-          row.unit = info.unit;
-          row.barcode = info.barcode || "";
-          this.renderTable();
-        }
+        this.updateRowWithItem(rowIdx, info);
       }
     });
   },
@@ -1353,29 +1388,12 @@ const PriceDocEditor = {
   confirmNomPickerSelection: function() {
     if (this.nomPickerSelectedIdx < 0 || !this.nomPickerItems[this.nomPickerSelectedIdx]) return;
     const itm = this.nomPickerItems[this.nomPickerSelectedIdx];
-
-    if (this.pickerTargetRowIdx >= 0 && this.pickerTargetRowIdx < this.filteredItems.length) {
-      const target = this.filteredItems[this.pickerTargetRowIdx];
-      target.name = itm.name;
-      target.code = itm.code;
-      target.artikul = itm.artikul;
-      target.unit = itm.unit;
-      target.barcode = itm.barcode || "";
-    } else {
-      this.items.push({
-        name: itm.name,
-        code: itm.code,
-        artikul: itm.artikul,
-        unit: itm.unit,
-        barcode: itm.barcode || "",
-        prices: {}
-      });
-      this.filteredItems = [...this.items];
-      this.updateRowCount();
-    }
+    const targetIdx = (this.pickerTargetRowIdx >= 0 && this.pickerTargetRowIdx < this.filteredItems.length)
+      ? this.pickerTargetRowIdx
+      : this.filteredItems.length;
 
     this.closeNomPickerModal();
-    this.renderTable();
+    this.updateRowWithItem(targetIdx, itm);
   },
 
   // ==========================================
