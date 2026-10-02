@@ -685,11 +685,11 @@ const SettingsPresets = {
         dlgBadge.textContent = `Настройка: ${presetName}`;
       }
       if (dlgTitle) dlgTitle.textContent = `Настройки: Товары на складах (${presetName})`;
-      document.title = `1С:Предприятие 8.3 - [${displayName}]`;
+      document.title = "1С:Предприятие 8.3";
     } else {
       if (dlgBadge) dlgBadge.style.display = "none";
       if (dlgTitle) dlgTitle.textContent = `Настройки: Товары на складах`;
-      document.title = `1С:Предприятие 8.3 - [Товары на складах]`;
+      document.title = "1С:Предприятие 8.3";
     }
   }
 };

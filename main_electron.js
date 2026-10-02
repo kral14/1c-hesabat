@@ -7,7 +7,7 @@ function createWindow() {
     height: 850,
     minWidth: 1024,
     minHeight: 650,
-    title: "1C:Предприятие 8.3 - Товары на складах",
+    title: "1C:Предприятие 8.3",
     autoHideMenuBar: true,
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
@@ -19,6 +19,12 @@ function createWindow() {
 
   // Always open maximized
   win.maximize();
+
+  // Prevent internal pages or presets from polluting the main window title bar
+  win.on('page-title-updated', (e) => {
+    e.preventDefault();
+    win.setTitle("1C:Предприятие 8.3");
+  });
 
   // Remove top menu bar for clean native 1C desktop look
   Menu.setApplicationMenu(null);

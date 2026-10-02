@@ -759,12 +759,11 @@ const MdiManager = {
       const userName = SessionManager?.state?.user || "Nesib";
       if (winObj) {
         appTitle.textContent = `1С:Предприятие 8.3 - [${winObj.title}] (${baseName} - ${userName})`;
-        document.title = `1С:Предприятие 8.3 - [${winObj.title}]`;
       } else {
         appTitle.textContent = `1С:Предприятие 8.3 - (${baseName} - ${userName})`;
-        document.title = "1С:Предприятие 8.3";
       }
     }
+    document.title = "1С:Предприятие 8.3";
   },
 
   /* ----------------------------------------------------
