@@ -421,6 +421,21 @@ const MdiManager = {
       });
     }
 
+    // 13. Nomenclature Item Card Window (Номенклатура / Элемент - starts hidden)
+    const ncWin = document.getElementById("nomenclatureCardWindow");
+    if (ncWin) {
+      this.registerWindow("nomenclatureCardWindow", {
+        title: "Номенклатура (элемент)",
+        icon: "📦",
+        element: ncWin,
+        isDefault: true,
+        startHidden: true,
+        closeFn: () => {
+          if (typeof NomenclatureCard !== "undefined" && NomenclatureCard.close) NomenclatureCard.close();
+        }
+      });
+    }
+
     // Auto-restore open windows after F5 page reload
     setTimeout(() => {
       this.restoreOpenWindowsSession();

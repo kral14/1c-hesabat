@@ -1,0 +1,344 @@
+<!-- ========================================================
+     1C:ENTERPRISE - NOMENCLATURE ITEM CARD WINDOW (Карточка номенклатуры / Элемент)
+     templates/components/nomenclature_card_window.html
+     ======================================================== -->
+
+<div class="mdi-window" id="nomenclatureCardWindow" style="display: none; top: 35px; left: 70px; width: 860px; height: 580px; min-width: 680px; min-height: 440px; z-index: 130; box-shadow: 0 8px 32px rgba(0,0,0,0.35);" onmousedown="MdiManager.activateWindow('nomenclatureCardWindow')">
+  
+  <!-- Window Header (1C Style) -->
+  <div class="mdi-window-header" ondblclick="MdiManager.toggleMaximize('nomenclatureCardWindow')">
+    <div class="mdi-win-title-left" style="display: flex; align-items: center; gap: 6px;">
+      <span class="mdi-win-icon" style="font-size: 13px;">📦</span>
+      <span class="mdi-win-title-text" id="ncWinTitle" style="font-weight: bold; font-family: Tahoma, 'MS Sans Serif', sans-serif; font-size: 11px;">Номенклатура: (Элемент)</span>
+    </div>
+    <div class="mdi-win-controls">
+      <button class="mdi-win-btn mdi-win-btn-min" title="Qatla" onclick="MdiManager.minimizeWindow('nomenclatureCardWindow')" onmousedown="event.stopPropagation()">_</button>
+      <button class="mdi-win-btn mdi-win-btn-max" title="Böyüt / Bərpa et" onclick="MdiManager.toggleMaximize('nomenclatureCardWindow')" onmousedown="event.stopPropagation()">□</button>
+      <button class="mdi-win-btn mdi-win-btn-close" title="Bağla" onclick="NomenclatureCard.close()" onmousedown="event.stopPropagation()">✕</button>
+    </div>
+  </div>
+
+  <!-- Window Body -->
+  <div class="mdi-window-body" style="background-color: #f0eee3; display: flex; flex-direction: column; height: 100%; overflow: hidden; font-family: Tahoma, 'MS Sans Serif', Arial, sans-serif; font-size: 11px; color: #000;">
+
+    <!-- 1. Top Command Bar (Authentic 1C Enterprise layout) -->
+    <div style="padding: 4px 8px; background: #e5e2cf; border-bottom: 1px solid #b0af9f; display: flex; align-items: center; gap: 6px; flex-wrap: wrap; user-select: none;">
+      
+      <!-- Primary Save & Close button -->
+      <button type="button" class="btn-1c btn-1c-primary" onclick="NomenclatureCard.saveAndClose()" title="Записать элемент и закрыть окно" style="height: 23px; padding: 0 10px; font-weight: bold; background: linear-gradient(to bottom, #ffea88, #d8a020); border: 1px solid #7c6817; color: #000; cursor: pointer; display: inline-flex; align-items: center; gap: 4px; font-size: 11px;">
+        <span>✓</span>
+        <span>Записать и закрыть</span>
+      </button>
+
+      <!-- Save button -->
+      <button type="button" class="btn-1c" onclick="NomenclatureCard.save()" title="Записать элемент (Ctrl+S)" style="height: 23px; padding: 0 8px; border: 1px solid #7f9db9; background: #e0dfd5; cursor: pointer; display: inline-flex; align-items: center; gap: 4px; font-size: 11px;">
+        <span>💾</span>
+        <span>Записать</span>
+      </button>
+
+      <!-- Close button -->
+      <button type="button" class="btn-1c" onclick="NomenclatureCard.close()" title="Закрыть окно" style="height: 23px; padding: 0 8px; border: 1px solid #7f9db9; background: #e0dfd5; cursor: pointer; font-size: 11px;">
+        <span>Закрыть</span>
+      </button>
+
+      <div style="width: 1px; height: 18px; background: #b0af9f; margin: 0 4px;"></div>
+
+      <!-- Actions dropdown -->
+      <div style="position: relative; display: inline-block;">
+        <button type="button" class="btn-1c" onclick="NomenclatureCard.toggleActionsMenu(event)" style="height: 23px; padding: 0 8px; border: 1px solid #7f9db9; background: #e0dfd5; cursor: pointer; display: inline-flex; align-items: center; gap: 4px; font-size: 11px;">
+          <span>Действия</span>
+          <span style="font-size: 8px;">▼</span>
+        </button>
+        <div id="ncActionsMenu" style="display: none; position: absolute; top: 25px; left: 0; background: #ffffff; border: 1px solid #7f9db9; box-shadow: 2px 2px 8px rgba(0,0,0,0.25); z-index: 200; min-width: 180px; padding: 2px 0;">
+          <div onclick="NomenclatureCard.refresh(); NomenclatureCard.closeActionsMenu();" style="padding: 4px 10px; cursor: pointer; display: flex; align-items: center; gap: 6px;" onmouseover="this.style.background='#316ac5'; this.style.color='#fff';" onmouseout="this.style.background='transparent'; this.style.color='#000';">
+            <span>🔄</span> <span>Обновить</span>
+          </div>
+          <div onclick="NomenclatureCard.copyCode(); NomenclatureCard.closeActionsMenu();" style="padding: 4px 10px; cursor: pointer; display: flex; align-items: center; gap: 6px;" onmouseover="this.style.background='#316ac5'; this.style.color='#fff';" onmouseout="this.style.background='transparent'; this.style.color='#000';">
+            <span>📋</span> <span>Скопировать код</span>
+          </div>
+          <div onclick="NomenclatureCard.copyName(); NomenclatureCard.closeActionsMenu();" style="padding: 4px 10px; cursor: pointer; display: flex; align-items: center; gap: 6px;" onmouseover="this.style.background='#316ac5'; this.style.color='#fff';" onmouseout="this.style.background='transparent'; this.style.color='#000';">
+            <span>📑</span> <span>Скопировать наименование</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Go to submenu -->
+      <div style="position: relative; display: inline-block;">
+        <button type="button" class="btn-1c" onclick="NomenclatureCard.toggleGotoMenu(event)" style="height: 23px; padding: 0 8px; border: 1px solid #7f9db9; background: #e0dfd5; cursor: pointer; display: inline-flex; align-items: center; gap: 4px; font-size: 11px;">
+          <span>Перейти</span>
+          <span style="font-size: 8px;">▼</span>
+        </button>
+        <div id="ncGotoMenu" style="display: none; position: absolute; top: 25px; left: 0; background: #ffffff; border: 1px solid #7f9db9; box-shadow: 2px 2px 8px rgba(0,0,0,0.25); z-index: 200; min-width: 190px; padding: 2px 0;">
+          <div onclick="NomenclatureCard.switchTab('prices'); NomenclatureCard.closeGotoMenu();" style="padding: 4px 10px; cursor: pointer; display: flex; align-items: center; gap: 6px;" onmouseover="this.style.background='#316ac5'; this.style.color='#fff';" onmouseout="this.style.background='transparent'; this.style.color='#000';">
+            <span>🏷️</span> <span>Цены номенклатуры</span>
+          </div>
+          <div onclick="NomenclatureCard.switchTab('barcodes'); NomenclatureCard.closeGotoMenu();" style="padding: 4px 10px; cursor: pointer; display: flex; align-items: center; gap: 6px;" onmouseover="this.style.background='#316ac5'; this.style.color='#fff';" onmouseout="this.style.background='transparent'; this.style.color='#000';">
+            <span>📊</span> <span>Штрихкоды</span>
+          </div>
+          <div onclick="NomenclatureCard.switchTab('units'); NomenclatureCard.closeGotoMenu();" style="padding: 4px 10px; cursor: pointer; display: flex; align-items: center; gap: 6px;" onmouseover="this.style.background='#316ac5'; this.style.color='#fff';" onmouseout="this.style.background='transparent'; this.style.color='#000';">
+            <span>⚖️</span> <span>Единицы измерения</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Refresh button -->
+      <button type="button" class="btn-1c" onclick="NomenclatureCard.refresh()" title="Обновить данные из 1С" style="height: 23px; width: 25px; border: 1px solid #7f9db9; background: #e0dfd5; cursor: pointer; display: flex; align-items: center; justify-content: center;">
+        🔄
+      </button>
+
+      <span id="ncLoadingNotice" style="display: none; margin-left: auto; color: #0055ea; font-style: italic; font-size: 11px;">
+        ⏳ Чтение данных из 1С...
+      </span>
+
+    </div>
+
+    <!-- 2. Main Attributes Section (Header card with 1C styling) -->
+    <div style="padding: 8px 12px 6px 12px; background: #f0eee3; border-bottom: 1px solid #c0beaf; display: flex; flex-direction: column; gap: 5px;">
+
+      <!-- Row 1: Code, Artikul, Vid Nom, VAT Rate -->
+      <div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
+        
+        <div style="display: flex; align-items: center; gap: 4px;">
+          <span style="color: #222; min-width: 32px;">Код:</span>
+          <input type="text" id="ncCode" readonly style="width: 100px; height: 21px; border: 1px solid #7f9db9; padding: 0 4px; background: #f4f3ec; font-family: Consolas, monospace; font-size: 11px; font-weight: bold; color: #002060;">
+        </div>
+
+        <div style="display: flex; align-items: center; gap: 4px;">
+          <span style="color: #222;">Артикул:</span>
+          <input type="text" id="ncArtikul" readonly style="width: 140px; height: 21px; border: 1px solid #7f9db9; padding: 0 4px; background: #fff; font-family: Tahoma, sans-serif; font-size: 11px;">
+        </div>
+
+        <div style="display: flex; align-items: center; gap: 4px;">
+          <span style="color: #222;">Вид:</span>
+          <input type="text" id="ncVidNom" readonly style="width: 110px; height: 21px; border: 1px solid #7f9db9; padding: 0 4px; background: #f4f3ec; font-family: Tahoma, sans-serif; font-size: 11px;">
+        </div>
+
+        <div style="display: flex; align-items: center; gap: 4px;">
+          <span style="color: #222;">Ставка НДС:</span>
+          <input type="text" id="ncVatRate" readonly style="width: 90px; height: 21px; border: 1px solid #7f9db9; padding: 0 4px; background: #f4f3ec; font-family: Tahoma, sans-serif; font-size: 11px;">
+        </div>
+
+        <div style="display: flex; align-items: center; gap: 4px; margin-left: auto;">
+          <label style="display: flex; align-items: center; gap: 4px; cursor: pointer; color: #333;">
+            <input type="checkbox" id="ncIsService" disabled style="cursor: pointer;">
+            <span>Услуга</span>
+          </label>
+        </div>
+
+      </div>
+
+      <!-- Row 2: Short Name -->
+      <div style="display: flex; align-items: center; gap: 6px;">
+        <span style="color: #222; min-width: 95px;">Наименование:</span>
+        <input type="text" id="ncName" readonly style="flex: 1; height: 21px; border: 1px solid #7f9db9; padding: 0 5px; font-weight: bold; font-family: Tahoma, sans-serif; font-size: 11px; background: #fff;">
+      </div>
+
+      <!-- Row 3: Full Name -->
+      <div style="display: flex; align-items: flex-start; gap: 6px;">
+        <span style="color: #222; min-width: 95px; padding-top: 2px;">Полное наим.:</span>
+        <textarea id="ncFullName" readonly rows="2" style="flex: 1; border: 1px solid #7f9db9; padding: 2px 5px; font-family: Tahoma, sans-serif; font-size: 11px; background: #fff; resize: vertical; line-height: 1.3;"></textarea>
+      </div>
+
+      <!-- Row 4: Two-column attributes layout -->
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 2px;">
+        
+        <!-- Left Column -->
+        <div style="display: flex; flex-direction: column; gap: 4px;">
+          
+          <!-- Parent / Folder -->
+          <div style="display: flex; align-items: center; gap: 4px;">
+            <span style="color: #222; min-width: 95px;">Родитель:</span>
+            <div style="flex: 1; display: flex; align-items: stretch; border: 1px solid #7f9db9; background: #f4f3ec; height: 21px;">
+              <span style="display: flex; align-items: center; padding: 0 4px; font-size: 11px;">📁</span>
+              <input type="text" id="ncParent" readonly style="flex: 1; border: none; background: transparent; padding: 0 3px; font-size: 11px; color: #000; outline: none; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+            </div>
+          </div>
+
+          <!-- Base Unit -->
+          <div style="display: flex; align-items: center; gap: 4px;">
+            <span style="color: #222; min-width: 95px;">Базовая единица:</span>
+            <input type="text" id="ncUnit" readonly style="width: 90px; height: 21px; border: 1px solid #7f9db9; padding: 0 4px; background: #f4f3ec; font-size: 11px;">
+          </div>
+
+          <!-- Manufacturer -->
+          <div style="display: flex; align-items: center; gap: 4px;">
+            <span style="color: #222; min-width: 95px;">Производитель:</span>
+            <input type="text" id="ncProducer" readonly style="flex: 1; height: 21px; border: 1px solid #7f9db9; padding: 0 4px; background: #f4f3ec; font-size: 11px;">
+          </div>
+
+        </div>
+
+        <!-- Right Column -->
+        <div style="display: flex; flex-direction: column; gap: 4px;">
+          
+          <!-- Nom Group -->
+          <div style="display: flex; align-items: center; gap: 4px;">
+            <span style="color: #222; min-width: 100px;">Ном. группа:</span>
+            <input type="text" id="ncNomGroup" readonly style="flex: 1; height: 21px; border: 1px solid #7f9db9; padding: 0 4px; background: #f4f3ec; font-size: 11px; font-weight: 500; color: #002060;">
+          </div>
+
+          <!-- Price Group -->
+          <div style="display: flex; align-items: center; gap: 4px;">
+            <span style="color: #222; min-width: 100px;">Ценовая группа:</span>
+            <input type="text" id="ncPriceGroup" readonly style="flex: 1; height: 21px; border: 1px solid #7f9db9; padding: 0 4px; background: #f4f3ec; font-size: 11px;">
+          </div>
+
+          <!-- Country of Origin -->
+          <div style="display: flex; align-items: center; gap: 4px;">
+            <span style="color: #222; min-width: 100px;">Страна происх.:</span>
+            <input type="text" id="ncCountry" readonly style="flex: 1; height: 21px; border: 1px solid #7f9db9; padding: 0 4px; background: #f4f3ec; font-size: 11px;">
+          </div>
+
+        </div>
+
+      </div>
+
+    </div>
+
+    <!-- 3. Classic 1C Tabs Strip -->
+    <div style="display: flex; align-items: flex-end; background: #e0dfd5; padding: 4px 8px 0 8px; border-bottom: 1px solid #7f9db9; user-select: none; gap: 2px;">
+      
+      <button type="button" id="ncTabBtnPrices" onclick="NomenclatureCard.switchTab('prices')" class="nc-tab-btn active" style="padding: 4px 12px; font-size: 11px; font-family: Tahoma, sans-serif; cursor: pointer; border: 1px solid #7f9db9; border-bottom: none; background: #ffffff; font-weight: bold; border-top-left-radius: 3px; border-top-right-radius: 3px; position: relative; top: 1px; color: #000;">
+        <span>🏷️ Цены</span>
+        <span id="ncPricesCountBadge" style="background: #0055ea; color: #fff; font-size: 9px; padding: 0 4px; border-radius: 8px; margin-left: 3px;">0</span>
+      </button>
+
+      <button type="button" id="ncTabBtnBarcodes" onclick="NomenclatureCard.switchTab('barcodes')" class="nc-tab-btn" style="padding: 4px 12px; font-size: 11px; font-family: Tahoma, sans-serif; cursor: pointer; border: 1px solid #b0af9f; border-bottom: none; background: #dcd9ce; font-weight: normal; border-top-left-radius: 3px; border-top-right-radius: 3px; color: #333;">
+        <span>📊 Штрихкоды</span>
+        <span id="ncBarcodesCountBadge" style="background: #666; color: #fff; font-size: 9px; padding: 0 4px; border-radius: 8px; margin-left: 3px;">0</span>
+      </button>
+
+      <button type="button" id="ncTabBtnUnits" onclick="NomenclatureCard.switchTab('units')" class="nc-tab-btn" style="padding: 4px 12px; font-size: 11px; font-family: Tahoma, sans-serif; cursor: pointer; border: 1px solid #b0af9f; border-bottom: none; background: #dcd9ce; font-weight: normal; border-top-left-radius: 3px; border-top-right-radius: 3px; color: #333;">
+        <span>⚖️ Единицы измерения</span>
+        <span id="ncUnitsCountBadge" style="background: #666; color: #fff; font-size: 9px; padding: 0 4px; border-radius: 8px; margin-left: 3px;">0</span>
+      </button>
+
+      <button type="button" id="ncTabBtnDesc" onclick="NomenclatureCard.switchTab('desc')" class="nc-tab-btn" style="padding: 4px 12px; font-size: 11px; font-family: Tahoma, sans-serif; cursor: pointer; border: 1px solid #b0af9f; border-bottom: none; background: #dcd9ce; font-weight: normal; border-top-left-radius: 3px; border-top-right-radius: 3px; color: #333;">
+        <span>📝 Описание</span>
+      </button>
+
+    </div>
+
+    <!-- 4. Tab Content Panes -->
+    <div style="flex: 1; overflow: hidden; background: #ffffff; display: flex; flex-direction: column;">
+      
+      <!-- Tab Pane 1: Prices Table -->
+      <div id="ncPanePrices" class="nc-tab-pane" style="flex: 1; display: flex; flex-direction: column; overflow: hidden;">
+        
+        <div style="padding: 3px 8px; background: #f5f4ed; border-bottom: 1px solid #d4d0c8; display: flex; align-items: center; justify-content: space-between; font-size: 10px; color: #666;">
+          <span>Действующие цены номенклатуры (Срез последних):</span>
+          <span id="ncPricesSummary">Всего типов цен: 0</span>
+        </div>
+
+        <div style="flex: 1; overflow-y: auto; overflow-x: auto;">
+          <table style="width: 100%; border-collapse: collapse; font-family: Tahoma, sans-serif; font-size: 11px;">
+            <thead style="position: sticky; top: 0; background: linear-gradient(to bottom, #f2efe4, #e2decb); border-bottom: 1px solid #7f9db9; z-index: 5; user-select: none;">
+              <tr>
+                <th style="padding: 3px 6px; border: 1px solid #c0beaf; text-align: left; width: 40px; color: #333;">№</th>
+                <th style="padding: 3px 6px; border: 1px solid #c0beaf; text-align: left; color: #222;">Тип цен</th>
+                <th style="padding: 3px 6px; border: 1px solid #c0beaf; text-align: right; width: 130px; color: #222;">Цена</th>
+                <th style="padding: 3px 6px; border: 1px solid #c0beaf; text-align: center; width: 80px; color: #222;">Валюта</th>
+                <th style="padding: 3px 6px; border: 1px solid #c0beaf; text-align: center; width: 90px; color: #222;">Единица</th>
+              </tr>
+            </thead>
+            <tbody id="ncPricesTableBody">
+              <tr>
+                <td colspan="5" style="text-align: center; padding: 20px; color: #888;">Нет данных о ценах</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+      </div>
+
+      <!-- Tab Pane 2: Barcodes Table -->
+      <div id="ncPaneBarcodes" class="nc-tab-pane" style="flex: 1; display: none; flex-direction: column; overflow: hidden;">
+        
+        <div style="padding: 3px 8px; background: #f5f4ed; border-bottom: 1px solid #d4d0c8; display: flex; align-items: center; justify-content: space-between; font-size: 10px; color: #666;">
+          <span>Штрихкоды номенклатуры (Регистр сведений):</span>
+          <span id="ncBarcodesSummary">Всего: 0</span>
+        </div>
+
+        <div style="flex: 1; overflow-y: auto; overflow-x: auto;">
+          <table style="width: 100%; border-collapse: collapse; font-family: Tahoma, sans-serif; font-size: 11px;">
+            <thead style="position: sticky; top: 0; background: linear-gradient(to bottom, #f2efe4, #e2decb); border-bottom: 1px solid #7f9db9; z-index: 5; user-select: none;">
+              <tr>
+                <th style="padding: 3px 6px; border: 1px solid #c0beaf; text-align: left; width: 40px; color: #333;">№</th>
+                <th style="padding: 3px 6px; border: 1px solid #c0beaf; text-align: left; color: #222;">Штрихкод</th>
+                <th style="padding: 3px 6px; border: 1px solid #c0beaf; text-align: left; width: 140px; color: #222;">Тип штрихкода</th>
+                <th style="padding: 3px 6px; border: 1px solid #c0beaf; text-align: center; width: 100px; color: #222;">Единица измерения</th>
+              </tr>
+            </thead>
+            <tbody id="ncBarcodesTableBody">
+              <tr>
+                <td colspan="4" style="text-align: center; padding: 20px; color: #888;">Штрихкоды не найдены</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+      </div>
+
+      <!-- Tab Pane 3: Units Table -->
+      <div id="ncPaneUnits" class="nc-tab-pane" style="flex: 1; display: none; flex-direction: column; overflow: hidden;">
+        
+        <div style="padding: 3px 8px; background: #f5f4ed; border-bottom: 1px solid #d4d0c8; display: flex; align-items: center; justify-content: space-between; font-size: 10px; color: #666;">
+          <span>Единицы измерения и упаковки:</span>
+          <span id="ncUnitsSummary">Всего: 0</span>
+        </div>
+
+        <div style="flex: 1; overflow-y: auto; overflow-x: auto;">
+          <table style="width: 100%; border-collapse: collapse; font-family: Tahoma, sans-serif; font-size: 11px;">
+            <thead style="position: sticky; top: 0; background: linear-gradient(to bottom, #f2efe4, #e2decb); border-bottom: 1px solid #7f9db9; z-index: 5; user-select: none;">
+              <tr>
+                <th style="padding: 3px 6px; border: 1px solid #c0beaf; text-align: left; width: 40px; color: #333;">№</th>
+                <th style="padding: 3px 6px; border: 1px solid #c0beaf; text-align: left; color: #222;">Единица измерения</th>
+                <th style="padding: 3px 6px; border: 1px solid #c0beaf; text-align: right; width: 160px; color: #222;">Коэффициент</th>
+              </tr>
+            </thead>
+            <tbody id="ncUnitsTableBody">
+              <tr>
+                <td colspan="3" style="text-align: center; padding: 20px; color: #888;">Единицы не найдены</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+      </div>
+
+      <!-- Tab Pane 4: Description & Comment -->
+      <div id="ncPaneDesc" class="nc-tab-pane" style="flex: 1; display: none; padding: 10px; overflow-y: auto;">
+        
+        <div style="display: flex; flex-direction: column; gap: 8px;">
+          <div>
+            <span style="font-weight: bold; color: #333; margin-bottom: 4px; display: block;">Комментарий:</span>
+            <textarea id="ncComment" readonly rows="4" style="width: 100%; border: 1px solid #7f9db9; padding: 4px 6px; font-family: Tahoma, sans-serif; font-size: 11px; background: #fff;"></textarea>
+          </div>
+        </div>
+
+      </div>
+
+    </div>
+
+    <!-- 5. Bottom Status Bar (Exact 1C Enterprise Layout) -->
+    <div style="padding: 4px 10px; background: #e5e2cf; border-top: 1px solid #b0af9f; display: flex; align-items: center; justify-content: space-between; user-select: none; font-size: 11px;">
+      
+      <div style="display: flex; align-items: center; gap: 6px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 550px;">
+        <span style="color: #666;">Ссылка:</span>
+        <span id="ncRef" style="color: #002060; font-family: Consolas, monospace; font-size: 10px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">-</span>
+      </div>
+
+      <div style="display: flex; align-items: center; gap: 6px;">
+        <button type="button" class="btn-1c btn-1c-primary" onclick="NomenclatureCard.saveAndClose()" style="height: 22px; padding: 0 12px; font-weight: bold; background: linear-gradient(to bottom, #ffea88, #d8a020); border: 1px solid #7c6817; color: #000; cursor: pointer;">
+          OK
+        </button>
+        <button type="button" class="btn-1c" onclick="NomenclatureCard.close()" style="height: 22px; padding: 0 10px; border: 1px solid #7f9db9; background: #e0dfd5; cursor: pointer;">
+          Закрыть
+        </button>
+      </div>
+
+    </div>
+
+  </div>
+
+</div>

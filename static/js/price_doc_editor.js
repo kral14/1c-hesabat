@@ -255,8 +255,8 @@ const PriceDocEditor = {
           rowCellsHtml += `<td style="padding: 2px 4px; border: 1px solid #d4d0c8; text-align: center; font-family: Consolas, monospace; color: #555; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; box-sizing: border-box;">${this.escapeHtml(itm.barcode || '')}</td>`;
         } else if (col.id === "name") {
           rowCellsHtml += `
-            <td style="padding: 1px 2px; border: 1px solid #d4d0c8; position: relative; box-sizing: border-box; overflow: hidden;">
-              <div class="pde-nom-cell-wrapper" style="display: flex; align-items: stretch; width: 100%; height: 19px;">
+            <td style="padding: 1px 2px; border: 1px solid #d4d0c8; position: relative; box-sizing: border-box; overflow: hidden;" onclick="PriceDocEditor.selectRow(${i})">
+              <div class="pde-nom-cell-wrapper" style="display: flex; align-items: stretch; width: 100%; height: 19px; position: relative;">
                 <input type="text" value="${this.escapeHtml(itm.name || '')}"
                        data-row="${i}"
                        id="pdeNomInput_${i}"
@@ -266,13 +266,26 @@ const PriceDocEditor = {
                        style="flex: 1; min-width: 0; width: 0; height: 100%; border: 1px solid transparent; background: transparent; font-family: Tahoma, sans-serif; font-size: 11px; padding: 0 4px; outline: none; text-overflow: ellipsis; overflow: hidden; box-sizing: border-box;"
                        onmouseover="this.style.border='1px solid #7f9db9'"
                        onmouseout="if(document.activeElement!==this) this.style.border='1px solid transparent'"
-                       onfocusin="this.style.border='1px solid #0055ea'; this.style.background='#fff'; PriceDocEditor.selectedRowIdx=${i};"
+                       onfocusin="this.style.border='1px solid #0055ea'; this.style.background='#fff'; PriceDocEditor.selectRow(${i});"
                        onfocusout="this.style.border='1px solid transparent'; this.style.background='transparent';">
-                <button type="button" onclick="PriceDocEditor.openNomPickerForRow(${i})" 
-                        title="Подбор номенклатуры (F4)"
-                        style="height: 100%; padding: 0 5px; border: 1px solid #7f9db9; border-left: none; background: #e0dfd5; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: bold; line-height: 1; user-select: none; flex-shrink: 0;">
-                  ... 🔍
-                </button>
+                <div class="pde-nom-btns-group" style="display: flex; align-items: stretch; flex-shrink: 0; height: 100%;">
+                  <button type="button" onclick="event.stopPropagation(); PriceDocEditor.openNomPickerForRow(${i})" 
+                          title="Выбрать из справочника (F4)"
+                          class="pde-cell-btn btn-1c-dots"
+                          style="height: 100%; width: 20px; padding: 0; border: 1px solid #7f9db9; border-right: none; background: #e0dfd5; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: bold; line-height: 1; user-select: none; color: #222;"
+                          onmouseover="this.style.background='#f0eee3'"
+                          onmouseout="this.style.background='#e0dfd5'">
+                    ...
+                  </button>
+                  <button type="button" onclick="event.stopPropagation(); PriceDocEditor.openItemCardForRow(${i})" 
+                          title="Открыть карточку номенклатуры (Lupa)"
+                          class="pde-cell-btn btn-1c-lupa"
+                          style="height: 100%; width: 20px; padding: 0; border: 1px solid #7f9db9; background: #e0dfd5; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 11px; user-select: none; line-height: 1; color: #004080;"
+                          onmouseover="this.style.background='#f0eee3'"
+                          onmouseout="this.style.background='#e0dfd5'">
+                    🔍
+                  </button>
+                </div>
               </div>
             </td>
           `;
@@ -302,7 +315,7 @@ const PriceDocEditor = {
       });
 
       html += `
-        <tr style="background: ${rowBg}; height: 21px;" onclick="PriceDocEditor.selectRow(${i})">
+        <tr class="${this.selectedRowIdx === i ? 'pde-row-selected' : ''}" style="background: ${rowBg}; height: 21px;" onclick="PriceDocEditor.selectRow(${i})">
           ${rowCellsHtml}
           ${priceCells}
         </tr>
@@ -389,6 +402,11 @@ const PriceDocEditor = {
       const isSel = (i === idx);
       const defaultBg = (i % 2 === 1) ? "#f7f6f0" : "#ffffff";
       r.style.background = isSel ? "#e4edf7" : defaultBg;
+      if (isSel) {
+        r.classList.add("pde-row-selected");
+      } else {
+        r.classList.remove("pde-row-selected");
+      }
     });
   },
 
@@ -1826,6 +1844,13 @@ const PriceDocEditor = {
     const dropdown = document.getElementById("pdeNomAutocompleteDropdown");
     const isDropOpen = dropdown && dropdown.style.display !== "none";
 
+    if (event.key === "F4" && (event.ctrlKey || event.shiftKey)) {
+      event.preventDefault();
+      this.hideNomAutocomplete();
+      this.openItemCardForRow(rowIdx);
+      return;
+    }
+
     if (event.key === "F4") {
       event.preventDefault();
       this.hideNomAutocomplete();
@@ -1971,6 +1996,15 @@ const PriceDocEditor = {
       }, 100);
     }
     this.onNomPickerSearchInput();
+  },
+
+  openItemCardForRow: function(rowIdx) {
+    const targetIdx = (typeof rowIdx === "number") ? rowIdx : this.selectedRowIdx;
+    if (targetIdx === null || targetIdx < 0 || !this.filteredItems[targetIdx]) return;
+    const itm = this.filteredItems[targetIdx];
+    if (typeof NomenclatureCard !== "undefined" && NomenclatureCard.open) {
+      NomenclatureCard.open(itm.code, itm.name, itm.ref);
+    }
   },
 
   closeNomPickerModal: function() {

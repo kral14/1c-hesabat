@@ -2973,6 +2973,163 @@ class OneCService(threading.Thread):
 
                     resp_q.put((True, {"prices_by_code": prices_by_code, "prices_by_name": prices_by_name}))
 
+                # Action: Get full nomenclature item card details (Attributes, Barcodes, Prices, Units)
+                elif action == "get_nomenclature_card":
+                    item_code = str(payload.get("code") or "").strip().rstrip(",")
+                    item_name = str(payload.get("name") or "").strip()
+                    item_ref_str = str(payload.get("ref") or "").strip()
+
+                    card_data = None
+                    try:
+                        q = conn.NewObject("Запрос")
+                        q.SetParameter("ItemCode", item_code)
+                        q.SetParameter("ItemCodePattern", f"%{item_code}%")
+                        q.SetParameter("ItemName", item_name)
+                        q.SetParameter("ItemNamePattern", f"%{item_name}%")
+                        q.SetParameter("ItemRefStr", item_ref_str)
+
+                        conditions = []
+                        if item_code:
+                            conditions.append("(Т.Код = &ItemCode ИЛИ Т.Код ПОДОБНО &ItemCodePattern)")
+                        if item_name:
+                            conditions.append("(Т.Наименование = &ItemName ИЛИ Т.Наименование ПОДОБНО &ItemNamePattern)")
+                        if item_ref_str:
+                            conditions.append("(Т.Ссылка = &ItemRefStr)")
+
+                        where_cond = " ИЛИ ".join(conditions) if conditions else "1 = 1"
+
+                        q.Text = f"""
+                        ВЫБРАТЬ ПЕРВЫЕ 1
+                            Т.Ссылка КАК Ref,
+                            Т.Код КАК Code,
+                            Т.Наименование КАК Name,
+                            Т.НаименованиеПолное КАК FullName,
+                            Т.Артикул КАК Artikul,
+                            Т.Родитель.Наименование КАК ParentName,
+                            Т.ВидНоменклатуры.Наименование КАК VidNom,
+                            Т.БазоваяЕдиницаИзмерения.Наименование КАК Unit,
+                            Т.СтавкаНДС КАК VatRate,
+                            Т.НоменклатурнаяГруппа.Наименование КАК NomGroup,
+                            Т.Комментарий КАК Comment,
+                            Т.Услуга КАК IsService,
+                            Т.СтранаПроисхождения.Наименование КАК Country,
+                            Т.ЦеноваяГруппа.Наименование КАК PriceGroup,
+                            Т.Производитель.Наименование КАК Producer
+                        ИЗ
+                            Справочник.Номенклатура КАК Т
+                        ГДЕ
+                            НЕ Т.ЭтоГруппа И ({where_cond})
+                        """
+                        sel = q.Execute().Choose()
+                        if sel.Next():
+                            item_ref = sel.Ref
+                            vat_str = ""
+                            try:
+                                vat_str = str(conn.XMLСтрока(sel.VatRate)) if sel.VatRate else ""
+                            except Exception:
+                                vat_str = str(sel.VatRate or "")
+
+                            card_data = {
+                                "ref": conn.String(item_ref),
+                                "code": str(sel.Code or "").strip().rstrip(","),
+                                "name": str(sel.Name or "").strip(),
+                                "fullName": str(sel.FullName or "").strip(),
+                                "artikul": str(sel.Artikul or "").strip(),
+                                "parent": str(sel.ParentName or "").strip(),
+                                "vidNom": str(sel.VidNom or "").strip(),
+                                "unit": str(sel.Unit or "").strip(),
+                                "vatRate": vat_str,
+                                "nomGroup": str(sel.NomGroup or "").strip(),
+                                "comment": str(sel.Comment or "").strip(),
+                                "country": str(sel.Country or "").strip(),
+                                "priceGroup": str(sel.PriceGroup or "").strip(),
+                                "producer": str(sel.Producer or "").strip(),
+                                "isService": bool(sel.IsService)
+                            }
+
+                            # Barcodes
+                            try:
+                                q_bc = conn.NewObject("Запрос")
+                                q_bc.Text = """
+                                ВЫБРАТЬ
+                                    Ш.Штрихкод КАК Barcode,
+                                    Ш.ТипШтрихкода.Наименование КАК BcType,
+                                    Ш.ЕдиницаИзмерения.Наименование КАК Unit
+                                ИЗ
+                                    РегистрСведений.Штрихкоды КАК Ш
+                                ГДЕ
+                                    Ш.Владелец = &ItemRef
+                                """
+                                q_bc.SetParameter("ItemRef", item_ref)
+                                sel_bc = q_bc.Execute().Choose()
+                                barcodes = []
+                                while sel_bc.Next():
+                                    barcodes.append({
+                                        "barcode": str(sel_bc.Barcode or "").strip(),
+                                        "type": str(sel_bc.BcType or "").strip(),
+                                        "unit": str(sel_bc.Unit or "").strip()
+                                    })
+                                card_data["barcodes"] = barcodes
+                            except Exception as e_bc:
+                                print("Error reading barcodes for card:", e_bc)
+                                card_data["barcodes"] = []
+
+                            # Active Prices
+                            try:
+                                q_pr = conn.NewObject("Запрос")
+                                q_pr.Text = """
+                                ВЫБРАТЬ
+                                    Ц.ТипЦен.Наименование КАК PriceType,
+                                    Ц.Цена КАК Price,
+                                    Ц.Валюта.Наименование КАК Currency,
+                                    Ц.ЕдиницаИзмерения.Наименование КАК Unit
+                                ИЗ
+                                    РегистрСведений.ЦеныНоменклатуры.СрезПоследних(&CurDate, Номенклатура = &ItemRef) КАК Ц
+                                """
+                                q_pr.SetParameter("CurDate", datetime.datetime.now())
+                                q_pr.SetParameter("ItemRef", item_ref)
+                                sel_pr = q_pr.Execute().Choose()
+                                prices = []
+                                while sel_pr.Next():
+                                    prices.append({
+                                        "price_type": str(sel_pr.PriceType or "").strip(),
+                                        "price": float(sel_pr.Price or 0),
+                                        "currency": str(sel_pr.Currency or "").strip(),
+                                        "unit": str(sel_pr.Unit or "").strip()
+                                    })
+                                card_data["prices"] = prices
+                            except Exception as e_pr:
+                                print("Error reading prices for card:", e_pr)
+                                card_data["prices"] = []
+
+                            # Measurement Units
+                            try:
+                                q_u = conn.NewObject("Запрос")
+                                q_u.Text = """
+                                ВЫБРАТЬ
+                                    Е.Наименование КАК UnitName,
+                                    Е.Коэффициент КАК Ratio
+                                ИЗ
+                                    Справочник.ЕдиницыИзмерения КАК Е
+                                ГДЕ
+                                    Е.Владелец = &ItemRef
+                                """
+                                q_u.SetParameter("ItemRef", item_ref)
+                                sel_u = q_u.Execute().Choose()
+                                units = []
+                                while sel_u.Next():
+                                    units.append({
+                                        "unit": str(sel_u.UnitName or "").strip(),
+                                        "ratio": float(sel_u.Ratio or 1)
+                                    })
+                                card_data["units"] = units
+                            except Exception as e_u:
+                                card_data["units"] = []
+                    except Exception as e_card:
+                        print("Error getting nomenclature card:", e_card)
+
+                    resp_q.put((True, {"card": card_data}))
+
 
 
             except Exception as e:
@@ -3800,6 +3957,8 @@ def search_nomenclature_endpoint():
         })
     except Exception as e:
         print_server_error("/api/nomenclature/search", e, data)
+        return jsonify({"success": False, "error": str(e), "items": []})
+
 @app.route("/api/nomenclature/prices", methods=["POST"])
 @app.route("/api/documents/item_prices", methods=["POST"])
 def get_item_prices_endpoint():
@@ -3813,6 +3972,20 @@ def get_item_prices_endpoint():
     except Exception as e:
         print_server_error("/api/documents/item_prices", e, data)
         return jsonify({"success": False, "error": str(e), "prices": {}})
+
+@app.route("/api/nomenclature/card", methods=["POST"])
+@app.route("/api/documents/nomenclature_card", methods=["POST"])
+def get_nomenclature_card_endpoint():
+    data = request.json or {}
+    try:
+        res = one_c.execute("get_nomenclature_card", data)
+        card = res.get("card") if isinstance(res, dict) else None
+        if not card:
+            return jsonify({"success": False, "error": "Товар не найден"})
+        return jsonify({"success": True, "card": card})
+    except Exception as e:
+        print_server_error("/api/nomenclature/card", e, data)
+        return jsonify({"success": False, "error": str(e)})
 
 if __name__ == "__main__":
     app.run(host="127.0.0.1", port=5050, debug=False)
