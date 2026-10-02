@@ -3452,11 +3452,40 @@ def resolve_nomenclature_endpoint():
         print_server_error("/api/documents/resolve_nomenclature", e, data)
         return jsonify({"success": False, "error": str(e), "found": {}})
 
+@app.route("/api/documents/download_excel_template", methods=["GET"])
+def download_excel_template_endpoint():
+    try:
+        import os
+        from flask import send_file
+        template_path = os.path.join(app.root_path, "static", "templates", "sablon_qiymet_yukleme.xlsx")
+        if not os.path.exists(template_path):
+            os.makedirs(os.path.dirname(template_path), exist_ok=True)
+            # Create fresh template if not exists
+            import openpyxl
+            wb = openpyxl.Workbook()
+            ws = wb.active
+            ws.title = "Qiymətlər"
+            ws.append(["Код / Артикул", "Наименование товара (Məhsulun adı)", "Цена (Yeni Qiymət)"])
+            ws.append(["00000000123", "Çörək kəpəkli 500 qr (Nümunə)", 0.65])
+            ws.append(["7433-RB", "Yağ kərə 82.5% 200 qr (Nümunə)", 4.80])
+            ws.append(["8078306", "Süd pasterizə 1L 3.2% (Nümunə)", 2.10])
+            wb.save(template_path)
+            
+        return send_file(
+            template_path,
+            as_attachment=True,
+            download_name="sablon_qiymet_yukleme.xlsx",
+            mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        )
+    except Exception as e:
+        print_server_error("/api/documents/download_excel_template", e, {})
+        return jsonify({"success": False, "error": str(e)})
+
 @app.route("/api/documents/parse_excel_file", methods=["POST"])
 def parse_excel_file_endpoint():
     try:
-        import openpyxl
         import io
+        import csv
 
         if "file" not in request.files:
             return jsonify({"success": False, "error": "Fayl seçilməyib"})
@@ -3465,30 +3494,130 @@ def parse_excel_file_endpoint():
         if not file.filename:
             return jsonify({"success": False, "error": "Boş fayl adı"})
 
-        wb = openpyxl.load_workbook(io.BytesIO(file.read()), data_only=True)
-        sheet = wb.active
+        file_bytes = file.read()
+        if not file_bytes:
+            return jsonify({"success": False, "error": "Faylın içi boşdur"})
+
+        raw_rows = []
+        parse_err = None
+
+        # 1. Try reading as .xlsx via openpyxl
+        try:
+            import openpyxl
+            wb = openpyxl.load_workbook(io.BytesIO(file_bytes), data_only=True)
+            sheet = wb.active
+            for row in sheet.iter_rows(values_only=True):
+                if row and any(v is not None and str(v).strip() for v in row):
+                    raw_rows.append([str(v).strip() if v is not None else "" for v in row])
+        except Exception as e_xlsx:
+            parse_err = str(e_xlsx)
+
+        # 2. If failed, try reading as .xls via xlrd
+        if not raw_rows:
+            try:
+                import xlrd
+                wb = xlrd.open_workbook(file_contents=file_bytes)
+                sheet = wb.sheet_by_index(0)
+                for r in range(sheet.nrows):
+                    row_vals = sheet.row_values(r)
+                    if any(v is not None and str(v).strip() for v in row_vals):
+                        raw_rows.append([str(v).strip() if v is not None else "" for v in row_vals])
+            except Exception as e_xls:
+                parse_err = str(e_xls)
+
+        # 3. If failed, try reading as text CSV / TSV / HTML table
+        if not raw_rows:
+            text = None
+            for enc in ["utf-8-sig", "utf-8", "windows-1251", "cp1254", "latin1"]:
+                try:
+                    text = file_bytes.decode(enc)
+                    break
+                except Exception:
+                    continue
+            if text:
+                delim = "\t" if "\t" in text else (";" if ";" in text else ",")
+                reader = csv.reader(io.StringIO(text), delimiter=delim)
+                for r in reader:
+                    if r and any(v.strip() for v in r):
+                        raw_rows.append([v.strip() for v in r])
+
+        if not raw_rows:
+            return jsonify({
+                "success": False,
+                "error": f"Fayl oxuna bilmədi. Zəhmət olmasa nümunə .xlsx şablonunu yükləyib doldurun. ({parse_err or 'Format uyğun deyil'})"
+            })
+
+        # Smart column and header detection
+        code_col = 0
+        price_col = 1
+        start_row = 0
+
+        first_row = [str(c).lower().strip() for c in raw_rows[0]]
+        detected_code = -1
+        detected_price = -1
+        has_header_keywords = False
+
+        for c_idx, val in enumerate(first_row):
+            if any(h in val for h in ["код", "code", "kod", "артикул", "artikul", "barkod", "штрихкод"]):
+                detected_code = c_idx
+                has_header_keywords = True
+            if any(h in val for h in ["цен", "qiym", "price", "məbləğ", "mebleg", "стоимость"]):
+                detected_price = c_idx
+                has_header_keywords = True
+
+        if has_header_keywords and detected_code != -1 and detected_price != -1:
+            code_col = detected_code
+            price_col = detected_price
+            start_row = 1
+        elif len(raw_rows[0]) >= 3:
+            # 3-column format: Col 0 = Code, Col 1 = Name, Col 2 = Price
+            # Test if last column is numeric
+            try:
+                sample_row = raw_rows[1] if len(raw_rows) > 1 else raw_rows[0]
+                test_p = str(sample_row[-1]).replace(",", ".").replace(" ", "").replace("\xa0", "")
+                float(test_p)
+                code_col = 0
+                price_col = len(sample_row) - 1
+                if any(h in first_row[0] for h in ["код", "code", "kod", "артикул", "№", "nomer"]):
+                    start_row = 1
+            except Exception:
+                code_col = 0
+                price_col = 1
+        else:
+            # 2-column format: Col 0 = Code, Col 1 = Price
+            code_col = 0
+            price_col = 1
+            try:
+                float(str(first_row[1]).replace(",", ".").replace(" ", ""))
+            except Exception:
+                # First row is likely header
+                start_row = 1
 
         rows = []
-        # Find which column has code and which has price
-        # Default: col 0 is code, col 1 is price
-        for r_idx, row in enumerate(sheet.iter_rows(values_only=True)):
-            if not row or len(row) < 2:
+        for r in raw_rows[start_row:]:
+            if len(r) <= max(code_col, price_col):
                 continue
-            v1 = str(row[0] or "").strip()
-            v2 = row[1]
-            if not v1:
+            c_val = str(r[code_col]).strip()
+            # Clean trailing .0 if integer was stored as float in Excel (e.g. 12345.0)
+            if c_val.endswith(".0") and c_val[:-2].isdigit():
+                c_val = c_val[:-2]
+
+            if not c_val or c_val.lower() in ["код", "code", "kod", "артикул"]:
                 continue
-            # Try parsing price
+
+            p_str = str(r[price_col]).replace(",", ".").replace(" ", "").replace("\xa0", "").strip()
             try:
-                if isinstance(v2, (int, float)):
-                    p_val = float(v2)
-                else:
-                    s_p = str(v2 or "").replace(",", ".").replace(" ", "").strip()
-                    p_val = float(s_p)
-                rows.append({"code": v1, "price": p_val})
+                p_val = float(p_str)
+                if p_val >= 0:
+                    rows.append({"code": c_val, "price": p_val})
             except Exception:
-                # Might be header row, skip
                 continue
+
+        if not rows:
+            return jsonify({
+                "success": False,
+                "error": "Faylda oxunacaq qiymət sətri tapılmadı. Sütunların uyğunluğunu və ya nümunə şablonu yoxlayın."
+            })
 
         return jsonify({
             "success": True,

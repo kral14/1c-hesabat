@@ -547,7 +547,7 @@ const PriceDocEditor = {
     } else {
       if (btnFile) { btnFile.style.fontWeight = "bold"; btnFile.style.background = "#fff"; }
       if (btnPaste) { btnPaste.style.fontWeight = "normal"; btnPaste.style.background = "#ece9d8"; }
-      if (viewFile) viewFile.style.display = "block";
+      if (viewFile) viewFile.style.display = "flex";
       if (viewPaste) viewPaste.style.display = "none";
     }
   },

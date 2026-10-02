@@ -259,12 +259,37 @@
           </div>
 
           <!-- File Upload View -->
-          <div id="pdeExcelViewFile" style="display: none; padding: 16px; text-align: center; background: #fff; border: 1px dashed #7f9db9; border-radius: 2px;">
+          <div id="pdeExcelViewFile" style="display: none; padding: 14px 16px; background: #ffffff; border: 1px dashed #7f9db9; border-radius: 4px; flex-direction: column; align-items: center; gap: 8px;">
             <input type="file" id="pdeExcelFileInput" accept=".xlsx,.xls,.csv" onchange="PriceDocEditor.onExcelFileSelected(event)" style="display: none;">
-            <button type="button" class="btn-1c" onclick="document.getElementById('pdeExcelFileInput').click()" style="height: 26px; padding: 0 16px; font-weight: bold; cursor: pointer; background: #eaf5ea; color: #1e7145; border: 1px solid #7f9db9;">
-              📁 Excel faylı seçin (.xlsx)...
-            </button>
-            <div id="pdeExcelFileStatus" style="margin-top: 6px; font-size: 11px; color: #555;">Fayl seçilməyib</div>
+            
+            <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap; justify-content: center;">
+              <!-- 1. Download Template Button -->
+              <a href="/api/documents/download_excel_template" download="sablon_qiymet_yukleme.xlsx" style="height: 28px; padding: 0 14px; font-weight: bold; cursor: pointer; background: #eff6ff; color: #1d4ed8; border: 1px solid #93c5fd; border-radius: 4px; text-decoration: none; display: inline-flex; align-items: center; gap: 6px; font-size: 11px; box-shadow: 0 1px 2px rgba(0,0,0,0.05); transition: all 0.15s ease;" onmouseover="this.style.background='#dbeafe';" onmouseout="this.style.background='#eff6ff';">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#2563eb" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                  <polyline points="7 10 12 15 17 10"/>
+                  <line x1="12" y1="15" x2="12" y2="3"/>
+                </svg>
+                <span>📥 Nümunə Excel Şablonunu Yüklə (.xlsx)</span>
+              </a>
+
+              <!-- 2. Select & Upload File Button -->
+              <button type="button" class="btn-modern-tool" onclick="document.getElementById('pdeExcelFileInput').click()" style="height: 28px; padding: 0 16px; font-weight: bold; cursor: pointer; background: #ecfdf5; color: #166534; border: 1px solid #86efac; border-radius: 4px; display: inline-flex; align-items: center; gap: 6px; font-size: 11px; box-shadow: 0 1px 2px rgba(0,0,0,0.05);">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#16a34a" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                  <polyline points="17 8 12 3 7 8"/>
+                  <line x1="12" y1="3" x2="12" y2="15"/>
+                </svg>
+                <span>📁 Doldurulmuş Excel Faylını Seçin (.xlsx, .xls)</span>
+              </button>
+            </div>
+
+            <div id="pdeExcelFileStatus" style="font-size: 11px; color: #64748b; font-weight: 500;">Hələ heç bir fayl seçilməyib</div>
+
+            <!-- Helpful instruction card -->
+            <div style="width: 100%; box-sizing: border-box; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 4px; padding: 6px 10px; font-size: 11px; color: #334155; line-height: 1.45; text-align: left;">
+              <b>💡 Şablon qaydası:</b> Xəta almamaq üçün yuxarıdakı <b>"Nümunə Excel Şablonunu Yüklə"</b> düyməsinə klikləyin. Şablonda 1-ci sütuna <b>Kod / Artikul</b>, 3-cü sütuna isə <b>Qiymət</b> yazın və faylı yadda saxlayıb bura yükləyin. Sistem həm <b>.xlsx</b>, həm də <b>.xls</b> formatlarını avtomatik oxuyur.
+            </div>
           </div>
         </div>
 
