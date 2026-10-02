@@ -45,9 +45,6 @@
             <span>💾</span>
             <span>Записать</span>
           </button>
-          <button type="button" class="btn-1c" onclick="PriceDocEditor.close()" style="height: 23px; min-width: 65px; cursor: pointer; font-size: 11px; padding: 0 8px;">
-            Закрыть
-          </button>
         </div>
       </div>
 
@@ -75,14 +72,6 @@
     <!-- Tabular Section Action Toolbar (Images 2, 3, 4) -->
     <div style="padding: 4px 8px; background: #e5e2cf; border-bottom: 1px solid #b0af9f; display: flex; align-items: center; gap: 4px; flex-wrap: wrap;">
       
-      <!-- 💾 Записать Toolbar Button -->
-      <button type="button" class="btn-1c btn-1c-primary" onclick="PriceDocEditor.saveTo1C()" title="Записать документ в 1С (Ctrl+S)" style="height: 23px; padding: 0 8px; display: inline-flex; align-items: center; gap: 4px; font-weight: bold; color: #000; cursor: pointer; border: 1px solid #7c6817; background: linear-gradient(to bottom, #ffea88, #d8a020); font-size: 11px;">
-        <span style="font-size: 12px;">💾</span>
-        <span>Записать</span>
-      </button>
-
-      <div class="mdi-tool-sep" style="height: 16px; width: 1px; background: #b0af9f; margin: 0 3px;"></div>
-
       <!-- ➕ Add Row -->
       <button type="button" class="btn-1c" onclick="PriceDocEditor.addRow()" title="Добавить строку (Ins)" style="height: 23px; padding: 0 6px; display: inline-flex; align-items: center; gap: 3px; font-size: 11px; cursor: pointer;">
         <span style="color: #2e7d32; font-weight: bold; font-size: 13px;">➕</span>
@@ -199,9 +188,9 @@
 
       <!-- Save & Close Buttons -->
       <div style="display: flex; justify-content: flex-end; align-items: center; gap: 8px; margin-top: 4px; padding-top: 4px; border-top: 1px solid #d5d3c3;">
-        <button type="button" class="btn-1c btn-1c-primary" id="pdeBtnSave" onclick="PriceDocEditor.saveTo1C()" style="height: 24px; min-width: 110px; font-weight: bold; background: linear-gradient(to bottom, #ffea88, #d8a020); border: 1px solid #7c6817; color: #000; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 5px;">
+        <button type="button" class="btn-1c btn-1c-primary" id="pdeBtnSave" onclick="PriceDocEditor.saveTo1C()" style="height: 24px; min-width: 135px; font-weight: bold; background: linear-gradient(to bottom, #ffea88, #d8a020); border: 1px solid #7c6817; color: #000; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 5px;">
           <span>💾</span>
-          <span>Записать</span>
+          <span>Записать в 1С</span>
         </button>
 
         <button type="button" class="btn-1c" onclick="PriceDocEditor.close()" style="height: 24px; min-width: 80px; cursor: pointer;">

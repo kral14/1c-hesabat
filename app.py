@@ -3122,16 +3122,20 @@ def universal_report_endpoint():
                 pass
         return jsonify({"success": False, "error": str(e)})
 
-_cached_price_types = [
-    {"code": "20", "name": "20", "desc": "20"},
-    {"code": "01", "name": "01", "desc": "01"},
-    {"code": "02", "name": "02", "desc": "02"}
-]
-
 @app.route("/api/price_types", methods=["GET", "POST"])
+@app.route("/api/documents/price_types", methods=["GET", "POST"])
 def get_price_types_endpoint():
-    global _cached_price_types
-    return jsonify({"success": True, "price_types": _cached_price_types})
+    data = request.json or {} if request.is_json else {}
+    try:
+        res = one_c.execute("get_all_price_types", data)
+        pts = res.get("price_types", []) if isinstance(res, dict) else res
+        return jsonify({
+            "success": True,
+            "price_types": pts
+        })
+    except Exception as e:
+        print_server_error("/api/price_types", e, data)
+        return jsonify({"success": False, "error": str(e), "price_types": []})
 
 @app.route("/api/download_universal_report_excel", methods=["GET"])
 def download_universal_report_excel():
@@ -3460,21 +3464,6 @@ def search_nomenclature_endpoint():
     except Exception as e:
         print_server_error("/api/nomenclature/search", e, data)
         return jsonify({"success": False, "error": str(e), "items": []})
-
-@app.route("/api/price_types", methods=["GET", "POST"])
-@app.route("/api/documents/price_types", methods=["GET", "POST"])
-def get_price_types_endpoint():
-    data = request.json or {} if request.is_json else {}
-    try:
-        res = one_c.execute("get_all_price_types", data)
-        pts = res.get("price_types", []) if isinstance(res, dict) else res
-        return jsonify({
-            "success": True,
-            "price_types": pts
-        })
-    except Exception as e:
-        print_server_error("/api/price_types", e, data)
-        return jsonify({"success": False, "error": str(e), "price_types": []})
 
 if __name__ == "__main__":
     app.run(host="127.0.0.1", port=5050, debug=False)
