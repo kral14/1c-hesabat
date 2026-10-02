@@ -479,7 +479,7 @@ const PriceDocEditor = {
   },
 
   addRow: function() {
-    // If search filter is active, clear it so the newly added row is visible
+    // If search filter is active, clear it so the newly added row is visible at the end
     const searchInp = document.getElementById("pdeTableSearchInp");
     if (searchInp && searchInp.value.trim()) {
       searchInp.value = "";
@@ -494,29 +494,23 @@ const PriceDocEditor = {
       prices: {}
     };
 
-    // If a row is currently selected, insert immediately after it; otherwise append to end
-    let insertIdx = this.items.length;
-    if (this.selectedRowIdx !== null && this.selectedRowIdx >= 0 && this.selectedRowIdx < this.filteredItems.length) {
-      const currentSelected = this.filteredItems[this.selectedRowIdx];
-      const realIdx = this.items.indexOf(currentSelected);
-      if (realIdx !== -1) {
-        insertIdx = realIdx + 1;
-      }
-    }
-
-    this.items.splice(insertIdx, 0, newItm);
+    // Always append to the very end of the items list
+    this.items.push(newItm);
     this.filterTableRows();
 
-    // Select the new row
-    const newRowIdx = this.filteredItems.indexOf(newItm);
-    this.selectedRowIdx = (newRowIdx !== -1) ? newRowIdx : (this.filteredItems.length - 1);
+    // Select the new row at the end of the table
+    this.selectedRowIdx = this.filteredItems.length - 1;
 
     this.renderTable();
     this.updateRowCount();
     this.triggerAutoSave();
 
-    // Smoothly scroll to and focus the nomenclature input of the newly created empty row
+    // Immediately scroll the table view all the way to the bottom and focus the nomenclature field
     setTimeout(() => {
+      const wrapper = document.getElementById("pdeTableWrapper");
+      if (wrapper) {
+        wrapper.scrollTop = wrapper.scrollHeight;
+      }
       const targetIdx = this.selectedRowIdx;
       const nomInput = document.getElementById(`pdeNomInput_${targetIdx}`);
       if (nomInput) {
@@ -524,7 +518,7 @@ const PriceDocEditor = {
       }
       const trs = document.querySelectorAll("#pdeTableBody tr");
       if (trs && trs[targetIdx]) {
-        trs[targetIdx].scrollIntoView({ block: "nearest", behavior: "smooth" });
+        trs[targetIdx].scrollIntoView({ block: "end", behavior: "smooth" });
       }
     }, 50);
   },
