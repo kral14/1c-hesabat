@@ -79,6 +79,7 @@ last_successful_report.json
 data/*.db
 *.db
 *.sqlite3
+!data/offline_1c_data.db
 
 # --- Logs & Run Artifacts ---
 *.log
