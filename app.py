@@ -2424,15 +2424,30 @@ class OneCService(threading.Thread):
                 # Action: Get Full Price Document for Editor (Pivoted by Items & Price Types)
                 elif action == "get_price_document":
                     doc_number = payload.get("number", "").strip()
+                    doc_date_str = payload.get("date", "").strip()
 
+                    date_cond = ""
                     q_pdoc = conn.NewObject("Запрос")
-                    q_pdoc.Text = """
+                    if doc_date_str:
+                        try:
+                            if "." in doc_date_str:
+                                yr = int(doc_date_str.split(".")[2][:4])
+                            else:
+                                yr = int(doc_date_str.split("-")[0])
+                            date_cond = " И ГОД(Т.Дата) = &Year"
+                            q_pdoc.SetParameter("Year", yr)
+                        except Exception: pass
+
+                    q_pdoc.Text = f"""
                     ВЫБРАТЬ ПЕРВЫЕ 1
                         Т.Ссылка КАК Ref
                     ИЗ
                         Документ.УстановкаЦенНоменклатуры КАК Т
                     ГДЕ
                         Т.Номер = &DocNum
+                        {date_cond}
+                    УПОРЯДОЧИТЬ ПО
+                        Т.Дата УБЫВ
                     """
                     q_pdoc.SetParameter("DocNum", doc_number)
                     res_pdoc = q_pdoc.Execute().Choose()
@@ -2505,18 +2520,33 @@ class OneCService(threading.Thread):
                 # Action: Save Price Document to 1C (Draft / Запись mode strictly)
                 elif action == "save_price_document":
                     doc_number = payload.get("number", "").strip()
+                    doc_date_str = payload.get("date", "").strip()
                     comment_text = payload.get("comment", "").strip()
                     items_data = payload.get("items", [])
                     price_types = payload.get("price_types", [])
 
+                    date_cond = ""
                     q_find = conn.NewObject("Запрос")
-                    q_find.Text = """
+                    if doc_date_str:
+                        try:
+                            if "." in doc_date_str:
+                                yr = int(doc_date_str.split(".")[2][:4])
+                            else:
+                                yr = int(doc_date_str.split("-")[0])
+                            date_cond = " И ГОД(Т.Дата) = &Year"
+                            q_find.SetParameter("Year", yr)
+                        except Exception: pass
+
+                    q_find.Text = f"""
                     ВЫБРАТЬ ПЕРВЫЕ 1
                         Т.Ссылка КАК Ref
                     ИЗ
                         Документ.УстановкаЦенНоменклатуры КАК Т
                     ГДЕ
                         Т.Номер = &DocNum
+                        {date_cond}
+                    УПОРЯДОЧИТЬ ПО
+                        Т.Дата УБЫВ
                     """
                     q_find.SetParameter("DocNum", doc_number)
                     res_find = q_find.Execute().Choose()

@@ -11,7 +11,7 @@ const PriceDocEditor = {
   filteredItems: [],
   selectedRowIdx: null,
 
-  open: function(docNumber) {
+  open: function(docNumber, docDate) {
     if (!docNumber) return;
     this.currentDocNumber = docNumber;
 
@@ -29,7 +29,7 @@ const PriceDocEditor = {
       win.classList.add("active");
     }
 
-    this.loadDocumentData(docNumber);
+    this.loadDocumentData(docNumber, docDate);
   },
 
   close: function() {
@@ -41,7 +41,7 @@ const PriceDocEditor = {
     }
   },
 
-  loadDocumentData: function(docNumber) {
+  loadDocumentData: function(docNumber, docDate) {
     const loading = document.getElementById("pdeLoadingState");
     if (loading) loading.style.display = "flex";
 
@@ -49,7 +49,7 @@ const PriceDocEditor = {
     fetch("/api/documents/price_doc", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ ...creds, number: docNumber })
+      body: JSON.stringify({ ...creds, number: docNumber, date: docDate || "" })
     })
     .then(res => res.json())
     .then(res => {
@@ -420,7 +420,9 @@ const PriceDocEditor = {
 
     const btn = document.getElementById("pdeBtnSave");
     const commInp = document.getElementById("pdeDocComment");
+    const dateInp = document.getElementById("pdeDocDate");
     const comment = commInp ? commInp.value.trim() : "";
+    const docDate = (dateInp && dateInp.value.trim()) ? dateInp.value.trim() : ((this.docData && this.docData.date) ? this.docData.date : "");
 
     if (btn) btn.disabled = true;
 
@@ -428,6 +430,7 @@ const PriceDocEditor = {
     const payload = {
       ...creds,
       number: this.currentDocNumber,
+      date: docDate,
       comment: comment,
       items: this.items,
       price_types: this.priceTypes
