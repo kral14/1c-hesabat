@@ -2754,6 +2754,33 @@ class OneCService(threading.Thread):
                         })
                     resp_q.put((True, {"items": items_list}))
 
+                # Action: Get all price types from 1C database
+                elif action == "get_all_price_types":
+                    pts = []
+                    try:
+                        q_pt = conn.NewObject("Запрос")
+                        q_pt.Text = """
+                        ВЫБРАТЬ
+                            Т.Наименование КАК Name,
+                            Т.Код КАК Code
+                        ИЗ
+                            Справочник.ТипыЦенНоменклатуры КАК Т
+                        ГДЕ
+                            НЕ Т.ПометкаУдаления
+                        УПОРЯДОЧИТЬ ПО
+                            Т.Наименование
+                        """
+                        sel_pt = q_pt.Execute().Choose()
+                        while sel_pt.Next():
+                            nm = str(sel_pt.Name or "").strip()
+                            cd = str(sel_pt.Code or "").strip()
+                            if nm and nm not in [p["name"] for p in pts]:
+                                pts.append({"name": nm, "code": cd})
+                    except Exception as e_pt:
+                        print("Error reading all price types:", e_pt)
+                    resp_q.put((True, {"price_types": pts}))
+
+
             except Exception as e:
                 err_str = str(e)
                 if any(k in err_str for k in ["Сеанс отсутствует", "ClusterDistribImpl", "Соединение разорвано"]):
@@ -3434,7 +3461,23 @@ def search_nomenclature_endpoint():
         print_server_error("/api/nomenclature/search", e, data)
         return jsonify({"success": False, "error": str(e), "items": []})
 
+@app.route("/api/price_types", methods=["GET", "POST"])
+@app.route("/api/documents/price_types", methods=["GET", "POST"])
+def get_price_types_endpoint():
+    data = request.json or {} if request.is_json else {}
+    try:
+        res = one_c.execute("get_all_price_types", data)
+        pts = res.get("price_types", []) if isinstance(res, dict) else res
+        return jsonify({
+            "success": True,
+            "price_types": pts
+        })
+    except Exception as e:
+        print_server_error("/api/price_types", e, data)
+        return jsonify({"success": False, "error": str(e), "price_types": []})
+
 if __name__ == "__main__":
     app.run(host="127.0.0.1", port=5050, debug=False)
+
 
 

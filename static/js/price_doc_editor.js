@@ -883,13 +883,51 @@ const PriceDocEditor = {
   ptModalItems: [],
   ptSelectedIdx: 0,
 
-  openPriceTypesModal: function() {
+  fetchAllPriceTypes: async function() {
+    try {
+      const resp = await fetch("/api/documents/price_types", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({})
+      });
+      const data = await resp.json();
+      if (data.success && Array.isArray(data.price_types) && data.price_types.length > 0) {
+        this.allPriceTypes = data.price_types.map(p => typeof p === 'object' ? p.name : p);
+        return this.allPriceTypes;
+      }
+    } catch (e) {
+      console.warn("Could not fetch price types from API:", e);
+    }
+    return [];
+  },
+
+  openPriceTypesModal: async function() {
     this.closeAllMenus();
 
+    const modal = document.getElementById("pdePriceTypesModal");
+    if (modal) modal.style.display = "flex";
+
+    // If allPriceTypes is not loaded from database yet, fetch now
+    if (!this.allPriceTypes || this.allPriceTypes.length <= 15) {
+      const container = document.getElementById("pdePtChecklistContainer");
+      if (container && (!this.ptModalItems || this.ptModalItems.length === 0)) {
+        container.innerHTML = `<div style="padding: 15px; text-align: center; color: #666; font-size: 11px;">1C bazasından bütün qiymət növləri yüklənir...</div>`;
+      }
+      await this.fetchAllPriceTypes();
+    }
+
+    this.rebuildPtModalList();
+    this.renderPtChecklist();
+  },
+
+  rebuildPtModalList: function() {
     // Collect all unique price types (from allPriceTypes and current priceTypes)
     const allSet = new Set(this.priceTypes || []);
     if (this.allPriceTypes && this.allPriceTypes.length) {
-      this.allPriceTypes.forEach(pt => allSet.add(pt));
+      this.allPriceTypes.forEach(pt => {
+        const ptName = typeof pt === 'object' ? pt.name : pt;
+        if (ptName) allSet.add(ptName);
+      });
     }
     const allList = Array.from(allSet);
 
@@ -914,11 +952,6 @@ const PriceDocEditor = {
     if (chkTop && chkTop.checked) {
       this.ptApplyMoveCheckedTop();
     }
-
-    this.renderPtChecklist();
-
-    const modal = document.getElementById("pdePriceTypesModal");
-    if (modal) modal.style.display = "flex";
   },
 
   closePriceTypesModal: function() {
