@@ -485,7 +485,17 @@ const PriceDocEditor = {
       searchInp.value = "";
     }
 
+    // Reset column sorting so new row is not affected by previous column sort
+    this.currentSort = { colId: null, type: null, dir: "asc" };
+
+    // Calculate _origIdx to be strictly higher than all existing items so it sorts at the very end
+    const maxOrigIdx = this.items.reduce((max, it) => {
+      const idx = (typeof it._origIdx === "number") ? it._origIdx : -1;
+      return idx > max ? idx : max;
+    }, -1);
+
     const newItm = {
+      _origIdx: maxOrigIdx + 1,
       code: "",
       name: "",
       artikul: "",
@@ -520,7 +530,7 @@ const PriceDocEditor = {
       if (trs && trs[targetIdx]) {
         trs[targetIdx].scrollIntoView({ block: "end", behavior: "smooth" });
       }
-    }, 50);
+    }, 60);
   },
 
   deleteSelectedRow: function() {
@@ -1226,8 +1236,12 @@ const PriceDocEditor = {
         return isAsc ? cmp : -cmp;
       });
     } else {
-      // Restore original document order
-      list = [...list].sort((a, b) => (a._origIdx || 0) - (b._origIdx || 0));
+      // Restore original document order (unindexed/new items always stay at the end)
+      list = [...list].sort((a, b) => {
+        const valA = (typeof a._origIdx === "number") ? a._origIdx : 99999999;
+        const valB = (typeof b._origIdx === "number") ? b._origIdx : 99999999;
+        return valA - valB;
+      });
     }
 
     this.filteredItems = list;
