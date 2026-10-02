@@ -295,7 +295,7 @@ const PriceDocEditor = {
     });
 
     this.priceTypes.forEach(pt => {
-      headersHtml += `<th style="width: 85px; min-width: 80px; padding: 4px; border: 1px solid #b0af9f; text-align: right; white-space: nowrap; font-size: 11px;">${this.escapeHtml(pt)}</th>`;
+      headersHtml += `<th style="width: 85px; min-width: 80px; padding: 4px; border: 1px solid #b0af9f; text-align: right; white-space: nowrap; font-size: 11px; cursor: pointer;" title="İki dəfə klikləyin: '${this.escapeHtml(pt)}' qiymətlərini təmizlə" ondblclick="PriceDocEditor.promptClearPricesByPriceType('${this.escapeHtml(pt)}')">${this.escapeHtml(pt)}</th>`;
     });
 
     headRow.innerHTML = headersHtml;
@@ -785,6 +785,19 @@ const PriceDocEditor = {
       return;
     }
 
+    const clearBeforeLoadChk = document.getElementById("pdeExcelClearBeforeLoadChk");
+    const shouldClearBefore = clearBeforeLoadChk ? clearBeforeLoadChk.checked : false;
+
+    let clearedOldCount = 0;
+    if (shouldClearBefore) {
+      this.items.forEach(itm => {
+        if (itm.prices && itm.prices[targetPt] !== undefined) {
+          if (itm.prices[targetPt] > 0) clearedOldCount++;
+          delete itm.prices[targetPt];
+        }
+      });
+    }
+
     let existingUpdated = 0;
     let newAdded = 0;
 
@@ -817,7 +830,76 @@ const PriceDocEditor = {
     this.renderTable();
     this.updateRowCount();
 
-    alert(`✅ '${targetPt}' qiymət növü üzrə Excel yüklənməsi tamamlandı!\n\n• Yenilənən mövcud mallar: ${existingUpdated}\n• Cədvələ yeni əlavə edilən mallar: ${newAdded}\n• Cəmi sənəddə: ${this.items.length} mal`);
+    const emptyCount = this.items.filter(itm => !itm.prices || !itm.prices[targetPt] || itm.prices[targetPt] <= 0).length;
+
+    let msg = `✅ '${targetPt}' qiymət növü üzrə Excel yüklənməsi tamamlandı!\n\n` +
+      `• Excel-dən qiyməti yazılan mallar: ${existingUpdated + newAdded}\n`;
+    if (shouldClearBefore) {
+      msg += `• Qiyməti təmizlənib boş qalan mallar: ${emptyCount}\n`;
+    }
+    msg += `• Cəmi sənəddə mövcud mallar: ${this.items.length}`;
+
+    alert(msg);
+  },
+
+  promptClearPricesByPriceType: function(defaultPt) {
+    this.closeAllMenus();
+    if (!this.priceTypes || !this.priceTypes.length) {
+      alert("Sənəddə heç bir qiymət növü seçilməyib.");
+      return;
+    }
+
+    const sel = document.getElementById("pdeExcelPtSelect");
+    const chosenDefault = defaultPt || ((sel && sel.value) ? sel.value : this.priceTypes[0]);
+
+    if (this.priceTypes.length === 1) {
+      const pt = this.priceTypes[0];
+      if (confirm(`'${pt}' qiymət növü üzrə bütün ${this.items.length} malın qiymətlərini silmək (boşaltmaq) istəyirsiniz?`)) {
+        this.clearPricesByPriceType(pt);
+      }
+      return;
+    }
+
+    const listStr = this.priceTypes.map((pt, i) => `${i + 1}. ${pt}`).join("\n");
+    const chosen = prompt(`Hansı qiymət növünün qiymətlərini tam boşaltmaq istəyirsiniz?\n\n${listStr}\n\nQiymət növünün adını və ya nömrəsini daxil edin:`, chosenDefault);
+    if (!chosen) return;
+
+    let targetPt = chosen.trim();
+    const numIdx = parseInt(targetPt, 10);
+    if (!isNaN(numIdx) && numIdx >= 1 && numIdx <= this.priceTypes.length) {
+      targetPt = this.priceTypes[numIdx - 1];
+    } else {
+      const found = this.priceTypes.find(pt => pt.toLowerCase() === targetPt.toLowerCase());
+      if (found) targetPt = found;
+      else if (!this.priceTypes.includes(targetPt)) {
+        alert(`'${targetPt}' adlı qiymət növü sənəddə tapılmadı.`);
+        return;
+      }
+    }
+
+    if (confirm(`'${targetPt}' qiymət növü üzrə bütün ${this.items.length} malın qiymətlərini silmək (boşaltmaq) istəyirsiniz?`)) {
+      this.clearPricesByPriceType(targetPt);
+    }
+  },
+
+  clearPricesByPriceType: function(targetPt) {
+    if (!targetPt) return;
+
+    let clearedCount = 0;
+    this.items.forEach(itm => {
+      if (itm.prices && itm.prices[targetPt] !== undefined) {
+        if (itm.prices[targetPt] > 0 || itm.prices[targetPt] !== "") {
+          clearedCount++;
+        }
+        delete itm.prices[targetPt];
+      }
+    });
+
+    this.filteredItems = [...this.items];
+    this.renderTable();
+    this.updateRowCount();
+
+    alert(`🧹 '${targetPt}' qiymət növü üzrə bütün qiymətlər təmizləndi!\n\n• Sıfırlanan malların sayı: ${clearedCount}\n• Cədvəldə qalan mallar: ${this.items.length} (artıq bu sütun üzrə xanalar boşdur)`);
   },
 
   roundPrices: function() {

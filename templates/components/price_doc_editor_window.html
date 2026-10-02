@@ -111,7 +111,9 @@
           <a href="javascript:void(0)" onclick="PriceDocEditor.fillByNomGroup()" style="display: block; padding: 4px 10px; color: #000; text-decoration: none;">📑 По номенклатурной группе...</a>
           <div style="height: 1px; background: #e0dfd5; margin: 3px 0;"></div>
           <a href="javascript:void(0)" onclick="PriceDocEditor.fillCurrentPrices()" style="display: block; padding: 4px 10px; color: #000; text-decoration: none;">🔄 Заполнить по действующим ценам</a>
-          <a href="javascript:void(0)" onclick="PriceDocEditor.clearTable()" style="display: block; padding: 4px 10px; color: #a00; text-decoration: none;">🗑️ Очистить таблицу</a>
+          <div style="height: 1px; background: #e0dfd5; margin: 3px 0;"></div>
+          <a href="javascript:void(0)" onclick="PriceDocEditor.promptClearPricesByPriceType()" style="display: block; padding: 4px 10px; color: #c62828; text-decoration: none;">🧹 Очистить цены по типу цен...</a>
+          <a href="javascript:void(0)" onclick="PriceDocEditor.clearTable()" style="display: block; padding: 4px 10px; color: #a00; text-decoration: none;">🗑️ Очистить всю таблицу</a>
         </div>
       </div>
 
@@ -132,6 +134,8 @@
           <a href="javascript:void(0)" onclick="PriceDocEditor.promptPercentChange()" style="display: block; padding: 4px 10px; color: #000; text-decoration: none;">📈 Изменить на процент (+% / -%)...</a>
           <a href="javascript:void(0)" onclick="PriceDocEditor.openExcelImportModal()" style="display: block; padding: 4px 10px; color: #1e7145; font-weight: bold; text-decoration: none;">📊 Загрузить цены из Excel...</a>
           <a href="javascript:void(0)" onclick="PriceDocEditor.roundPrices()" style="display: block; padding: 4px 10px; color: #000; text-decoration: none;">🎯 Округлить цены (до 0.01 / 0.10)</a>
+          <div style="height: 1px; background: #e0dfd5; margin: 3px 0;"></div>
+          <a href="javascript:void(0)" onclick="PriceDocEditor.promptClearPricesByPriceType()" style="display: block; padding: 4px 10px; color: #c62828; text-decoration: none;">🧹 Очистить цены по типу цен...</a>
         </div>
       </div>
 
@@ -226,16 +230,29 @@
       <div style="padding: 10px 14px; display: flex; flex-direction: column; gap: 8px;">
 
         <!-- Section 1: Price Type Selector -->
-        <div style="background: #ffffff; border: 1px solid #7f9db9; padding: 8px 10px; border-radius: 2px;">
+        <div style="background: #ffffff; border: 1px solid #7f9db9; padding: 8px 10px; border-radius: 4px;">
           <div style="display: flex; align-items: center; gap: 8px;">
             <span style="font-weight: bold; color: #222; font-size: 11px; white-space: nowrap;">Тип цен для загрузки:</span>
-            <select id="pdeExcelPtSelect" onchange="PriceDocEditor.onExcelInputChanged()" style="flex: 1; height: 24px; border: 1px solid #7f9db9; font-weight: bold; font-size: 12px; color: #002060; background: #fffde7; padding: 0 6px;">
+            <select id="pdeExcelPtSelect" onchange="PriceDocEditor.onExcelInputChanged()" style="flex: 1; height: 26px; border: 1px solid #7f9db9; font-weight: bold; font-size: 12px; color: #002060; background: #fffde7; padding: 0 6px; border-radius: 3px;">
               <!-- Populated dynamically -->
             </select>
+            <button type="button" class="btn-modern-tool" onclick="PriceDocEditor.promptClearPricesByPriceType()" title="Seçilən qiymət sütununu cədvəldə tam boşalt / təmizlə" style="height: 26px; padding: 0 10px; color: #b91c1c; font-weight: bold; gap: 4px; font-size: 11px; background: #fff5f5; border: 1px solid #fca5a5;">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#dc2626" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M3 6h18m-2 0v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6m3 0V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/>
+              </svg>
+              <span>Bu sütunu boşalt</span>
+            </button>
           </div>
-          <div style="margin-top: 5px; font-size: 11px; color: #2e7d32; display: flex; align-items: center; gap: 4px;">
-            <span>ℹ️</span>
-            <span><b>Smart Merge qaydası:</b> Yalnız bu qiymət növü doldurulacaq. Cədvəldəki digər mövcud qiymətlər tam toxunulmaz qalır!</span>
+
+          <!-- Clear before load checkbox option -->
+          <div style="margin-top: 8px; padding-top: 6px; border-top: 1px dashed #cbd5e1; display: flex; flex-direction: column; gap: 3px;">
+            <label style="display: flex; align-items: center; gap: 6px; font-size: 11px; font-weight: bold; color: #0f172a; cursor: pointer; user-select: none;">
+              <input type="checkbox" id="pdeExcelClearBeforeLoadChk" style="cursor: pointer; width: 15px; height: 15px;">
+              <span style="color: #991b1b;">Əvvəlcə bu qiymət növünün cədvəldəki bütün qiymətlərini sıfırla / boşalt (Очистить перед загрузкой)</span>
+            </label>
+            <div style="font-size: 10px; color: #64748b; margin-left: 21px;">
+              💡 <b>Vacib:</b> Bu seçim aktiv olduqda, siyahıdakı bütün malların (məs: 1200 mal) bu sütundakı köhnə qiymətləri silinir və yalnız Excel-də olan mallara (məs: 600 mal) yeni qiymət yazılır. Excel-də olmayan malların qiyməti boş qalır!
+            </div>
           </div>
         </div>
 
