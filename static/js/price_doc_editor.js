@@ -517,6 +517,19 @@ const PriceDocEditor = {
       });
     }
 
+    const idSel = document.getElementById("pdeExcelIdTypeSelect");
+    if (idSel && !idSel.value) {
+      idSel.value = "code";
+    }
+
+    const colTitle = document.getElementById("pdeExcelPreviewColTitle");
+    if (colTitle) {
+      const mode = idSel ? idSel.value : "code";
+      if (mode === "artikul") colTitle.textContent = "Артикул";
+      else if (mode === "barcode") colTitle.textContent = "Штрихкод";
+      else colTitle.textContent = "Код номенклатуры";
+    }
+
     const modal = document.getElementById("pdeExcelImportModal");
     if (modal) {
       modal.style.display = "flex";
@@ -526,6 +539,19 @@ const PriceDocEditor = {
         setTimeout(() => ta.focus(), 100);
       }
     }
+  },
+
+  onExcelIdTypeChanged: function() {
+    const sel = document.getElementById("pdeExcelIdTypeSelect");
+    const mode = sel ? sel.value : "code";
+    const colTitle = document.getElementById("pdeExcelPreviewColTitle");
+    if (colTitle) {
+      if (mode === "artikul") colTitle.textContent = "Артикул";
+      else if (mode === "barcode") colTitle.textContent = "Штрихкод";
+      else colTitle.textContent = "Код номенклатуры";
+    }
+    this.excelResolvedMap = {};
+    this.onExcelInputChanged();
   },
 
   closeExcelImportModal: function() {
@@ -619,6 +645,7 @@ const PriceDocEditor = {
       return;
     }
 
+    const idType = document.getElementById("pdeExcelIdTypeSelect")?.value || "code";
     const lines = rawText.split(/[\r\n]+/);
     const parsed = [];
     const missingCodes = new Set();
@@ -648,7 +675,7 @@ const PriceDocEditor = {
         const price = parseFloat(priceStr);
 
         if (code && !isNaN(price) && price >= 0) {
-          const existingItem = this.findItemByCodeOrArtikul(code);
+          const existingItem = this.findItemByCodeOrArtikul(code, idType);
           const rowInfo = {
             rawCode: code,
             price: price,
@@ -668,29 +695,59 @@ const PriceDocEditor = {
     this.renderExcelPreview();
 
     if (missingCodes.size > 0) {
-      this.resolveMissingNomenclature(Array.from(missingCodes));
+      this.resolveMissingNomenclature(Array.from(missingCodes), idType);
     }
   },
 
-  findItemByCodeOrArtikul: function(identifier) {
+  findItemByCodeOrArtikul: function(identifier, idType) {
     if (!identifier) return null;
     const target = String(identifier).trim().toLowerCase();
-    return this.items.find(it => {
-      const c = String(it.code || "").trim().toLowerCase();
-      const a = String(it.artikul || "").trim().toLowerCase();
-      return c === target || a === target;
-    });
+    const mode = idType || (document.getElementById("pdeExcelIdTypeSelect")?.value || "code");
+
+    if (mode === "artikul") {
+      // 1. Primary: exact artikul
+      const matchArt = this.items.find(it => String(it.artikul || "").trim().toLowerCase() === target);
+      if (matchArt) return matchArt;
+      // 2. Fallback: code or barcode
+      return this.items.find(it => {
+        const c = String(it.code || "").trim().toLowerCase();
+        const b = String(it.barcode || "").trim().toLowerCase();
+        return c === target || b === target;
+      });
+    } else if (mode === "barcode") {
+      // 1. Primary: exact barcode
+      const matchBc = this.items.find(it => String(it.barcode || "").trim().toLowerCase() === target);
+      if (matchBc) return matchBc;
+      // 2. Fallback: code or artikul
+      return this.items.find(it => {
+        const c = String(it.code || "").trim().toLowerCase();
+        const a = String(it.artikul || "").trim().toLowerCase();
+        return c === target || a === target;
+      });
+    } else {
+      // Default: mode === "code"
+      // 1. Primary: exact code
+      const matchCode = this.items.find(it => String(it.code || "").trim().toLowerCase() === target);
+      if (matchCode) return matchCode;
+      // 2. Fallback: artikul or barcode
+      return this.items.find(it => {
+        const a = String(it.artikul || "").trim().toLowerCase();
+        const b = String(it.barcode || "").trim().toLowerCase();
+        return a === target || b === target;
+      });
+    }
   },
 
-  resolveMissingNomenclature: function(codesList) {
+  resolveMissingNomenclature: function(codesList, idType) {
     const spinner = document.getElementById("pdeExcelResolvingSpinner");
     if (spinner) spinner.style.display = "flex";
 
+    const currentIdType = idType || (document.getElementById("pdeExcelIdTypeSelect")?.value || "code");
     const creds = window.SessionManager ? SessionManager.getCredentials() : {};
     fetch("/api/documents/resolve_nomenclature", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ ...creds, codes: codesList })
+      body: JSON.stringify({ ...creds, codes: codesList, id_type: currentIdType })
     })
     .then(r => r.json())
     .then(res => {
@@ -737,6 +794,7 @@ const PriceDocEditor = {
       return;
     }
 
+    const idType = document.getElementById("pdeExcelIdTypeSelect")?.value || "code";
     let existingCount = 0;
     let newCount = 0;
     let html = "";
@@ -749,7 +807,13 @@ const PriceDocEditor = {
       const itemInfo = row.item || (this.excelResolvedMap[row.rawCode] || null);
       const name = itemInfo ? itemInfo.name : "(1C-də axtarılır...)";
       const unit = itemInfo ? itemInfo.unit : "əd";
-      const displayCode = itemInfo ? (itemInfo.code || row.rawCode) : row.rawCode;
+      
+      let displayCode = row.rawCode;
+      if (itemInfo) {
+        if (idType === "artikul" && itemInfo.artikul) displayCode = itemInfo.artikul;
+        else if (idType === "barcode" && itemInfo.barcode) displayCode = itemInfo.barcode;
+        else if (itemInfo.code) displayCode = itemInfo.code;
+      }
 
       const statusBadge = isExisting 
         ? `<span style="background: #e3f2fd; color: #0d47a1; padding: 1px 6px; border-radius: 2px; border: 1px solid #90caf9; font-weight: bold; font-size: 10px;">🔄 Yenilənəcək</span>`
@@ -798,11 +862,12 @@ const PriceDocEditor = {
       });
     }
 
+    const idType = document.getElementById("pdeExcelIdTypeSelect")?.value || "code";
     let existingUpdated = 0;
     let newAdded = 0;
 
     this.excelParsedRows.forEach(row => {
-      let itm = this.findItemByCodeOrArtikul(row.rawCode);
+      let itm = this.findItemByCodeOrArtikul(row.rawCode, idType);
 
       if (itm) {
         if (!itm.prices) itm.prices = {};
@@ -811,9 +876,10 @@ const PriceDocEditor = {
       } else {
         const resolved = row.item || this.excelResolvedMap[row.rawCode] || {};
         const newItem = {
-          code: resolved.code || row.rawCode,
+          code: resolved.code || (idType === "code" ? row.rawCode : ""),
           name: resolved.name || `Товар (${row.rawCode})`,
-          artikul: resolved.artikul || "",
+          artikul: resolved.artikul || (idType === "artikul" ? row.rawCode : ""),
+          barcode: resolved.barcode || (idType === "barcode" ? row.rawCode : ""),
           unit: resolved.unit || "əd",
           prices: {
             [targetPt]: row.price
@@ -842,44 +908,62 @@ const PriceDocEditor = {
     alert(msg);
   },
 
-  promptClearPricesByPriceType: function(defaultPt) {
+  openClearPriceTypeModal: function(defaultPt) {
     this.closeAllMenus();
     if (!this.priceTypes || !this.priceTypes.length) {
-      alert("Sənəddə heç bir qiymət növü seçilməyib.");
+      alert("Sənəddə heç bir qiymət növü tapılmadı.");
       return;
     }
 
-    const sel = document.getElementById("pdeExcelPtSelect");
-    const chosenDefault = defaultPt || ((sel && sel.value) ? sel.value : this.priceTypes[0]);
-
-    if (this.priceTypes.length === 1) {
-      const pt = this.priceTypes[0];
-      if (confirm(`'${pt}' qiymət növü üzrə bütün ${this.items.length} malın qiymətlərini silmək (boşaltmaq) istəyirsiniz?`)) {
-        this.clearPricesByPriceType(pt);
+    const sel = document.getElementById("pdeClearPtSelect");
+    if (sel) {
+      sel.innerHTML = "";
+      this.priceTypes.forEach(pt => {
+        const opt = document.createElement("option");
+        opt.value = pt;
+        opt.textContent = `${pt} (Tip qiymət)`;
+        sel.appendChild(opt);
+      });
+      if (defaultPt && this.priceTypes.includes(defaultPt)) {
+        sel.value = defaultPt;
+      } else {
+        const excelPtSel = document.getElementById("pdeExcelPtSelect");
+        if (excelPtSel && excelPtSel.value && this.priceTypes.includes(excelPtSel.value)) {
+          sel.value = excelPtSel.value;
+        } else {
+          sel.value = this.priceTypes[0];
+        }
       }
+    }
+
+    const note = document.getElementById("pdeClearPtItemCountNote");
+    if (note) {
+      note.textContent = `💡 Sənəddəki cəmi ${this.items.length} malın bu sütun üzrə qiyməti sıfırlanacaq.`;
+    }
+
+    const modal = document.getElementById("pdeClearPriceTypeModal");
+    if (modal) modal.style.display = "flex";
+  },
+
+  closeClearPriceTypeModal: function() {
+    const modal = document.getElementById("pdeClearPriceTypeModal");
+    if (modal) modal.style.display = "none";
+  },
+
+  confirmClearPriceTypeModal: function() {
+    const sel = document.getElementById("pdeClearPtSelect");
+    const targetPt = sel ? sel.value : "";
+    if (!targetPt) {
+      alert("Zəhmət olmasa təmizlənəcək qiymət növünü seçin.");
       return;
     }
 
-    const listStr = this.priceTypes.map((pt, i) => `${i + 1}. ${pt}`).join("\n");
-    const chosen = prompt(`Hansı qiymət növünün qiymətlərini tam boşaltmaq istəyirsiniz?\n\n${listStr}\n\nQiymət növünün adını və ya nömrəsini daxil edin:`, chosenDefault);
-    if (!chosen) return;
+    this.closeClearPriceTypeModal();
+    this.clearPricesByPriceType(targetPt);
+  },
 
-    let targetPt = chosen.trim();
-    const numIdx = parseInt(targetPt, 10);
-    if (!isNaN(numIdx) && numIdx >= 1 && numIdx <= this.priceTypes.length) {
-      targetPt = this.priceTypes[numIdx - 1];
-    } else {
-      const found = this.priceTypes.find(pt => pt.toLowerCase() === targetPt.toLowerCase());
-      if (found) targetPt = found;
-      else if (!this.priceTypes.includes(targetPt)) {
-        alert(`'${targetPt}' adlı qiymət növü sənəddə tapılmadı.`);
-        return;
-      }
-    }
-
-    if (confirm(`'${targetPt}' qiymət növü üzrə bütün ${this.items.length} malın qiymətlərini silmək (boşaltmaq) istəyirsiniz?`)) {
-      this.clearPricesByPriceType(targetPt);
-    }
+  promptClearPricesByPriceType: function(defaultPt) {
+    this.openClearPriceTypeModal(defaultPt);
   },
 
   clearPricesByPriceType: function(targetPt) {
@@ -898,6 +982,12 @@ const PriceDocEditor = {
     this.filteredItems = [...this.items];
     this.renderTable();
     this.updateRowCount();
+
+    // If Excel import modal is open, re-evaluate preview
+    const excelModal = document.getElementById("pdeExcelImportModal");
+    if (excelModal && excelModal.style.display === "flex") {
+      this.onExcelInputChanged();
+    }
 
     alert(`🧹 '${targetPt}' qiymət növü üzrə bütün qiymətlər təmizləndi!\n\n• Sıfırlanan malların sayı: ${clearedCount}\n• Cədvəldə qalan mallar: ${this.items.length} (artıq bu sütun üzrə xanalar boşdur)`);
   },

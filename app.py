@@ -2671,38 +2671,89 @@ class OneCService(threading.Thread):
                     for c in unique_codes:
                         arr.Add(c)
 
-                    q_nom = conn.NewObject("Запрос")
-                    q_nom.SetParameter("Codes", arr)
-                    q_nom.Text = """
-                    ВЫБРАТЬ
-                        Т.Код КАК Code,
-                        Т.Наименование КАК Name,
-                        Т.Артикул КАК Artikul,
-                        ЕСТЬNULL(Т.ЕдиницаХраненияОстатков.Наименование, Т.БазоваяЕдиницаИзмерения.Наименование) КАК Unit
-                    ИЗ
-                        Справочник.Номенклатура КАК Т
-                    ГДЕ
-                        НЕ Т.ЭтоГруппа
-                        И (Т.Код В (&Codes) ИЛИ Т.Артикул В (&Codes))
-                    """
-                    sel_nom = q_nom.Execute().Choose()
+                    id_type = str(payload.get("id_type", "code")).strip().lower()
                     found_map = {}
-                    while sel_nom.Next():
-                        c_code = str(getattr(sel_nom, "Code", "") or "").strip()
-                        c_name = str(getattr(sel_nom, "Name", "") or "").strip()
-                        c_artikul = str(getattr(sel_nom, "Artikul", "") or "").strip()
-                        c_unit = str(getattr(sel_nom, "Unit", "") or "шт").strip()
 
-                        info = {
-                            "code": c_code,
-                            "name": c_name,
-                            "artikul": c_artikul,
-                            "unit": c_unit
-                        }
-                        if c_code:
-                            found_map[c_code] = info
-                        if c_artikul:
-                            found_map[c_artikul] = info
+                    # If barcode mode requested, search in barcode register first
+                    if id_type == "barcode":
+                        try:
+                            q_bc = conn.NewObject("Запрос")
+                            q_bc.SetParameter("Codes", arr)
+                            q_bc.Text = """
+                            ВЫБРАТЬ
+                                Ш.Штрихкод КАК Barcode,
+                                Т.Код КАК Code,
+                                Т.Наименование КАК Name,
+                                Т.Артикул КАК Artikul,
+                                ЕСТЬNULL(Т.ЕдиницаХраненияОстатков.Наименование, Т.БазоваяЕдиницаИзмерения.Наименование) КАК Unit
+                            ИЗ
+                                РегистрСведений.Штрихкоды КАК Ш
+                                ВНУТРЕННЕЕ СОЕДИНЕНИЕ Справочник.Номенклатура КАК Т
+                                    ПО Ш.Владелец = Т.Ссылка
+                            ГДЕ
+                                НЕ Т.ЭтоГруппа
+                                И Ш.Штрихкод В (&Codes)
+                            """
+                            sel_bc = q_bc.Execute().Choose()
+                            while sel_bc.Next():
+                                c_code = str(getattr(sel_bc, "Code", "") or "").strip()
+                                c_name = str(getattr(sel_bc, "Name", "") or "").strip()
+                                c_artikul = str(getattr(sel_bc, "Artikul", "") or "").strip()
+                                c_unit = str(getattr(sel_bc, "Unit", "") or "шт").strip()
+                                c_bc = str(getattr(sel_bc, "Barcode", "") or "").strip()
+
+                                info = {
+                                    "code": c_code,
+                                    "name": c_name,
+                                    "artikul": c_artikul,
+                                    "barcode": c_bc,
+                                    "unit": c_unit
+                                }
+                                if c_bc:
+                                    found_map[c_bc] = info
+                                if c_code:
+                                    found_map[c_code] = info
+                                if c_artikul:
+                                    found_map[c_artikul] = info
+                        except Exception as e_bc:
+                            print("Barcode resolve error:", e_bc)
+
+                    # Also query Nomenclature by Code or Artikul
+                    try:
+                        q_nom = conn.NewObject("Запрос")
+                        q_nom.SetParameter("Codes", arr)
+                        q_nom.Text = """
+                        ВЫБРАТЬ
+                            Т.Код КАК Code,
+                            Т.Наименование КАК Name,
+                            Т.Артикул КАК Artikul,
+                            ЕСТЬNULL(Т.ЕдиницаХраненияОстатков.Наименование, Т.БазоваяЕдиницаИзмерения.Наименование) КАК Unit
+                        ИЗ
+                            Справочник.Номенклатура КАК Т
+                        ГДЕ
+                            НЕ Т.ЭтоГруппа
+                            И (Т.Код В (&Codes) ИЛИ Т.Артикул В (&Codes))
+                        """
+                        sel_nom = q_nom.Execute().Choose()
+                        while sel_nom.Next():
+                            c_code = str(getattr(sel_nom, "Code", "") or "").strip()
+                            c_name = str(getattr(sel_nom, "Name", "") or "").strip()
+                            c_artikul = str(getattr(sel_nom, "Artikul", "") or "").strip()
+                            c_unit = str(getattr(sel_nom, "Unit", "") or "шт").strip()
+
+                            info = {
+                                "code": c_code,
+                                "name": c_name,
+                                "artikul": c_artikul,
+                                "barcode": "",
+                                "unit": c_unit
+                            }
+                            if c_code and c_code not in found_map:
+                                found_map[c_code] = info
+                            if c_artikul and c_artikul not in found_map:
+                                found_map[c_artikul] = info
+                    except Exception as e_nom:
+                        print("Nom query resolve error:", e_nom)
 
                     resp_q.put((True, {"found": found_map}))
 
