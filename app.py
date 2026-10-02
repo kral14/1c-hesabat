@@ -2878,6 +2878,101 @@ class OneCService(threading.Thread):
                         print("Error reading item prices:", e_pr)
                     resp_q.put((True, {"prices": prices}))
 
+                # Action: Get batch active prices from 1C for multiple items and price types (СрезПоследних)
+                elif action == "get_batch_item_prices":
+                    codes = payload.get("codes", [])
+                    names = payload.get("names", [])
+                    pts = payload.get("price_types", [])
+                    date_str = str(payload.get("date") or "").strip()
+
+                    if not pts:
+                        resp_q.put((True, {"prices_by_code": {}, "prices_by_name": {}}))
+                        continue
+
+                    unique_codes = list(set([str(c).strip() for c in codes if str(c).strip()]))[:2000]
+                    unique_names = list(set([str(n).strip() for n in names if str(n).strip()]))[:2000]
+                    unique_pts = list(set([str(p).strip() for p in pts if str(p).strip()]))
+
+                    if not unique_pts or (not unique_codes and not unique_names):
+                        resp_q.put((True, {"prices_by_code": {}, "prices_by_name": {}}))
+                        continue
+
+                    arr_codes = conn.NewObject("Массив")
+                    for c in unique_codes:
+                        arr_codes.Add(c)
+
+                    arr_names = conn.NewObject("Массив")
+                    for n in unique_names:
+                        arr_names.Add(n)
+
+                    arr_pts = conn.NewObject("Массив")
+                    for pt in unique_pts:
+                        arr_pts.Add(pt)
+
+                    q_batch = conn.NewObject("Запрос")
+                    q_batch.SetParameter("Codes", arr_codes)
+                    q_batch.SetParameter("Names", arr_names)
+                    q_batch.SetParameter("PriceTypes", arr_pts)
+
+                    has_date = False
+                    if date_str:
+                        try:
+                            d_part = date_str.split()[0]
+                            if "." in d_part:
+                                dp = d_part.split(".")
+                                dt = datetime.datetime(int(dp[2]), int(dp[1]), int(dp[0]), 23, 59, 59)
+                                q_batch.SetParameter("DocDate", dt)
+                                has_date = True
+                        except Exception:
+                            pass
+
+                    date_clause = "&DocDate" if has_date else ""
+
+                    cond_parts = []
+                    if unique_codes:
+                        cond_parts.append("Номенклатура.Код В (&Codes)")
+                    if unique_names:
+                        cond_parts.append("Номенклатура.Наименование В (&Names)")
+                    nom_cond = " ИЛИ ".join(cond_parts) if cond_parts else "ИСТИНА"
+
+                    q_batch.Text = f"""
+                    ВЫБРАТЬ
+                        Т.Номенклатура.Код КАК Code,
+                        Т.Номенклатура.Наименование КАК ItemName,
+                        Т.ТипЦен.Наименование КАК PriceTypeName,
+                        Т.Цена КАК Price
+                    ИЗ
+                        РегистрСведений.ЦеныНоменклатуры.СрезПоследних(
+                            {date_clause},
+                            ТипЦен.Наименование В (&PriceTypes)
+                            И ({nom_cond})
+                        ) КАК Т
+                    """
+
+                    prices_by_code = {}
+                    prices_by_name = {}
+                    try:
+                        sel_batch = q_batch.Execute().Choose()
+                        while sel_batch.Next():
+                            c_code = str(getattr(sel_batch, "Code", "") or "").strip()
+                            c_name = str(getattr(sel_batch, "ItemName", "") or "").strip()
+                            pt_name = str(getattr(sel_batch, "PriceTypeName", "") or "").strip()
+                            p_val = float(getattr(sel_batch, "Price", 0) or 0)
+
+                            if p_val > 0 and pt_name:
+                                if c_code:
+                                    if c_code not in prices_by_code:
+                                        prices_by_code[c_code] = {}
+                                    prices_by_code[c_code][pt_name] = p_val
+                                if c_name:
+                                    if c_name not in prices_by_name:
+                                        prices_by_name[c_name] = {}
+                                    prices_by_name[c_name][pt_name] = p_val
+                    except Exception as e_batch:
+                        print("Error executing get_batch_item_prices:", e_batch)
+
+                    resp_q.put((True, {"prices_by_code": prices_by_code, "prices_by_name": prices_by_name}))
+
 
 
             except Exception as e:
@@ -3502,6 +3597,33 @@ def resolve_nomenclature_endpoint():
     except Exception as e:
         print_server_error("/api/documents/resolve_nomenclature", e, data)
         return jsonify({"success": False, "error": str(e), "found": {}})
+
+@app.route("/api/documents/item_prices", methods=["POST"])
+def get_item_prices_endpoint():
+    data = request.json or {}
+    try:
+        res = one_c.execute("get_item_prices", data)
+        return jsonify({
+            "success": True,
+            "prices": res.get("prices", {})
+        })
+    except Exception as e:
+        print_server_error("/api/documents/item_prices", e, data)
+        return jsonify({"success": False, "error": str(e), "prices": {}})
+
+@app.route("/api/documents/batch_item_prices", methods=["POST"])
+def get_batch_item_prices_endpoint():
+    data = request.json or {}
+    try:
+        res = one_c.execute("get_batch_item_prices", data)
+        return jsonify({
+            "success": True,
+            "prices_by_code": res.get("prices_by_code", {}),
+            "prices_by_name": res.get("prices_by_name", {})
+        })
+    except Exception as e:
+        print_server_error("/api/documents/batch_item_prices", e, data)
+        return jsonify({"success": False, "error": str(e), "prices_by_code": {}, "prices_by_name": {}})
 
 @app.route("/api/documents/download_excel_template", methods=["GET"])
 def download_excel_template_endpoint():

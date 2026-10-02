@@ -1290,12 +1290,15 @@ const PriceDocEditor = {
     this.ptModalItems = [...checked, ...unchecked];
   },
 
-  applySelectedPriceTypes: function() {
+  applySelectedPriceTypes: async function() {
     const selected = this.ptModalItems.filter(x => x.checked).map(x => x.name);
     if (!selected.length) {
       alert("Heç bir qiymət növü seçilməyib! Ən azı bir qiymət növü seçin.");
       return;
     }
+
+    const oldPriceTypes = [...(this.priceTypes || [])];
+    const newlyAdded = selected.filter(pt => !oldPriceTypes.includes(pt));
 
     this.priceTypes = selected;
 
@@ -1305,11 +1308,92 @@ const PriceDocEditor = {
       else disp.textContent = selected.join("; ");
     }
 
-    // Re-render table with new price columns
+    // Re-render table with new price columns immediately
     this.renderTable();
 
     // Close modal
     this.closePriceTypesModal();
+
+    // If new price types were added and we have items, automatically query 1C for their existing active prices!
+    if (newlyAdded.length > 0 && this.items && this.items.length > 0) {
+      await this.fetchAndFillPricesForTypes(newlyAdded, false);
+    }
+  },
+
+  fetchAndFillPricesForTypes: async function(targetPriceTypes, overwriteExisting = false) {
+    if (!targetPriceTypes || !targetPriceTypes.length) return 0;
+    if (!this.items || !this.items.length) return 0;
+
+    const codes = this.items.map(it => it.code).filter(Boolean);
+    const names = this.items.map(it => it.name).filter(Boolean);
+    const docDate = document.getElementById("pdeDocDate")?.value?.trim() || "";
+
+    const loading = document.getElementById("pdeLoadingState");
+    if (loading) loading.style.display = "flex";
+
+    let filledCount = 0;
+    try {
+      const creds = window.SessionManager ? SessionManager.getCredentials() : {};
+      const resp = await fetch("/api/documents/batch_item_prices", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ...creds,
+          codes: codes,
+          names: names,
+          price_types: targetPriceTypes,
+          date: docDate
+        })
+      });
+
+      const res = await resp.json();
+      if (res.success) {
+        const pricesByCode = res.prices_by_code || {};
+        const pricesByName = res.prices_by_name || {};
+
+        this.items.forEach(itm => {
+          if (!itm.prices) itm.prices = {};
+
+          const codePrices = pricesByCode[itm.code] || {};
+          const namePrices = pricesByName[itm.name] || {};
+
+          targetPriceTypes.forEach(pt => {
+            const hasExisting = itm.prices[pt] !== undefined && itm.prices[pt] !== "" && itm.prices[pt] !== 0 && itm.prices[pt] !== null;
+            if (!hasExisting || overwriteExisting) {
+              const p = (codePrices[pt] !== undefined) ? codePrices[pt] : namePrices[pt];
+              if (p !== undefined && p > 0) {
+                itm.prices[pt] = p;
+                filledCount++;
+              }
+            }
+          });
+        });
+
+        this.filteredItems = [...this.items];
+        this.renderTable();
+      }
+    } catch (err) {
+      console.warn("Could not batch-fetch active prices from 1C:", err);
+    } finally {
+      if (loading) loading.style.display = "none";
+    }
+
+    return filledCount;
+  },
+
+  fillCurrentPrices: async function() {
+    this.closeAllMenus();
+    if (!this.items || !this.items.length) {
+      alert("Cədvəldə heç bir mal yoxdur.");
+      return;
+    }
+    if (!this.priceTypes || !this.priceTypes.length) {
+      alert("Sənəddə heç bir qiymət növü seçilməyib.");
+      return;
+    }
+
+    const count = await this.fetchAndFillPricesForTypes(this.priceTypes, true);
+    alert(`✅ Sənəddəki ${this.items.length} mal üçün 1C-dən qüvvədə olan qiymətlər yeniləndi!\n\n• Doldurulan qiymətlərin sayı: ${count}`);
   },
 
   // ==========================================
