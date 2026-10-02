@@ -62,6 +62,7 @@ const PriceDocEditor = {
       const data = res.data;
       this.docData = data;
       this.priceTypes = data.price_types || [];
+      this.allPriceTypes = data.all_price_types || data.price_types || [];
       this.items = data.items || [];
       this.filteredItems = [...this.items];
 
@@ -78,7 +79,10 @@ const PriceDocEditor = {
       if (inpDate) inpDate.value = data.date || "";
       if (inpResp) inpResp.value = data.responsible || "";
       if (inpComm) inpComm.value = data.comment || "";
-      if (dispPt) dispPt.textContent = this.priceTypes.join("; ");
+      if (dispPt) {
+        if ("value" in dispPt) dispPt.value = this.priceTypes.join("; ");
+        else dispPt.textContent = this.priceTypes.join("; ");
+      }
 
       if (badge) {
         if (data.posted) {
@@ -779,6 +783,187 @@ const PriceDocEditor = {
       .replace(/>/g, "&gt;")
       .replace(/"/g, "&quot;")
       .replace(/'/g, "&#039;");
+  },
+
+  // ==========================================
+  // Price Types Selector Modal (Screenshots 1 & 2)
+  // ==========================================
+  ptModalItems: [],
+  ptSelectedIdx: 0,
+
+  openPriceTypesModal: function() {
+    this.closeAllMenus();
+
+    // Collect all unique price types (from allPriceTypes and current priceTypes)
+    const allSet = new Set(this.priceTypes || []);
+    if (this.allPriceTypes && this.allPriceTypes.length) {
+      this.allPriceTypes.forEach(pt => allSet.add(pt));
+    }
+    const allList = Array.from(allSet);
+
+    // Order: currently checked ones first in order of this.priceTypes, then the rest
+    const currentChecked = this.priceTypes || [];
+    const ordered = [];
+    currentChecked.forEach(pt => {
+      if (allList.includes(pt)) {
+        ordered.push({ name: pt, checked: true });
+      }
+    });
+    allList.forEach(pt => {
+      if (!currentChecked.includes(pt)) {
+        ordered.push({ name: pt, checked: false });
+      }
+    });
+
+    this.ptModalItems = ordered;
+    this.ptSelectedIdx = 0;
+
+    const chkTop = document.getElementById("pdeMoveCheckedTopChk");
+    if (chkTop && chkTop.checked) {
+      this.ptApplyMoveCheckedTop();
+    }
+
+    this.renderPtChecklist();
+
+    const modal = document.getElementById("pdePriceTypesModal");
+    if (modal) modal.style.display = "flex";
+  },
+
+  closePriceTypesModal: function() {
+    const modal = document.getElementById("pdePriceTypesModal");
+    if (modal) modal.style.display = "none";
+  },
+
+  renderPtChecklist: function() {
+    const container = document.getElementById("pdePtChecklistContainer");
+    if (!container) return;
+
+    let html = "";
+    this.ptModalItems.forEach((item, idx) => {
+      const isSel = (idx === this.ptSelectedIdx);
+      const bg = isSel ? "#316ac5" : (idx % 2 === 1 ? "#faf9f5" : "#ffffff");
+      const fg = isSel ? "#ffffff" : "#000000";
+
+      html += `
+        <div onclick="PriceDocEditor.ptSelectRow(${idx})" 
+             style="display: flex; align-items: center; gap: 6px; padding: 2px 4px; cursor: pointer; user-select: none; background: ${bg}; color: ${fg}; border-bottom: 1px dotted #e0dfd5; height: 19px; box-sizing: border-box;">
+          <input type="checkbox" ${item.checked ? 'checked' : ''} 
+                 onchange="PriceDocEditor.ptToggleCheck(${idx}, this.checked)" 
+                 onclick="event.stopPropagation()" 
+                 style="cursor: pointer; margin: 0; padding: 0;">
+          <span style="font-size: 11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${this.escapeHtml(item.name)}</span>
+        </div>
+      `;
+    });
+
+    container.innerHTML = html;
+  },
+
+  ptSelectRow: function(idx) {
+    this.ptSelectedIdx = idx;
+    this.renderPtChecklist();
+  },
+
+  ptToggleCheck: function(idx, isChecked) {
+    if (this.ptModalItems[idx]) {
+      this.ptModalItems[idx].checked = isChecked;
+    }
+    const chkTop = document.getElementById("pdeMoveCheckedTopChk");
+    if (chkTop && chkTop.checked) {
+      this.ptApplyMoveCheckedTop();
+    }
+    this.renderPtChecklist();
+  },
+
+  ptMoveUp: function() {
+    if (this.ptSelectedIdx > 0 && this.ptSelectedIdx < this.ptModalItems.length) {
+      const tmp = this.ptModalItems[this.ptSelectedIdx];
+      this.ptModalItems[this.ptSelectedIdx] = this.ptModalItems[this.ptSelectedIdx - 1];
+      this.ptModalItems[this.ptSelectedIdx - 1] = tmp;
+      this.ptSelectedIdx--;
+      this.renderPtChecklist();
+    }
+  },
+
+  ptMoveDown: function() {
+    if (this.ptSelectedIdx >= 0 && this.ptSelectedIdx < this.ptModalItems.length - 1) {
+      const tmp = this.ptModalItems[this.ptSelectedIdx];
+      this.ptModalItems[this.ptSelectedIdx] = this.ptModalItems[this.ptSelectedIdx + 1];
+      this.ptModalItems[this.ptSelectedIdx + 1] = tmp;
+      this.ptSelectedIdx++;
+      this.renderPtChecklist();
+    }
+  },
+
+  ptSortAZ: function() {
+    const selItem = this.ptModalItems[this.ptSelectedIdx];
+    this.ptModalItems.sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true }));
+    const chkTop = document.getElementById("pdeMoveCheckedTopChk");
+    if (chkTop && chkTop.checked) {
+      this.ptApplyMoveCheckedTop();
+    }
+    if (selItem) {
+      this.ptSelectedIdx = this.ptModalItems.findIndex(x => x.name === selItem.name);
+    }
+    this.renderPtChecklist();
+  },
+
+  ptSortZA: function() {
+    const selItem = this.ptModalItems[this.ptSelectedIdx];
+    this.ptModalItems.sort((a, b) => b.name.localeCompare(a.name, undefined, { numeric: true }));
+    const chkTop = document.getElementById("pdeMoveCheckedTopChk");
+    if (chkTop && chkTop.checked) {
+      this.ptApplyMoveCheckedTop();
+    }
+    if (selItem) {
+      this.ptSelectedIdx = this.ptModalItems.findIndex(x => x.name === selItem.name);
+    }
+    this.renderPtChecklist();
+  },
+
+  ptCheckAll: function(state) {
+    this.ptModalItems.forEach(x => x.checked = state);
+    const chkTop = document.getElementById("pdeMoveCheckedTopChk");
+    if (chkTop && chkTop.checked) {
+      this.ptApplyMoveCheckedTop();
+    }
+    this.renderPtChecklist();
+  },
+
+  ptToggleMoveCheckedTop: function() {
+    const chkTop = document.getElementById("pdeMoveCheckedTopChk");
+    if (chkTop && chkTop.checked) {
+      this.ptApplyMoveCheckedTop();
+    }
+    this.renderPtChecklist();
+  },
+
+  ptApplyMoveCheckedTop: function() {
+    const checked = this.ptModalItems.filter(x => x.checked);
+    const unchecked = this.ptModalItems.filter(x => !x.checked);
+    this.ptModalItems = [...checked, ...unchecked];
+  },
+
+  applySelectedPriceTypes: function() {
+    const selected = this.ptModalItems.filter(x => x.checked).map(x => x.name);
+    if (!selected.length) {
+      alert("Heç bir qiymət növü seçilməyib! Ən azı bir qiymət növü seçin.");
+      return;
+    }
+
+    this.priceTypes = selected;
+
+    const disp = document.getElementById("pdePriceTypesDisplay");
+    if (disp) {
+      if ("value" in disp) disp.value = selected.join("; ");
+      else disp.textContent = selected.join("; ");
+    }
+
+    // Re-render table with new price columns
+    this.renderTable();
+
+    // Close modal
+    this.closePriceTypesModal();
   }
 };
 

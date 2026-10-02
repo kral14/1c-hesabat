@@ -2505,6 +2505,32 @@ class OneCService(threading.Thread):
 
                     items = [item_dict[c] for c in item_order]
 
+                    # Read all available price types in 1C
+                    all_price_types = []
+                    try:
+                        q_all_pt = conn.NewObject("Запрос")
+                        q_all_pt.Text = """
+                        ВЫБРАТЬ
+                            Т.Наименование КАК Name
+                        ИЗ
+                            Справочник.ТипыЦенНоменклатуры КАК Т
+                        ГДЕ
+                            НЕ Т.ПометкаУдаления
+                        УПОРЯДОЧИТЬ ПО
+                            Т.Наименование
+                        """
+                        sel_all_pt = q_all_pt.Execute().Choose()
+                        while sel_all_pt.Next():
+                            nm = str(sel_all_pt.Name or "").strip()
+                            if nm and nm not in all_price_types:
+                                all_price_types.append(nm)
+                    except Exception as e_pt:
+                        print("Error reading all price types:", e_pt)
+
+                    for pt in doc_price_types:
+                        if pt not in all_price_types:
+                            all_price_types.append(pt)
+
                     resp_q.put((True, {
                         "number": str(doc_obj.Номер),
                         "date": date_str,
@@ -2513,6 +2539,7 @@ class OneCService(threading.Thread):
                         "comment": str(getattr(doc_obj, "Комментарий", "") or ""),
                         "zero_prices": bool(getattr(doc_obj, "НеПроводитьНулевыеЗначения", False)),
                         "price_types": doc_price_types,
+                        "all_price_types": all_price_types if all_price_types else doc_price_types,
                         "items": items,
                         "total_items": len(items)
                     }))
@@ -2577,6 +2604,15 @@ class OneCService(threading.Thread):
                         pt_ref = conn.Справочники.ТипыЦенНоменклатуры.НайтиПоНаименованию(pt_name)
                         if pt_ref and not pt_ref.Пустая():
                             pt_cache[pt_name] = pt_ref
+
+                    # Update doc_obj.ТипыЦен
+                    if hasattr(doc_obj, "ТипыЦен"):
+                        doc_obj.ТипыЦен.Очистить()
+                        for pt_name in price_types:
+                            pt_ref = pt_cache.get(pt_name)
+                            if pt_ref and not pt_ref.Пустая():
+                                r_pt = doc_obj.ТипыЦен.Добавить()
+                                r_pt.ТипЦен = pt_ref
 
                     total_rows_added = 0
                     for item in items_data:

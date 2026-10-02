@@ -38,11 +38,14 @@
         </div>
       </div>
 
-      <!-- Row 2: Price Types -->
+      <!-- Row 2: Price Types with [...] button (Screenshot 1) -->
       <div style="display: flex; align-items: center; gap: 6px;">
-        <span style="color: #222; min-width: 50px;">Тип цен:</span>
-        <div style="flex: 1; min-height: 22px; max-height: 40px; overflow-y: auto; background: #ffffff; border: 1px solid #7f9db9; padding: 2px 6px; font-size: 11px; color: #002060; font-weight: 500;" id="pdePriceTypesDisplay">
-          <!-- Populated via JS -->
+        <span style="color: #222; min-width: 50px; font-size: 11px;">Тип цен:</span>
+        <div style="flex: 1; display: flex; align-items: stretch; border: 1px solid #7f9db9; background: #fff; height: 21px;">
+          <input type="text" id="pdePriceTypesDisplay" readonly onclick="PriceDocEditor.openPriceTypesModal()" style="flex: 1; border: none; padding: 0 5px; font-size: 11px; color: #002060; font-weight: 500; cursor: pointer; background: transparent; outline: none; text-overflow: ellipsis; white-space: nowrap; overflow: hidden;" title="Нажмите для выбора типов цен">
+          <button type="button" onclick="PriceDocEditor.openPriceTypesModal()" class="btn-1c" title="Выбрать типы цен..." style="border: none; border-left: 1px solid #7f9db9; background: #e0dfd5; width: 22px; height: 100%; cursor: pointer; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 11px; padding: 0;">
+            ...
+          </button>
         </div>
       </div>
 
@@ -295,6 +298,69 @@
         <button type="button" class="btn-1c" onclick="PriceDocEditor.closeExcelImportModal()" style="height: 24px; min-width: 80px; cursor: pointer;">
           Отмена
         </button>
+      </div>
+
+    </div>
+
+  </div>
+
+  <!-- Authentic 1C Dialog: Форма выбора типа цен (Screenshot 2) -->
+  <div id="pdePriceTypesModal" style="display: none; position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.35); z-index: 1200; align-items: center; justify-content: center;">
+    
+    <div style="width: 320px; background: #fdfcee; border: 2px solid #7f9db9; box-shadow: 2px 2px 12px rgba(0,0,0,0.4); font-family: Tahoma, 'MS Sans Serif', Arial, sans-serif; font-size: 11px; display: flex; flex-direction: column; overflow: hidden;">
+      
+      <!-- Title bar (Screenshot 2) -->
+      <div style="height: 24px; background: #dcd7bf; border-bottom: 1px solid #b5b19c; display: flex; align-items: center; justify-content: space-between; padding: 0 6px; user-select: none;">
+        <span style="font-weight: bold; color: #222; font-size: 11px;">Форма выбора типа цен</span>
+        <button type="button" onclick="PriceDocEditor.closePriceTypesModal()" style="border: none; background: transparent; font-weight: bold; font-size: 13px; color: #333; cursor: pointer; line-height: 1; padding: 0 2px;">✕</button>
+      </div>
+
+      <!-- Action Toolbar (Screenshot 2) -->
+      <div style="background: #f0eee3; border-bottom: 1px solid #d4d0c8; padding: 3px 6px; display: flex; align-items: center; gap: 4px;">
+        <!-- Disabled (+) button -->
+        <button type="button" class="btn-1c" disabled style="height: 22px; width: 22px; padding: 0; opacity: 0.5; cursor: default; font-size: 12px; color: #666;" title="Добавить">+</button>
+        
+        <!-- ⬆ Move Up -->
+        <button type="button" class="btn-1c" onclick="PriceDocEditor.ptMoveUp()" title="Переместить вверх" style="height: 22px; width: 22px; padding: 0; cursor: pointer; font-size: 11px; color: #0055ea; font-weight: bold;">⬆</button>
+        
+        <!-- ⬇ Move Down -->
+        <button type="button" class="btn-1c" onclick="PriceDocEditor.ptMoveDown()" title="Переместить вниз" style="height: 22px; width: 22px; padding: 0; cursor: pointer; font-size: 11px; color: #0055ea; font-weight: bold;">⬇</button>
+
+        <div style="height: 14px; width: 1px; background: #b0af9f; margin: 0 1px;"></div>
+
+        <!-- А->Я Sort Ascending -->
+        <button type="button" class="btn-1c" onclick="PriceDocEditor.ptSortAZ()" title="Сортировать по возрастанию (А -> Я)" style="height: 22px; padding: 0 3px; cursor: pointer; font-size: 10px; font-weight: bold; color: #a00;">А🡓Я</button>
+
+        <!-- Я->А Sort Descending -->
+        <button type="button" class="btn-1c" onclick="PriceDocEditor.ptSortZA()" title="Сортировать по убыванию (Я -> А)" style="height: 22px; padding: 0 3px; cursor: pointer; font-size: 10px; font-weight: bold; color: #a00;">Я🡓А</button>
+
+        <div style="height: 14px; width: 1px; background: #b0af9f; margin: 0 1px;"></div>
+
+        <!-- ☑☑ Check all -->
+        <button type="button" class="btn-1c" onclick="PriceDocEditor.ptCheckAll(true)" title="Установить все флажки" style="height: 22px; width: 24px; padding: 0; cursor: pointer; font-size: 12px; color: #2e7d32;" onmouseover="this.title='Установить все флажки'">☑☑</button>
+
+        <!-- ☐☐ Uncheck all -->
+        <button type="button" class="btn-1c" onclick="PriceDocEditor.ptCheckAll(false)" title="Снять все флажки" style="height: 22px; width: 24px; padding: 0; cursor: pointer; font-size: 12px; color: #555;" onmouseover="this.title='Снять все флажки'">☐☐</button>
+      </div>
+
+      <!-- Checklist container (Screenshot 2) -->
+      <div style="padding: 6px; background: #fdfcee; display: flex; flex-direction: column; gap: 6px;">
+        <div id="pdePtChecklistContainer" style="height: 220px; overflow-y: auto; background: #ffffff; border: 1px solid #7f9db9; padding: 1px; outline: none;" tabindex="0">
+          <!-- Populated dynamically via JS -->
+        </div>
+
+        <!-- Bottom Checkbox: Перемещать отмеченные элементы наверх -->
+        <label style="display: flex; align-items: center; gap: 6px; font-size: 11px; color: #222; cursor: pointer; user-select: none;">
+          <input type="checkbox" id="pdeMoveCheckedTopChk" onchange="PriceDocEditor.ptToggleMoveCheckedTop()" style="cursor: pointer;">
+          <span>Перемещать отмеченные элементы наверх</span>
+        </label>
+      </div>
+
+      <!-- Footer Bar (Screenshot 2) -->
+      <div style="padding: 6px 12px; background: #fdfcee; border-top: 1px solid #e0dfd5; display: flex; justify-content: flex-end; align-items: center; gap: 10px; font-size: 11px;">
+        <a href="javascript:void(0)" onclick="PriceDocEditor.applySelectedPriceTypes()" style="color: #000; font-weight: bold; text-decoration: none; cursor: pointer; padding: 2px 6px;">OK</a>
+        <span style="color: #b5b19c;">|</span>
+        <a href="javascript:void(0)" onclick="PriceDocEditor.closePriceTypesModal()" style="color: #000; text-decoration: none; cursor: pointer; padding: 2px 6px;">Закрыть</a>
       </div>
 
     </div>
