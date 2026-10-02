@@ -39,16 +39,11 @@
           </div>
         </div>
 
-        <!-- Top "Записать в 1С" and "Записать" (кэш) Buttons -->
+        <!-- Top "Записать в 1С" Button -->
         <div style="display: flex; align-items: center; gap: 6px;">
           <button type="button" class="btn-1c btn-1c-primary" id="pdeBtnSave1CTop" onclick="PriceDocEditor.saveTo1C()" title="Отправить и записать документ в базу 1С (Ctrl+S)" style="height: 23px; min-width: 120px; font-weight: bold; background: linear-gradient(to bottom, #ffea88, #d8a020); border: 1px solid #7c6817; color: #000; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 5px; font-size: 11px; padding: 0 10px;">
             <span>💾</span>
             <span>Записать в 1С</span>
-          </button>
-
-          <button type="button" class="btn-1c" id="pdeBtnSaveCacheTop" onclick="PriceDocEditor.saveToCache()" title="Сохранить изменения в локальный кэш (черновик)" style="height: 23px; min-width: 90px; font-weight: bold; background: #e0dfd5; border: 1px solid #7f9db9; color: #000; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 5px; font-size: 11px; padding: 0 8px;" onmouseover="this.style.background='#f0eee3'" onmouseout="this.style.background='#e0dfd5'">
-            <span>💾</span>
-            <span>Записать</span>
           </button>
         </div>
       </div>
@@ -259,13 +254,8 @@
         <input type="text" id="pdeDocComment" placeholder="Добавьте примечание или причину изменения цен..." style="flex: 1; height: 21px; border: 1px solid #7f9db9; padding: 0 4px; background: #fff; font-size: 11px;">
       </div>
 
-      <!-- Save & Close Buttons -->
+      <!-- Save (Cache) & Close Buttons -->
       <div style="display: flex; justify-content: flex-end; align-items: center; gap: 8px; margin-top: 4px; padding-top: 4px; border-top: 1px solid #d5d3c3;">
-        <button type="button" class="btn-1c btn-1c-primary" id="pdeBtnSave1CBottom" onclick="PriceDocEditor.saveTo1C()" style="height: 24px; min-width: 135px; font-weight: bold; background: linear-gradient(to bottom, #ffea88, #d8a020); border: 1px solid #7c6817; color: #000; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 5px;">
-          <span>💾</span>
-          <span>Записать в 1С</span>
-        </button>
-
         <button type="button" class="btn-1c" id="pdeBtnSaveCacheBottom" onclick="PriceDocEditor.saveToCache()" title="Сохранить изменения в локальный кэш (черновик)" style="height: 24px; min-width: 95px; border: 1px solid #7f9db9; background: #e0dfd5; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 5px; font-weight: bold;" onmouseover="this.style.background='#f0eee3'" onmouseout="this.style.background='#e0dfd5'">
           <span>💾</span>
           <span>Записать</span>
