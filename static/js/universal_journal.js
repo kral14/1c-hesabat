@@ -2026,8 +2026,7 @@ const UniversalJournal = {
     const searchInp = document.getElementById("ujSearchInput");
     const q = searchInp ? searchInp.value.trim().toLowerCase() : "";
 
-    const btnClear = document.getElementById("ujBtnClearFind");
-    if (btnClear) btnClear.style.opacity = q ? "1" : "0.6";
+    this.updateSearchIcon(q);
 
     // 1. Evaluate filter criteria
     let result = this.items.filter(item => {
@@ -2536,6 +2535,41 @@ const UniversalJournal = {
     this.applyFiltersAndSearch();
   },
 
+  updateSearchIcon: function(q) {
+    const btn = document.getElementById("ujSearchActionBtn");
+    if (!btn) return;
+    if (q) {
+      btn.title = "Очистить поиск (Esc / Ctrl+Q)";
+      btn.innerHTML = `
+        <svg width="14" height="14" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <circle cx="7" cy="7" r="5" stroke="#546e7a" stroke-width="1.5"/>
+          <line x1="11" y1="11" x2="14.5" y2="14.5" stroke="#546e7a" stroke-width="2" stroke-linecap="round"/>
+          <line x1="4.5" y1="4.5" x2="9.5" y2="9.5" stroke="#c62828" stroke-width="2" stroke-linecap="round"/>
+          <line x1="9.5" y1="4.5" x2="4.5" y2="9.5" stroke="#c62828" stroke-width="2" stroke-linecap="round"/>
+        </svg>
+      `;
+    } else {
+      btn.title = "Быстрый поиск по списку (Ctrl+F)";
+      btn.innerHTML = `
+        <svg width="13" height="13" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <circle cx="6.5" cy="6.5" r="4.5" stroke="#004080" stroke-width="1.8"/>
+          <line x1="10" y1="10" x2="14.5" y2="14.5" stroke="#004080" stroke-width="2" stroke-linecap="round"/>
+        </svg>
+      `;
+    }
+  },
+
+  onSearchActionClick: function() {
+    const inp = document.getElementById("ujSearchInput");
+    if (!inp) return;
+    if (inp.value.trim()) {
+      this.clearSearch();
+      inp.focus();
+    } else {
+      inp.focus();
+    }
+  },
+
   openFindModal: function() {
     const inp = document.getElementById("ujSearchInput");
     if (inp) {
@@ -2547,6 +2581,7 @@ const UniversalJournal = {
   clearSearch: function() {
     const inp = document.getElementById("ujSearchInput");
     if (inp) inp.value = "";
+    this.updateSearchIcon("");
     this.applyFiltersAndSearch();
   },
 
