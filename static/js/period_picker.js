@@ -435,6 +435,15 @@ const PeriodPicker = {
   },
 
   onInputKeyDown: function(e, which) {
+    if (e.key === "F4") {
+      e.preventDefault();
+      const btn = (which === "start")
+        ? document.querySelector("#ppStartDateInput ~ .pp-cal-btn")
+        : document.querySelector("#ppEndDateInput ~ .pp-cal-btn");
+      this.openMiniCal(which, btn);
+      return;
+    }
+
     if (e.key === "Enter") {
       e.preventDefault();
       const inp = (which === "start") 
@@ -519,8 +528,9 @@ const PeriodPicker = {
       ? document.getElementById("ppStartDateInput") 
       : document.getElementById("ppEndDateInput");
 
-    if (window.OneCCalendar && targetInput) {
-      OneCCalendar.open(targetInput, btnEl);
+    const cal = (typeof OneCCalendar !== "undefined") ? OneCCalendar : window.OneCCalendar;
+    if (cal && targetInput) {
+      cal.open(targetInput, btnEl);
     }
   },
 

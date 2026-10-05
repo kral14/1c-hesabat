@@ -181,6 +181,12 @@ const OneCCalendar = {
       target = inputOrId;
     }
     if (!target) return;
+
+    if (this.isOpen() && this.targetInput === target) {
+      this.close();
+      return;
+    }
+
     this.targetInput = target;
 
     // Parse current date or default to now
@@ -220,17 +226,19 @@ const OneCCalendar = {
     // Position popup right below trigger element or target input
     const anchor = triggerEl || target.nextElementSibling || target;
     const rect = anchor.getBoundingClientRect();
-    const scrollLeft = window.pageXOffset || document.documentElement.scrollLeft;
-    const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
 
-    let left = rect.left + scrollLeft;
-    let top = rect.bottom + scrollTop + 2;
+    let left = rect.left;
+    let top = rect.bottom + 2;
 
     // Viewport edge checking
     if (left + 230 > window.innerWidth) {
-      left = Math.max(10, window.innerWidth - 240 + scrollLeft);
+      left = Math.max(10, window.innerWidth - 240);
+    }
+    if (top + 240 > window.innerHeight) {
+      top = Math.max(10, rect.top - 235);
     }
 
+    this.popupEl.style.position = "fixed";
     this.popupEl.style.left = `${left}px`;
     this.popupEl.style.top = `${top}px`;
     this.popupEl.classList.add("show");
@@ -673,3 +681,11 @@ document.addEventListener("DOMContentLoaded", () => {
   OneCCalendar.init();
   OneCPeriodPicker.init();
 });
+
+// Explicit Global Window Exports
+window.OneCCalendar = OneCCalendar;
+window.OneCPeriodPicker = OneCPeriodPicker;
+window.pickDate = pickDate;
+window.openPeriodSelectDialog = openPeriodSelectDialog;
+window.smartParse1CDate = smartParse1CDate;
+
