@@ -190,14 +190,14 @@ const SalesDocEditor = {
                      onfocus="this.select(); SalesDocEditor.selectCell(${idx}, 'name', this.closest('td'));">
               <div style="display: flex; align-items: stretch; flex-shrink: 0; height: 100%;">
                 <button type="button" onclick="event.stopPropagation(); SalesDocEditor.openNomPicker(${idx})" 
-                        title="Открыть карточку номенклатуры / Выбрать (F4)"
+                        title="Справочник: Номенклатура (Выбрать товар из списка...)"
                         style="height: 100%; width: 19px; padding: 0; border: 1px solid #7f9db9; border-right: none; background: #e0dfd5; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: bold; color: #222;"
                         onmouseover="this.style.background='#f0eee3'"
                         onmouseout="this.style.background='#e0dfd5'">
                   ...
                 </button>
                 <button type="button" onclick="event.stopPropagation(); SalesDocEditor.openItemCard(${idx})" 
-                        title="Открыть карточку номенклатуры (Lupa)"
+                        title="Открыть карточку номенклатуры (Lupa - открыть внутри)"
                         style="height: 100%; width: 19px; padding: 0; border: 1px solid #7f9db9; background: #e0dfd5; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 11px; color: #004080;"
                         onmouseover="this.style.background='#f0eee3'"
                         onmouseout="this.style.background='#e0dfd5'">
@@ -452,6 +452,7 @@ const SalesDocEditor = {
     this.renderTable();
   },
 
+  // Lupa (🔍): Opens the INSIDE of that specific nomenclature item (Карточка номенклатуры / Элемент)
   openItemCard: function(idx) {
     const it = this.filteredItems[idx];
     if (!it) return;
@@ -462,26 +463,27 @@ const SalesDocEditor = {
     }
   },
 
+  // 3 Dots (...): Opens the Nomenclature Catalog list (Справочник: Номенклатура) to browse/select items
   openNomPicker: function(idx) {
     const it = this.filteredItems[idx];
-    if (!it) return;
-    // 3 dots button opens the authentic 1C Nomenclature Item Card
-    if (typeof NomenclatureCard !== "undefined" && NomenclatureCard.open) {
-      NomenclatureCard.open(it.code, it.name);
-    } else if (typeof CatalogSelector !== "undefined" && CatalogSelector.open) {
+    if (typeof CatalogSelector !== "undefined" && CatalogSelector.open) {
       CatalogSelector.open({
         catalog: "Номенклатура",
         onSelect: (selected) => {
-          if (selected) {
+          if (selected && it) {
             it.code = selected.code || it.code;
             it.name = selected.name || it.name;
             it.artikul = selected.artikul || it.artikul;
+            if (selected.unit) it.unit = selected.unit;
             this.renderTable();
+            this.recalculateTotals();
           }
         }
       });
+    } else if (typeof openCatalogDirect === "function") {
+      openCatalogDirect("Номенклатура");
     } else {
-      alert(`Товар: ${it.name}\nКод: ${it.code}\nАртикул: ${it.artikul}`);
+      alert(`Справочник: Номенклатура`);
     }
   },
 
