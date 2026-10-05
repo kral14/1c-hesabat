@@ -188,18 +188,39 @@ const UniversalJournal = {
   },
 
   init: function() {
-    // Default period: Current month
-    const now = new Date();
-    const curYear = now.getFullYear();
-    const curMonth = String(now.getMonth() + 1).padStart(2, "0");
-    const lastDay = new Date(curYear, now.getMonth() + 1, 0).getDate();
-    this.startDateStr = `01.${curMonth}.${curYear}`;
-    this.endDateStr = `${String(lastDay).padStart(2, "0")}.${curMonth}.${curYear}`;
+    // Check remembered period first (if "Запомнить выбранный период" was checked)
+    const remembered = (window.PeriodPicker && typeof PeriodPicker.getRememberedPeriod === "function") 
+      ? PeriodPicker.getRememberedPeriod() 
+      : null;
+
+    if (remembered && (remembered.startDate || remembered.endDate)) {
+      this.startDateStr = remembered.startDate || "";
+      this.endDateStr = remembered.endDate || "";
+    } else {
+      // Default period: Current month
+      const now = new Date();
+      const curYear = now.getFullYear();
+      const curMonth = String(now.getMonth() + 1).padStart(2, "0");
+      const lastDay = new Date(curYear, now.getMonth() + 1, 0).getDate();
+      this.startDateStr = `01.${curMonth}.${curYear}`;
+      this.endDateStr = `${String(lastDay).padStart(2, "0")}.${curMonth}.${curYear}`;
+    }
     this.updatePeriodLabel();
   },
 
   open: function(defaultDocType) {
-    if (!this.startDateStr) this.init();
+    const remembered = (window.PeriodPicker && typeof PeriodPicker.getRememberedPeriod === "function") 
+      ? PeriodPicker.getRememberedPeriod() 
+      : null;
+
+    if (remembered && (remembered.startDate || remembered.endDate)) {
+      this.startDateStr = remembered.startDate || "";
+      this.endDateStr = remembered.endDate || "";
+      this.updatePeriodLabel();
+    } else if (!this.startDateStr) {
+      this.init();
+    }
+
     if (defaultDocType) {
       this.activeDocType = defaultDocType;
       const sel = document.getElementById("ujDocTypeSelect");

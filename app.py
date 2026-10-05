@@ -10,6 +10,8 @@ import json
 from flask import Flask, render_template, request, jsonify, send_file
 import win32com.client
 import pythoncom
+import offline_service
+import virtual_1c
 
 sys.stdout.reconfigure(encoding='utf-8')
 
@@ -230,9 +232,20 @@ class OneCService(threading.Thread):
         self.start()
 
     def run(self):
-        pythoncom.CoInitialize()
-        connector = win32com.client.Dispatch("V83.COMConnector")
-        print("1C Dedicated STA Worker Thread Ready.")
+        connector = None
+        has_com = False
+        try:
+            pythoncom.CoInitialize()
+            connector = win32com.client.Dispatch("V83.COMConnector")
+            has_com = True
+            print("1C Dedicated STA Worker Thread Ready.", flush=True)
+        except Exception as e_com:
+            print(f"⚠️ [1C COM CONNECTOR TAPILMADI] {e_com}", flush=True)
+            if offline_service.is_offline_db_ready():
+                print("🟢 [VIRTUAL 1C AKTİV EDİLDİ] Sistem 'data/offline_1c_data.db' SQLite bazasına Virtual 1C:Enterprise kimi bağlandı!", flush=True)
+                connector = virtual_1c.Virtual1CConnector()
+            else:
+                print("❌ [OFFLINE BAZA YOXDUR] 'data/offline_1c_data.db' faylı tapılmadı.", flush=True)
 
         while True:
             action, payload, resp_q = self.req_q.get()
@@ -248,6 +261,86 @@ class OneCService(threading.Thread):
                     pass
                 resp_q.put((True, "Closed"))
                 break
+
+            # Offline route detection
+            active_base = database.get_active_base() or {}
+            base_ref = payload.get("ref") or active_base.get("ref") or ""
+            is_real_com = has_com and (connector is not None) and not isinstance(connector, virtual_1c.Virtual1CConnector)
+            use_offline = (not is_real_com) or payload.get("force_offline") or ("offline" in str(base_ref).lower())
+
+            if use_offline and offline_service.is_offline_db_ready():
+                try:
+                    if action == "ping":
+                        resp_q.put((True, "pong"))
+                    elif action == "get_users":
+                        resp_q.put((True, offline_service.get_users()))
+                    elif action == "get_portfolios":
+                        resp_q.put((True, offline_service.get_portfolios()))
+                    elif action == "get_agents":
+                        resp_q.put((True, offline_service.get_agents()))
+                    elif action == "search_kontragents":
+                        resp_q.put((True, offline_service.search_kontragents(payload.get("query", ""))))
+                    elif action in ["search_nomenklatura", "search_nomenclature"]:
+                        resp_q.put((True, offline_service.search_nomenklatura(payload.get("query", ""))))
+                    elif action == "get_all_price_types":
+                        resp_q.put((True, offline_service.get_all_price_types()))
+                    elif action == "get_documents_list":
+                        resp_q.put((True, offline_service.get_documents_list(payload)))
+                    elif action in ["get_price_document", "get_document_details"]:
+                        resp_q.put((True, offline_service.get_document_details(payload)))
+                    elif action == "save_price_document":
+                        resp_q.put((True, offline_service.save_price_document(payload)))
+                    elif action == "resolve_nomenclature_batch":
+                        resp_q.put((True, offline_service.resolve_nomenclature_batch(payload)))
+                    elif action == "get_batch_item_prices":
+                        resp_q.put((True, offline_service.get_batch_item_prices(payload)))
+                    elif action == "get_nomenclature_card":
+                        resp_q.put((True, offline_service.get_nomenclature_card(payload)))
+                    elif action == "catalog_data":
+                        resp_q.put((True, offline_service.catalog_data(payload)))
+                    elif action == "get_portfolio_catalog_filters":
+                        resp_q.put((True, offline_service.get_portfolio_catalog_filters()))
+                    elif action == "get_portfolio_catalog_items":
+                        resp_q.put((True, offline_service.get_portfolio_catalog_items(payload)))
+                    elif action == "get_reports":
+                        resp_q.put((True, {
+                            "user_reports": [
+                                {
+                                    "setting_name": "Satış Hesabatı (Universal)",
+                                    "object_name": "Отчет.Продажи",
+                                    "description": "Offline Satış Dövriyyəsi",
+                                    "is_direct": True
+                                },
+                                {
+                                    "setting_name": "Qiymət Təyini Jurnalı",
+                                    "object_name": "Документ.УстановкаЦенНоменклатуры",
+                                    "description": "Offline Qiymət Sənədləri"
+                                }
+                            ],
+                            "warehouse_reports": [
+                                {
+                                    "setting_name": "Anbar Qalıqları Hesabatı",
+                                    "object_name": "Отчет.ТоварыНаСкладах",
+                                    "description": "Offline Anbar Qalıqları"
+                                }
+                            ]
+                        }))
+                    elif action in ["generate", "direct_calculate"]:
+                        resp_q.put((True, {"headers": [], "rows": [], "total_count": 0, "excel_file": ""}))
+                    elif action == "universal_sales":
+                        resp_q.put((True, offline_service.universal_sales(payload)))
+                    elif action == "universal_report":
+                        resp_q.put((True, offline_service.universal_report(payload)))
+                    else:
+                        resp_q.put((False, RuntimeError(f"Offline rejimdə '{action}' dəstəklənmir")))
+                except Exception as e_off:
+                    print_server_error(f"OneCService.offline [{action}]", e_off, payload)
+                    resp_q.put((False, e_off))
+                continue
+
+            if connector is None:
+                resp_q.put((False, RuntimeError("Bu kompüterdə 1C COMConnector quraşdırılmayıb və offline baza tapılmadı.")))
+                continue
             try:
                 active_base = database.get_active_base() or {}
                 server = payload.get("server") or active_base.get("server") or "Test1C"
@@ -2190,7 +2283,7 @@ class OneCService(threading.Thread):
                             "name": name,
                             "folder": folder,
                             "group": group,
-                            "portfolio": root_port or sel_portfolio,
+                            "portfolio": root_port or (selected_portfolios[0] if selected_portfolios else ""),
                             "type": item_type,
                             "unit": unit,
                             "price": row_prices.get(selected_price_types[0], 0.0) if selected_price_types else 0.0,
@@ -3161,7 +3254,9 @@ class OneCService(threading.Thread):
                 time.sleep(0.5)
                 continue
             print_server_error(f"OneCService.execute [Action: {action}]", result, payload)
-            raise result
+            if isinstance(result, BaseException):
+                raise result
+            raise RuntimeError(str(result))
 
     def close_all(self):
         try:
@@ -3238,6 +3333,16 @@ def parse_ibases():
             "is_custom": False
         })
 
+    # 4. Offline Database (Local SQLite)
+    if offline_service.is_offline_db_ready():
+        bases.insert(0, {
+            "title": "🟢 Offline 1C Baza (Lokal SQLite)",
+            "server": "Localhost",
+            "ref": "Offline_1C",
+            "is_custom": False,
+            "is_offline": True
+        })
+
     return bases
 
 
@@ -3249,9 +3354,12 @@ def index():
 def get_bases():
     try:
         active_b = database.get_active_base()
+        all_bases = parse_ibases()
+        if not active_b and all_bases:
+            active_b = all_bases[0]
         return jsonify({
             "success": True, 
-            "bases": parse_ibases(),
+            "bases": all_bases,
             "active_base": active_b
         })
     except Exception as e:

@@ -3,11 +3,11 @@
      templates/components/period_picker_modal.html
      ======================================================== -->
 
-<div class="modal-overlay-1c" id="periodPickerModalOverlay" style="display: none; z-index: 9999;" onmousedown="MdiManager.activateWindow('periodPickerModalOverlay')">
-  <div class="modal-window-1c" id="periodPickerModal" style="width: 530px; background: #f0eee3; border: 1px solid #7f9db9; box-shadow: 0 4px 18px rgba(0,0,0,0.35); font-family: Tahoma, 'MS Sans Serif', Arial, sans-serif; font-size: 11px;">
+<div class="modal-overlay-1c" id="periodPickerModalOverlay" style="display: none; position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 9999;" onmousedown="PeriodPicker.bringToFront()">
+  <div class="modal-window-1c" id="periodPickerModal" style="position: absolute; width: 530px; pointer-events: auto; background: #f0eee3; border: 1px solid #7f9db9; box-shadow: 0 4px 18px rgba(0,0,0,0.35); font-family: Tahoma, 'MS Sans Serif', Arial, sans-serif; font-size: 11px;">
     
     <!-- Header -->
-    <div class="modal-header-1c" style="background: linear-gradient(to bottom, #fdfdfe, #d6d9e0); padding: 4px 8px; border-bottom: 1px solid #a0a0a0; display: flex; align-items: center; justify-content: space-between; cursor: move;" id="periodPickerHeader">
+    <div class="modal-header-1c" id="periodPickerHeader" style="background: linear-gradient(to bottom, #fdfdfe, #d6d9e0); padding: 4px 8px; border-bottom: 1px solid #a0a0a0; display: flex; align-items: center; justify-content: space-between; cursor: move; user-select: none;">
       <div style="font-weight: bold; color: #000; font-size: 11px; display: flex; align-items: center; gap: 5px;">
         <span>📅</span>
         <span>Выберите период</span>
@@ -25,7 +25,7 @@
         
         <!-- Start Date -->
         <div style="display: inline-flex; align-items: center; background: #fff; border: 1px solid #7f9db9; height: 21px; padding: 0 2px;">
-          <input type="text" id="ppStartDateInput" placeholder=".. .." style="width: 78px; height: 18px; border: none; outline: none; font-size: 11px; font-family: Tahoma, sans-serif; padding: 0 2px;" onchange="PeriodPicker.onManualInputChange()">
+          <input type="text" id="ppStartDateInput" placeholder=".. .." style="width: 78px; height: 18px; border: none; outline: none; font-size: 11px; font-family: Tahoma, sans-serif; padding: 0 2px;" onchange="PeriodPicker.onManualInputChange('start')" onkeydown="PeriodPicker.onInputKeyDown(event, 'start')" onblur="PeriodPicker.onInputBlur('start')">
           <button type="button" onclick="PeriodPicker.openMiniCal('start', this)" title="Календарь" style="background: none; border: none; cursor: pointer; padding: 0 2px; font-size: 10px; color: #555;">📅</button>
           <button type="button" onclick="PeriodPicker.clearInput('start')" title="Очистить" style="background: none; border: none; cursor: pointer; padding: 0 2px; font-size: 10px; color: #888; font-weight: bold;">✕</button>
         </div>
@@ -34,7 +34,7 @@
 
         <!-- End Date -->
         <div style="display: inline-flex; align-items: center; background: #fff; border: 1px solid #7f9db9; height: 21px; padding: 0 2px;">
-          <input type="text" id="ppEndDateInput" placeholder=".. .." style="width: 78px; height: 18px; border: none; outline: none; font-size: 11px; font-family: Tahoma, sans-serif; padding: 0 2px;" onchange="PeriodPicker.onManualInputChange()">
+          <input type="text" id="ppEndDateInput" placeholder=".. .." style="width: 78px; height: 18px; border: none; outline: none; font-size: 11px; font-family: Tahoma, sans-serif; padding: 0 2px;" onchange="PeriodPicker.onManualInputChange('end')" onkeydown="PeriodPicker.onInputKeyDown(event, 'end')" onblur="PeriodPicker.onInputBlur('end')">
           <button type="button" onclick="PeriodPicker.openMiniCal('end', this)" title="Календарь" style="background: none; border: none; cursor: pointer; padding: 0 2px; font-size: 10px; color: #555;">📅</button>
           <button type="button" onclick="PeriodPicker.clearInput('end')" title="Очистить" style="background: none; border: none; cursor: pointer; padding: 0 2px; font-size: 10px; color: #888; font-weight: bold;">✕</button>
         </div>

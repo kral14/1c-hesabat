@@ -9,11 +9,41 @@ const PeriodPicker = {
   startDateStr: "",
   endDateStr: "",
   monthNames: ["Янв", "Фев", "Мар", "Апр", "Май", "Июн", "Июл", "Авг", "Сен", "Окт", "Ноя", "Дек"],
+  rangeAnchor: null,
+  isSelectingRange: false,
 
   open: function(options = {}) {
     this.activeCallback = options.onSelect || null;
     this.startDateStr = options.startDate || "";
     this.endDateStr = options.endDate || "";
+    this.rangeAnchor = null;
+    this.isSelectingRange = false;
+
+    // Check remembered period if inputs are empty or if remember period is active
+    const chk = document.getElementById("ppRememberPeriod");
+    const isRememberActive = (localStorage.getItem("1c_remember_period_active") !== "false");
+    if (chk) {
+      chk.checked = isRememberActive;
+      if (!chk._boundChange) {
+        chk._boundChange = true;
+        chk.addEventListener("change", () => {
+          localStorage.setItem("1c_remember_period_active", chk.checked ? "true" : "false");
+          if (!chk.checked) {
+            localStorage.removeItem("1c_remembered_period");
+          } else {
+            PeriodPicker.saveRememberedPeriod();
+          }
+        });
+      }
+    }
+
+    if (!this.startDateStr && !this.endDateStr && isRememberActive) {
+      const rem = this.getRememberedPeriod();
+      if (rem) {
+        this.startDateStr = rem.startDate || "";
+        this.endDateStr = rem.endDate || "";
+      }
+    }
 
     // Set baseYear around current date or startDate
     const now = new Date();
@@ -31,15 +61,111 @@ const PeriodPicker = {
     if (inpStart) inpStart.value = this.startDateStr;
     if (inpEnd) inpEnd.value = this.endDateStr;
 
-    // Center nicely
+    // Ensure overlay covers correctly without unexpected offsets
+    modal.style.position = "absolute";
+    modal.style.top = "0px";
+    modal.style.left = "0px";
+    modal.style.width = "100%";
+    modal.style.height = "100%";
+    modal.style.pointerEvents = "none";
+    modal.style.display = "block";
+    this.bringToFront();
+
+    // Center nicely in the workspace / viewport
     const win = document.getElementById("periodPickerModal");
     if (win) {
-      win.style.position = "relative";
-      win.style.margin = "10vh auto";
+      win.style.position = "absolute";
+      win.style.pointerEvents = "auto";
+      win.style.margin = "0px";
+
+      const ws = document.getElementById("mdiWorkspace") || document.body;
+      const wsRect = ws.getBoundingClientRect();
+      const winW = win.offsetWidth || 530;
+      const winH = win.offsetHeight || 440;
+
+      const left = Math.max(10, Math.round((wsRect.width - winW) / 2));
+      const top = Math.max(10, Math.round((wsRect.height - winH) / 2));
+
+      win.style.left = `${left}px`;
+      win.style.top = `${top}px`;
     }
 
-    modal.style.display = "flex";
+    this.initDragging();
     this.renderGrid();
+  },
+
+  bringToFront: function() {
+    const modal = document.getElementById("periodPickerModalOverlay");
+    if (modal) {
+      if (window.MdiManager && typeof MdiManager.topZIndex === "number") {
+        MdiManager.topZIndex += 10;
+        modal.style.zIndex = MdiManager.topZIndex;
+      } else {
+        modal.style.zIndex = 10000;
+      }
+    }
+  },
+
+  initDragging: function() {
+    const header = document.getElementById("periodPickerHeader");
+    const win = document.getElementById("periodPickerModal");
+    if (!header || !win || header._dragBound) return;
+    header._dragBound = true;
+
+    let isDragging = false;
+    let startX = 0;
+    let startY = 0;
+    let initialLeft = 0;
+    let initialTop = 0;
+
+    header.addEventListener("mousedown", (e) => {
+      // Don't drag if clicking buttons, inputs, etc.
+      if (e.target.closest("button, a, input")) return;
+      e.preventDefault();
+
+      PeriodPicker.bringToFront();
+
+      isDragging = true;
+      startX = e.clientX;
+      startY = e.clientY;
+
+      const ws = document.getElementById("mdiWorkspace") || document.body;
+      const wsRect = ws.getBoundingClientRect();
+      const winRect = win.getBoundingClientRect();
+
+      initialLeft = winRect.left - wsRect.left;
+      initialTop = winRect.top - wsRect.top;
+
+      document.body.style.userSelect = "none";
+
+      const onMouseMove = (moveEvent) => {
+        if (!isDragging) return;
+        const dx = moveEvent.clientX - startX;
+        const dy = moveEvent.clientY - startY;
+
+        let newLeft = initialLeft + dx;
+        let newTop = initialTop + dy;
+
+        const maxLeft = Math.max(0, wsRect.width - win.offsetWidth);
+        const maxTop = Math.max(0, wsRect.height - 40);
+
+        newLeft = Math.max(0, Math.min(maxLeft, newLeft));
+        newTop = Math.max(0, Math.min(maxTop, newTop));
+
+        win.style.left = `${newLeft}px`;
+        win.style.top = `${newTop}px`;
+      };
+
+      const onMouseUp = () => {
+        isDragging = false;
+        document.body.style.userSelect = "";
+        document.removeEventListener("mousemove", onMouseMove);
+        document.removeEventListener("mouseup", onMouseUp);
+      };
+
+      document.addEventListener("mousemove", onMouseMove);
+      document.addEventListener("mouseup", onMouseUp);
+    });
   },
 
   close: function() {
@@ -141,6 +267,11 @@ const PeriodPicker = {
           this.onMonthClick(yr, m);
         };
 
+        btn.ondblclick = (e) => {
+          e.preventDefault();
+          this.onMonthDblClick(yr, m);
+        };
+
         col.appendChild(btn);
       }
 
@@ -148,29 +279,46 @@ const PeriodPicker = {
     });
   },
 
+  /**
+   * Click month: Range selection
+   * 1st click sets start month (e.g. August)
+   * 2nd click sets end month (e.g. October) -> selects August, September, October!
+   */
   onMonthClick: function(year, month) {
-    const lastDay = new Date(year, month + 1, 0).getDate();
-    const mm = String(month + 1).padStart(2, "0");
-    const sStr = `01.${mm}.${year}`;
-    const eStr = `${String(lastDay).padStart(2, "0")}.${mm}.${year}`;
+    if (!this.isSelectingRange) {
+      // 1st click: start new range
+      this.rangeAnchor = { year, month };
+      this.isSelectingRange = true;
 
-    // If user clicks a month:
-    // If start is empty, or both are filled, start fresh with this month
-    if (!this.startDateStr || (this.startDateStr && this.endDateStr)) {
-      this.startDateStr = sStr;
-      this.endDateStr = eStr;
+      const lastDay = new Date(year, month + 1, 0).getDate();
+      const mm = String(month + 1).padStart(2, "0");
+      this.startDateStr = `01.${mm}.${year}`;
+      this.endDateStr = `${String(lastDay).padStart(2, "0")}.${mm}.${year}`;
     } else {
-      // One is set, expand range
-      const [d1, m1, y1] = this.startDateStr.split(".").map(Number);
-      const clickedStart = new Date(year, month, 1);
-      const prevStart = new Date(y1, m1 - 1, 1);
+      // 2nd click: finish range between anchor and clicked month
+      this.isSelectingRange = false;
+      const y1 = this.rangeAnchor.year;
+      const m1 = this.rangeAnchor.month;
+      const y2 = year;
+      const m2 = month;
 
-      if (clickedStart >= prevStart) {
-        this.endDateStr = eStr;
+      let startY, startM, endY, endM;
+      if (y2 > y1 || (y2 === y1 && m2 >= m1)) {
+        startY = y1;
+        startM = m1;
+        endY = y2;
+        endM = m2;
       } else {
-        this.endDateStr = this.startDateStr;
-        this.startDateStr = sStr;
+        startY = y2;
+        startM = m2;
+        endY = y1;
+        endM = m1;
       }
+
+      const lastDay = new Date(endY, endM + 1, 0).getDate();
+      this.startDateStr = `01.${String(startM + 1).padStart(2, "0")}.${startY}`;
+      this.endDateStr = `${String(lastDay).padStart(2, "0")}.${String(endM + 1).padStart(2, "0")}.${endY}`;
+      this.rangeAnchor = null;
     }
 
     const inpStart = document.getElementById("ppStartDateInput");
@@ -181,11 +329,153 @@ const PeriodPicker = {
     this.renderGrid();
   },
 
-  onManualInputChange: function() {
+  /**
+   * Double-click month: selects only that month and immediately confirms
+   */
+  onMonthDblClick: function(year, month) {
+    this.isSelectingRange = false;
+    this.rangeAnchor = null;
+
+    const lastDay = new Date(year, month + 1, 0).getDate();
+    const mm = String(month + 1).padStart(2, "0");
+    this.startDateStr = `01.${mm}.${year}`;
+    this.endDateStr = `${String(lastDay).padStart(2, "0")}.${mm}.${year}`;
+
+    const inpStart = document.getElementById("ppStartDateInput");
+    const inpEnd = document.getElementById("ppEndDateInput");
+    if (inpStart) inpStart.value = this.startDateStr;
+    if (inpEnd) inpEnd.value = this.endDateStr;
+
+    this.renderGrid();
+    this.confirm();
+  },
+
+  /**
+   * Smart date completion:
+   * e.g. "01.03" + Enter -> "01.03.2026"
+   * "1.3" -> "01.03.2026"
+   * "0103" -> "01.03.2026"
+   * "01.03.26" -> "01.03.2026"
+   * "15" -> "15.<currentMonth>.<currentYear>"
+   */
+  autoCompleteDate: function(val) {
+    if (!val) return "";
+    val = val.trim().replace(/[\/\-,]/g, ".");
+    const now = new Date();
+    const curYear = this.baseYear || now.getFullYear();
+    const curMonth = String(now.getMonth() + 1).padStart(2, "0");
+
+    // Pattern 1: dd.mm.yyyy (already full)
+    if (/^\d{1,2}\.\d{1,2}\.\d{4}$/.test(val)) {
+      const parts = val.split(".");
+      const dd = String(parseInt(parts[0], 10)).padStart(2, "0");
+      const mm = String(parseInt(parts[1], 10)).padStart(2, "0");
+      const yyyy = parts[2];
+      return `${dd}.${mm}.${yyyy}`;
+    }
+
+    // Pattern 2: dd.mm.yy (e.g. 01.03.26)
+    if (/^\d{1,2}\.\d{1,2}\.\d{2}$/.test(val)) {
+      const parts = val.split(".");
+      const dd = String(parseInt(parts[0], 10)).padStart(2, "0");
+      const mm = String(parseInt(parts[1], 10)).padStart(2, "0");
+      const yyyy = "20" + parts[2];
+      return `${dd}.${mm}.${yyyy}`;
+    }
+
+    // Pattern 3: dd.mm or d.m (e.g. 01.03 -> 01.03.2026)
+    if (/^\d{1,2}\.\d{1,2}$/.test(val)) {
+      const parts = val.split(".");
+      const dd = String(parseInt(parts[0], 10)).padStart(2, "0");
+      const mm = String(parseInt(parts[1], 10)).padStart(2, "0");
+      return `${dd}.${mm}.${curYear}`;
+    }
+
+    // Pattern 4: 4 digits (e.g. 0103 -> 01.03.2026)
+    if (/^\d{4}$/.test(val)) {
+      const dd = val.substring(0, 2);
+      const mm = val.substring(2, 4);
+      return `${dd}.${mm}.${curYear}`;
+    }
+
+    // Pattern 5: 6 digits (e.g. 010326 -> 01.03.2026)
+    if (/^\d{6}$/.test(val)) {
+      const dd = val.substring(0, 2);
+      const mm = val.substring(2, 4);
+      const yyyy = "20" + val.substring(4, 6);
+      return `${dd}.${mm}.${yyyy}`;
+    }
+
+    // Pattern 6: 8 digits (e.g. 01032026 -> 01.03.2026)
+    if (/^\d{8}$/.test(val)) {
+      const dd = val.substring(0, 2);
+      const mm = val.substring(2, 4);
+      const yyyy = val.substring(4, 8);
+      return `${dd}.${mm}.${yyyy}`;
+    }
+
+    // Pattern 7: single day number (e.g. 15 -> 15.<curMonth>.<curYear>)
+    if (/^\d{1,2}$/.test(val)) {
+      const dd = String(parseInt(val, 10)).padStart(2, "0");
+      return `${dd}.${curMonth}.${curYear}`;
+    }
+
+    return val;
+  },
+
+  onInputKeyDown: function(e, which) {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      const inp = (which === "start") 
+        ? document.getElementById("ppStartDateInput") 
+        : document.getElementById("ppEndDateInput");
+
+      if (inp) {
+        inp.value = this.autoCompleteDate(inp.value);
+      }
+      this.onManualInputChange(which);
+
+      // If user pressed Enter in start input, focus the end input for smooth UX
+      if (which === "start") {
+        const inpEnd = document.getElementById("ppEndDateInput");
+        if (inpEnd) {
+          inpEnd.focus();
+          inpEnd.select();
+        }
+      } else {
+        if (inp) inp.blur();
+      }
+    }
+  },
+
+  onInputBlur: function(which) {
+    const inp = (which === "start") 
+      ? document.getElementById("ppStartDateInput") 
+      : document.getElementById("ppEndDateInput");
+
+    if (inp && inp.value.trim()) {
+      inp.value = this.autoCompleteDate(inp.value);
+    }
+    this.onManualInputChange(which);
+  },
+
+  onManualInputChange: function(which) {
     const inpStart = document.getElementById("ppStartDateInput");
     const inpEnd = document.getElementById("ppEndDateInput");
     this.startDateStr = inpStart ? inpStart.value.trim() : "";
     this.endDateStr = inpEnd ? inpEnd.value.trim() : "";
+
+    this.rangeAnchor = null;
+    this.isSelectingRange = false;
+
+    // If a year is entered, adjust baseYear if needed
+    if (this.startDateStr && /^\d{2}\.\d{2}\.\d{4}$/.test(this.startDateStr)) {
+      const y = parseInt(this.startDateStr.split(".")[2], 10);
+      if (Math.abs(y - this.baseYear) > 1) {
+        this.baseYear = y;
+      }
+    }
+
     this.renderGrid();
   },
 
@@ -285,7 +575,42 @@ const PeriodPicker = {
     this.renderGrid();
   },
 
+  saveRememberedPeriod: function() {
+    try {
+      const chk = document.getElementById("ppRememberPeriod");
+      const isChecked = chk ? chk.checked : (localStorage.getItem("1c_remember_period_active") !== "false");
+      if (isChecked) {
+        localStorage.setItem("1c_remember_period_active", "true");
+        localStorage.setItem("1c_remembered_period", JSON.stringify({
+          startDate: this.startDateStr,
+          endDate: this.endDateStr
+        }));
+      } else {
+        localStorage.setItem("1c_remember_period_active", "false");
+        localStorage.removeItem("1c_remembered_period");
+      }
+    } catch (e) {
+      console.warn("Could not save remembered period to localStorage:", e);
+    }
+  },
+
+  getRememberedPeriod: function() {
+    try {
+      const isActive = localStorage.getItem("1c_remember_period_active");
+      if (isActive === "false") return null;
+      const saved = localStorage.getItem("1c_remembered_period");
+      if (saved) {
+        const obj = JSON.parse(saved);
+        if (obj && (obj.startDate || obj.endDate)) {
+          return obj;
+        }
+      }
+    } catch (e) {}
+    return null;
+  },
+
   confirm: function() {
+    this.saveRememberedPeriod();
     this.close();
     if (typeof this.activeCallback === "function") {
       this.activeCallback(this.startDateStr, this.endDateStr);

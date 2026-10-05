@@ -495,8 +495,8 @@ const MdiManager = {
       this.activateWindow(id);
     }
 
-    // Initial positioning if not set
-    if (!wasMax && (!el.style.top || el.style.top === "auto")) {
+    // Initial positioning if not set (never offset modal overlays!)
+    if (!options.isModal && !el.classList.contains("modal-overlay-1c") && !wasMax && (!el.style.top || el.style.top === "auto")) {
       const offset = (Object.keys(this.windows).length - 1) * 28;
       el.style.top = `${20 + offset}px`;
       el.style.left = `${20 + offset}px`;
@@ -624,11 +624,13 @@ const MdiManager = {
       if (!winObj) {
         const el = document.getElementById(id);
         if (el) {
+          const isModal = el.classList.contains("modal-overlay-1c") || el.id.includes("Overlay");
           this.registerWindow(id, {
             title: options.title || "Окно",
             icon: options.icon || "📄",
             element: el,
             isDialog: true,
+            isModal: isModal,
             closeFn: options.closeFn
           });
           winObj = this.windows[id];
