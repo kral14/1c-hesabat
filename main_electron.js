@@ -17,8 +17,9 @@ function createWindow() {
     }
   });
 
-  // Always open maximized
   win.maximize();
+  win.show();
+  win.focus();
 
   // Prevent internal pages or presets from polluting the main window title bar
   win.on('page-title-updated', (e) => {
@@ -92,9 +93,8 @@ function createWindow() {
     process.exit(0);
   });
 
-  win.webContents.session.clearCache().finally(() => {
-    win.loadURL('http://127.0.0.1:5050');
-  });
+  // Load URL directly without blocking cache manipulations
+  win.loadURL('http://127.0.0.1:5050');
 
   win.webContents.on('did-fail-load', () => {
     setTimeout(() => {
