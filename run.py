@@ -13,11 +13,6 @@ from app import app
 
 def open_electron():
     time.sleep(1.5)
-    try:
-        # Terminate any lingering zombie electron processes so window always opens
-        subprocess.run('taskkill /F /IM electron.exe', shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-    except Exception:
-        pass
     print("Masaüstü Electron Pəncərəsi açılır...", flush=True)
     try:
         electron_cmd = os.path.join(app_dir, "node_modules", ".bin", "electron.cmd")
@@ -25,7 +20,10 @@ def open_electron():
             cmd = f'"{electron_cmd}" "{app_dir}"'
         else:
             cmd = f'npx -y electron "{app_dir}"'
-        subprocess.Popen(cmd, cwd=app_dir, shell=True)
+        proc = subprocess.Popen(cmd, cwd=app_dir, shell=True)
+        proc.wait()
+        print("\n[Electron bağlandı] Tətbiq dayandırılır...", flush=True)
+        os._exit(0)
     except Exception as e:
         print(f"Electron xətası: {e}", flush=True)
 
