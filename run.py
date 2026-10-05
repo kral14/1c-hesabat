@@ -27,6 +27,8 @@ def open_electron():
             cmd = f'npx -y electron "{app_dir}"'
         subprocess.Popen(cmd, cwd=app_dir, shell=True)
     except Exception as e:
+        print(f"Electron xətası: {e}", flush=True)
+
 def free_port_5050():
     try:
         res = subprocess.run('netstat -ano | findstr :5050', shell=True, capture_output=True, text=True)
