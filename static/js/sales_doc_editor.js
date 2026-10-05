@@ -1,0 +1,676 @@
+/**
+ * 1C:ENTERPRISE - SALES DOCUMENT EDITOR CONTROLLER (Реализация товаров и услуг)
+ * static/js/sales_doc_editor.js
+ */
+
+const SalesDocEditor = {
+  currentDocNumber: null,
+  currentDocDate: null,
+  header: {},
+  items: [],
+  filteredItems: [],
+  selectedRowIdx: null,
+  activeTab: "tovary",
+
+  open: function(docNumber, docDate) {
+    if (!docNumber) return;
+    this.currentDocNumber = docNumber;
+    this.currentDocDate = docDate || "";
+
+    const win = document.getElementById("salesDocEditorWindow");
+    if (!win) return;
+
+    // Activate in MDI Manager
+    if (window.MdiManager) {
+      MdiManager.activateWindow("salesDocEditorWindow", {
+        title: `Реализация: № ${docNumber} от ${docDate}`,
+        icon: "📋"
+      });
+    } else {
+      win.style.display = "flex";
+      win.classList.remove("minimized");
+      win.classList.add("active");
+    }
+
+    this.showLoading(true);
+    this.fetchDocumentData(docNumber);
+  },
+
+  close: function() {
+    if (window.MdiManager) {
+      MdiManager.closeWindow("salesDocEditorWindow");
+    } else {
+      const win = document.getElementById("salesDocEditorWindow");
+      if (win) win.style.display = "none";
+    }
+  },
+
+  showLoading: function(show) {
+    const el = document.getElementById("sdeLoadingState");
+    if (el) el.style.display = show ? "flex" : "none";
+  },
+
+  fetchDocumentData: function(docNumber) {
+    const creds = window.SessionManager ? SessionManager.getCredentials() : {};
+    fetch("/api/documents/details", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        ...creds,
+        doc_type: "РеализацияТоваровУслуг",
+        number: docNumber
+      })
+    })
+    .then(r => r.json())
+    .then(res => {
+      this.showLoading(false);
+      if (!res.success) {
+        alert("1C Xətası: " + (res.error || "Sənədi yükləmək mümkün olmadı"));
+        return;
+      }
+
+      this.header = res.header || {};
+      const rawLines = res.lines || [];
+
+      this.items = rawLines.map((it, idx) => {
+        const qty = Number(it.quantity != null ? it.quantity : 1);
+        const pr = Number(it.price || 0);
+        const sm = Number(it.sum != null ? it.sum : (qty * pr));
+        const vatSm = Number(it.vat_sum != null ? it.vat_sum : (sm * 0.18));
+        const tot = Number(it.total != null ? it.total : (sm + vatSm));
+
+        return {
+          line_num: idx + 1,
+          code: String(it.code || "").trim(),
+          artikul: String(it.artikul || "").trim(),
+          name: String(it.name || "").trim(),
+          quantity: qty,
+          unit: String(it.unit || "əd").trim(),
+          coefficient: Number(it.coefficient || 1.0),
+          price: pr,
+          sum: sm,
+          vat_rate: String(it.vat_rate || (vatSm > 0 ? "18%" : "Без НДС")).trim(),
+          vat_sum: vatSm,
+          total: tot,
+          price_type: String(it.price_type || "").trim()
+        };
+      });
+
+      this.filteredItems = [...this.items];
+      this.selectedRowIdx = this.filteredItems.length > 0 ? 0 : null;
+
+      this.renderHeader();
+      this.renderTable();
+      this.recalculateTotals();
+    })
+    .catch(err => {
+      this.showLoading(false);
+      console.error("Sales doc load error:", err);
+      alert("Xəta: " + err.message);
+    });
+  },
+
+  renderHeader: function() {
+    const h = this.header;
+    const docNum = h.number || this.currentDocNumber || "";
+    const docDt = h.date || this.currentDocDate || "";
+
+    const titleEl = document.getElementById("sdeWindowTitle");
+    if (titleEl) {
+      titleEl.textContent = `Реализация товаров и услуг: № ${docNum} от ${docDt}`;
+    }
+
+    const badgeEl = document.getElementById("sdeStatusBadge");
+    if (badgeEl) {
+      if (h.posted) {
+        badgeEl.textContent = "✔ ПРОВЕДЕН";
+        badgeEl.style.background = "#2e7d32";
+      } else {
+        badgeEl.textContent = "📄 НЕ ПРОВЕДЕН";
+        badgeEl.style.background = "#ed6c02";
+      }
+    }
+
+    const setVal = (id, val) => {
+      const el = document.getElementById(id);
+      if (el) el.value = val || "";
+    };
+
+    setVal("sdeDocNumber", docNum);
+    setVal("sdeDocDate", docDt);
+    setVal("sdeDocOrg", h.organization || "Aztrade MMC");
+    setVal("sdeDocKontragent", h.kontragent || "TEST 12B");
+    setVal("sdeDocContract", h.contract || "Договор поставки");
+    setVal("sdeDocWarehouse", h.warehouse || "Основной склад");
+    setVal("sdeDocPriceType", h.price_type || "Оптовая");
+    setVal("sdeDocCurrency", h.currency || "AZN");
+    setVal("sdeDocComment", h.comment || "");
+
+    const respEl = document.getElementById("sdeDocResponsible");
+    if (respEl) respEl.textContent = h.responsible || "Emin";
+  },
+
+  renderTable: function() {
+    const tbody = document.getElementById("sdeTableBody");
+    if (!tbody) return;
+
+    if (!this.filteredItems.length) {
+      tbody.innerHTML = `<tr><td colspan="12" style="padding: 30px; text-align: center; color: #888; font-style: italic;">Накладная не содержит строк товаров</td></tr>`;
+      this.updateRowCount();
+      return;
+    }
+
+    let html = "";
+    this.filteredItems.forEach((it, idx) => {
+      const isSel = (this.selectedRowIdx === idx);
+      const bg = isSel ? "#e4edf7" : (idx % 2 === 1 ? "#f9f8f2" : "#ffffff");
+
+      html += `
+        <tr style="background: ${bg}; height: 22px; cursor: pointer;" onclick="SalesDocEditor.selectRow(${idx})" class="${isSel ? 'sde-row-selected' : ''}">
+          <!-- № -->
+          <td style="text-align: center; border: 1px solid #d4d0c8; padding: 2px; color: #555;">${it.line_num || (idx + 1)}</td>
+
+          <!-- Код -->
+          <td style="border: 1px solid #d4d0c8; padding: 1px 4px; font-weight: bold; color: #004080; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+            ${this.escapeHtml(it.code)}
+          </td>
+
+          <!-- Артикул -->
+          <td style="border: 1px solid #d4d0c8; padding: 1px 4px; color: #333; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+            ${this.escapeHtml(it.artikul || "-")}
+          </td>
+
+          <!-- Номенклатура (с кнопками ... и 🔍) -->
+          <td style="border: 1px solid #d4d0c8; padding: 1px 2px; position: relative;">
+            <div style="display: flex; align-items: stretch; width: 100%; height: 19px;">
+              <input type="text" value="${this.escapeHtml(it.name)}" 
+                     title="${this.escapeHtml(it.name)}"
+                     onchange="SalesDocEditor.onNameChange(${idx}, this.value)"
+                     style="flex: 1; min-width: 0; height: 100%; border: 1px solid transparent; background: transparent; font-family: Tahoma, sans-serif; font-size: 11px; padding: 0 4px; outline: none; text-overflow: ellipsis; overflow: hidden; box-sizing: border-box;"
+                     onmouseover="this.style.border='1px solid #7f9db9'"
+                     onmouseout="if(document.activeElement!==this) this.style.border='1px solid transparent'"
+                     onfocusin="this.style.border='1px solid #0055ea'; this.style.background='#fff'; SalesDocEditor.selectRow(${idx});"
+                     onfocusout="this.style.border='1px solid transparent'; this.style.background='transparent';">
+              <div style="display: flex; align-items: stretch; flex-shrink: 0; height: 100%;">
+                <button type="button" onclick="event.stopPropagation(); SalesDocEditor.openNomPicker(${idx})" 
+                        title="Выбрать из справочника (F4)"
+                        style="height: 100%; width: 19px; padding: 0; border: 1px solid #7f9db9; border-right: none; background: #e0dfd5; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: bold; color: #222;"
+                        onmouseover="this.style.background='#f0eee3'"
+                        onmouseout="this.style.background='#e0dfd5'">
+                  ...
+                </button>
+                <button type="button" onclick="event.stopPropagation(); SalesDocEditor.openItemCard(${idx})" 
+                        title="Открыть карточку номенклатуры (Lupa)"
+                        style="height: 100%; width: 19px; padding: 0; border: 1px solid #7f9db9; background: #e0dfd5; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 11px; color: #004080;"
+                        onmouseover="this.style.background='#f0eee3'"
+                        onmouseout="this.style.background='#e0dfd5'">
+                  🔍
+                </button>
+              </div>
+            </div>
+          </td>
+
+          <!-- Количество -->
+          <td style="border: 1px solid #d4d0c8; padding: 1px 3px; text-align: right;">
+            <input type="text" value="${Number(it.quantity).toFixed(2)}"
+                   onchange="SalesDocEditor.onQtyChange(${idx}, this.value)"
+                   onfocus="this.select()"
+                   style="width: 100%; height: 19px; text-align: right; border: 1px solid transparent; background: transparent; font-family: Tahoma, sans-serif; font-size: 11px; font-weight: bold; outline: none; padding: 0 2px; box-sizing: border-box;"
+                   onmouseover="this.style.border='1px solid #7f9db9'"
+                   onmouseout="if(document.activeElement!==this) this.style.border='1px solid transparent'"
+                   onfocusin="this.style.border='1px solid #0055ea'; this.style.background='#fff';"
+                   onfocusout="this.style.border='1px solid transparent'; this.style.background='transparent';">
+          </td>
+
+          <!-- Единица -->
+          <td style="text-align: center; border: 1px solid #d4d0c8; padding: 2px; color: #444;">${this.escapeHtml(it.unit || "əd")}</td>
+
+          <!-- Коэффициент -->
+          <td style="text-align: center; border: 1px solid #d4d0c8; padding: 2px; color: #666;">${Number(it.coefficient || 1).toFixed(0)}</td>
+
+          <!-- Цена -->
+          <td style="border: 1px solid #d4d0c8; padding: 1px 3px; text-align: right;">
+            <input type="text" value="${Number(it.price).toFixed(2)}"
+                   onchange="SalesDocEditor.onPriceChange(${idx}, this.value)"
+                   onfocus="this.select()"
+                   style="width: 100%; height: 19px; text-align: right; border: 1px solid transparent; background: transparent; font-family: Tahoma, sans-serif; font-size: 11px; font-weight: bold; outline: none; padding: 0 2px; box-sizing: border-box;"
+                   onmouseover="this.style.border='1px solid #7f9db9'"
+                   onmouseout="if(document.activeElement!==this) this.style.border='1px solid transparent'"
+                   onfocusin="this.style.border='1px solid #0055ea'; this.style.background='#fff';"
+                   onfocusout="this.style.border='1px solid transparent'; this.style.background='transparent';">
+          </td>
+
+          <!-- Сумма -->
+          <td style="text-align: right; border: 1px solid #d4d0c8; padding: 2px 6px; font-weight: bold; color: #111;">
+            ${Number(it.sum).toFixed(2)}
+          </td>
+
+          <!-- % НДС -->
+          <td style="text-align: center; border: 1px solid #d4d0c8; padding: 2px; color: #555;">${this.escapeHtml(it.vat_rate || "18%")}</td>
+
+          <!-- Сумма НДС -->
+          <td style="text-align: right; border: 1px solid #d4d0c8; padding: 2px 5px; color: #444;">
+            ${Number(it.vat_sum).toFixed(2)}
+          </td>
+
+          <!-- Всего -->
+          <td style="text-align: right; border: 1px solid #d4d0c8; padding: 2px 6px; font-weight: bold; color: #002060;">
+            ${Number(it.total).toFixed(2)}
+          </td>
+        </tr>
+      `;
+    });
+
+    tbody.innerHTML = html;
+    this.updateRowCount();
+  },
+
+  selectRow: function(idx) {
+    this.selectedRowIdx = idx;
+    const rows = document.querySelectorAll("#sdeTableBody tr");
+    rows.forEach((r, i) => {
+      const isSel = (i === idx);
+      r.style.background = isSel ? "#e4edf7" : (i % 2 === 1 ? "#f9f8f2" : "#ffffff");
+      if (isSel) r.classList.add("sde-row-selected");
+      else r.classList.remove("sde-row-selected");
+    });
+  },
+
+  onQtyChange: function(idx, rawVal) {
+    const it = this.filteredItems[idx];
+    if (!it) return;
+    const val = parseFloat(String(rawVal).replace(",", ".")) || 0;
+    it.quantity = val;
+    it.sum = Number((it.quantity * it.price).toFixed(2));
+    it.vat_sum = (it.vat_rate === "Без НДС") ? 0.0 : Number((it.sum * 0.18).toFixed(2));
+    it.total = Number((it.sum + it.vat_sum).toFixed(2));
+
+    this.renderTable();
+    this.recalculateTotals();
+  },
+
+  onPriceChange: function(idx, rawVal) {
+    const it = this.filteredItems[idx];
+    if (!it) return;
+    const val = parseFloat(String(rawVal).replace(",", ".")) || 0;
+    it.price = val;
+    it.sum = Number((it.quantity * it.price).toFixed(2));
+    it.vat_sum = (it.vat_rate === "Без НДС") ? 0.0 : Number((it.sum * 0.18).toFixed(2));
+    it.total = Number((it.sum + it.vat_sum).toFixed(2));
+
+    this.renderTable();
+    this.recalculateTotals();
+  },
+
+  onNameChange: function(idx, val) {
+    const it = this.filteredItems[idx];
+    if (it) it.name = String(val || "").trim();
+  },
+
+  recalculateTotals: function() {
+    let totNet = 0.0;
+    let totVat = 0.0;
+    let totGross = 0.0;
+
+    this.items.forEach(it => {
+      totNet += Number(it.sum || 0);
+      totVat += Number(it.vat_sum || 0);
+      totGross += Number(it.total || (it.sum + it.vat_sum));
+    });
+
+    const netEl = document.getElementById("sdeTotalSumNet");
+    if (netEl) netEl.textContent = `${totNet.toFixed(2)} AZN`;
+
+    const vatEl = document.getElementById("sdeTotalSumVat");
+    if (vatEl) vatEl.textContent = `${totVat.toFixed(2)} AZN`;
+
+    const grossEl = document.getElementById("sdeTotalSumGross");
+    if (grossEl) grossEl.textContent = `${totGross.toFixed(2)} AZN`;
+  },
+
+  updateRowCount: function() {
+    const badge = document.getElementById("sdeRowCountBadge");
+    if (badge) {
+      badge.textContent = `Строк: ${this.filteredItems.length} (Всего: ${this.items.length})`;
+    }
+  },
+
+  addRow: function() {
+    const searchInp = document.getElementById("sdeTableSearchInp");
+    if (searchInp && searchInp.value.trim()) {
+      searchInp.value = "";
+    }
+
+    const newItm = {
+      line_num: this.items.length + 1,
+      code: "",
+      artikul: "",
+      name: "",
+      quantity: 1.0,
+      unit: "əd",
+      coefficient: 1.0,
+      price: 0.0,
+      sum: 0.0,
+      vat_rate: "18%",
+      vat_sum: 0.0,
+      total: 0.0,
+      price_type: ""
+    };
+
+    this.items.push(newItm);
+    this.filteredItems = [...this.items];
+    this.selectedRowIdx = this.filteredItems.length - 1;
+
+    this.renderTable();
+    this.recalculateTotals();
+
+    // Scroll to bottom
+    setTimeout(() => {
+      const wrapper = document.getElementById("sdeTableWrapper");
+      if (wrapper) wrapper.scrollTop = wrapper.scrollHeight;
+    }, 50);
+  },
+
+  deleteSelectedRow: function() {
+    if (this.selectedRowIdx === null || this.selectedRowIdx < 0 || this.selectedRowIdx >= this.filteredItems.length) {
+      return;
+    }
+    const itm = this.filteredItems[this.selectedRowIdx];
+    this.items = this.items.filter(x => x !== itm);
+    this.items.forEach((x, i) => x.line_num = i + 1);
+
+    this.filterTableRows();
+    if (this.selectedRowIdx >= this.filteredItems.length) {
+      this.selectedRowIdx = this.filteredItems.length - 1;
+    }
+    this.renderTable();
+    this.recalculateTotals();
+  },
+
+  filterTableRows: function() {
+    const inp = document.getElementById("sdeTableSearchInp");
+    const q = inp ? inp.value.trim().toLowerCase() : "";
+
+    if (!q) {
+      this.filteredItems = [...this.items];
+    } else {
+      this.filteredItems = this.items.filter(it => {
+        return (it.name && it.name.toLowerCase().includes(q)) ||
+               (it.code && it.code.toLowerCase().includes(q)) ||
+               (it.artikul && it.artikul.toLowerCase().includes(q));
+      });
+    }
+    this.renderTable();
+  },
+
+  openItemCard: function(idx) {
+    const it = this.filteredItems[idx];
+    if (!it) return;
+    if (typeof NomenclatureCard !== "undefined" && NomenclatureCard.open) {
+      NomenclatureCard.open(it.code, it.name);
+    } else {
+      alert(`Карточка номенклатуры:\nКод: ${it.code}\nТовар: ${it.name}`);
+    }
+  },
+
+  openNomPicker: function(idx) {
+    if (typeof PriceDocEditor !== "undefined" && PriceDocEditor.openNomPickerForRow) {
+      PriceDocEditor.pickerTargetRowIdx = idx;
+      PriceDocEditor.openNomPickerForRow(idx);
+    } else {
+      this.openItemPicker();
+    }
+  },
+
+  openItemPicker: function() {
+    if (window.openPortfolioReportWindow) {
+      openPortfolioReportWindow();
+    }
+  },
+
+  switchTab: function(tabName) {
+    this.activeTab = tabName;
+    const btnTovary = document.getElementById("sdeTabBtnTovary");
+    const btnUslugi = document.getElementById("sdeTabBtnUslugi");
+    const btnDop = document.getElementById("sdeTabBtnDop");
+
+    const setActive = (btn, active) => {
+      if (!btn) return;
+      if (active) {
+        btn.style.background = "#f0eee3";
+        btn.style.color = "#002060";
+        btn.style.fontWeight = "bold";
+      } else {
+        btn.style.background = "#dedbc7";
+        btn.style.color = "#555";
+        btn.style.fontWeight = "normal";
+      }
+    };
+
+    setActive(btnTovary, tabName === "tovary");
+    setActive(btnUslugi, tabName === "uslugi");
+    setActive(btnDop, tabName === "dop");
+  },
+
+  // ==========================================
+  // Printing & Document Actions
+  // ==========================================
+  openPrintMenu: function(event) {
+    event.stopPropagation();
+    const dropdown = document.getElementById("sdePrintDropdown");
+    if (!dropdown) return;
+    const isShown = (dropdown.style.display === "block");
+    dropdown.style.display = isShown ? "none" : "block";
+
+    const closeHandler = () => {
+      dropdown.style.display = "none";
+      document.removeEventListener("click", closeHandler);
+    };
+    if (!isShown) {
+      setTimeout(() => document.addEventListener("click", closeHandler), 10);
+    }
+  },
+
+  printInvoice: function(printType) {
+    const dropdown = document.getElementById("sdePrintDropdown");
+    if (dropdown) dropdown.style.display = "none";
+
+    const modal = document.getElementById("sdePrintModal");
+    const container = document.getElementById("sdePrintContentArea");
+    if (!modal || !container) return;
+
+    const h = this.header;
+    const docNum = h.number || this.currentDocNumber || "";
+    const docDt = h.date || this.currentDocDate || "";
+    const org = h.organization || "Aztrade MMC";
+    const kontr = h.kontragent || "TEST 12B";
+    const dog = h.contract || "Договор поставки";
+    const sklad = h.warehouse || "Основной склад";
+
+    let rowsHtml = "";
+    let totalQty = 0;
+    let totalSum = 0;
+    let totalVat = 0;
+    let totalGross = 0;
+
+    this.items.forEach((it, idx) => {
+      totalQty += it.quantity;
+      totalSum += it.sum;
+      totalVat += it.vat_sum;
+      totalGross += it.total;
+
+      rowsHtml += `
+        <tr style="height: 22px;">
+          <td style="text-align: center; border: 1px solid #333; padding: 2px 4px;">${idx + 1}</td>
+          <td style="border: 1px solid #333; padding: 2px 6px; font-weight: bold;">${this.escapeHtml(it.code)}</td>
+          <td style="border: 1px solid #333; padding: 2px 6px;">${this.escapeHtml(it.artikul || "-")}</td>
+          <td style="border: 1px solid #333; padding: 2px 6px;">${this.escapeHtml(it.name)}</td>
+          <td style="text-align: right; border: 1px solid #333; padding: 2px 6px; font-weight: bold;">${it.quantity.toFixed(2)}</td>
+          <td style="text-align: center; border: 1px solid #333; padding: 2px 4px;">${this.escapeHtml(it.unit || "əd")}</td>
+          <td style="text-align: right; border: 1px solid #333; padding: 2px 6px;">${it.price.toFixed(2)}</td>
+          <td style="text-align: right; border: 1px solid #333; padding: 2px 6px; font-weight: bold;">${it.sum.toFixed(2)}</td>
+          <td style="text-align: right; border: 1px solid #333; padding: 2px 6px;">${it.vat_sum.toFixed(2)}</td>
+          <td style="text-align: right; border: 1px solid #333; padding: 2px 6px; font-weight: bold;">${it.total.toFixed(2)}</td>
+        </tr>
+      `;
+    });
+
+    const typeTitle = (printType === "torg12") 
+      ? "ТОРГ-12 (Товарная накладная)" 
+      : (printType === "factura" ? "Счет-фактура" : "Расходная накладная");
+
+    document.getElementById("sdePrintTitle").textContent = `1C:Печать - ${typeTitle} № ${docNum}`;
+
+    container.innerHTML = `
+      <div style="font-family: Arial, sans-serif; font-size: 11px; line-height: 1.4; color: #000;">
+        <div style="text-align: right; font-size: 9px; color: #555; margin-bottom: 8px;">
+          Унифицированная форма № ТОРГ-12 / 1С:Предприятие 8.3
+        </div>
+
+        <h2 style="margin: 0 0 12px 0; font-size: 16px; border-bottom: 2px solid #000; padding-bottom: 4px;">
+          ${typeTitle} № ${docNum} от ${docDt}
+        </h2>
+
+        <div style="display: grid; grid-template-columns: 120px 1fr; gap: 4px; margin-bottom: 12px; font-size: 11px;">
+          <div style="font-weight: bold;">Поставщик:</div>
+          <div>${this.escapeHtml(org)}, ВАК/ИНН: 9900012345, Адрес: г. Баку, Азербайджан</div>
+
+          <div style="font-weight: bold;">Покупатель:</div>
+          <div><strong>${this.escapeHtml(kontr)}</strong></div>
+
+          <div style="font-weight: bold;">Основание:</div>
+          <div>${this.escapeHtml(dog)}</div>
+
+          <div style="font-weight: bold;">Склад:</div>
+          <div>${this.escapeHtml(sklad)}</div>
+        </div>
+
+        <table style="width: 100%; border-collapse: collapse; margin-bottom: 15px; font-size: 10.5px;">
+          <thead>
+            <tr style="background: #f0f0f0; text-align: center; font-weight: bold;">
+              <th style="border: 1px solid #333; padding: 4px; width: 30px;">№</th>
+              <th style="border: 1px solid #333; padding: 4px; width: 85px;">Код</th>
+              <th style="border: 1px solid #333; padding: 4px; width: 75px;">Артикул</th>
+              <th style="border: 1px solid #333; padding: 4px; text-align: left;">Товар (Номенклатура)</th>
+              <th style="border: 1px solid #333; padding: 4px; width: 70px;">Кол-во</th>
+              <th style="border: 1px solid #333; padding: 4px; width: 40px;">Ед.</th>
+              <th style="border: 1px solid #333; padding: 4px; width: 75px;">Цена</th>
+              <th style="border: 1px solid #333; padding: 4px; width: 85px;">Сумма</th>
+              <th style="border: 1px solid #333; padding: 4px; width: 75px;">НДС</th>
+              <th style="border: 1px solid #333; padding: 4px; width: 95px;">Всего с НДС</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${rowsHtml}
+          </tbody>
+          <tfoot>
+            <tr style="font-weight: bold; background: #fafafa;">
+              <td colspan="4" style="border: 1px solid #333; padding: 4px 6px; text-align: right;">ИТОГО:</td>
+              <td style="border: 1px solid #333; padding: 4px 6px; text-align: right;">${totalQty.toFixed(2)}</td>
+              <td style="border: 1px solid #333; padding: 4px;"></td>
+              <td style="border: 1px solid #333; padding: 4px;"></td>
+              <td style="border: 1px solid #333; padding: 4px 6px; text-align: right;">${totalSum.toFixed(2)}</td>
+              <td style="border: 1px solid #333; padding: 4px 6px; text-align: right;">${totalVat.toFixed(2)}</td>
+              <td style="border: 1px solid #333; padding: 4px 6px; text-align: right; font-size: 11.5px; color: #002060;">${totalGross.toFixed(2)} AZN</td>
+            </tr>
+          </tfoot>
+        </table>
+
+        <div style="margin-bottom: 20px; font-size: 11px;">
+          <div>Всего наименований <strong>${this.items.length}</strong>, на сумму <strong>${totalGross.toFixed(2)} AZN</strong></div>
+        </div>
+
+        <div style="display: flex; justify-content: space-between; margin-top: 35px; padding-top: 15px; border-top: 1px solid #ccc;">
+          <div style="text-align: left; width: 45%;">
+            <div>Отпустил (Поставщик): _______________________ / ${this.escapeHtml(h.responsible || "Emin")} /</div>
+            <div style="font-size: 9px; color: #666; margin-top: 2px;">подпись / расшифровка подписи</div>
+            <div style="margin-top: 15px; font-size: 10px; color: #777;">М.П.</div>
+          </div>
+          <div style="text-align: left; width: 45%;">
+            <div>Получил (Покупатель): _______________________ / ________________ /</div>
+            <div style="font-size: 9px; color: #666; margin-top: 2px;">подпись / расшифровка подписи</div>
+            <div style="margin-top: 15px; font-size: 10px; color: #777;">М.П.</div>
+          </div>
+        </div>
+      </div>
+    `;
+
+    modal.style.display = "flex";
+  },
+
+  closePrintModal: function() {
+    const modal = document.getElementById("sdePrintModal");
+    if (modal) modal.style.display = "none";
+  },
+
+  triggerBrowserPrint: function() {
+    window.print();
+  },
+
+  exportToExcel: function() {
+    if (!this.items.length) {
+      alert("Eksport üçün cədvəldə sətir yoxdur.");
+      return;
+    }
+
+    let csvContent = "\uFEFF";
+    csvContent += `Реализация товаров и услуг № ${this.currentDocNumber} от ${this.currentDocDate}\n`;
+    csvContent += `Контрагент: ${this.header.kontragent || ''}; Склад: ${this.header.warehouse || ''}; Организация: ${this.header.organization || ''}\n\n`;
+    csvContent += "№;Код;Артикул;Номенклатура;Количество;Единица;Цена;Сумма;Ставка НДС;Сумма НДС;Всего\n";
+
+    this.items.forEach(it => {
+      const line = [
+        it.line_num,
+        `"${it.code}"`,
+        `"${it.artikul}"`,
+        `"${it.name.replace(/"/g, '""')}"`,
+        it.quantity,
+        `"${it.unit}"`,
+        it.price,
+        it.sum,
+        `"${it.vat_rate}"`,
+        it.vat_sum,
+        it.total
+      ].join(";");
+      csvContent += line + "\n";
+    });
+
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.setAttribute("href", url);
+    link.setAttribute("download", `Реализация_${this.currentDocNumber}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  },
+
+  saveDocument: function() {
+    alert(`💾 Sənəd №${this.currentDocNumber} saxlanıldı!`);
+  },
+
+  saveAndPost: function() {
+    this.header.posted = true;
+    this.renderHeader();
+    alert(`✔ Sənəd №${this.currentDocNumber} uğurla keçirildi (Проведен)!`);
+    this.close();
+  },
+
+  postDocument: function() {
+    this.header.posted = true;
+    this.renderHeader();
+    alert(`✔ Sənəd №${this.currentDocNumber} uğurla keçirildi (Проведен)!`);
+  },
+
+  escapeHtml: function(str) {
+    if (str == null) return "";
+    return String(str)
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#039;");
+  }
+};
+
+window.SalesDocEditor = SalesDocEditor;

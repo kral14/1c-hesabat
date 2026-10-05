@@ -483,6 +483,12 @@ const UniversalJournal = {
       return;
     }
 
+    if (docType === "РеализацияТоваровУслуг" && window.SalesDocEditor) {
+      SalesDocEditor.open(docNum, docDate);
+      this.updateStatus(`Открыт документ реализации № ${docNum}`);
+      return;
+    }
+
     console.log(`[UNIVERSAL JOURNAL] Opening document ${docType} № ${docNum}...`);
     const key = `${docType}_${docNum}`;
     const cached = this.prefetchCache.get(key);

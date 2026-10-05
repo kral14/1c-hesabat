@@ -1,0 +1,309 @@
+<!-- ========================================================
+     1C:ENTERPRISE - SALES DOCUMENT EDITOR WINDOW (Реализация товаров и услуг)
+     templates/components/sales_doc_editor_window.html
+     ======================================================== -->
+
+<div class="mdi-window" id="salesDocEditorWindow" style="display: none; top: 15px; left: 20px; width: calc(100% - 40px); height: calc(100% - 30px); min-width: 950px; min-height: 520px; z-index: 125;" onmousedown="MdiManager.activateWindow('salesDocEditorWindow')">
+  
+  <!-- Window Header -->
+  <div class="mdi-window-header" ondblclick="MdiManager.toggleMaximize('salesDocEditorWindow')">
+    <div class="mdi-win-title-left">
+      <span class="mdi-win-icon">📋</span>
+      <span class="mdi-win-title-text" id="sdeWindowTitle">Реализация товаров и услуг</span>
+      <span id="sdeStatusBadge" style="background: #2e7d32; color: #fff; padding: 1px 6px; border-radius: 2px; font-size: 10px; font-weight: bold; margin-left: 6px;">✔ ПРОВЕДЕН</span>
+    </div>
+    <div class="mdi-win-controls">
+      <button class="mdi-win-btn mdi-win-btn-min" title="Qatla" onclick="MdiManager.minimizeWindow('salesDocEditorWindow')" onmousedown="event.stopPropagation()">_</button>
+      <button class="mdi-win-btn mdi-win-btn-max" title="Böyüt / Bərpa et" onclick="MdiManager.toggleMaximize('salesDocEditorWindow')" onmousedown="event.stopPropagation()">□</button>
+      <button class="mdi-win-btn mdi-win-btn-close" title="Bağla" onclick="SalesDocEditor.close()" onmousedown="event.stopPropagation()">✕</button>
+    </div>
+  </div>
+
+  <!-- Window Body -->
+  <div class="mdi-window-body" style="background-color: #f0eee3; display: flex; flex-direction: column; height: 100%; overflow: hidden; font-family: Tahoma, 'MS Sans Serif', Arial, sans-serif; font-size: 11px;">
+    
+    <!-- Top Document Header Information (Exact 1C Layout) -->
+    <div style="padding: 6px 12px 6px 12px; background: #f0eee3; border-bottom: 1px solid #c0beaf; display: flex; flex-direction: column; gap: 5px;">
+      
+      <!-- Row 1: Number, Date, Organization & Top Action Buttons -->
+      <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px;">
+        <div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
+          <div style="display: flex; align-items: center; gap: 4px;">
+            <span style="color: #222; font-weight: 500;">Номер:</span>
+            <input type="text" id="sdeDocNumber" style="width: 110px; height: 21px; border: 1px solid #7f9db9; padding: 0 4px; font-weight: bold; background: #fff;" readonly>
+          </div>
+
+          <div style="display: flex; align-items: center; gap: 4px;">
+            <span style="color: #222; font-weight: 500;">от:</span>
+            <input type="text" id="sdeDocDate" style="width: 140px; height: 21px; border: 1px solid #7f9db9; padding: 0 4px; background: #fff;" readonly>
+          </div>
+
+          <div style="display: flex; align-items: center; gap: 4px;">
+            <span style="color: #222; font-weight: 500;">Организация:</span>
+            <input type="text" id="sdeDocOrg" style="width: 170px; height: 21px; border: 1px solid #7f9db9; padding: 0 4px; background: #fff;" readonly value="Aztrade MMC">
+          </div>
+        </div>
+
+        <!-- Top Right Action Buttons -->
+        <div style="display: flex; align-items: center; gap: 6px;">
+          <!-- 💾 Провести и закрыть -->
+          <button type="button" class="btn-1c btn-1c-primary" onclick="SalesDocEditor.saveAndPost()" title="Провести документ в базе 1С и закрыть окно" style="height: 23px; padding: 0 10px; font-weight: bold; background: linear-gradient(to bottom, #ffea88, #d8a020); border: 1px solid #7c6817; color: #000; cursor: pointer; display: inline-flex; align-items: center; gap: 4px;">
+            <span>💾</span>
+            <span>Провести и закрыть</span>
+          </button>
+
+          <!-- ✔ Провести -->
+          <button type="button" class="btn-1c" onclick="SalesDocEditor.postDocument()" title="Провести документ" style="height: 23px; padding: 0 8px; border: 1px solid #7f9db9; background: #e0dfd5; cursor: pointer; display: inline-flex; align-items: center; gap: 4px;">
+            <span style="color: #2e7d32; font-weight: bold;">✔</span>
+            <span>Провести</span>
+          </button>
+
+          <!-- 🖨 Печать -->
+          <div style="position: relative; display: inline-block;">
+            <button type="button" class="btn-1c" onclick="SalesDocEditor.openPrintMenu(event)" title="Печать накладной / счета-фактуры" style="height: 23px; padding: 0 8px; border: 1px solid #7f9db9; background: #e0dfd5; cursor: pointer; display: inline-flex; align-items: center; gap: 4px; font-weight: bold; color: #002060;">
+              <span>🖨</span>
+              <span>Печать ▾</span>
+            </button>
+            <div id="sdePrintDropdown" style="display: none; position: absolute; right: 0; top: 25px; background: #fff; border: 1px solid #7f9db9; box-shadow: 0 4px 12px rgba(0,0,0,0.25); z-index: 200; min-width: 190px;">
+              <div onclick="SalesDocEditor.printInvoice('rashodnaya')" style="padding: 6px 12px; cursor: pointer; border-bottom: 1px solid #eee; display: flex; align-items: center; gap: 6px;" onmouseover="this.style.background='#eef3fb'" onmouseout="this.style.background='#fff'">
+                <span>📄</span>
+                <span>Расходная накладная</span>
+              </div>
+              <div onclick="SalesDocEditor.printInvoice('torg12')" style="padding: 6px 12px; cursor: pointer; border-bottom: 1px solid #eee; display: flex; align-items: center; gap: 6px;" onmouseover="this.style.background='#eef3fb'" onmouseout="this.style.background='#fff'">
+                <span>📑</span>
+                <span>ТОРГ-12 (Накладная)</span>
+              </div>
+              <div onclick="SalesDocEditor.printInvoice('factura')" style="padding: 6px 12px; cursor: pointer; display: flex; align-items: center; gap: 6px;" onmouseover="this.style.background='#eef3fb'" onmouseout="this.style.background='#fff'">
+                <span>📜</span>
+                <span>Счет-фактура</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Row 2: Kontragent & Dogovor -->
+      <div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
+        <div style="flex: 1.2; min-width: 280px; display: flex; align-items: center; gap: 4px;">
+          <span style="color: #222; min-width: 75px; font-weight: 500;">Контрагент:</span>
+          <div style="flex: 1; display: flex; align-items: stretch; border: 1px solid #7f9db9; background: #fff; height: 21px;">
+            <input type="text" id="sdeDocKontragent" readonly style="flex: 1; border: none; padding: 0 5px; font-size: 11px; font-weight: bold; color: #002060; background: transparent; outline: none; text-overflow: ellipsis; white-space: nowrap; overflow: hidden;">
+            <button type="button" class="btn-1c" title="Просмотреть карточку контрагента..." style="border: none; border-left: 1px solid #7f9db9; background: #e0dfd5; width: 22px; cursor: pointer; font-size: 11px;">🔍</button>
+          </div>
+        </div>
+
+        <div style="flex: 1; min-width: 240px; display: flex; align-items: center; gap: 4px;">
+          <span style="color: #222; min-width: 55px; font-weight: 500;">Договор:</span>
+          <input type="text" id="sdeDocContract" style="flex: 1; height: 21px; border: 1px solid #7f9db9; padding: 0 5px; background: #fff;" readonly>
+        </div>
+      </div>
+
+      <!-- Row 3: Sklad, Price Type & Currency -->
+      <div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
+        <div style="flex: 1.2; min-width: 280px; display: flex; align-items: center; gap: 4px;">
+          <span style="color: #222; min-width: 75px; font-weight: 500;">Склад:</span>
+          <input type="text" id="sdeDocWarehouse" style="flex: 1; height: 21px; border: 1px solid #7f9db9; padding: 0 5px; background: #fff;" readonly>
+        </div>
+
+        <div style="flex: 0.7; min-width: 170px; display: flex; align-items: center; gap: 4px;">
+          <span style="color: #222; min-width: 55px; font-weight: 500;">Тип цен:</span>
+          <input type="text" id="sdeDocPriceType" style="flex: 1; height: 21px; border: 1px solid #7f9db9; padding: 0 5px; background: #fff;" readonly>
+        </div>
+
+        <div style="display: flex; align-items: center; gap: 4px;">
+          <span style="color: #222; font-weight: 500;">Валюта:</span>
+          <input type="text" id="sdeDocCurrency" style="width: 55px; height: 21px; border: 1px solid #7f9db9; padding: 0 4px; background: #fff; text-align: center; font-weight: bold;" readonly value="AZN">
+        </div>
+      </div>
+
+    </div>
+
+    <!-- 1C Tab Section Navigation Bar -->
+    <div style="background: #e5e2cf; border-bottom: 1px solid #b0af9f; display: flex; align-items: flex-end; padding: 4px 10px 0 10px; gap: 2px;">
+      <button type="button" class="sde-tab-btn active" id="sdeTabBtnTovary" onclick="SalesDocEditor.switchTab('tovary')" style="background: #f0eee3; border: 1px solid #b0af9f; border-bottom: 1px solid #f0eee3; font-weight: bold; color: #002060; padding: 4px 12px; cursor: pointer; border-top-left-radius: 3px; border-top-right-radius: 3px; font-size: 11px;">
+        📦 Товары
+      </button>
+      <button type="button" class="sde-tab-btn" id="sdeTabBtnUslugi" onclick="SalesDocEditor.switchTab('uslugi')" style="background: #dedbc7; border: 1px solid #b0af9f; color: #555; padding: 4px 12px; cursor: pointer; border-top-left-radius: 3px; border-top-right-radius: 3px; font-size: 11px;">
+        🛠 Услуги
+      </button>
+      <button type="button" class="sde-tab-btn" id="sdeTabBtnDop" onclick="SalesDocEditor.switchTab('dop')" style="background: #dedbc7; border: 1px solid #b0af9f; color: #555; padding: 4px 12px; cursor: pointer; border-top-left-radius: 3px; border-top-right-radius: 3px; font-size: 11px;">
+        ⚙ Дополнительно
+      </button>
+    </div>
+
+    <!-- Tabular Section Action Toolbar -->
+    <div style="padding: 4px 8px; background: #e5e2cf; border-bottom: 1px solid #b0af9f; display: flex; align-items: center; gap: 4px; flex-wrap: wrap;">
+      
+      <!-- ➕ Add Row -->
+      <button type="button" class="btn-modern-tool" onclick="SalesDocEditor.addRow()" title="Добавить строку (Ins)" style="height: 23px; width: 24px; padding: 0;">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#16a34a" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="12" y1="5" x2="12" y2="19"></line>
+          <line x1="5" y1="12" x2="19" y2="12"></line>
+        </svg>
+      </button>
+
+      <!-- ❌ Delete Row -->
+      <button type="button" class="btn-modern-tool" onclick="SalesDocEditor.deleteSelectedRow()" title="Удалить строку (Del)" style="height: 23px; width: 24px; padding: 0;">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#dc2626" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="18" y1="6" x2="6" y2="18"></line>
+          <line x1="6" y1="6" x2="18" y2="18"></line>
+        </svg>
+      </button>
+
+      <div class="mdi-tool-sep" style="height: 16px; width: 1px; background: #b0af9f; margin: 0 3px;"></div>
+
+      <!-- 🔍 Подбор -->
+      <button type="button" class="btn-1c" onclick="SalesDocEditor.openItemPicker()" title="Подбор товаров из номенклатуры (F4)" style="height: 23px; padding: 0 8px; display: inline-flex; align-items: center; gap: 4px; font-weight: bold; color: #002060; cursor: pointer; border: 1px solid #7f9db9; background: #e0dfd5;">
+        <span>🔍</span>
+        <span>Подбор</span>
+      </button>
+
+      <!-- 📊 Экспорт в Excel -->
+      <button type="button" class="btn-1c" onclick="SalesDocEditor.exportToExcel()" title="Экспортировать накладную в Excel" style="height: 23px; padding: 0 8px; display: inline-flex; align-items: center; gap: 4px; font-weight: bold; color: #1e7145; cursor: pointer; border: 1px solid #7f9db9; background: #eaf5ea;">
+        <span>📊</span>
+        <span>Excel</span>
+      </button>
+
+      <!-- Quick Search Filter -->
+      <div style="flex: 1; min-width: 150px; display: flex; align-items: center; margin-left: 10px;">
+        <input type="text" id="sdeTableSearchInp" placeholder="Быстрый поиск по строкам накладной..." style="width: 100%; height: 21px; padding: 1px 6px; font-size: 11px; border: 1px solid #7f9db9;" oninput="SalesDocEditor.filterTableRows()">
+      </div>
+
+      <!-- Row Count Badge -->
+      <div id="sdeRowCountBadge" style="background: #ffffff; border: 1px solid #7f9db9; padding: 2px 8px; border-radius: 2px; font-size: 11px; font-weight: bold; color: #003366; white-space: nowrap;">
+        Строк: 0
+      </div>
+
+    </div>
+
+    <!-- Table Grid Area -->
+    <div style="flex: 1; overflow: auto; background: #ffffff; position: relative;" id="sdeTableWrapper">
+      
+      <!-- Loading State -->
+      <div id="sdeLoadingState" style="display: none; position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: rgba(255,255,255,0.85); z-index: 50; flex-direction: column; align-items: center; justify-content: center; gap: 8px;">
+        <div class="spinner-1c"></div>
+        <div style="font-weight: bold; color: #004080; font-size: 12px;">1C: Загрузка накладной реализации...</div>
+      </div>
+
+      <table id="sdeTable" style="width: 100%; min-width: 950px; border-collapse: collapse; font-family: Tahoma, 'MS Sans Serif', Arial, sans-serif; font-size: 11px; table-layout: fixed;">
+        <colgroup>
+          <col style="width: 35px;">   <!-- № -->
+          <col style="width: 95px;">   <!-- Код -->
+          <col style="width: 85px;">   <!-- Артикул -->
+          <col style="width: auto;">   <!-- Номенклатура -->
+          <col style="width: 80px;">   <!-- Количество -->
+          <col style="width: 45px;">   <!-- Ед. -->
+          <col style="width: 45px;">   <!-- Коэфф -->
+          <col style="width: 85px;">   <!-- Цена -->
+          <col style="width: 95px;">   <!-- Сумма -->
+          <col style="width: 65px;">   <!-- % НДС -->
+          <col style="width: 80px;">   <!-- Сумма НДС -->
+          <col style="width: 105px;">  <!-- Всего -->
+        </colgroup>
+        <thead>
+          <tr id="sdeTableHeadRow" style="background: #e3dec9; border-bottom: 2px solid #5a5a5a; position: sticky; top: 0; z-index: 10; height: 23px;">
+            <th style="border: 1px solid #b0af9f; padding: 2px; text-align: center;">№</th>
+            <th style="border: 1px solid #b0af9f; padding: 2px 4px; text-align: left;">Код</th>
+            <th style="border: 1px solid #b0af9f; padding: 2px 4px; text-align: left;">Артикул</th>
+            <th style="border: 1px solid #b0af9f; padding: 2px 6px; text-align: left;">Номенклатура</th>
+            <th style="border: 1px solid #b0af9f; padding: 2px 4px; text-align: right;">Количество</th>
+            <th style="border: 1px solid #b0af9f; padding: 2px; text-align: center;">Ед.</th>
+            <th style="border: 1px solid #b0af9f; padding: 2px; text-align: center;">Коэф.</th>
+            <th style="border: 1px solid #b0af9f; padding: 2px 4px; text-align: right;">Цена</th>
+            <th style="border: 1px solid #b0af9f; padding: 2px 6px; text-align: right;">Сумма</th>
+            <th style="border: 1px solid #b0af9f; padding: 2px; text-align: center;">% НДС</th>
+            <th style="border: 1px solid #b0af9f; padding: 2px 4px; text-align: right;">Сумма НДС</th>
+            <th style="border: 1px solid #b0af9f; padding: 2px 6px; text-align: right; color: #002060;">Всего</th>
+          </tr>
+        </thead>
+        <tbody id="sdeTableBody">
+          <!-- Populated dynamically via SalesDocEditor JS -->
+        </tbody>
+      </table>
+
+    </div>
+
+    <!-- Bottom Document Footer: Responsible, Comment & Summary Totals -->
+    <div style="padding: 6px 12px; background: #f0eee3; border-top: 1px solid #b0af9f; display: flex; flex-direction: column; gap: 5px;">
+      
+      <!-- Top Row of Footer: Responsible, Comment & Totals (Всего, НДС) -->
+      <div style="display: flex; justify-content: space-between; align-items: center; gap: 15px; flex-wrap: wrap;">
+        
+        <!-- Left: Responsible & Comment -->
+        <div style="flex: 1; min-width: 320px; display: flex; flex-direction: column; gap: 4px;">
+          <div style="display: flex; align-items: center; gap: 6px;">
+            <span style="color: #444; font-weight: 500;">Ответственный:</span>
+            <span id="sdeDocResponsible" style="font-weight: bold; color: #111;">-</span>
+          </div>
+
+          <div style="display: flex; align-items: center; gap: 6px;">
+            <span style="color: #444; font-weight: 500;">Комментарий:</span>
+            <input type="text" id="sdeDocComment" placeholder="Добавьте примечание..." style="flex: 1; height: 21px; border: 1px solid #7f9db9; padding: 0 4px; background: #fff; font-size: 11px;">
+          </div>
+        </div>
+
+        <!-- Right: Summary Totals Display (Authentic 1C Summary Panel) -->
+        <div style="display: flex; align-items: center; gap: 16px; background: #e5e2cf; padding: 4px 12px; border: 1px solid #b0af9f; border-radius: 2px;">
+          <div style="text-align: right;">
+            <div style="font-size: 10px; color: #555;">Сумма без НДС:</div>
+            <div id="sdeTotalSumNet" style="font-weight: bold; font-size: 12px; color: #222;">0.00 AZN</div>
+          </div>
+
+          <div style="text-align: right; border-left: 1px solid #b0af9f; padding-left: 14px;">
+            <div style="font-size: 10px; color: #555;">В т.ч. НДС (18%):</div>
+            <div id="sdeTotalSumVat" style="font-weight: bold; font-size: 12px; color: #222;">0.00 AZN</div>
+          </div>
+
+          <div style="text-align: right; border-left: 1px solid #b0af9f; padding-left: 14px;">
+            <div style="font-size: 10px; color: #002060; font-weight: bold;">ВСЕГО (С НДС):</div>
+            <div id="sdeTotalSumGross" style="font-weight: bold; font-size: 14px; color: #002060;">0.00 AZN</div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Action Buttons Row -->
+      <div style="display: flex; justify-content: flex-end; align-items: center; gap: 8px; margin-top: 4px; padding-top: 4px; border-top: 1px solid #d5d3c3;">
+        <button type="button" class="btn-1c btn-1c-primary" onclick="SalesDocEditor.saveDocument()" style="height: 24px; min-width: 95px; border: 1px solid #7f9db9; background: #e0dfd5; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 5px; font-weight: bold;" onmouseover="this.style.background='#f0eee3'" onmouseout="this.style.background='#e0dfd5'">
+          <span>💾</span>
+          <span>Записать</span>
+        </button>
+
+        <button type="button" class="btn-1c" onclick="SalesDocEditor.close()" style="height: 24px; min-width: 80px; cursor: pointer;">
+          Закрыть
+        </button>
+      </div>
+
+    </div>
+
+  </div>
+
+</div>
+
+<!-- Printable 1C "Расходная накладная" Modal -->
+<div class="modal-overlay-1c" id="sdePrintModal" style="display: none; z-index: 9999;" onclick="if(event.target===this) SalesDocEditor.closePrintModal()">
+  <div class="modal-window-1c" style="width: 820px; max-height: 90vh; background: #fff; display: flex; flex-direction: column; font-family: Tahoma, Arial, sans-serif; box-shadow: 0 4px 25px rgba(0,0,0,0.4); border: 1px solid #555;">
+    
+    <!-- Print Window Header -->
+    <div style="background: #f0eee3; padding: 6px 10px; border-bottom: 1px solid #b0af9f; display: flex; justify-content: space-between; align-items: center;">
+      <div style="font-weight: bold; color: #000; font-size: 12px; display: flex; align-items: center; gap: 6px;">
+        <span>🖨</span>
+        <span id="sdePrintTitle">Печатная форма: Расходная накладная</span>
+      </div>
+      <div style="display: flex; gap: 8px;">
+        <button type="button" class="btn-1c btn-1c-primary" onclick="SalesDocEditor.triggerBrowserPrint()" style="height: 23px; padding: 0 10px; font-weight: bold; cursor: pointer;">
+          Печать на принтер
+        </button>
+        <button type="button" class="btn-1c" onclick="SalesDocEditor.closePrintModal()" style="height: 23px; padding: 0 8px; cursor: pointer;">
+          Закрыть
+        </button>
+      </div>
+    </div>
+
+    <!-- Printable Content Sheet (A4 format style) -->
+    <div id="sdePrintContentArea" style="flex: 1; overflow: auto; padding: 25px; background: #fff; color: #000; font-size: 11px;">
+      <!-- Generated dynamically via SalesDocEditor.renderPrintSheet() -->
+    </div>
+
+  </div>
+</div>

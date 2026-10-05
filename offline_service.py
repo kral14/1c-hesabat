@@ -496,34 +496,49 @@ def get_document_details(payload):
 
             doc_items = []
             tot_sum = 0.0
+            tot_vat = 0.0
             for idx, r in enumerate(rows, 1):
                 qty = float(r["quantity"] or 1)
                 sm = float(r["sum"] or 0)
                 pr = round(sm / qty, 2) if qty != 0 else sm
+                vt = float(r["vat"] or 0)
                 tot_sum += sm
+                tot_vat += vt
                 doc_items.append({
-                    "line": idx,
+                    "line_num": idx,
                     "code": r["item_code"],
+                    "artikul": "",
                     "name": r["item_name"],
                     "unit": "əd",
+                    "coefficient": 1.0,
                     "quantity": qty,
                     "price": pr,
                     "sum": sm,
-                    "vat": float(r["vat"] or 0)
+                    "vat_rate": "18%" if vt > 0 else "Без НДС",
+                    "vat_sum": vt,
+                    "total": round(sm + vt, 2)
                 })
 
             return {
-                "number": doc_number,
-                "date": f"{period} 12:00:00",
                 "doc_type": "РеализацияТоваровУслуг",
                 "doc_title": "Реализация товаров и услуг",
-                "kontragent": kontr,
-                "amount": round(tot_sum, 2),
-                "responsible": "Keleshov Nasib",
-                "comment": f"Продажа товаров ({len(doc_items)} поз.)",
-                "posted": True,
-                "items": doc_items,
-                "total_items": len(doc_items)
+                "header": {
+                    "number": doc_number,
+                    "date": f"{period} 12:00:00",
+                    "posted": True,
+                    "organization": "Aztrade MMC",
+                    "kontragent": kontr,
+                    "contract": f"Договор поставки ({kontr[:25]})",
+                    "warehouse": "Основной склад",
+                    "price_type": "Оптовая",
+                    "currency": "AZN",
+                    "amount": round(tot_sum + tot_vat, 2),
+                    "total_vat": round(tot_vat, 2),
+                    "responsible": "Emin",
+                    "comment": f"Продажа товаров ({len(doc_items)} поз.)"
+                },
+                "lines": doc_items,
+                "total_lines": len(doc_items)
             }
 
         else:

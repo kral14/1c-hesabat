@@ -2483,29 +2483,78 @@ class OneCService(threading.Thread):
                         except Exception:
                             date_str = str(raw_date)[:19]
 
+                    org_name = ""
+                    if hasattr(doc_obj, "Организация") and doc_obj.Организация:
+                        org_name = str(getattr(doc_obj.Организация, "Наименование", "") or "").strip()
+
+                    kontr_name = ""
+                    if hasattr(doc_obj, "Контрагент") and doc_obj.Контрагент:
+                        kontr_name = str(getattr(doc_obj.Контрагент, "Наименование", "") or "").strip()
+
+                    dog_name = ""
+                    if hasattr(doc_obj, "ДоговорКонтрагента") and doc_obj.ДоговорКонтрагента:
+                        dog_name = str(getattr(doc_obj.ДоговорКонтрагента, "Наименование", "") or "").strip()
+
+                    sklad_name = ""
+                    if hasattr(doc_obj, "Склад") and doc_obj.Склад:
+                        sklad_name = str(getattr(doc_obj.Склад, "Наименование", "") or "").strip()
+
+                    curr_name = "AZN"
+                    if hasattr(doc_obj, "ВалютаДокумента") and doc_obj.ВалютаДокумента:
+                        curr_name = str(getattr(doc_obj.ВалютаДокумента, "Наименование", "") or "AZN").strip()
+
+                    doc_amount = float(getattr(doc_obj, "СуммаДокумента", 0) or 0)
+
                     header = {
                         "number": str(doc_obj.Номер),
                         "date": date_str,
                         "posted": bool(doc_obj.Проведен),
                         "comment": str(getattr(doc_obj, "Комментарий", "") or ""),
-                        "responsible": str(getattr(doc_obj.Ответственный, "Наименование", "") if hasattr(doc_obj, "Ответственный") else "")
+                        "responsible": str(getattr(doc_obj.Ответственный, "Наименование", "") if hasattr(doc_obj, "Ответственный") else ""),
+                        "organization": org_name,
+                        "kontragent": kontr_name,
+                        "contract": dog_name,
+                        "warehouse": sklad_name,
+                        "amount": doc_amount,
+                        "currency": curr_name
                     }
 
                     lines = []
+                    calc_total_sum = 0.0
+                    calc_total_vat = 0.0
+
                     if hasattr(doc_obj, "Товары"):
                         tab = doc_obj.Товары
                         for i in range(tab.Количество()):
                             row = tab.Получить(i)
                             nom = row.Номенклатура
+                            qty = float(getattr(row, "Количество", 0) or 0)
+                            pr = float(getattr(row, "Цена", 0) or 0)
+                            sm = float(getattr(row, "Сумма", 0) or (qty * pr))
+                            vat_sm = float(getattr(row, "СуммаНДС", 0) or 0)
+                            total_row = float(getattr(row, "Всего", 0) or (sm + vat_sm))
+                            calc_total_sum += sm
+                            calc_total_vat += vat_sm
+
                             lines.append({
                                 "line_num": i + 1,
                                 "code": str(getattr(nom, "Код", "") or "").strip(),
                                 "name": str(getattr(nom, "Наименование", "") or "").strip(),
                                 "artikul": str(getattr(nom, "Артикул", "") or "").strip(),
-                                "price": float(getattr(row, "Цена", 0) or 0),
-                                "price_type": str(getattr(row.ТипЦен, "Наименование", "") if hasattr(row, "ТипЦен") and row.ТипЦен else ""),
-                                "unit": str(getattr(row.ЕдиницаИзмерения, "Наименование", "") if hasattr(row, "ЕдиницаИзмерения") and row.ЕдиницаИзмерения else "")
+                                "quantity": qty,
+                                "unit": str(getattr(row.ЕдиницаИзмерения, "Наименование", "") if hasattr(row, "ЕдиницаИзмерения") and row.ЕдиницаИзмерения else "əd"),
+                                "coefficient": float(getattr(row, "Коэффициент", 1) or 1),
+                                "price": pr,
+                                "sum": sm,
+                                "vat_rate": str(conn.String(row.СтавкаНДС)) if hasattr(row, "СтавкаНДС") and row.СтавкаНДС else ("18%" if vat_sm > 0 else "Без НДС"),
+                                "vat_sum": vat_sm,
+                                "total": total_row,
+                                "price_type": str(conn.String(row.ТипЦен)) if hasattr(row, "ТипЦен") and row.ТипЦен else ""
                             })
+
+                    if header["amount"] == 0 and calc_total_sum > 0:
+                        header["amount"] = round(calc_total_sum + calc_total_vat, 2)
+                    header["total_vat"] = round(calc_total_vat, 2)
 
                     resp_q.put((True, {
                         "doc_type": doc_type,

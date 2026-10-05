@@ -86,6 +86,11 @@ const MdiManager = {
             if (!docNum && window.PriceDocEditor) {
               docNum = PriceDocEditor.currentDocNumber;
             }
+          } else if (w.id === "salesDocEditorWindow") {
+            if (window.SalesDocEditor) {
+              docNum = SalesDocEditor.currentDocNumber;
+              docDate = SalesDocEditor.currentDocDate;
+            }
           }
 
           openWins.push({
@@ -139,6 +144,14 @@ const MdiManager = {
 
           if (docNum && window.PriceDocEditor && typeof PriceDocEditor.open === "function") {
             PriceDocEditor.open(docNum, docDate);
+          } else {
+            this.activateWindow(item.id, { title: item.title, icon: item.icon });
+          }
+        } else if (item.id === "salesDocEditorWindow") {
+          let docNum = item.docNumber;
+          let docDate = item.docDate;
+          if (docNum && window.SalesDocEditor && typeof SalesDocEditor.open === "function") {
+            SalesDocEditor.open(docNum, docDate);
           } else {
             this.activateWindow(item.id, { title: item.title, icon: item.icon });
           }
@@ -432,6 +445,21 @@ const MdiManager = {
         startHidden: true,
         closeFn: () => {
           if (typeof NomenclatureCard !== "undefined" && NomenclatureCard.close) NomenclatureCard.close();
+        }
+      });
+    }
+
+    // 14. Sales Document Editor Window (Реализация товаров и услуг - starts hidden)
+    const sdeWin = document.getElementById("salesDocEditorWindow");
+    if (sdeWin) {
+      this.registerWindow("salesDocEditorWindow", {
+        title: "Реализация товаров и услуг",
+        icon: "📋",
+        element: sdeWin,
+        isDefault: true,
+        startHidden: true,
+        closeFn: () => {
+          if (typeof SalesDocEditor !== "undefined" && SalesDocEditor.close) SalesDocEditor.close();
         }
       });
     }
@@ -1341,6 +1369,15 @@ const MdiManager = {
         console.log(`[MDI F5 REFRESH] Refreshing price doc №${PriceDocEditor.currentDocNumber}...`);
         const docDate = document.getElementById("pdeDocDate")?.value;
         PriceDocEditor.loadDocumentData(PriceDocEditor.currentDocNumber, docDate);
+        return true;
+      }
+    }
+
+    // Topmost: Sales Document Editor Window ("Реализация товаров и услуг")
+    if (topWin.id === "salesDocEditorWindow") {
+      if (typeof SalesDocEditor !== "undefined" && SalesDocEditor.currentDocNumber) {
+        console.log(`[MDI F5 REFRESH] Refreshing sales doc №${SalesDocEditor.currentDocNumber}...`);
+        SalesDocEditor.fetchDocumentData(SalesDocEditor.currentDocNumber);
         return true;
       }
     }
