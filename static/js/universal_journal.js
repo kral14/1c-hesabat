@@ -464,18 +464,21 @@ const UniversalJournal = {
       const isSort = this.currentSortCol === col.key;
       const arrow = isSort ? (this.currentSortAsc ? " ▴" : " ▾") : "";
       const cursor = col.key === "status" ? "" : "cursor: pointer;";
+      const isSearchActive = (this.activeSearchColKey === col.key);
+      const searchClass = isSearchActive ? "uj-th-search-active" : "";
+      const searchBadge = isSearchActive ? `<span class="uj-th-search-icon" title="Поиск в этой колонке (Отмена: Ctrl+Q)" style="margin-left: 4px; font-size: 11px; vertical-align: middle; line-height: 1;">🔍</span>` : "";
 
       html += `
-        <th class="uj-th" data-col-key="${col.key}" draggable="true"
+        <th class="uj-th ${searchClass}" data-col-key="${col.key}" draggable="true"
             style="${wStyle} position: relative; padding: 4px 6px; border: 1px solid #b0af9f; text-align: ${col.align || 'left'}; white-space: nowrap; user-select: none; ${cursor}"
-            onclick="UniversalJournal.sortBy('${col.key}')"
+            onclick="UniversalJournal.onHeaderClick('${col.key}')"
             ondragstart="UniversalJournal.onColDragStart(event, '${col.key}')"
             ondragover="UniversalJournal.onColDragOver(event)"
             ondragenter="UniversalJournal.onColDragEnter(event, this)"
             ondragleave="UniversalJournal.onColDragLeave(event, this)"
             ondrop="UniversalJournal.onColDrop(event, '${col.key}')">
           <span style="display: inline-block; overflow: hidden; text-overflow: ellipsis; max-width: calc(100% - 10px); vertical-align: middle;">
-            ${this.escapeHtml(col.label)}${arrow}
+            ${this.escapeHtml(col.label)}${arrow}${searchBadge}
           </span>
           <div class="uj-col-resizer" title="Потяните для изменения ширины"
                style="position: absolute; right: 0; top: 0; bottom: 0; width: 6px; cursor: col-resize; z-index: 5;"
@@ -2196,9 +2199,20 @@ const UniversalJournal = {
 
     // 2. Evaluate quick search string
     if (q) {
-      result = result.filter(row => {
-        return Object.values(row).some(v => String(v).toLowerCase().includes(q));
-      });
+      const colKey = this.activeSearchColKey || this.selectedColKey;
+      if (colKey && colKey !== "status") {
+        result = result.filter(row => {
+          let val = row[colKey];
+          if (val === undefined || val === null || String(val).trim() === "") {
+            return Object.values(row).some(v => String(v).toLowerCase().includes(q));
+          }
+          return String(val).toLowerCase().includes(q);
+        });
+      } else {
+        result = result.filter(row => {
+          return Object.values(row).some(v => String(v).toLowerCase().includes(q));
+        });
+      }
     }
 
     this.filteredItems = result;
@@ -2214,7 +2228,13 @@ const UniversalJournal = {
     // 5. Update Status and Badges
     const isFiltered = (activeCrits.length > 0 || Boolean(q));
     if (isFiltered) {
-      this.updateCountBadge(`Всего: ${this.items.length} (Отфильтровано: ${this.filteredItems.length})`);
+      let filterMsg = `Всего: ${this.items.length} (Отфильтровано: ${this.filteredItems.length})`;
+      if (q && (this.activeSearchColKey || this.selectedColKey)) {
+        const activeKey = this.activeSearchColKey || this.selectedColKey;
+        const colDef = this.columns.find(c => c.key === activeKey);
+        filterMsg += ` [Колонка: ${colDef ? colDef.label : activeKey}] (Ctrl+Q: отмена)`;
+      }
+      this.updateCountBadge(filterMsg);
     } else {
       this.updateCountBadge(this.items.length);
     }
@@ -2474,7 +2494,17 @@ const UniversalJournal = {
 
   selectCell: function(idx, colKey, targetTd, event) {
     if (event) event.stopPropagation();
+    const prevCol = this.selectedColKey;
     this.selectRow(idx, colKey, targetTd);
+
+    // If search is currently active and user clicks a different column, switch search to that column
+    const inp = document.getElementById("ujSearchInput");
+    const q = inp ? inp.value.trim() : "";
+    if (q && colKey && colKey !== "status" && colKey !== prevCol) {
+      this.activeSearchColKey = colKey;
+      this.updateHeaderSearchHighlights();
+      this.applyFiltersAndSearch();
+    }
   },
 
   selectRow: function(idx, colKey, targetTd) {
@@ -2689,7 +2719,75 @@ const UniversalJournal = {
     modalEl.style.display = "flex";
   },
 
+  onHeaderClick: function(colKey) {
+    if (colKey === "status") return;
+    this.selectedColKey = colKey;
+    const inp = document.getElementById("ujSearchInput");
+    const q = inp ? inp.value.trim() : "";
+    if (q) {
+      this.activeSearchColKey = colKey;
+      this.updateHeaderSearchHighlights();
+      this.applyFiltersAndSearch();
+    } else {
+      this.sortBy(colKey);
+    }
+  },
+
+  updateHeaderSearchHighlights: function() {
+    const thead = document.getElementById("ujTableHeadRow");
+    if (!thead) return;
+    const ths = thead.querySelectorAll("th.uj-th");
+    const activeKey = this.activeSearchColKey;
+
+    ths.forEach(th => {
+      const k = th.getAttribute("data-col-key");
+      const iconSpan = th.querySelector(".uj-th-search-icon");
+      if (activeKey && k === activeKey) {
+        th.classList.add("uj-th-search-active");
+        if (!iconSpan) {
+          const spanWrapper = th.querySelector("span");
+          if (spanWrapper) {
+            const icon = document.createElement("span");
+            icon.className = "uj-th-search-icon";
+            icon.title = "Поиск в этой колонке (Отмена: Ctrl+Q)";
+            icon.style.cssText = "margin-left: 4px; font-size: 11px; vertical-align: middle; line-height: 1;";
+            icon.textContent = "🔍";
+            spanWrapper.appendChild(icon);
+          }
+        }
+      } else {
+        th.classList.remove("uj-th-search-active");
+        if (iconSpan) {
+          iconSpan.remove();
+        }
+      }
+    });
+
+    const searchInp = document.getElementById("ujSearchInput");
+    if (searchInp) {
+      if (activeKey) {
+        const colDef = this.columns.find(c => c.key === activeKey);
+        const colName = colDef ? colDef.label : activeKey;
+        searchInp.placeholder = `Поиск в [${colName}]... (Ctrl+Q: отмена)`;
+        searchInp.title = `Поиск по колонке "${colName}" (Ctrl+F). Для отмены поиска: Ctrl+Q`;
+      } else {
+        searchInp.placeholder = "Быстрый поиск (Ctrl+F)...";
+        searchInp.title = "Быстрый поиск по списку (Ctrl+F). Для отмены: Ctrl+Q";
+      }
+    }
+  },
+
   onSearchInput: function() {
+    const inp = document.getElementById("ujSearchInput");
+    const q = inp ? inp.value.trim() : "";
+    if (q) {
+      if (!this.activeSearchColKey) {
+        this.activeSearchColKey = this.selectedColKey || "number";
+      }
+    } else {
+      this.activeSearchColKey = null;
+    }
+    this.updateHeaderSearchHighlights();
     this.applyFiltersAndSearch();
   },
 
@@ -2720,27 +2818,35 @@ const UniversalJournal = {
   onSearchActionClick: function() {
     const inp = document.getElementById("ujSearchInput");
     if (!inp) return;
-    if (inp.value.trim()) {
+    if (inp.value.trim() || this.activeSearchColKey) {
       this.clearSearch();
       inp.focus();
     } else {
-      inp.focus();
+      this.openFindModal();
     }
   },
 
   openFindModal: function() {
+    this.activeSearchColKey = this.selectedColKey || "number";
     const inp = document.getElementById("ujSearchInput");
     if (inp) {
       inp.focus();
       inp.select();
     }
+    this.updateHeaderSearchHighlights();
+    const colDef = this.columns.find(c => c.key === this.activeSearchColKey);
+    const colName = colDef ? colDef.label : this.activeSearchColKey;
+    this.updateStatus(`Режим поиска по колонке: [${colName}]. Наберите текст или нажмите Ctrl+Q для отмены.`);
   },
 
   clearSearch: function() {
     const inp = document.getElementById("ujSearchInput");
     if (inp) inp.value = "";
+    this.activeSearchColKey = null;
+    this.updateHeaderSearchHighlights();
     this.updateSearchIcon("");
     this.applyFiltersAndSearch();
+    this.updateStatus("Поиск отменен (Ctrl+Q)");
   },
 
   autofitColumns: function() {
@@ -2826,13 +2932,34 @@ window.openUniversalJournalWindow = function(docType) {
   UniversalJournal.open(docType);
 };
 
-// Hotkeys for Universal Journal: F7 (Quick Filter), Ctrl+Shift+F (Clear Filter)
+// Hotkeys for Universal Journal: F7, Shift+F7, Ctrl+F, Ctrl+Q, Ctrl+Shift+F
 document.addEventListener("keydown", function(e) {
   const ujWin = document.getElementById("universalJournalWindow");
   if (!ujWin || ujWin.style.display === "none") return;
 
+  // Ctrl + Q: Cancel / Clear search and reset column search highlight
+  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "q") {
+    e.preventDefault();
+    if (typeof UniversalJournal !== "undefined" && UniversalJournal.clearSearch) {
+      UniversalJournal.clearSearch();
+    }
+  }
+  // Ctrl + Shift + F: Clear all filters
+  else if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key.toLowerCase() === "f") {
+    e.preventDefault();
+    if (typeof UniversalJournal !== "undefined" && UniversalJournal.clearFilter) {
+      UniversalJournal.clearFilter();
+    }
+  }
+  // Ctrl + F: Quick Find in current/selected column
+  else if ((e.ctrlKey || e.metaKey) && !e.shiftKey && e.key.toLowerCase() === "f") {
+    e.preventDefault();
+    if (typeof UniversalJournal !== "undefined" && UniversalJournal.openFindModal) {
+      UniversalJournal.openFindModal();
+    }
+  }
   // Shift + F7: Remove filter for current column
-  if (e.key === "F7" && e.shiftKey) {
+  else if (e.key === "F7" && e.shiftKey) {
     e.preventDefault();
     if (typeof UniversalJournal !== "undefined" && UniversalJournal.removeFilterByCurrentColumn) {
       UniversalJournal.removeFilterByCurrentColumn();
@@ -2843,13 +2970,6 @@ document.addEventListener("keydown", function(e) {
     e.preventDefault();
     if (typeof UniversalJournal !== "undefined" && UniversalJournal.filterByCurrentValue) {
       UniversalJournal.filterByCurrentValue();
-    }
-  }
-  // Ctrl + Shift + F: Clear all filters
-  if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key.toLowerCase() === "f") {
-    e.preventDefault();
-    if (typeof UniversalJournal !== "undefined" && UniversalJournal.clearFilter) {
-      UniversalJournal.clearFilter();
     }
   }
 });
