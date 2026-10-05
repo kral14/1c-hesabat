@@ -198,7 +198,7 @@ class OneCService(threading.Thread):
                     print_server_error(f"OneCService.run [Action: {action}]", e, payload)
                 resp_q.put((False, e))
 
-    def execute(self, action, payload, retry=1):
+    def execute(self, action, payload, retry=2):
         for attempt in range(retry + 1):
             resp_q = queue.Queue()
             self.req_q.put((action, payload, resp_q))
@@ -207,7 +207,11 @@ class OneCService(threading.Thread):
                 return result
             err_str = str(result)
             if "Не обнаружено свободной лицензии" in err_str:
-                print("⚠️ [1C LİSENZİYA MƏŞĞUL] Lisenziya limiti tam doludur, təkrar gözlənilmir.", flush=True)
+                if attempt < retry:
+                    print(f"⏳ [1C LİSENZİYA GÖZLƏNİLİR] 1C sessiyasının azad olunması gözlənilir, 2.5s sonra yenidən yoxlanılır (cəhd {attempt + 1}/{retry + 1})...", flush=True)
+                    time.sleep(2.5)
+                    continue
+                print("⚠️ [1C LİSENZİYA MƏŞĞUL] Lisenziya limiti tam doludur.", flush=True)
                 raise result
             if attempt < retry and any(k in err_str for k in ["Сеанс отсутствует", "ClusterDistribImpl", "Соединение разорвано"]):
                 print(f"⚠️ [1C BİLDİRİŞ] 1C sessiyası qırıldı, avtomatik yenidən qoşulur və '{action}' təkrar icra edilir (cəhd {attempt + 1})...", flush=True)
