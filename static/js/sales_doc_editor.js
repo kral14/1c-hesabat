@@ -184,8 +184,10 @@ const SalesDocEditor = {
           <td data-col="name" style="border: 1px solid #d4d0c8; padding: 1px 2px; position: relative; user-select: text;" onclick="SalesDocEditor.selectCell(${idx}, 'name', this, event)">
             <div style="display: flex; align-items: stretch; width: 100%; height: 19px;">
               <input type="text" value="${this.escapeHtml(it.name)}" 
-                     title="${this.escapeHtml(it.name)}"
+                     title="${this.escapeHtml(it.name)} (F4 və ya cüt kliklə kataloqda aç)"
                      onchange="SalesDocEditor.onNameChange(${idx}, this.value)"
+                     ondblclick="SalesDocEditor.openNomPicker(${idx})"
+                     onkeydown="if(event.key === 'F4'){ event.preventDefault(); SalesDocEditor.openNomPicker(${idx}); }"
                      style="flex: 1; min-width: 0; height: 100%; border: 1px solid transparent; background: transparent; font-family: Tahoma, sans-serif; font-size: 11px; padding: 0 4px; outline: none; text-overflow: ellipsis; overflow: hidden; box-sizing: border-box;"
                      onfocus="this.select(); SalesDocEditor.selectCell(${idx}, 'name', this.closest('td'));">
               <div style="display: flex; align-items: stretch; flex-shrink: 0; height: 100%;">
@@ -469,6 +471,9 @@ const SalesDocEditor = {
     if (typeof CatalogSelector !== "undefined" && CatalogSelector.open) {
       CatalogSelector.open({
         catalog: "Номенклатура",
+        locate_code: it ? it.code : "",
+        locate_name: it ? it.name : "",
+        locate_item: it ? (it.code || it.name) : "",
         onSelect: (selected) => {
           if (selected && it) {
             it.code = selected.code || it.code;

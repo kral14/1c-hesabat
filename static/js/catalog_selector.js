@@ -24,7 +24,18 @@ const CatalogSelector = {
     this.podborCount = 0;
     this.currentFolder = options.folder || "";
     this.selectedItem = null;
-    this.initialSearch = options.initialSearch || (this.targetInput ? this.targetInput.value : "") || "";
+
+    // Item locate support
+    this.locateCode = String(options.locate_code || options.code || "").trim();
+    this.locateName = String(options.locate_name || options.name || "").trim();
+    this.locateItem = String(options.locate_item || options.locate_val || "").trim();
+
+    // If locating a specific item, do NOT prefill search box because we want to open the parent folder and highlight the item!
+    if (this.locateCode || this.locateName || this.locateItem) {
+      this.initialSearch = options.search || "";
+    } else {
+      this.initialSearch = options.search || (this.targetInput ? this.targetInput.value : "") || "";
+    }
 
     const win = document.getElementById("catalogWindowModal");
     if (!win) return;
@@ -89,7 +100,10 @@ const CatalogSelector = {
       colArtikul.style.display = isNomenclature ? "" : "none";
     }
 
-    console.log(`[CATALOG OPEN] catalog="${this.currentCatalog}", podborMode=${this.podborMode}, multiSelect=${this.multiSelect}`);
+    // Reset stock pane on open
+    this.resetStockPane(null);
+
+    console.log(`[CATALOG OPEN] catalog="${this.currentCatalog}", podborMode=${this.podborMode}, multiSelect=${this.multiSelect}, locateCode="${this.locateCode}"`);
 
     // MDI Window registration & activation
     const mdi = window.MdiManager || (typeof MdiManager !== "undefined" ? MdiManager : null);
@@ -136,7 +150,7 @@ const CatalogSelector = {
       win.classList.add("active");
     }
 
-    // Ensure catalogWindowModal is visually in front of any active overlay (e.g. valueListModalOverlay)
+    // Ensure catalogWindowModal is visually in front of any active overlay
     const valOverlay = document.getElementById("valueListModalOverlay");
     if (valOverlay) {
       const overZ = parseInt(valOverlay.style.zIndex) || 100;
@@ -162,6 +176,9 @@ const CatalogSelector = {
     console.log(`[CATALOG CLOSE] Closing catalog "${this.currentCatalog}"`);
     this.podborMode = false;
     this.podborCount = 0;
+    this.locateCode = "";
+    this.locateName = "";
+    this.locateItem = "";
 
     if (window.MdiManager) {
       MdiManager.closeWindow("catalogWindowModal");
@@ -221,8 +238,16 @@ const CatalogSelector = {
         ...creds,
         catalog: this.currentCatalog,
         folder: this.currentFolder,
-        search: searchQuery
+        search: searchQuery,
+        locate_code: this.locateCode || "",
+        locate_name: this.locateName || "",
+        locate_item: this.locateItem || ""
       };
+
+      // Reset one-time locate request
+      this.locateCode = "";
+      this.locateName = "";
+      this.locateItem = "";
 
       const res = await fetch("/api/catalog_data", {
         method: "POST",
@@ -246,15 +271,22 @@ const CatalogSelector = {
       if (data.target_code) {
         const tbody = document.getElementById("catalogItemsBody");
         if (tbody) {
-          const foundTr = Array.from(tbody.querySelectorAll("tr")).find(r => r.dataset.code === data.target_code || r.dataset.name === data.target_code);
+          const foundTr = Array.from(tbody.querySelectorAll("tr")).find(
+            r => r.dataset.code === data.target_code || r.dataset.name === data.target_code
+          );
           if (foundTr) {
-            tbody.querySelectorAll("tr").forEach(r => r.classList.remove("selected"));
-            foundTr.classList.add("selected");
-            const itemObj = (data.items || []).find(it => it.code === data.target_code || it.name === data.target_code);
-            if (itemObj) this.selectedItem = itemObj;
+            const itemObj = (data.items || []).find(
+              it => it.code === data.target_code || it.name === data.target_code
+            );
+            if (itemObj) {
+              this.highlightItem(foundTr, itemObj);
+            } else {
+              tbody.querySelectorAll("tr").forEach(r => r.classList.remove("selected"));
+              foundTr.classList.add("selected");
+            }
             setTimeout(() => {
               foundTr.scrollIntoView({ block: "center", behavior: "smooth" });
-            }, 50);
+            }, 60);
           }
         }
       }
@@ -276,22 +308,34 @@ const CatalogSelector = {
     const treeList = document.getElementById("catalogTreeList");
     if (!treeList) return;
 
-    // Preserve root
+    // Root folder
     const rootHtml = `
       <li class="catalog-tree-item ${!this.currentFolder ? 'selected' : ''}" onclick="CatalogSelector.selectFolder(this, '')">
         <span>📁</span>
-        <span>${this.currentCatalog}</span>
+        <span>${escapeHtml(this.currentCatalog)}</span>
       </li>
     `;
 
-    const subHtml = folders.map(f => `
-      <li class="catalog-tree-item ${this.currentFolder === f.name ? 'selected' : ''}" onclick="CatalogSelector.selectFolder(this, '${escapeHtml(f.name)}')">
-        <span style="padding-left: 14px;">📁</span>
+    // Active current folder in tree if selected
+    let currentFolderHtml = "";
+    if (this.currentFolder) {
+      currentFolderHtml = `
+        <li class="catalog-tree-item selected" onclick="CatalogSelector.selectFolder(this, '${escapeHtml(this.currentFolder)}')">
+          <span style="padding-left: 12px;">📂</span>
+          <span style="font-weight: bold; color: #002060;">${escapeHtml(this.currentFolder)}</span>
+        </li>
+      `;
+    }
+
+    // Subfolders list
+    const subHtml = (folders || []).filter(f => f.name !== this.currentFolder).map(f => `
+      <li class="catalog-tree-item" onclick="CatalogSelector.selectFolder(this, '${escapeHtml(f.name)}')">
+        <span style="padding-left: ${this.currentFolder ? '24px' : '14px'};">📁</span>
         <span>${escapeHtml(f.name)}</span>
       </li>
     `).join("");
 
-    treeList.innerHTML = rootHtml + subHtml;
+    treeList.innerHTML = rootHtml + currentFolderHtml + subHtml;
   },
 
   renderItems(items) {
@@ -400,19 +444,164 @@ const CatalogSelector = {
 
     const prefix = item.is_folder ? "📁 [Qrup] " : "";
     if (label) label.textContent = `${prefix}${item.code ? '[' + item.code + '] ' : ''}${item.name}`;
-    if (previewTitle) previewTitle.textContent = `Seçilmiş: ${item.name}`;
+    if (previewTitle) {
+      previewTitle.textContent = item.is_folder ? `Qrup: ${item.name}` : `Seçilmiş mal: ${item.name}`;
+    }
     if (btnText) btnText.textContent = item.is_folder ? "Выбрать папку" : "Выбрать";
 
-    // Update demo stock numbers
-    const totStock = document.getElementById("previewStockTotal");
-    const freeStock = document.getElementById("previewStockFree");
-    const genceStock = document.getElementById("previewStockGence");
-    const genceFree = document.getElementById("previewStockGenceFree");
+    const catL = (this.currentCatalog || "").toLowerCase();
+    const isNom = catL.includes("номенклатур") || catL.includes("məhsul") || catL.includes("tovar");
 
-    if (totStock) totStock.textContent = "120.00";
-    if (freeStock) freeStock.textContent = "120.00";
-    if (genceStock) genceStock.textContent = "45.00";
-    if (genceFree) genceFree.textContent = "45.00";
+    if (isNom && !item.is_folder) {
+      this.loadStockData(item.code, item.name);
+    } else {
+      this.resetStockPane(item);
+    }
+  },
+
+  stockAbortController: null,
+
+  async loadStockData(code, name) {
+    const stockBody = document.getElementById("catalogStockBody");
+    const pricesList = document.getElementById("catalogPricesList");
+    const previewTitle = document.getElementById("catalogSelectedPreviewTitle");
+
+    if (previewTitle) {
+      previewTitle.textContent = `Seçilmiş mal: ${code ? '[' + code + '] ' : ''}${name}`;
+    }
+
+    if (this.stockAbortController) {
+      try { this.stockAbortController.abort(); } catch (e) {}
+    }
+    this.stockAbortController = new AbortController();
+
+    if (stockBody) {
+      stockBody.innerHTML = `<tr><td colspan="4" style="text-align: center; color: #004080; padding: 12px; font-weight: 500;">⏳ 1C: Anbar qalıqları və qiymətlər yüklənir...</td></tr>`;
+    }
+    if (pricesList) {
+      pricesList.innerHTML = `<span style="color: #666; font-size: 11px;">Qiymətlər oxunur...</span>`;
+    }
+
+    try {
+      const creds = SessionManager.getCredentials();
+      const res = await fetch("/api/nomenclature/stock", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ...creds, code: code || "", name: name || "" }),
+        signal: this.stockAbortController.signal
+      });
+      const data = await res.json();
+      if (!data.success) {
+        throw new Error(data.error || "Qalıqlar alına bilmədi");
+      }
+
+      this.renderStockTable(data.warehouses || []);
+      this.renderPricesList(data.prices || []);
+
+    } catch (err) {
+      if (err.name === "AbortError") return;
+      if (stockBody) {
+        stockBody.innerHTML = `<tr><td colspan="4" style="text-align: center; color: #b71c1c; padding: 10px;">Xəta: ${escapeHtml(err.message)}</td></tr>`;
+      }
+      if (pricesList) {
+        pricesList.innerHTML = `<span style="color: #b71c1c; font-size: 11px;">Qiymət xətası</span>`;
+      }
+    } finally {
+      this.stockAbortController = null;
+    }
+  },
+
+  renderStockTable(warehouses) {
+    const stockBody = document.getElementById("catalogStockBody");
+    if (!stockBody) return;
+
+    if (!warehouses || warehouses.length === 0) {
+      stockBody.innerHTML = `<tr><td colspan="4" style="text-align: center; color: #666; padding: 14px; font-style: italic;">Heç bir anbarda qalıq yoxdur (Qalıq: 0)</td></tr>`;
+      return;
+    }
+
+    let totStockSum = 0;
+    let freeStockSum = 0;
+    let resStockSum = 0;
+
+    let rowsHtml = warehouses.map(w => {
+      const tot = Number(w.total_stock || 0);
+      const free = Number(w.free_stock || 0);
+      const res = Number(w.reserve_stock || 0);
+
+      totStockSum += tot;
+      freeStockSum += free;
+      resStockSum += res;
+
+      const charStr = w.characteristic ? ` <span style="color: #777;">(${escapeHtml(w.characteristic)})</span>` : "";
+      const totStyle = tot > 0 ? "font-weight: bold; color: #002060;" : "color: #888;";
+      const freeStyle = free > 0 ? "font-weight: bold; color: #2e7d32;" : "color: #888;";
+      const resStyle = res > 0 ? "font-weight: bold; color: #d32f2f;" : "color: #888;";
+
+      return `
+        <tr>
+          <td>${escapeHtml(w.warehouse)}${charStr}</td>
+          <td style="text-align: right; ${totStyle}">${tot > 0 ? tot.toFixed(2) : "-"}</td>
+          <td style="text-align: right; ${freeStyle}">${free > 0 ? free.toFixed(2) : "-"}</td>
+          <td style="text-align: right; ${resStyle}">${res > 0 ? res.toFixed(2) : "0.00"}</td>
+        </tr>
+      `;
+    }).join("");
+
+    if (warehouses.length > 1) {
+      rowsHtml += `
+        <tr style="background: #eef3f8; font-weight: bold; border-top: 2px solid #b0c4de;">
+          <td style="color: #002060;">ИТОГО (Cəmi):</td>
+          <td style="text-align: right; color: #002060;">${totStockSum.toFixed(2)}</td>
+          <td style="text-align: right; color: #2e7d32;">${freeStockSum.toFixed(2)}</td>
+          <td style="text-align: right; color: #d32f2f;">${resStockSum.toFixed(2)}</td>
+        </tr>
+      `;
+    }
+
+    stockBody.innerHTML = rowsHtml;
+  },
+
+  renderPricesList(prices) {
+    const pricesList = document.getElementById("catalogPricesList");
+    if (!pricesList) return;
+
+    if (!prices || prices.length === 0) {
+      pricesList.innerHTML = `<span style="color: #888; font-size: 11px;">Təyin edilmiş qiymət yoxdur</span>`;
+      return;
+    }
+
+    // Default: Check 80 or the first price type
+    pricesList.innerHTML = prices.map((p, i) => {
+      const isDefaultChecked = (p.price_type.includes("80") && !p.price_type.toLowerCase().includes("возвр")) || (i === 0);
+      const prVal = Number(p.price || 0);
+      const prText = prVal > 0 ? `${prVal.toFixed(2)} ${escapeHtml(p.currency || 'AZN')}` : "-";
+      return `
+        <label class="checkbox-1c-label" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2px; font-size: 11px; padding: 2px 4px; border-radius: 2px; cursor: pointer;" onmouseover="this.style.background='#f0f4f8'" onmouseout="this.style.background='transparent'">
+          <span style="display: flex; align-items: center; gap: 4px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 170px;" title="${escapeHtml(p.price_type)}">
+            <input type="checkbox" ${isDefaultChecked ? 'checked' : ''} style="margin: 0;">
+            <span style="color: #222;">${escapeHtml(p.price_type)}</span>
+          </span>
+          <b style="color: #002060; margin-left: 6px; white-space: nowrap;">${prText}</b>
+        </label>
+      `;
+    }).join("");
+  },
+
+  resetStockPane(item) {
+    const stockBody = document.getElementById("catalogStockBody");
+    const pricesList = document.getElementById("catalogPricesList");
+    const previewTitle = document.getElementById("catalogSelectedPreviewTitle");
+
+    if (previewTitle) {
+      previewTitle.textContent = item ? (item.is_folder ? `Qrup: ${item.name}` : `Seçilmiş mal: ${item.name}`) : "Seçilmiş mal: -";
+    }
+    if (stockBody) {
+      stockBody.innerHTML = `<tr><td colspan="4" style="text-align: center; color: #888; padding: 16px; font-style: italic;">Qalıqları görmək üçün siyahıdan bir mal seçin</td></tr>`;
+    }
+    if (pricesList) {
+      pricesList.innerHTML = `<span style="color: #888; font-size: 11px; font-style: italic;">Mal seçildikdə qiymətlər əks olunacaq</span>`;
+    }
   },
 
   confirmSelection(finishPodbor = false) {

@@ -170,3 +170,17 @@ def get_nomenclature_card_endpoint():
     except Exception as e:
         print_server_error("/api/nomenclature/card", e, data)
         return jsonify({"success": False, "error": str(e)})
+
+@catalog_bp.route("/api/nomenclature/stock", methods=["POST"])
+@catalog_bp.route("/api/documents/nomenclature_stock", methods=["POST"])
+def get_nomenclature_stock_endpoint():
+    data = request.json or {}
+    try:
+        res = one_c.execute("get_nomenclature_stock", data)
+        if isinstance(res, dict):
+            return jsonify({"success": True, **res})
+        return jsonify({"success": True, "warehouses": [], "prices": []})
+    except Exception as e:
+        print_server_error("/api/nomenclature/stock", e, data)
+        return jsonify({"success": False, "error": str(e), "warehouses": [], "prices": []})
+

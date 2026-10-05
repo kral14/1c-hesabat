@@ -417,7 +417,7 @@ def handle_catalog_data(conn, payload, key, resp_q):
         q_items.SetParameter("Parent", folder_name)
     else:
         q_items.Text = f"""
-        ВЫБРАТЬ ПЕРВЫЕ 100
+        ВЫБРАТЬ ПЕРВЫЕ 500
             Т.Код КАК Code,
             Т.Наименование КАК Name,
             {artikul_sql}
@@ -450,6 +450,40 @@ def handle_catalog_data(conn, payload, key, resp_q):
             })
     except Exception as ei:
         print("Error fetching items:", ei)
+
+    # Ensure target_code is included in items if located but beyond pagination limit
+    if target_code and not any(it.get("code") == target_code for it in items):
+        try:
+            q_force = conn.NewObject("Запрос")
+            q_force.SetParameter("TCode", target_code)
+            q_force.Text = f"""
+            ВЫБРАТЬ ПЕРВЫЕ 1
+                Т.Код КАК Code,
+                Т.Наименование КАК Name,
+                {artikul_sql}
+                {barcode_sql}
+                {vid_sql}
+                {unit_sql},
+                Т.ЭтоГруппа КАК IsFolder
+            ИЗ
+                Справочник.{ref_cat} КАК Т
+                {join_barcode}
+            ГДЕ
+                Т.Код = &TCode
+            """
+            res_force = q_force.Execute().Choose()
+            if res_force.Next():
+                items.append({
+                    "code": str(res_force.Code).strip(),
+                    "name": str(res_force.Name).strip(),
+                    "artikul": str(res_force.Artikul).strip() if ref_cat == "Номенклатура" else "",
+                    "barcode": str(res_force.Barcode).strip() if ref_cat == "Номенклатура" else "",
+                    "vid_nom": str(res_force.VidNom).strip() if ref_cat == "Номенклатура" else "",
+                    "unit": str(res_force.Unit).strip() if ref_cat == "Номенклатура" else "",
+                    "is_folder": bool(res_force.IsFolder)
+                })
+        except Exception as e_f:
+            print("Notice: Error force-fetching target item:", e_f)
 
     resp_q.put((True, {
         "catalog": cat_name,
@@ -864,6 +898,151 @@ def handle_get_portfolio_catalog_items(conn, payload, key, resp_q):
 
 
 
+def handle_get_nomenclature_stock(conn, payload, key, resp_q):
+    code = str(payload.get("code") or "").strip()
+    name = str(payload.get("name") or "").strip()
+
+    if not code and not name:
+        resp_q.put((True, {
+            "code": "",
+            "name": "",
+            "unit": "əd",
+            "warehouses": [],
+            "prices": []
+        }))
+        return
+
+    try:
+        # Step 1: Find item reference
+        q_nom = conn.NewObject("Запрос")
+        where_n = []
+        if code:
+            where_n.append("Т.Код = &Code")
+            q_nom.SetParameter("Code", code)
+        if name and not code:
+            where_n.append("Т.Наименование = &Name")
+            q_nom.SetParameter("Name", name)
+
+        q_nom.Text = f"""
+        ВЫБРАТЬ ПЕРВЫЕ 1
+            Т.Ссылка КАК Ref,
+            Т.Код КАК Code,
+            Т.Наименование КАК Name,
+            Т.БазоваяЕдиницаИзмерения.Наименование КАК Unit
+        ИЗ
+            Справочник.Номенклатура КАК Т
+        ГДЕ
+            НЕ Т.ПометкаУдаления
+            И ({' ИЛИ '.join(where_n)})
+        """
+        res_n = q_nom.Execute().Choose()
+        if not res_n.Next():
+            resp_q.put((True, {
+                "code": code,
+                "name": name,
+                "unit": "əd",
+                "warehouses": [],
+                "prices": []
+            }))
+            return
+
+        nom_ref = res_n.Ref
+        item_code = str(res_n.Code or "").strip()
+        item_name = str(res_n.Name or "").strip()
+        item_unit = str(res_n.Unit or "əd").strip()
+
+        # Step 2: Query Total Stock by Warehouse
+        q_stock = conn.NewObject("Запрос")
+        q_stock.SetParameter("NomRef", nom_ref)
+        q_stock.Text = """
+        ВЫБРАТЬ
+            Т.Склад.Наименование КАК Warehouse,
+            Т.Склад.Код КАК WarehouseCode,
+            Т.ХарактеристикаНоменклатуры.Наименование КАК Characteristic,
+            Т.КоличествоОстаток КАК TotalStock
+        ИЗ
+            РегистрНакопления.ТоварыНаСкладах.Остатки(, Номенклатура = &NomRef) КАК Т
+        УПОРЯДОЧИТЬ ПО
+            Warehouse
+        """
+        res_s = q_stock.Execute().Choose()
+        warehouses = []
+        while res_s.Next():
+            tot = float(res_s.TotalStock or 0)
+            warehouses.append({
+                "warehouse": str(res_s.Warehouse or "").strip(),
+                "warehouse_code": str(res_s.WarehouseCode or "").strip(),
+                "characteristic": str(res_s.Characteristic or "").strip(),
+                "total_stock": tot,
+                "reserve_stock": 0.0,
+                "free_stock": tot
+            })
+
+        # Step 3: Query Reserve Stock
+        try:
+            q_res = conn.NewObject("Запрос")
+            q_res.SetParameter("NomRef", nom_ref)
+            q_res.Text = """
+            ВЫБРАТЬ
+                Т.Склад.Наименование КАК Warehouse,
+                Т.КоличествоОстаток КАК ReserveStock
+            ИЗ
+                РегистрНакопления.ТоварыВРезервеНаСкладах.Остатки(, Номенклатура = &NomRef) КАК Т
+            """
+            res_r = q_res.Execute().Choose()
+            reserve_map = {}
+            while res_r.Next():
+                w = str(res_r.Warehouse or "").strip()
+                reserve_map[w] = float(res_r.ReserveStock or 0)
+
+            for w_item in warehouses:
+                w_name = w_item["warehouse"]
+                r_qty = reserve_map.get(w_name, 0.0)
+                w_item["reserve_stock"] = r_qty
+                w_item["free_stock"] = max(0.0, w_item["total_stock"] - r_qty)
+        except Exception as e_res:
+            print("Notice: Error querying ТоварыВРезервеНаСкладах:", e_res)
+
+        # Step 4: Query Prices
+        prices = []
+        try:
+            q_p = conn.NewObject("Запрос")
+            q_p.SetParameter("NomRef", nom_ref)
+            q_p.Text = """
+            ВЫБРАТЬ
+                Т.ТипЦен.Наименование КАК PriceType,
+                Т.ТипЦен.Код КАК PriceTypeCode,
+                Т.Цена КАК Price,
+                Т.Валюта.Наименование КАК Currency
+            ИЗ
+                РегистрСведений.ЦеныНоменклатуры.СрезПоследних(, Номенклатура = &NomRef) КАК Т
+            УПОРЯДОЧИТЬ ПО
+                PriceType
+            """
+            res_p = q_p.Execute().Choose()
+            while res_p.Next():
+                prices.append({
+                    "price_type": str(res_p.PriceType or "").strip(),
+                    "price_type_code": str(res_p.PriceTypeCode or "").strip(),
+                    "price": float(res_p.Price or 0),
+                    "currency": str(res_p.Currency or "AZN").strip()
+                })
+        except Exception as e_price:
+            print("Notice: Error querying ЦеныНоменклатуры:", e_price)
+
+        resp_q.put((True, {
+            "code": item_code,
+            "name": item_name,
+            "unit": item_unit,
+            "warehouses": warehouses,
+            "prices": prices
+        }))
+    except Exception as e:
+        print("Error in handle_get_nomenclature_stock:", e)
+        resp_q.put((False, str(e)))
+
+
+
 CATALOG_HANDLERS = {
     "get_users": handle_get_users,
     "get_portfolios": handle_get_portfolios,
@@ -875,4 +1054,5 @@ CATALOG_HANDLERS = {
     "get_price_types": handle_get_price_types,
     "get_portfolio_catalog_filters": handle_get_portfolio_catalog_filters,
     "get_portfolio_catalog_items": handle_get_portfolio_catalog_items,
+    "get_nomenclature_stock": handle_get_nomenclature_stock,
 }

@@ -87,6 +87,8 @@ class OneCService(threading.Thread):
                         resp_q.put((True, offline_service.get_batch_item_prices(payload)))
                     elif action == "get_nomenclature_card":
                         resp_q.put((True, offline_service.get_nomenclature_card(payload)))
+                    elif action == "get_nomenclature_stock":
+                        resp_q.put((True, offline_service.get_nomenclature_stock(payload)))
                     elif action == "catalog_data":
                         resp_q.put((True, offline_service.catalog_data(payload)))
                     elif action == "get_portfolio_catalog_filters":

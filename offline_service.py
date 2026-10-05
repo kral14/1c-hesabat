@@ -743,6 +743,34 @@ def get_batch_item_prices(payload):
     finally:
         conn.close()
 
+# 12b. Get Nomenclature Stock
+def get_nomenclature_stock(payload):
+    code = str(payload.get("code") or "").strip()
+    name = str(payload.get("name") or "").strip()
+    return {
+        "code": code,
+        "name": name,
+        "unit": "əd",
+        "warehouses": [
+            {
+                "warehouse": "1.Anbar - AZTRADE (Offline)",
+                "warehouse_code": "WH1",
+                "characteristic": "",
+                "total_stock": 100.0,
+                "reserve_stock": 0.0,
+                "free_stock": 100.0
+            }
+        ],
+        "prices": [
+            {
+                "price_type": "80 (Əsas Satış Qiyməti)",
+                "price_type_code": "PT1",
+                "price": 4.50,
+                "currency": "AZN"
+            }
+        ]
+    }
+
 # 13. Get Nomenclature Card
 def get_nomenclature_card(payload):
     code = str(payload.get("code") or "").strip()

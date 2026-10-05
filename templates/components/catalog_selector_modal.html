@@ -116,45 +116,29 @@
 
         <div class="catalog-bottom-split">
           <!-- Prices Checklist -->
-          <div class="catalog-prices-box">
-            <div style="font-weight: bold; margin-bottom: 4px; color: #333;">Типы цен:</div>
-            <label class="checkbox-1c-label" style="display: flex; margin-bottom: 2px;">
-              <input type="checkbox" checked> <span>80 (Əsas Satış Qiyməti)</span>
-            </label>
-            <label class="checkbox-1c-label" style="display: flex; margin-bottom: 2px;">
-              <input type="checkbox"> <span>80 возврат</span>
-            </label>
-            <label class="checkbox-1c-label" style="display: flex; margin-bottom: 2px;">
-              <input type="checkbox"> <span>70 Optom</span>
-            </label>
-            <label class="checkbox-1c-label" style="display: flex;">
-              <input type="checkbox"> <span>100 Pərakəndə</span>
-            </label>
+          <div class="catalog-prices-box" id="catalogPricesBox" style="min-width: 220px; max-width: 280px; overflow-y: auto;">
+            <div style="font-weight: bold; margin-bottom: 5px; color: #333; font-size: 11px;">Типы цен:</div>
+            <div id="catalogPricesList" style="display: flex; flex-direction: column; gap: 2px;">
+              <span style="color: #888; font-size: 11px; font-style: italic;">Mal seçildikdə qiymətlər əks olunacaq</span>
+            </div>
           </div>
 
           <!-- Warehouses Stock Table -->
-          <div class="catalog-stock-box">
+          <div class="catalog-stock-box" style="flex: 1; overflow-y: auto;">
             <table class="catalog-stock-table">
               <thead>
                 <tr>
                   <th>Характеристика / Склад</th>
-                  <th style="width: 110px;">Общий остаток</th>
-                  <th style="width: 110px;">Свободный</th>
-                  <th style="width: 110px;">В резерве</th>
+                  <th style="width: 110px; text-align: right;">Общий остаток</th>
+                  <th style="width: 110px; text-align: right;">Свободный</th>
+                  <th style="width: 110px; text-align: right;">В резерве</th>
                 </tr>
               </thead>
               <tbody id="catalogStockBody">
                 <tr>
-                  <td>1.Anbar - AZTRADE</td>
-                  <td id="previewStockTotal">-</td>
-                  <td id="previewStockFree">-</td>
-                  <td>0.00</td>
-                </tr>
-                <tr>
-                  <td>Anbar Gəncə</td>
-                  <td id="previewStockGence">-</td>
-                  <td id="previewStockGenceFree">-</td>
-                  <td>0.00</td>
+                  <td colspan="4" style="text-align: center; color: #888; padding: 16px; font-style: italic;">
+                    Qalıqları görmək üçün siyahıdan bir mal seçin
+                  </td>
                 </tr>
               </tbody>
             </table>
