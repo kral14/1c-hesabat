@@ -48,7 +48,7 @@
 
       <div class="mdi-tool-sep" style="height: 18px; width: 1px; background: #b0af9f; margin: 0 3px;"></div>
 
-      <!-- 3. Edit Document Button (Green Pencil) -->
+      <!-- 3. Edit Document Button (Green Pencil) & Refresh Button (F5) Side by Side -->
       <button type="button" class="btn-1c" id="ujBtnEdit" onclick="UniversalJournal.editSelectedDocument()" title="Изменить / Редактировать документ (Двойной клик / Enter)" style="height: 24px; padding: 0 6px; display: inline-flex; align-items: center; justify-content: center; cursor: pointer;" disabled>
         <!-- Authentic 1C Green Pencil Icon -->
         <svg width="15" height="15" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -58,19 +58,9 @@
         </svg>
       </button>
 
-      <!-- 4. Date Interval Dialog Button (== / ↔) -->
-      <button type="button" class="btn-1c" id="ujBtnPeriodInterval" onclick="UniversalJournal.openPeriodPicker()" title="Установить интервал дат (== / ↔)" style="height: 24px; padding: 0 6px; display: inline-flex; align-items: center; justify-content: center; cursor: pointer; font-size: 11px; font-weight: bold; color: #004080;">
-        (↔)
-      </button>
-
-      <div class="mdi-tool-sep" style="height: 18px; width: 1px; background: #b0af9f; margin: 0 3px;"></div>
-
-
-
-      <!-- 7. Refresh Button (F5) -->
-      <button type="button" class="btn-1c" onclick="UniversalJournal.refresh()" title="Обновить список (F5)" style="height: 24px; padding: 0 7px; display: inline-flex; align-items: center; gap: 4px; cursor: pointer;">
-        <span style="font-size: 12px;">🔄</span>
-        <span style="font-size: 11px;">Обновить</span>
+      <!-- Refresh Button (F5) - Icon Only right next to Edit -->
+      <button type="button" class="btn-1c" onclick="UniversalJournal.refresh()" title="Обновить список (F5)" style="height: 24px; padding: 0 6px; display: inline-flex; align-items: center; justify-content: center; cursor: pointer;">
+        <span style="font-size: 13px;">🔄</span>
       </button>
 
       <div class="mdi-tool-sep" style="height: 18px; width: 1px; background: #b0af9f; margin: 0 3px;"></div>

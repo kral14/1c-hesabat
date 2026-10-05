@@ -26,7 +26,7 @@
         <!-- Start Date -->
         <div style="display: inline-flex; align-items: center; background: #fff; border: 1px solid #7f9db9; height: 21px; padding: 0 2px;">
           <input type="text" id="ppStartDateInput" placeholder=".. .." style="width: 78px; height: 18px; border: none; outline: none; font-size: 11px; font-family: Tahoma, sans-serif; padding: 0 2px;" onchange="PeriodPicker.onManualInputChange('start')" onkeydown="PeriodPicker.onInputKeyDown(event, 'start')" onblur="PeriodPicker.onInputBlur('start')">
-          <button type="button" onclick="PeriodPicker.openMiniCal('start', this)" title="Календарь" style="background: none; border: none; cursor: pointer; padding: 0 2px; font-size: 10px; color: #555;">📅</button>
+          <button type="button" class="period-cal-btn" onclick="PeriodPicker.openMiniCal('start', this)" title="Календарь" style="background: none; border: none; cursor: pointer; padding: 0 2px; font-size: 10px; color: #555;">📅</button>
           <button type="button" onclick="PeriodPicker.clearInput('start')" title="Очистить" style="background: none; border: none; cursor: pointer; padding: 0 2px; font-size: 10px; color: #888; font-weight: bold;">✕</button>
         </div>
 
@@ -35,7 +35,7 @@
         <!-- End Date -->
         <div style="display: inline-flex; align-items: center; background: #fff; border: 1px solid #7f9db9; height: 21px; padding: 0 2px;">
           <input type="text" id="ppEndDateInput" placeholder=".. .." style="width: 78px; height: 18px; border: none; outline: none; font-size: 11px; font-family: Tahoma, sans-serif; padding: 0 2px;" onchange="PeriodPicker.onManualInputChange('end')" onkeydown="PeriodPicker.onInputKeyDown(event, 'end')" onblur="PeriodPicker.onInputBlur('end')">
-          <button type="button" onclick="PeriodPicker.openMiniCal('end', this)" title="Календарь" style="background: none; border: none; cursor: pointer; padding: 0 2px; font-size: 10px; color: #555;">📅</button>
+          <button type="button" class="period-cal-btn" onclick="PeriodPicker.openMiniCal('end', this)" title="Календарь" style="background: none; border: none; cursor: pointer; padding: 0 2px; font-size: 10px; color: #555;">📅</button>
           <button type="button" onclick="PeriodPicker.clearInput('end')" title="Очистить" style="background: none; border: none; cursor: pointer; padding: 0 2px; font-size: 10px; color: #888; font-weight: bold;">✕</button>
         </div>
 

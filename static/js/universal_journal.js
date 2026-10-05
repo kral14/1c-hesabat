@@ -194,6 +194,22 @@ const UniversalJournal = {
     return `${y}-${m}-${d}`;
   },
 
+  formatDateTime: function(val) {
+    if (!val) return "";
+    const s = String(val).trim();
+    const mIso = s.match(/^(\d{4})[-/.](\d{1,2})[-/.](\d{1,2})(?:[T\s](\d{1,2}):(\d{1,2}):(\d{1,2}))?/);
+    if (mIso) {
+      const [_, y, m, d, hh, mm, ss] = mIso;
+      return `${String(d).padStart(2, "0")}.${String(m).padStart(2, "0")}.${y} ${hh || "00"}:${mm || "00"}:${ss || "00"}`;
+    }
+    const mDot = s.match(/^(\d{1,2})\.(\d{1,2})\.(\d{4})(?:\s+(\d{1,2}):(\d{1,2}):(\d{1,2}))?/);
+    if (mDot) {
+      const [_, d, m, y, hh, mm, ss] = mDot;
+      return `${String(d).padStart(2, "0")}.${String(m).padStart(2, "0")}.${y} ${hh || "00"}:${mm || "00"}:${ss || "00"}`;
+    }
+    return s;
+  },
+
   initialChunkLimit: 500,
   backgroundChunkLimit: 1000,
   currentLoadSessionId: 0,
@@ -402,12 +418,14 @@ const UniversalJournal = {
       for (const sc of saved) {
         if (defaultMap.has(sc.key)) {
           const def = defaultMap.get(sc.key);
+          let w = Number(sc.width || def.width || 100);
+          if (sc.key === "date" && w < 140) w = 145;
           merged.push({
             ...def,
             ...sc,
             label: sc.label || def.label,
             visible: sc.visible !== false,
-            width: Number(sc.width || def.width || 100),
+            width: w,
             autoWidth: Boolean(sc.autoWidth)
           });
           defaultMap.delete(sc.key);
@@ -569,6 +587,10 @@ const UniversalJournal = {
 
       if (key === "amount" && typeof val === "number") {
         val = val.toLocaleString("ru-RU", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+      }
+
+      if (key === "date" && val) {
+        val = this.formatDateTime(val);
       }
 
       const align = col.align || "left";

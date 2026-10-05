@@ -185,11 +185,22 @@ const OneCCalendar = {
 
     // Parse current date or default to now
     let curDate = new Date();
-    const curVal = target.value.trim();
-    if (/^\d{2}\.\d{2}\.\d{4}$/.test(curVal)) {
-      const [d, m, y] = curVal.split(".").map(Number);
-      curDate = new Date(y, m - 1, d);
-      this.selectedDate = new Date(y, m - 1, d);
+    const curVal = (target.value || "").trim();
+    const mDot = curVal.match(/^(\d{1,2})\.(\d{1,2})\.(\d{4})/);
+    const mIso = curVal.match(/^(\d{4})[-/.](\d{1,2})[-/.](\d{1,2})/);
+
+    if (mDot) {
+      const d = parseInt(mDot[1], 10);
+      const m = parseInt(mDot[2], 10) - 1;
+      const y = parseInt(mDot[3], 10);
+      curDate = new Date(y, m, d);
+      this.selectedDate = new Date(y, m, d);
+    } else if (mIso) {
+      const y = parseInt(mIso[1], 10);
+      const m = parseInt(mIso[2], 10) - 1;
+      const d = parseInt(mIso[3], 10);
+      curDate = new Date(y, m, d);
+      this.selectedDate = new Date(y, m, d);
     } else {
       this.selectedDate = new Date();
     }
@@ -198,6 +209,13 @@ const OneCCalendar = {
     this.viewMonth = curDate.getMonth();
 
     this.render();
+
+    // Ensure calendar popup is always on top of modals and windows
+    let topZ = 100050;
+    if (window.MdiManager && typeof MdiManager.topZIndex === "number") {
+      topZ = Math.max(topZ, MdiManager.topZIndex + 50);
+    }
+    this.popupEl.style.zIndex = String(topZ);
 
     // Position popup right below trigger element or target input
     const anchor = triggerEl || target.nextElementSibling || target;
@@ -260,7 +278,15 @@ const OneCCalendar = {
     const dd = String(day).padStart(2, "0");
     const mm = String(month + 1).padStart(2, "0");
     const yyyy = String(year);
-    const dateStr = `${dd}.${mm}.${yyyy}`;
+    
+    let timeSuffix = "";
+    if (this.targetInput && this.targetInput.value) {
+      const timeMatch = this.targetInput.value.match(/(\d{2}:\d{2}:\d{2})/);
+      if (timeMatch) {
+        timeSuffix = " " + timeMatch[1];
+      }
+    }
+    const dateStr = `${dd}.${mm}.${yyyy}${timeSuffix}`;
 
     if (this.targetInput) {
       this.targetInput.value = dateStr;

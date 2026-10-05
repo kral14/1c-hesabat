@@ -1,7 +1,27 @@
 # -*- coding: utf-8 -*-
 from services.common import get_barcodes_map
 import datetime
+import re
 from services.common import print_server_error, get_all_price_types
+
+def format_1c_datetime(raw_date):
+    if not raw_date:
+        return ""
+    if hasattr(raw_date, "strftime"):
+        try:
+            return raw_date.strftime("%d.%m.%Y %H:%M:%S")
+        except Exception:
+            pass
+    s = str(raw_date).strip()
+    m_iso = re.match(r"^(\d{4})[-/.](\d{1,2})[-/.](\d{1,2})(?:[T\s](\d{1,2}):(\d{1,2}):(\d{1,2}))?", s)
+    if m_iso:
+        y, mo, d, hh, mm, ss = m_iso.groups()
+        return f"{int(d):02d}.{int(mo):02d}.{int(y):04d} {int(hh or 0):02d}:{int(mm or 0):02d}:{int(ss or 0):02d}"
+    m_dot = re.match(r"^(\d{1,2})\.(\d{1,2})\.(\d{4})(?:\s+(\d{1,2}):(\d{1,2}):(\d{1,2}))?", s)
+    if m_dot:
+        d, mo, y, hh, mm, ss = m_dot.groups()
+        return f"{int(d):02d}.{int(mo):02d}.{int(y):04d} {int(hh or 0):02d}:{int(mm or 0):02d}:{int(ss or 0):02d}"
+    return s[:19]
 
 def handle_get_documents_list(conn, payload, key, resp_q):
     doc_type = payload.get("doc_type") or "УстановкаЦенНоменклатуры"
@@ -39,7 +59,7 @@ def handle_get_documents_list(conn, payload, key, resp_q):
 
     columns = [
         {"key": "status", "label": "", "width": 30, "align": "center"},
-        {"key": "date", "label": "Дата", "width": 125, "align": "left"},
+        {"key": "date", "label": "Дата", "width": 145, "align": "left"},
         {"key": "number", "label": "Номер", "width": 115, "align": "left"}
     ]
 
@@ -201,14 +221,7 @@ def handle_get_documents_list(conn, payload, key, resp_q):
     items = []
     doc_numbers = []
     while res_doc.Next():
-        raw_date = res_doc.Date
-        date_str = ""
-        if raw_date:
-            try:
-                date_str = raw_date.strftime("%d.%m.%Y %H:%M:%S")
-            except Exception:
-                date_str = str(raw_date)[:19]
-
+        date_str = format_1c_datetime(res_doc.Date)
         d_num = str(res_doc.Number or "").strip()
         doc_numbers.append(d_num)
 
@@ -366,13 +379,7 @@ def handle_get_document_details(conn, payload, key, resp_q):
         raise ValueError(f"Sənəd №{doc_number} tapılmadı")
 
     doc_obj = res_det.Ref.ПолучитьОбъект()
-    raw_date = doc_obj.Дата
-    date_str = ""
-    if raw_date:
-        try:
-            date_str = raw_date.strftime("%d.%m.%Y %H:%M:%S")
-        except Exception:
-            date_str = str(raw_date)[:19]
+    date_str = format_1c_datetime(doc_obj.Дата)
 
     org_name = ""
     if hasattr(doc_obj, "Организация") and doc_obj.Организация:
@@ -490,13 +497,7 @@ def handle_get_price_document(conn, payload, key, resp_q):
         raise ValueError(f"Sənəd №{doc_number} tapılmadı")
 
     doc_obj = res_pdoc.Ref.ПолучитьОбъект()
-    raw_date = doc_obj.Дата
-    date_str = ""
-    if raw_date:
-        try:
-            date_str = raw_date.strftime("%d.%m.%Y %H:%M:%S")
-        except Exception:
-            date_str = str(raw_date)[:19]
+    date_str = format_1c_datetime(doc_obj.Дата)
 
     # Read Price Types from doc
     doc_price_types = []

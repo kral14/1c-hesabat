@@ -19,6 +19,25 @@ def get_connection():
     conn.row_factory = sqlite3.Row
     return conn
 
+def format_1c_datetime(dt_val):
+    if not dt_val:
+        return ""
+    if hasattr(dt_val, "strftime"):
+        try:
+            return dt_val.strftime("%d.%m.%Y %H:%M:%S")
+        except Exception:
+            pass
+    s = str(dt_val).strip()
+    m_iso = re.match(r"^(\d{4})[-/.](\d{1,2})[-/.](\d{1,2})(?:[T\s](\d{1,2}):(\d{1,2}):(\d{1,2}))?", s)
+    if m_iso:
+        y, mo, d, hh, mm, ss = m_iso.groups()
+        return f"{int(d):02d}.{int(mo):02d}.{int(y):04d} {int(hh or 0):02d}:{int(mm or 0):02d}:{int(ss or 0):02d}"
+    m_dot = re.match(r"^(\d{1,2})\.(\d{1,2})\.(\d{4})(?:\s+(\d{1,2}):(\d{1,2}):(\d{1,2}))?", s)
+    if m_dot:
+        d, mo, y, hh, mm, ss = m_dot.groups()
+        return f"{int(d):02d}.{int(mo):02d}.{int(y):04d} {int(hh or 0):02d}:{int(mm or 0):02d}:{int(ss or 0):02d}"
+    return s[:19]
+
 # 1. Ping
 def ping():
     return "pong (Offline SQLite)"
@@ -157,7 +176,7 @@ def get_documents_list(payload):
 
             columns = [
                 {"key": "status", "label": "", "width": 30, "align": "center"},
-                {"key": "date", "label": "Дата", "width": 135, "align": "left"},
+                {"key": "date", "label": "Дата", "width": 145, "align": "left"},
                 {"key": "number", "label": "Номер", "width": 115, "align": "left"},
                 {"key": "responsible", "label": "Ответственный", "width": 160, "align": "left"},
                 {"key": "comment", "label": "Комментарий", "width": 300, "align": "left"}
@@ -169,7 +188,7 @@ def get_documents_list(payload):
                 posted = ("проведен" in stat.lower() and "не проведен" not in stat.lower())
                 item = {
                     "number": r["doc_number"],
-                    "date": r["doc_date"],
+                    "date": format_1c_datetime(r["doc_date"]),
                     "responsible": r["responsible"] or "Keleshov Nasib",
                     "comment": r["comment"] or "",
                     "posted": posted,
@@ -200,7 +219,7 @@ def get_documents_list(payload):
         elif doc_type == "РеализацияТоваровУслуг":
             columns = [
                 {"key": "status", "label": "", "width": 30, "align": "center"},
-                {"key": "date", "label": "Дата", "width": 125, "align": "left"},
+                {"key": "date", "label": "Дата", "width": 145, "align": "left"},
                 {"key": "number", "label": "Номер", "width": 115, "align": "left"},
                 {"key": "kontragent", "label": "Контрагент", "width": 240, "align": "left"},
                 {"key": "kontragent_code", "label": "Код контрагента", "width": 115, "align": "left"},
@@ -255,7 +274,7 @@ def get_documents_list(payload):
             items = []
             for r in rows:
                 doc_num = f"C00004{r['min_id']:05d}"
-                dt_str = f"{r['period']} 12:00:00"
+                dt_str = format_1c_datetime(f"{r['period']} 12:00:00")
                 amount_val = float(r["tot_sum"] or 0.0)
                 port_val = "01 MONDELEZ" if (r['min_id'] % 2 == 0) else "04 FERRERO"
                 noms_arr = ["Шоколад Milka", "Печенье Oreo"] if (r['min_id'] % 2 == 0) else ["Raffaello", "Nutella"]
@@ -315,7 +334,7 @@ def get_documents_list(payload):
         elif doc_type == "ПоступлениеТоваровУслуг":
             columns = [
                 {"key": "status", "label": "", "width": 30, "align": "center"},
-                {"key": "date", "label": "Дата", "width": 135, "align": "left"},
+                {"key": "date", "label": "Дата", "width": 145, "align": "left"},
                 {"key": "number", "label": "Номер", "width": 125, "align": "left"},
                 {"key": "kontragent", "label": "Контрагент", "width": 260, "align": "left"},
                 {"key": "warehouse", "label": "Склад", "width": 160, "align": "left"},
@@ -342,7 +361,7 @@ def get_documents_list(payload):
             for i, kr in enumerate(k_rows):
                 cur_date = base_date + datetime.timedelta(days=(i % 28))
                 doc_num = f"ПТ-{i+1:08d}"
-                dt_str = cur_date.strftime("%Y-%m-%d 10:30:00")
+                dt_str = format_1c_datetime(cur_date.strftime("%Y-%m-%d 10:30:00"))
                 wh_name = wh_rows[i % len(wh_rows)]
                 amt = round(1500.0 + (i * 342.5 % 8500), 2)
                 item = {
@@ -375,7 +394,7 @@ def get_documents_list(payload):
         elif doc_type == "ЗаказПокупателя":
             columns = [
                 {"key": "status", "label": "", "width": 30, "align": "center"},
-                {"key": "date", "label": "Дата", "width": 135, "align": "left"},
+                {"key": "date", "label": "Дата", "width": 145, "align": "left"},
                 {"key": "number", "label": "Номер", "width": 125, "align": "left"},
                 {"key": "kontragent", "label": "Контрагент", "width": 260, "align": "left"},
                 {"key": "amount", "label": "Сумма", "width": 110, "align": "right"},
@@ -395,7 +414,7 @@ def get_documents_list(payload):
             items = []
             for r in rows:
                 doc_num = f"ЗК-{r['min_id']:08d}"
-                dt_str = f"{r['period']} 09:15:00"
+                dt_str = format_1c_datetime(f"{r['period']} 09:15:00")
                 item = {
                     "number": doc_num,
                     "date": dt_str,
