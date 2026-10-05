@@ -12,12 +12,10 @@ sys.path.insert(0, app_dir)
 from app import app
 
 def open_electron():
-    time.sleep(2.0)
+    time.sleep(1.5)
     try:
-        out = subprocess.check_output('tasklist /FI "IMAGENAME eq electron.exe"', shell=True).decode(errors="ignore")
-        if "electron.exe" in out:
-            print("Electron artiq isleyir, elave pencere acilmir.", flush=True)
-            return
+        # Terminate any lingering zombie electron processes so window always opens
+        subprocess.run('taskkill /F /IM electron.exe', shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     except Exception:
         pass
     print("Masaüstü Electron Pəncərəsi açılır...", flush=True)

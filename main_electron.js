@@ -87,9 +87,9 @@ function createWindow() {
     const targetWin = BrowserWindow.fromWebContents(event.sender) || win;
     if (targetWin) {
       targetWin.close();
-    } else {
-      app.quit();
     }
+    app.quit();
+    process.exit(0);
   });
 
   win.webContents.session.clearCache().finally(() => {
@@ -116,5 +116,6 @@ app.whenReady().then(() => {
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') {
     app.quit();
+    process.exit(0);
   }
 });
