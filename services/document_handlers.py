@@ -245,6 +245,12 @@ def handle_get_documents_list(conn, payload, key, resp_q):
         except Exception:
             pass
 
+        date_str = ""
+        try:
+            date_str = format_1c_datetime(res_doc.Date)
+        except Exception:
+            pass
+
         row_data = {
             "number": d_num,
             "date": date_str,

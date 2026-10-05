@@ -117,6 +117,18 @@ function confirmCloseWindow() {
 }
 
 function openCatalogDirect(catalogName) {
+  const catSafe = String(catalogName).replace(/[^a-zA-Z0-9_\u0400-\u04FF]/g, "_");
+  const winId = `catalogWin_${catSafe}`;
+  const existingWin = document.getElementById(winId);
+
+  // Əgər pəncərə artıq açıqdırsa, təkrar kliklədikdə dərhal ikincisini / yeni nüsxəsini açırıq
+  if (existingWin && existingWin.style.display !== "none" && !existingWin.classList.contains("minimized")) {
+    if (window.MdiManager && typeof MdiManager.createDuplicateCatalogWindow === "function") {
+      MdiManager.createDuplicateCatalogWindow(catalogName);
+      return;
+    }
+  }
+
   const cs = (typeof CatalogSelector !== "undefined") ? CatalogSelector : window.CatalogSelector;
   if (cs) {
     cs.open({

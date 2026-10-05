@@ -68,8 +68,14 @@ const PeriodPicker = {
 
     const inpStart = document.getElementById("ppStartDateInput");
     const inpEnd = document.getElementById("ppEndDateInput");
-    if (inpStart) inpStart.value = this.startDateStr;
-    if (inpEnd) inpEnd.value = this.endDateStr;
+    if (inpStart) {
+      inpStart.value = this.startDateStr;
+      this.attachSegmentSelection(inpStart);
+    }
+    if (inpEnd) {
+      inpEnd.value = this.endDateStr;
+      this.attachSegmentSelection(inpEnd);
+    }
 
     // Ensure overlay covers correctly without unexpected offsets
     modal.style.position = "absolute";
@@ -195,6 +201,57 @@ const PeriodPicker = {
     this.renderGrid();
   },
 
+  parseDateObj: function(str, isEnd) {
+    if (!str) return null;
+    const m = String(str).trim().match(/^(\d{1,2})\.(\d{1,2})\.(\d{4})(?:\s+(\d{1,2}):(\d{1,2}):(\d{1,2}))?/);
+    if (!m) return null;
+    const d = parseInt(m[1], 10);
+    const mo = parseInt(m[2], 10) - 1;
+    const y = parseInt(m[3], 10);
+    const hh = m[4] !== undefined ? parseInt(m[4], 10) : (isEnd ? 23 : 0);
+    const mm = m[5] !== undefined ? parseInt(m[5], 10) : (isEnd ? 59 : 0);
+    const ss = m[6] !== undefined ? parseInt(m[6], 10) : (isEnd ? 59 : 0);
+    return new Date(y, mo, d, hh, mm, ss);
+  },
+
+  validateAndSyncDates: function(which) {
+    const inpStart = document.getElementById("ppStartDateInput");
+    const inpEnd = document.getElementById("ppEndDateInput");
+    const sStart = inpStart ? inpStart.value.trim() : this.startDateStr;
+    const sEnd = inpEnd ? inpEnd.value.trim() : this.endDateStr;
+
+    if (!sStart || !sEnd) return;
+
+    const dtStart = this.parseDateObj(sStart, false);
+    const dtEnd = this.parseDateObj(sEnd, true);
+
+    if (dtStart && dtEnd && dtStart.getTime() > dtEnd.getTime()) {
+      if (which === "start") {
+        // Başlanğıc tarix son tarixdən yuxarı ola bilməz!
+        // Başlanğıc tarix dəyişdikdə son tarix ən azı həmin günün sonuna (23:59:59) bərabərləşdirilir
+        const d = String(dtStart.getDate()).padStart(2, "0");
+        const m = String(dtStart.getMonth() + 1).padStart(2, "0");
+        const y = dtStart.getFullYear();
+        this.endDateStr = `${d}.${m}.${y} 23:59:59`;
+        if (inpEnd) inpEnd.value = this.endDateStr;
+      } else if (which === "end") {
+        // Son tarix başlanğıc tarixdən əvvələ qoyularsa,
+        // başlanğıc tarix son tarixin gününün əvvəlinə (00:00:00) çəkilir
+        const d = String(dtEnd.getDate()).padStart(2, "0");
+        const m = String(dtEnd.getMonth() + 1).padStart(2, "0");
+        const y = dtEnd.getFullYear();
+        this.startDateStr = `${d}.${m}.${y} 00:00:00`;
+        if (inpStart) inpStart.value = this.startDateStr;
+      } else {
+        const d = String(dtStart.getDate()).padStart(2, "0");
+        const m = String(dtStart.getMonth() + 1).padStart(2, "0");
+        const y = dtStart.getFullYear();
+        this.endDateStr = `${d}.${m}.${y} 23:59:59`;
+        if (inpEnd) inpEnd.value = this.endDateStr;
+      }
+    }
+  },
+
   renderGrid: function() {
     const year0 = this.baseYear - 1;
     const year1 = this.baseYear;
@@ -215,21 +272,8 @@ const PeriodPicker = {
     const curYear = now.getFullYear();
     const curMonth = now.getMonth(); // 0-indexed
 
-    const parseDateObj = (str, isEnd) => {
-      if (!str) return null;
-      const m = String(str).trim().match(/^(\d{1,2})\.(\d{1,2})\.(\d{4})(?:\s+(\d{1,2}):(\d{1,2}):(\d{1,2}))?/);
-      if (!m) return null;
-      const d = parseInt(m[1], 10);
-      const mo = parseInt(m[2], 10) - 1;
-      const y = parseInt(m[3], 10);
-      const hh = m[4] !== undefined ? parseInt(m[4], 10) : (isEnd ? 23 : 0);
-      const mm = m[5] !== undefined ? parseInt(m[5], 10) : (isEnd ? 59 : 0);
-      const ss = m[6] !== undefined ? parseInt(m[6], 10) : (isEnd ? 59 : 0);
-      return new Date(y, mo, d, hh, mm, ss);
-    };
-
-    const dtStart = parseDateObj(this.startDateStr, false);
-    const dtEnd = parseDateObj(this.endDateStr, true);
+    const dtStart = this.parseDateObj(this.startDateStr, false);
+    const dtEnd = this.parseDateObj(this.endDateStr, true);
 
     const years = [year0, year1, year2];
     years.forEach(yr => {
@@ -369,69 +413,240 @@ const PeriodPicker = {
 
   /**
    * Smart date completion:
-   * e.g. "01.03" + Enter -> "01.03.2026"
-   * "1.3" -> "01.03.2026"
-   * "0103" -> "01.03.2026"
-   * "01.03.26" -> "01.03.2026"
-   * "15" -> "15.<currentMonth>.<currentYear>"
+   * e.g. "04.10" -> "04.10.2026 00:00:00"
+   * "01.03" + Enter -> "01.03.2026 00:00:00"
+   * "1.3" -> "01.03.2026 00:00:00"
+   * "0103" -> "01.03.2026 00:00:00"
+   * "01.03.26" -> "01.03.2026 00:00:00"
+   * "15" -> "15.<currentMonth>.<currentYear> 00:00:00"
    */
-  autoCompleteDate: function(val) {
+  autoCompleteDate: function(val, defaultTime = "00:00:00") {
     if (!val) return "";
-    val = val.trim();
+    // Yad simvolları dərhal təmizlə
+    val = String(val).replace(/[^0-9.:\s\/\-,]/g, "").trim();
+    if (!val) return "";
+
+    const now = new Date();
+    const curYear = this.baseYear || now.getFullYear();
+    const curMonth = now.getMonth() + 1;
+
     let timePart = "";
     const timeMatch = val.match(/\s+(\d{1,2}:\d{1,2}(?::\d{1,2})?)$/);
     if (timeMatch) {
       const tParts = timeMatch[1].split(":");
-      const hh = tParts[0].padStart(2, "0");
-      const mm = (tParts[1] || "00").padStart(2, "0");
-      const ss = (tParts[2] || "00").padStart(2, "0");
-      timePart = ` ${hh}:${mm}:${ss}`;
+      const hh = Math.min(23, Math.max(0, parseInt(tParts[0], 10) || 0));
+      const mm = Math.min(59, Math.max(0, parseInt(tParts[1], 10) || 0));
+      const ss = Math.min(59, Math.max(0, parseInt(tParts[2], 10) || 0));
+      timePart = ` ${String(hh).padStart(2, "0")}:${String(mm).padStart(2, "0")}:${String(ss).padStart(2, "0")}`;
       val = val.replace(/\s+\d{1,2}:\d{1,2}(?::\d{1,2})?$/, "").trim();
+    } else {
+      timePart = defaultTime ? ` ${defaultTime}` : " 00:00:00";
     }
+
     val = val.replace(/[\/\-,]/g, ".");
-    const now = new Date();
-    const curYear = this.baseYear || now.getFullYear();
-    const curMonth = String(now.getMonth() + 1).padStart(2, "0");
 
-    let datePart = val;
-    // Pattern 1: dd.mm.yyyy (already full)
-    if (/^\d{1,2}\.\d{1,2}\.\d{4}$/.test(val)) {
-      const parts = val.split(".");
-      const dd = String(parseInt(parts[0], 10)).padStart(2, "0");
-      const mm = String(parseInt(parts[1], 10)).padStart(2, "0");
-      const yyyy = parts[2];
-      datePart = `${dd}.${mm}.${yyyy}`;
-    } else if (/^\d{1,2}\.\d{1,2}\.\d{2}$/.test(val)) {
-      const parts = val.split(".");
-      const dd = String(parseInt(parts[0], 10)).padStart(2, "0");
-      const mm = String(parseInt(parts[1], 10)).padStart(2, "0");
-      const yyyy = "20" + parts[2];
-      datePart = `${dd}.${mm}.${yyyy}`;
-    } else if (/^\d{1,2}\.\d{1,2}$/.test(val)) {
-      const parts = val.split(".");
-      const dd = String(parseInt(parts[0], 10)).padStart(2, "0");
-      const mm = String(parseInt(parts[1], 10)).padStart(2, "0");
-      datePart = `${dd}.${mm}.${curYear}`;
-    } else if (/^\d{4}$/.test(val)) {
-      const dd = val.substring(0, 2);
-      const mm = val.substring(2, 4);
-      datePart = `${dd}.${mm}.${curYear}`;
-    } else if (/^\d{6}$/.test(val)) {
-      const dd = val.substring(0, 2);
-      const mm = val.substring(2, 4);
-      const yyyy = "20" + val.substring(4, 6);
-      datePart = `${dd}.${mm}.${yyyy}`;
-    } else if (/^\d{8}$/.test(val)) {
-      const dd = val.substring(0, 2);
-      const mm = val.substring(2, 4);
-      const yyyy = val.substring(4, 8);
-      datePart = `${dd}.${mm}.${yyyy}`;
-    } else if (/^\d{1,2}$/.test(val)) {
-      const dd = String(parseInt(val, 10)).padStart(2, "0");
-      datePart = `${dd}.${curMonth}.${curYear}`;
+    let day = 1;
+    let month = curMonth;
+    let year = curYear;
+
+    if (val.includes(".")) {
+      const parts = val.split(".").map(s => s.trim()).filter(s => s.length > 0);
+      if (parts.length >= 1) {
+        day = parseInt(parts[0], 10) || 1;
+      }
+      if (parts.length >= 2) {
+        month = parseInt(parts[1], 10) || curMonth;
+      }
+      if (parts.length >= 3) {
+        let yStr = parts[2];
+        if (yStr.length === 2) yStr = "20" + yStr;
+        year = parseInt(yStr, 10) || curYear;
+      }
+    } else {
+      // Nöqtəsiz yalnız rəqəmlər daxil edilib
+      const digits = val.replace(/\D/g, "");
+      if (digits.length === 1 || digits.length === 2) {
+        day = parseInt(digits, 10) || 1;
+      } else if (digits.length === 3) {
+        day = parseInt(digits.substring(0, 2), 10) || 1;
+        month = parseInt(digits.substring(2), 10) || curMonth;
+      } else if (digits.length === 4) {
+        day = parseInt(digits.substring(0, 2), 10) || 1;
+        month = parseInt(digits.substring(2, 4), 10) || curMonth;
+      } else if (digits.length === 6) {
+        day = parseInt(digits.substring(0, 2), 10) || 1;
+        month = parseInt(digits.substring(2, 4), 10) || curMonth;
+        year = 2000 + (parseInt(digits.substring(4, 6), 10) || 26);
+      } else if (digits.length >= 8) {
+        day = parseInt(digits.substring(0, 2), 10) || 1;
+        month = parseInt(digits.substring(2, 4), 10) || curMonth;
+        year = parseInt(digits.substring(4, 8), 10) || curYear;
+      }
     }
 
-    return `${datePart}${timePart}`;
+    // Təqvim validasiyaları
+    month = Math.min(12, Math.max(1, month));
+    year = Math.max(1900, Math.min(2100, year));
+    const maxDays = new Date(year, month, 0).getDate();
+    day = Math.min(maxDays, Math.max(1, day));
+
+    const sDay = String(day).padStart(2, "0");
+    const sMonth = String(month).padStart(2, "0");
+    const sYear = String(year).padStart(4, "0");
+
+    // HƏMİŞƏ DƏQİQ 1C FORMATI: DD.MM.YYYY HH:MM:SS
+    return `${sDay}.${sMonth}.${sYear}${timePart}`;
+  },
+
+  enforceDateInputRestrictions: function(input) {
+    if (!input || input._c1DateRestricted) return;
+    input._c1DateRestricted = true;
+
+    input.addEventListener("keydown", (e) => {
+      // Funksional və naviqasiya düymələrinə icazə ver
+      if ([
+        "Backspace", "Delete", "Tab", "Enter", "Escape", 
+        "ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown", 
+        "Home", "End", "F4"
+      ].includes(e.key)) {
+        return;
+      }
+      if (e.ctrlKey || e.metaKey) {
+        return;
+      }
+      if (e.key === "." || e.key === ":" || e.key === " ") {
+        return;
+      }
+      // RƏQƏM OLMAYAN HƏR ŞEYİ (hərflər 'a', 's' və s.) KLAVİATURADA DƏRHAL BLOKLA!
+      if (!/^\d$/.test(e.key)) {
+        e.preventDefault();
+        return;
+      }
+    });
+
+    input.addEventListener("paste", (e) => {
+      e.preventDefault();
+      const text = (e.clipboardData || window.clipboardData).getData("text") || "";
+      const clean = text.replace(/[^0-9.:\s\/\-,]/g, "");
+      document.execCommand("insertText", false, clean);
+    });
+
+    input.addEventListener("input", () => {
+      const clean = input.value.replace(/[^0-9.:\s\/\-,]/g, "");
+      if (input.value !== clean) {
+        input.value = clean;
+      }
+    });
+  },
+
+  /**
+   * 1C Native Segment Selector:
+   * When user clicks on Day (01), Month (04), Year (2026), Hour, Min, Sec:
+   * precisely highlights that clicked segment instead of the entire date!
+   */
+  attachSegmentSelection: function(input) {
+    if (!input || input._c1SegmentBound) return;
+    input._c1SegmentBound = true;
+    this.enforceDateInputRestrictions(input);
+
+    const selectSegmentAtCursor = () => {
+      const val = input.value;
+      if (!val) return;
+
+      const pos = input.selectionStart || 0;
+      let s = 0, e = 2;
+
+      if (pos <= 2) {
+        // Day: 01.
+        s = 0; e = 2;
+      } else if (pos <= 5) {
+        // Month: 04.
+        s = 3; e = 5;
+      } else if (pos <= 10) {
+        // Year: 2026
+        s = 6; e = 10;
+      } else if (pos <= 13) {
+        // Hour: 00:
+        s = 11; e = 13;
+      } else if (pos <= 16) {
+        // Minute: 00:
+        s = 14; e = 16;
+      } else {
+        // Second: 00
+        s = 17; e = 19;
+      }
+
+      if (e > val.length) e = val.length;
+      if (s < val.length) {
+        try {
+          input.setSelectionRange(s, e);
+        } catch (err) {}
+      }
+    };
+
+    input.addEventListener("mouseup", (e) => {
+      // If user is just clicking, not drag-selecting text
+      if (input.selectionStart === input.selectionEnd) {
+        setTimeout(selectSegmentAtCursor, 15);
+      }
+    });
+
+    input.addEventListener("dblclick", (e) => {
+      e.preventDefault();
+      selectSegmentAtCursor();
+    });
+
+    input.addEventListener("keydown", (e) => {
+      const val = input.value;
+      if (!val || !/^\d{2}\.\d{2}\.\d{4}/.test(val)) return;
+
+      if (e.key === "ArrowRight") {
+        const start = input.selectionStart;
+        const end = input.selectionEnd;
+        if (start === 0 && end === 2) {
+          e.preventDefault();
+          input.setSelectionRange(3, 5);
+        } else if (start === 3 && end === 5) {
+          e.preventDefault();
+          input.setSelectionRange(6, 10);
+        } else if (start === 6 && end === 10 && val.length > 10) {
+          e.preventDefault();
+          input.setSelectionRange(11, 13);
+        } else if (start === 11 && end === 13 && val.length > 13) {
+          e.preventDefault();
+          input.setSelectionRange(14, 16);
+        } else if (start === 14 && end === 16 && val.length > 16) {
+          e.preventDefault();
+          input.setSelectionRange(17, 19);
+        }
+      } else if (e.key === "ArrowLeft") {
+        const start = input.selectionStart;
+        const end = input.selectionEnd;
+        if (start === 17 && end === 19) {
+          e.preventDefault();
+          input.setSelectionRange(14, 16);
+        } else if (start === 14 && end === 16) {
+          e.preventDefault();
+          input.setSelectionRange(11, 13);
+        } else if (start === 11 && end === 13) {
+          e.preventDefault();
+          input.setSelectionRange(6, 10);
+        } else if (start === 6 && end === 10) {
+          e.preventDefault();
+          input.setSelectionRange(3, 5);
+        } else if (start === 3 && end === 5) {
+          e.preventDefault();
+          input.setSelectionRange(0, 2);
+        }
+      }
+    });
+
+    input.addEventListener("input", () => {
+      const clean = input.value.replace(/[^0-9.:\s\/\-,]/g, "");
+      if (input.value !== clean) {
+        input.value = clean;
+      }
+    });
   },
 
   onInputKeyDown: function(e, which) {
@@ -451,8 +666,9 @@ const PeriodPicker = {
         : document.getElementById("ppEndDateInput");
 
       if (inp) {
-        inp.value = this.autoCompleteDate(inp.value);
+        inp.value = this.autoCompleteDate(inp.value, which === "end" ? "23:59:59" : "00:00:00");
       }
+      this.validateAndSyncDates(which);
       this.onManualInputChange(which);
 
       // If user pressed Enter in start input, focus the end input for smooth UX
@@ -460,7 +676,7 @@ const PeriodPicker = {
         const inpEnd = document.getElementById("ppEndDateInput");
         if (inpEnd) {
           inpEnd.focus();
-          inpEnd.select();
+          if (inpEnd.setSelectionRange) inpEnd.setSelectionRange(0, 2);
         }
       } else {
         if (inp) inp.blur();
@@ -474,8 +690,9 @@ const PeriodPicker = {
       : document.getElementById("ppEndDateInput");
 
     if (inp && inp.value.trim()) {
-      inp.value = this.autoCompleteDate(inp.value);
+      inp.value = this.autoCompleteDate(inp.value, which === "end" ? "23:59:59" : "00:00:00");
     }
+    this.validateAndSyncDates(which);
     this.onManualInputChange(which);
   },
 
@@ -484,6 +701,11 @@ const PeriodPicker = {
     const inpEnd = document.getElementById("ppEndDateInput");
     this.startDateStr = inpStart ? inpStart.value.trim() : "";
     this.endDateStr = inpEnd ? inpEnd.value.trim() : "";
+
+    // Tam tarix daxil edilibsə dərhal başlanğıc və son tarixin düzgünlüyünü yoxla
+    if (this.startDateStr.length >= 10 && this.endDateStr.length >= 10) {
+      this.validateAndSyncDates(which);
+    }
 
     this.rangeAnchor = null;
     this.isSelectingRange = false;
@@ -633,6 +855,17 @@ const PeriodPicker = {
   },
 
   confirm: function() {
+    const inpStart = document.getElementById("ppStartDateInput");
+    const inpEnd = document.getElementById("ppEndDateInput");
+    if (inpStart && inpStart.value.trim()) {
+      inpStart.value = this.autoCompleteDate(inpStart.value, "00:00:00");
+      this.startDateStr = inpStart.value.trim();
+    }
+    if (inpEnd && inpEnd.value.trim()) {
+      inpEnd.value = this.autoCompleteDate(inpEnd.value, "23:59:59");
+      this.endDateStr = inpEnd.value.trim();
+    }
+    this.validateAndSyncDates("start");
     this.saveRememberedPeriod();
     this.close();
     if (typeof this.activeCallback === "function") {

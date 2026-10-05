@@ -676,6 +676,69 @@ document.addEventListener("keydown", (e) => {
   }
 });
 
+// Global 1C Date Segment Selector (Clicking on DD selects DD, clicking on MM selects MM, etc.)
+document.addEventListener("mouseup", (e) => {
+  const inp = e.target;
+  if (!inp || inp.tagName !== "INPUT" || (inp.type && inp.type !== "text")) return;
+  const val = inp.value;
+  if (!val || !/^\d{2}\.\d{2}\.\d{4}/.test(val)) return;
+  if (inp.selectionStart !== inp.selectionEnd) return; // user is intentionally drag-selecting
+
+  setTimeout(() => {
+    const pos = inp.selectionStart || 0;
+    let s = 0, end = 2;
+    if (pos <= 2) {
+      s = 0; end = 2; // Day
+    } else if (pos <= 5) {
+      s = 3; end = 5; // Month
+    } else if (pos <= 10) {
+      s = 6; end = 10; // Year
+    } else if (pos <= 13) {
+      s = 11; end = 13; // Hour
+    } else if (pos <= 16) {
+      s = 14; end = 16; // Minute
+    } else {
+      s = 17; end = 19; // Second
+    }
+    if (end > val.length) end = val.length;
+    if (s < val.length) {
+      try {
+        inp.setSelectionRange(s, end);
+      } catch (err) {}
+    }
+  }, 10);
+});
+
+document.addEventListener("dblclick", (e) => {
+  const inp = e.target;
+  if (!inp || inp.tagName !== "INPUT" || (inp.type && inp.type !== "text")) return;
+  const val = inp.value;
+  if (!val || !/^\d{2}\.\d{2}\.\d{4}/.test(val)) return;
+  e.preventDefault();
+
+  const pos = inp.selectionStart || 0;
+  let s = 0, end = 2;
+  if (pos <= 2) {
+    s = 0; end = 2;
+  } else if (pos <= 5) {
+    s = 3; end = 5;
+  } else if (pos <= 10) {
+    s = 6; end = 10;
+  } else if (pos <= 13) {
+    s = 11; end = 13;
+  } else if (pos <= 16) {
+    s = 14; end = 16;
+  } else {
+    s = 17; end = 19;
+  }
+  if (end > val.length) end = val.length;
+  if (s < val.length) {
+    try {
+      inp.setSelectionRange(s, end);
+    } catch (err) {}
+  }
+});
+
 // Auto initialize on DOM ready
 document.addEventListener("DOMContentLoaded", () => {
   OneCCalendar.init();

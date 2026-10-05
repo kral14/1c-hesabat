@@ -17,14 +17,74 @@ const SalesDocEditor = {
     this.currentDocNumber = docNumber;
     this.currentDocDate = docDate || "";
 
-    const win = document.getElementById("salesDocEditorWindow");
-    if (!win) return;
+    const safeNum = String(docNumber).replace(/[^a-zA-Z0-9_-]/g, "_");
+    const winId = `salesDocEditorWindow_${safeNum}`;
+    let win = document.getElementById(winId);
 
-    // Activate in MDI Manager
+    if (!win) {
+      const baseWin = document.getElementById("salesDocEditorWindow");
+      if (!baseWin) {
+        console.error("[SalesDocEditor] Base salesDocEditorWindow template not found!");
+        return;
+      }
+
+      // Hər yeni sənəd üçün unikal müstəqil pəncərə klonlayırıq
+      win = baseWin.cloneNode(true);
+      win.id = winId;
+      win.style.display = "flex";
+      
+      // Pilləli offset (cascade) veririk ki, pəncərələr bir-birinin üstünü tam örtməsin
+      const existingDocs = document.querySelectorAll(".mdi-window[id^='salesDocEditorWindow_']").length;
+      const offset = (existingDocs * 24) % 150;
+      win.style.top = `${25 + offset}px`;
+      win.style.left = `${35 + offset}px`;
+      document.getElementById("mdiWorkspace").appendChild(win);
+
+      win.setAttribute("onmousedown", `MdiManager.activateWindow('${winId}')`);
+
+      // Başlıq və daxili idarəetmə düymələrini bu pəncərəyə bağlayırıq
+      const header = win.querySelector(".mdi-window-header");
+      if (header) {
+        header.removeAttribute("ondblclick");
+        header.ondblclick = (e) => {
+          if (e.target.closest(".mdi-win-btn, .window-btn-close")) return;
+          MdiManager.toggleMaximize(winId);
+        };
+      }
+
+      // Daxili bağlama düymələri
+      const closeBtns = win.querySelectorAll(".mdi-win-btn-close");
+      closeBtns.forEach(b => {
+        b.removeAttribute("onclick");
+        b.onclick = (e) => {
+          e.stopPropagation();
+          SalesDocEditor.closeInstance(winId);
+        };
+      });
+      const maxBtns = win.querySelectorAll(".mdi-win-btn-max");
+      maxBtns.forEach(b => {
+        b.removeAttribute("onclick");
+        b.onclick = (e) => {
+          e.stopPropagation();
+          MdiManager.toggleMaximize(winId);
+        };
+      });
+      const minBtns = win.querySelectorAll(".mdi-win-btn-min");
+      minBtns.forEach(b => {
+        b.removeAttribute("onclick");
+        b.onclick = (e) => {
+          e.stopPropagation();
+          MdiManager.minimizeWindow(winId);
+        };
+      });
+    }
+
+    // MDI Manager-də aktivləşdiririk
     if (window.MdiManager) {
-      MdiManager.activateWindow("salesDocEditorWindow", {
-        title: `Реализация: № ${docNumber} от ${docDate}`,
-        icon: "📋"
+      MdiManager.activateWindow(winId, {
+        title: `Реализация: № ${docNumber}`,
+        icon: "📋",
+        closeFn: () => SalesDocEditor.closeInstance(winId)
       });
     } else {
       win.style.display = "flex";
@@ -32,25 +92,38 @@ const SalesDocEditor = {
       win.classList.add("active");
     }
 
-    this.showLoading(true);
-    this.fetchDocumentData(docNumber);
+    this.showLoadingInWin(win, true);
+    this.fetchDocumentDataForWin(win, docNumber);
   },
 
-  close: function() {
+  closeInstance: function(winId) {
     if (window.MdiManager) {
-      MdiManager.closeWindow("salesDocEditorWindow");
-    } else {
-      const win = document.getElementById("salesDocEditorWindow");
-      if (win) win.style.display = "none";
+      MdiManager.closeWindow(winId);
+    }
+    const win = document.getElementById(winId);
+    if (win) {
+      win.style.display = "none";
+      // Klonlanmış pəncərədirsə DOM-dan tam silirik
+      if (winId !== "salesDocEditorWindow") {
+        win.remove();
+      }
     }
   },
 
-  showLoading: function(show) {
-    const el = document.getElementById("sdeLoadingState");
+  close: function() {
+    this.closeInstance(`salesDocEditorWindow_${String(this.currentDocNumber).replace(/[^a-zA-Z0-9_-]/g, "_")}`);
+  },
+
+  showLoadingInWin: function(win, show) {
+    const el = win ? win.querySelector("#sdeLoadingState, [id^='sdeLoadingState']") : document.getElementById("sdeLoadingState");
     if (el) el.style.display = show ? "flex" : "none";
   },
 
   fetchDocumentData: function(docNumber) {
+    this.fetchDocumentDataForWin(document.getElementById("salesDocEditorWindow"), docNumber);
+  },
+
+  fetchDocumentDataForWin: function(win, docNumber) {
     const creds = window.SessionManager ? SessionManager.getCredentials() : {};
     fetch("/api/documents/details", {
       method: "POST",
@@ -63,7 +136,7 @@ const SalesDocEditor = {
     })
     .then(r => r.json())
     .then(res => {
-      this.showLoading(false);
+      this.showLoadingInWin(win, false);
       if (!res.success) {
         alert("1C Xətası: " + (res.error || "Sənədi yükləmək mümkün olmadı"));
         return;
@@ -99,15 +172,115 @@ const SalesDocEditor = {
       this.filteredItems = [...this.items];
       this.selectedRowIdx = this.filteredItems.length > 0 ? 0 : null;
 
-      this.renderHeader();
-      this.renderTable();
-      this.recalculateTotals();
+      this.renderHeaderInWin(win, this.header, docNumber);
+      this.renderTableInWin(win, this.filteredItems);
+      this.recalculateTotalsInWin(win, this.filteredItems);
     })
     .catch(err => {
-      this.showLoading(false);
+      this.showLoadingInWin(win, false);
       console.error("Sales doc load error:", err);
       alert("Xəta: " + err.message);
     });
+  },
+
+  renderHeaderInWin: function(win, header, docNumber) {
+    if (!win) return;
+    const h = header || this.header;
+    const docNum = h.number || docNumber || this.currentDocNumber || "";
+    const docDt = h.date || this.currentDocDate || "";
+
+    const titleEl = win.querySelector("#sdeWindowTitle, .mdi-win-title-text");
+    if (titleEl) {
+      titleEl.textContent = `Реализация товаров и услуг: № ${docNum} от ${docDt}`;
+    }
+
+    const badgeEl = win.querySelector("#sdeStatusBadge, [id^='sdeStatusBadge']");
+    if (badgeEl) {
+      if (h.posted) {
+        badgeEl.textContent = "✔ ПРОВЕДЕН";
+        badgeEl.style.background = "#2e7d32";
+      } else {
+        badgeEl.textContent = "📄 НЕ ПРОВЕДЕН";
+        badgeEl.style.background = "#ed6c02";
+      }
+    }
+
+    const setVal = (id, val) => {
+      const el = win.querySelector(`#${id}, [id^='${id}']`);
+      if (el) el.value = val || "";
+    };
+
+    setVal("sdeDocNumber", docNum);
+    setVal("sdeDocDate", docDt);
+    setVal("sdeDocOrg", h.organization || "Aztrade MMC");
+    setVal("sdeDocKontragent", h.kontragent || "TEST 12B");
+    setVal("sdeDocContract", h.contract || "Договор поставки");
+    setVal("sdeDocWarehouse", h.warehouse || "Основной склад");
+    setVal("sdeDocPriceType", h.price_type || "Оптовая");
+    setVal("sdeDocCurrency", h.currency || "AZN");
+    setVal("sdeDocComment", h.comment || "");
+
+    const respEl = win.querySelector("#sdeDocResponsible, [id^='sdeDocResponsible']");
+    if (respEl) respEl.textContent = h.responsible || "Emin";
+  },
+
+  renderTableInWin: function(win, items) {
+    if (!win) return;
+    const tbody = win.querySelector("#sdeTableBody, [id^='sdeTableBody']");
+    if (!tbody) return;
+
+    const list = items || this.filteredItems || [];
+    if (!list.length) {
+      tbody.innerHTML = `<tr><td colspan="12" style="padding: 30px; text-align: center; color: #888; font-style: italic;">Накладная не содержит строк товаров</td></tr>`;
+      return;
+    }
+
+    let html = "";
+    list.forEach((it, idx) => {
+      const isSel = (this.selectedRowIdx === idx);
+      const bg = isSel ? "#dceaf7" : (idx % 2 === 1 ? "#f9f8f2" : "#ffffff");
+
+      html += `
+        <tr style="background: ${bg}; height: 22px; cursor: pointer; user-select: text;" data-row-idx="${idx}">
+          <td style="text-align: center; border: 1px solid #d4d0c8; padding: 2px; color: #555;">${it.line_num || (idx + 1)}</td>
+          <td style="border: 1px solid #d4d0c8; padding: 1px 4px; font-weight: bold; color: #004080; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${this.escapeHtml(it.code)}</td>
+          <td style="border: 1px solid #d4d0c8; padding: 1px 4px; color: #333; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${this.escapeHtml(it.artikul || "-")}</td>
+          <td style="border: 1px solid #d4d0c8; padding: 1px 4px; color: #111; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${this.escapeHtml(it.name)}</td>
+          <td style="text-align: right; border: 1px solid #d4d0c8; padding: 1px 4px; font-weight: bold;">${it.quantity}</td>
+          <td style="text-align: center; border: 1px solid #d4d0c8; padding: 1px 4px;">${this.escapeHtml(it.unit)}</td>
+          <td style="text-align: right; border: 1px solid #d4d0c8; padding: 1px 4px;">${Number(it.coefficient || 1).toFixed(2)}</td>
+          <td style="text-align: right; border: 1px solid #d4d0c8; padding: 1px 4px;">${Number(it.price || 0).toFixed(2)}</td>
+          <td style="text-align: right; border: 1px solid #d4d0c8; padding: 1px 4px; font-weight: bold;">${Number(it.sum || 0).toFixed(2)}</td>
+          <td style="text-align: center; border: 1px solid #d4d0c8; padding: 1px 4px;">${this.escapeHtml(it.vat_rate)}</td>
+          <td style="text-align: right; border: 1px solid #d4d0c8; padding: 1px 4px;">${Number(it.vat_sum || 0).toFixed(2)}</td>
+          <td style="text-align: right; border: 1px solid #d4d0c8; padding: 1px 4px; font-weight: bold; color: #002060;">${Number(it.total || 0).toFixed(2)}</td>
+        </tr>
+      `;
+    });
+    tbody.innerHTML = html;
+  },
+
+  recalculateTotalsInWin: function(win, items) {
+    if (!win) return;
+    const list = items || this.filteredItems || [];
+    let totQty = 0, totSum = 0, totVat = 0, totGrand = 0;
+    list.forEach(it => {
+      totQty += (Number(it.quantity) || 0);
+      totSum += (Number(it.sum) || 0);
+      totVat += (Number(it.vat_sum) || 0);
+      totGrand += (Number(it.total) || 0);
+    });
+
+    const setTxt = (id, val) => {
+      const el = win.querySelector(`#${id}, [id^='${id}']`);
+      if (el) el.textContent = val;
+    };
+
+    setTxt("sdeFooterQty", totQty.toLocaleString("ru-RU"));
+    setTxt("sdeFooterSum", totSum.toFixed(2) + " AZN");
+    setTxt("sdeFooterVat", totVat.toFixed(2) + " AZN");
+    setTxt("sdeFooterTotal", totGrand.toFixed(2) + " AZN");
+    setTxt("sdeStatusRowCount", `${list.length} строк`);
   },
 
   renderHeader: function() {

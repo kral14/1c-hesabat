@@ -167,6 +167,12 @@ const MdiManager = {
           } else {
             this.activateWindow(item.id, { title: item.title, icon: item.icon });
           }
+        } else if (item.id === "ujFilterWindow") {
+          if (window.UniversalJournal && typeof UniversalJournal.openFilterModal === "function") {
+            UniversalJournal.openFilterModal();
+          } else {
+            this.activateWindow(item.id, { title: item.title, icon: item.icon });
+          }
         } else if (item.id === "mdiWindow-1") {
           this.activateWindow("mdiWindow-1");
         } else {
@@ -480,6 +486,9 @@ const MdiManager = {
       });
     }
 
+    // Attach '➕' new window button to all registered windows
+    Object.values(this.windows).forEach(w => this.attachNewWindowButton(w));
+
     // Auto-restore open windows after F5 page reload
     setTimeout(() => {
       this.restoreOpenWindowsSession();
@@ -509,6 +518,7 @@ const MdiManager = {
       title: options.title || "Окно",
       icon: options.icon || "📄",
       element: el,
+      isOpen: !options.startHidden,
       isMaximized: wasMax,
       isMinimized: !!options.startHidden,
       isDefault: !!options.isDefault,
@@ -529,6 +539,7 @@ const MdiManager = {
 
     // Attach dragging & activation handlers
     this.setupWindowDragging(winObj);
+    this.attachNewWindowButton(winObj);
 
     if (options.startHidden) {
       el.classList.add("minimized");
@@ -622,6 +633,74 @@ const MdiManager = {
     };
   },
 
+  formatTaskbarLabel(title) {
+    if (!title) return "Окно";
+    let s = String(title).trim();
+    // 1. "Журнал документов: " prefiksini ləğv et -> birbaşa əsas ad (məs. "Реализация товаров и услуг")
+    s = s.replace(/^Журнал документов:\s*/i, "");
+    // 2. "Настройка списка: " prefiksi varsa -> "Настройка списка"
+    if (/^Настройка списка:\s*/i.test(s)) {
+      s = "Настройка списка";
+    }
+    // 3. "Справочник." və ya "Справочник: " prefiksini ləğv et
+    s = s.replace(/^Справочник[.:]\s*/i, "");
+    // 4. "Отчет: " prefiksini ləğv et
+    s = s.replace(/^Отчет:\s*/i, "");
+    return s;
+  },
+
+  showDashboard() {
+    console.log("[MDI] Switching directly to Dashboard / Desktop workspace");
+
+    // Toggle: əgər artıq Dashboard-dayıqsa və əvvəlki pəncərə qeyd olunubsa, onu bərpa et
+    if (this._dashboardActive && this._previouslyActiveWinId && this.windows[this._previouslyActiveWinId]) {
+      const prevId = this._previouslyActiveWinId;
+      this._dashboardActive = false;
+      this._previouslyActiveWinId = null;
+      this.restoreFromMinimize(prevId);
+      this.activateWindow(prevId);
+      return;
+    }
+
+    this._previouslyActiveWinId = this.activeWindowId;
+    this._dashboardActive = true;
+
+    // Bütün açıq pəncərələri qatlayırıq / gizlədirik ki, Dashboard tam və tək görünsün!
+    Object.values(this.windows).forEach(w => {
+      if (w.isOpen && w.element && w.element.style.display !== "none") {
+        w.element.classList.remove("active");
+        w.element.classList.add("minimized");
+        w.element.style.display = "none";
+        w.isMinimized = true;
+      }
+    });
+
+    // DOM-da klonlanmış və ya dinamik pəncərələr də varsa, hamısını qatlayırıq
+    document.querySelectorAll(".mdi-window").forEach(el => {
+      el.classList.remove("active");
+      el.classList.add("minimized");
+      el.style.display = "none";
+    });
+    this.activeWindowId = null;
+
+    // Taskbarda bütün tablardan active çıxar, Home düyməsini aktiv et
+    const tabsContainer = document.getElementById("mdiTaskbarTabs");
+    if (tabsContainer) {
+      tabsContainer.querySelectorAll(".mdi-taskbar-tab").forEach(t => t.classList.remove("active"));
+    }
+    const homeBtn = document.getElementById("mdiTaskbarHomeBtn");
+    if (homeBtn) {
+      homeBtn.classList.add("active");
+    }
+
+    const db = document.getElementById("mdiDashboardBg");
+    if (db) {
+      db.style.display = "flex";
+      db.style.zIndex = "10";
+    }
+    this.updateWindowMenu();
+  },
+
   createTaskbarTab(winObj) {
     const tabsContainer = document.getElementById("mdiTaskbarTabs");
     if (!tabsContainer) return;
@@ -631,9 +710,11 @@ const MdiManager = {
       tab = document.createElement("button");
       tab.className = "mdi-taskbar-tab";
       tab.id = `tab-${winObj.id}`;
+      const shortTitle = this.formatTaskbarLabel(winObj.title);
+      tab.title = winObj.title || "Окно";
       tab.innerHTML = `
         <span>${winObj.icon || "📄"}</span>
-        <span class="mdi-tab-label">${escapeHtml(winObj.title || "Окно")}</span>
+        <span class="mdi-tab-label" style="max-width: 220px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${escapeHtml(shortTitle)}</span>
         <span class="mdi-taskbar-tab-close" title="Закрыть">✕</span>
       `;
 
@@ -692,6 +773,12 @@ const MdiManager = {
       // 1. Immediately increment topZIndex and bring this window in front
       this.topZIndex += 10;
       this.activeWindowId = id;
+      this._dashboardActive = false;
+
+      const db = document.getElementById("mdiDashboardBg");
+      if (db) db.style.zIndex = "0";
+      const homeBtn = document.getElementById("mdiTaskbarHomeBtn");
+      if (homeBtn) homeBtn.classList.remove("active");
 
       winObj.isOpen = true;
       winObj.isMinimized = false;
@@ -716,10 +803,19 @@ const MdiManager = {
           winObj.tabElement.style.display = "inline-flex";
           winObj.tabElement.classList.add("active");
           const lbl = winObj.tabElement.querySelector(".mdi-tab-label");
-          if (lbl && winObj.title) lbl.textContent = winObj.title;
+          if (lbl && winObj.title) {
+            lbl.textContent = this.formatTaskbarLabel(winObj.title);
+          }
+          winObj.tabElement.title = winObj.title || "Окно";
           const iconSpan = winObj.tabElement.querySelector("span:first-child");
           if (iconSpan && winObj.icon) iconSpan.textContent = winObj.icon;
+          try {
+            winObj.tabElement.scrollIntoView({ behavior: "smooth", inline: "nearest", block: "nearest" });
+          } catch(e) {}
         }
+
+        const homeBtn = document.getElementById("mdiTaskbarHomeBtn");
+        if (homeBtn) homeBtn.classList.remove("active");
 
         const tabsContainer = document.getElementById("mdiTaskbarTabs");
         if (tabsContainer) {
@@ -842,13 +938,30 @@ const MdiManager = {
       this.createTaskbarTab(winObj);
     }
 
-    // Activate the next available floating window if any
-    const available = Object.values(this.windows).filter(w => !w.isMinimized && w.id !== id);
+    // YALNIZ VƏ YALNIZ HAZIRDA HƏQİQƏTƏN AÇIQ VƏ GÖRÜNƏN PƏNCƏRƏLƏR ARASINDAN AKTİVLƏŞDİR!
+    const available = Object.values(this.windows).filter(w =>
+      w.id !== id &&
+      w.isOpen &&
+      !w.isMinimized &&
+      w.element &&
+      w.element.style.display !== "none"
+    );
+
     if (available.length > 0) {
-      this.activateWindow(available[available.length - 1].id);
+      available.sort((a, b) => (parseInt(b.element.style.zIndex) || 0) - (parseInt(a.element.style.zIndex) || 0));
+      this.activateWindow(available[0].id);
     } else {
       this.activeWindowId = null;
       this.updateWindowTitlebar(null);
+      const db = document.getElementById("mdiDashboardBg");
+      if (db) {
+        db.style.display = "flex";
+        db.style.zIndex = "1";
+      }
+      const homeBtn = document.getElementById("mdiTaskbarHomeBtn");
+      if (homeBtn) {
+        homeBtn.classList.add("active");
+      }
     }
     this.saveOpenWindowsSession();
   },
@@ -938,6 +1051,11 @@ const MdiManager = {
 
   openOrRestoreReportWindow() {
     const primaryWin = this.windows["mdiWindow-1"];
+    // Əgər artıq açıq pəncərə varsa, birbaşa ikincisini (yeni nüsxəsini) açırıq
+    if (primaryWin && primaryWin.isOpen && !primaryWin.isMinimized && primaryWin.element && primaryWin.element.style.display !== "none") {
+      this.createNewReportWindow();
+      return;
+    }
     if (primaryWin) {
       primaryWin.isMinimized = false;
       primaryWin.element.classList.remove("minimized");
@@ -958,7 +1076,8 @@ const MdiManager = {
 
     if (winObj.tabElement) {
       const lbl = winObj.tabElement.querySelector(".mdi-tab-label");
-      if (lbl) lbl.textContent = title;
+      if (lbl) lbl.textContent = this.formatTaskbarLabel(title);
+      winObj.tabElement.title = title;
     }
 
     if (this.activeWindowId === id) {
@@ -1039,6 +1158,200 @@ const MdiManager = {
       }
     }, 200);
 
+    return newId;
+  },
+
+  /* ----------------------------------------------------
+     DUPLICATE WINDOW SYSTEM (Eyni pəncərədən 2 və daha çox açmaq)
+     ---------------------------------------------------- */
+  attachNewWindowButton(winObj) {
+    if (!winObj || !winObj.element) return;
+    const controls = winObj.element.querySelector(".mdi-win-controls");
+    if (!controls || controls.querySelector(".mdi-win-btn-new")) return;
+
+    if (winObj.isModal) return;
+    if (winObj.isDialog && !winObj.id.startsWith("catalogWin_") && winObj.id !== "catalogWindowModal") return;
+
+    const newBtn = document.createElement("button");
+    newBtn.className = "mdi-win-btn mdi-win-btn-new";
+    newBtn.title = "Открыть еще одно такое окно (Eyni pəncərədən yenisini aç)";
+    newBtn.textContent = "➕";
+    newBtn.style.cssText = "font-weight: bold; color: #002060; font-size: 11px; padding: 0 4px; cursor: pointer;";
+    newBtn.onmousedown = (e) => e.stopPropagation();
+    newBtn.onclick = (e) => {
+      e.stopPropagation();
+      this.duplicateWindow(winObj.id);
+    };
+
+    controls.insertBefore(newBtn, controls.firstChild);
+  },
+
+  duplicateWindow(id) {
+    console.log(`[MDI] Duplicating window: #${id}`);
+
+    // 1. Report Window ("Товары на складах")
+    if (id && id.startsWith("mdiWindow-")) {
+      return this.createNewReportWindow();
+    }
+
+    // 2. Universal Journal ("Журнал документов")
+    if (id && id.startsWith("universalJournalWindow") && window.UniversalJournal && typeof UniversalJournal.openNewWindow === "function") {
+      return UniversalJournal.openNewWindow();
+    }
+
+    // 3. Catalog ("Номенклатура", "Склады" və s.)
+    if (id && (id.startsWith("catalogWin_") || id === "catalogWindowModal")) {
+      const win = document.getElementById(id);
+      const catName = (win && win.dataset.catalog) ? win.dataset.catalog : (window.CatalogSelector ? CatalogSelector.currentCatalog : "Номенклатура");
+      return this.createDuplicateCatalogWindow(catName);
+    }
+
+    // 4. Portfolio Catalog ("Товары по портфелям")
+    if (id && id.startsWith("portfolioCatalogWindow")) {
+      return this.createDuplicatePortfolioWindow();
+    }
+
+    // 5. Universal Fallback
+    return this.createGenericDuplicateWindow(id);
+  },
+
+  createDuplicateCatalogWindow(catName) {
+    this.windowCounter += 1;
+    const catSafe = String(catName).replace(/[^a-zA-Z0-9_\u0400-\u04FF]/g, "_");
+    const newId = `catalogWin_${catSafe}_${this.windowCounter}`;
+    const baseWin = document.getElementById("catalogWindowModal") || document.querySelector(`[id^='catalogWin_${catSafe}']`);
+    if (!baseWin) return;
+
+    const clone = baseWin.cloneNode(true);
+    clone.id = newId;
+    clone.dataset.catalog = catName;
+    clone.style.display = "flex";
+
+    const offset = (Object.keys(this.windows).length) * 25;
+    clone.style.top = `${30 + (offset % 160)}px`;
+    clone.style.left = `${40 + (offset % 220)}px`;
+    document.getElementById("mdiWorkspace").appendChild(clone);
+
+    clone.setAttribute("onmousedown", `MdiManager.activateWindow('${newId}')`);
+
+    const titleEl = clone.querySelector(".mdi-win-title-text, #catalogWindowTitle");
+    const fullTitle = `Справочник: ${catName} (${this.windowCounter})`;
+    if (titleEl) titleEl.textContent = fullTitle;
+
+    const minBtn = clone.querySelector(".mdi-win-btn-min");
+    if (minBtn) { minBtn.removeAttribute("onclick"); minBtn.onclick = () => this.minimizeWindow(newId); }
+    const maxBtn = clone.querySelector(".mdi-win-btn-max");
+    if (maxBtn) { maxBtn.removeAttribute("onclick"); maxBtn.onclick = () => this.toggleMaximize(newId); }
+    const closeBtn = clone.querySelector(".mdi-win-btn-close");
+    if (closeBtn) {
+      closeBtn.removeAttribute("onclick");
+      closeBtn.onclick = () => { this.closeWindow(newId); clone.remove(); };
+    }
+    const header = clone.querySelector(".mdi-window-header");
+    if (header) {
+      header.removeAttribute("ondblclick");
+      header.ondblclick = (e) => {
+        if (e.target.closest(".mdi-win-btn, .window-btn-close")) return;
+        this.toggleMaximize(newId);
+      };
+    }
+
+    this.registerWindow(newId, {
+      title: fullTitle,
+      icon: "📋",
+      element: clone,
+      closeFn: () => clone.remove()
+    });
+
+    this.activateWindow(newId);
+
+    if (window.CatalogSelector && typeof CatalogSelector.loadCatalogData === "function") {
+      setTimeout(() => {
+        CatalogSelector.currentCatalog = catName;
+        CatalogSelector.loadCatalogData("");
+      }, 50);
+    }
+    return newId;
+  },
+
+  createDuplicatePortfolioWindow() {
+    this.windowCounter += 1;
+    const newId = `portfolioCatalogWindow_${this.windowCounter}`;
+    const baseWin = document.getElementById("portfolioCatalogWindow");
+    if (!baseWin) return;
+
+    const clone = baseWin.cloneNode(true);
+    clone.id = newId;
+    clone.style.display = "flex";
+
+    const offset = (Object.keys(this.windows).length) * 25;
+    clone.style.top = `${25 + (offset % 150)}px`;
+    clone.style.left = `${35 + (offset % 200)}px`;
+    document.getElementById("mdiWorkspace").appendChild(clone);
+
+    clone.setAttribute("onmousedown", `MdiManager.activateWindow('${newId}')`);
+
+    const titleEl = clone.querySelector(".mdi-win-title-text");
+    const fullTitle = `Товары по портфелям (${this.windowCounter})`;
+    if (titleEl) titleEl.textContent = fullTitle;
+
+    const minBtn = clone.querySelector(".mdi-win-btn-min");
+    if (minBtn) minBtn.onclick = () => this.minimizeWindow(newId);
+    const maxBtn = clone.querySelector(".mdi-win-btn-max");
+    if (maxBtn) maxBtn.onclick = () => this.toggleMaximize(newId);
+    const closeBtn = clone.querySelector(".mdi-win-btn-close");
+    if (closeBtn) closeBtn.onclick = () => { this.closeWindow(newId); clone.remove(); };
+
+    this.registerWindow(newId, {
+      title: fullTitle,
+      icon: "📋",
+      element: clone,
+      closeFn: () => clone.remove()
+    });
+
+    this.activateWindow(newId);
+    return newId;
+  },
+
+  createGenericDuplicateWindow(id) {
+    const baseWin = document.getElementById(id);
+    if (!baseWin) return;
+
+    this.windowCounter += 1;
+    const newId = `${id}_${this.windowCounter}`;
+    const clone = baseWin.cloneNode(true);
+    clone.id = newId;
+    clone.style.display = "flex";
+
+    const offset = (Object.keys(this.windows).length) * 25;
+    clone.style.top = `${25 + (offset % 150)}px`;
+    clone.style.left = `${35 + (offset % 200)}px`;
+    document.getElementById("mdiWorkspace").appendChild(clone);
+
+    clone.setAttribute("onmousedown", `MdiManager.activateWindow('${newId}')`);
+
+    const origWinObj = this.windows[id];
+    const origTitle = origWinObj ? origWinObj.title : "Окно";
+    const fullTitle = `${origTitle} (${this.windowCounter})`;
+
+    const titleEl = clone.querySelector(".mdi-win-title-text");
+    if (titleEl) titleEl.textContent = fullTitle;
+
+    const minBtn = clone.querySelector(".mdi-win-btn-min");
+    if (minBtn) minBtn.onclick = () => this.minimizeWindow(newId);
+    const maxBtn = clone.querySelector(".mdi-win-btn-max");
+    if (maxBtn) maxBtn.onclick = () => this.toggleMaximize(newId);
+    const closeBtn = clone.querySelector(".mdi-win-btn-close");
+    if (closeBtn) closeBtn.onclick = () => { this.closeWindow(newId); clone.remove(); };
+
+    this.registerWindow(newId, {
+      title: fullTitle,
+      icon: origWinObj ? origWinObj.icon : "📄",
+      element: clone,
+      closeFn: () => clone.remove()
+    });
+
+    this.activateWindow(newId);
     return newId;
   },
 

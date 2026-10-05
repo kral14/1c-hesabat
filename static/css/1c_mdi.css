@@ -397,7 +397,7 @@
   align-items: center;
   gap: 5px;
   height: 20px;
-  padding: 0 8px;
+  padding: 0 6px;
   background: #ece9d8;
   border: 1px solid #7a7a7a;
   border-radius: 2px;
@@ -405,6 +405,17 @@
   cursor: pointer;
   white-space: nowrap;
   color: #000;
+  flex: 0 1 auto;
+  max-width: 170px;
+  min-width: 50px;
+  overflow: hidden;
+}
+
+.mdi-taskbar-tab .mdi-tab-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1;
 }
 
 .mdi-taskbar-tab:hover {
@@ -519,6 +530,7 @@
 }
 
 .mdi-dash-tile {
+  position: relative;
   display: flex;
   align-items: center;
   gap: 16px;

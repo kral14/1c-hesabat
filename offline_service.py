@@ -38,6 +38,26 @@ def format_1c_datetime(dt_val):
         return f"{int(d):02d}.{int(mo):02d}.{int(y):04d} {int(hh or 0):02d}:{int(mm or 0):02d}:{int(ss or 0):02d}"
     return s[:19]
 
+def normalize_iso_datetime(d_str, is_end=False):
+    if not d_str:
+        return ""
+    d_str = str(d_str).strip()
+    m_dot = re.match(r"^(\d{1,2})\.(\d{1,2})\.(\d{4})(?:\s+(\d{1,2}):(\d{1,2})(?::(\d{1,2}))?)?", d_str)
+    if m_dot:
+        d, mo, y, hh, mm, ss = m_dot.groups()
+        hh = int(hh) if hh is not None else (23 if is_end else 0)
+        mm = int(mm) if mm is not None else (59 if is_end else 0)
+        ss = int(ss) if ss is not None else (59 if is_end else 0)
+        return f"{int(y):04d}-{int(mo):02d}-{int(d):02d} {hh:02d}:{mm:02d}:{ss:02d}"
+    m_iso = re.match(r"^(\d{4})[-/.](\d{1,2})[-/.](\d{1,2})(?:[\sT](\d{1,2}):(\d{1,2})(?::(\d{1,2}))?)?", d_str)
+    if m_iso:
+        y, mo, d, hh, mm, ss = m_iso.groups()
+        hh = int(hh) if hh is not None else (23 if is_end else 0)
+        mm = int(mm) if mm is not None else (59 if is_end else 0)
+        ss = int(ss) if ss is not None else (59 if is_end else 0)
+        return f"{int(y):04d}-{int(mo):02d}-{int(d):02d} {hh:02d}:{mm:02d}:{ss:02d}"
+    return d_str
+
 # 1. Ping
 def ping():
     return "pong (Offline SQLite)"
@@ -151,21 +171,23 @@ def get_documents_list(payload):
     try:
         cur = conn.cursor()
 
+        norm_from = normalize_iso_datetime(date_from, is_end=False)
+        norm_to = normalize_iso_datetime(date_to, is_end=True)
+
         # 1. Установка цен номенклатуры
         if doc_type == "УстановкаЦенНоменклатуры":
             sql = "SELECT doc_number, doc_date, comment, responsible, status FROM price_documents"
             conditions = []
             params = []
-            if date_from:
+            if norm_from:
                 conditions.append("doc_date >= ?")
-                params.append(date_from)
-            if date_to:
+                params.append(norm_from)
+            if norm_to:
                 conditions.append("doc_date <= ?")
-                date_to_param = date_to if " " in date_to else (date_to + " 23:59:59")
-                params.append(date_to_param)
+                params.append(norm_to)
             if last_date:
                 conditions.append("doc_date < ?")
-                params.append(last_date)
+                params.append(normalize_iso_datetime(last_date))
             if conditions:
                 sql += " WHERE " + " AND ".join(conditions)
             if limit_count and limit_count > 0:
@@ -252,15 +274,15 @@ def get_documents_list(payload):
             """
             conditions = []
             params = []
-            if date_from:
-                conditions.append("period >= ?")
-                params.append(date_from)
-            if date_to:
-                conditions.append("period <= ?")
-                params.append(date_to)
+            if norm_from:
+                conditions.append("(period || ' 12:00:00') >= ?")
+                params.append(norm_from)
+            if norm_to:
+                conditions.append("(period || ' 12:00:00') <= ?")
+                params.append(norm_to)
             if last_date:
-                conditions.append("period < ?")
-                params.append(last_date.split(" ")[0])
+                conditions.append("(period || ' 12:00:00') < ?")
+                params.append(normalize_iso_datetime(last_date))
 
             if conditions:
                 sql += " AND " + " AND ".join(conditions)
@@ -275,8 +297,14 @@ def get_documents_list(payload):
 
             items = []
             for r in rows:
+                dt_iso = f"{r['period']} 12:00:00"
+                if norm_from and dt_iso < norm_from:
+                    continue
+                if norm_to and dt_iso > norm_to:
+                    continue
+
                 doc_num = f"C00004{r['min_id']:05d}"
-                dt_str = format_1c_datetime(f"{r['period']} 12:00:00")
+                dt_str = format_1c_datetime(dt_iso)
                 amount_val = float(r["tot_sum"] or 0.0)
                 port_val = "01 MONDELEZ" if (r['min_id'] % 2 == 0) else "04 FERRERO"
                 noms_arr = ["Шоколад Milka", "Печенье Oreo"] if (r['min_id'] % 2 == 0) else ["Raffaello", "Nutella"]
@@ -404,19 +432,36 @@ def get_documents_list(payload):
                 {"key": "comment", "label": "Комментарий", "width": 220, "align": "left"}
             ]
 
-            cur.execute("""
+            zk_sql = """
                 SELECT MIN(id) AS min_id, period, kontragent, ROUND(SUM(sum), 2) AS tot_sum 
                 FROM sales_turnover 
                 WHERE kontragent != '' 
-                GROUP BY period, kontragent 
-                ORDER BY period ASC LIMIT ?
-            """, (min(limit_count, 120),))
+            """
+            zk_conds = []
+            zk_params = []
+            if norm_from:
+                zk_conds.append("(period || ' 09:15:00') >= ?")
+                zk_params.append(norm_from)
+            if norm_to:
+                zk_conds.append("(period || ' 09:15:00') <= ?")
+                zk_params.append(norm_to)
+            if zk_conds:
+                zk_sql += " AND " + " AND ".join(zk_conds)
+            zk_sql += " GROUP BY period, kontragent ORDER BY period DESC LIMIT ?"
+            zk_params.append(min(limit_count, 120) if limit_count else 120)
+
+            cur.execute(zk_sql, zk_params)
             rows = cur.fetchall()
 
             items = []
             for r in rows:
+                dt_iso = f"{r['period']} 09:15:00"
+                if norm_from and dt_iso < norm_from:
+                    continue
+                if norm_to and dt_iso > norm_to:
+                    continue
                 doc_num = f"ЗК-{r['min_id']:08d}"
-                dt_str = format_1c_datetime(f"{r['period']} 09:15:00")
+                dt_str = format_1c_datetime(dt_iso)
                 item = {
                     "number": doc_num,
                     "date": dt_str,
@@ -530,6 +575,103 @@ def get_documents_list(payload):
                 "items": items,
                 "total": len(items)
             }
+    finally:
+        conn.close()
+
+# 8.5. Get Price Document Details (Установка цен номенклатуры)
+def get_price_document(payload):
+    doc_number = payload.get("number", "").strip()
+    conn = get_connection()
+    try:
+        cur = conn.cursor()
+        doc = None
+        if doc_number:
+            cur.execute("SELECT doc_number, doc_date, comment, responsible, status FROM price_documents WHERE doc_number = ?", (doc_number,))
+            doc = cur.fetchone()
+
+        if not doc:
+            cur.execute("SELECT doc_number, doc_date, comment, responsible, status FROM price_documents ORDER BY doc_date DESC LIMIT 1")
+            doc = cur.fetchone()
+
+        if not doc:
+            return {
+                "number": doc_number or "00000000001",
+                "date": datetime.datetime.now().strftime("%d.%m.%Y %H:%M:%S"),
+                "posted": False,
+                "responsible": "Keleshov Nasib",
+                "comment": "",
+                "zero_prices": False,
+                "price_types": ["20", "cost"],
+                "all_price_types": ["20", "cost", "60", "30", "10", "100", "50"],
+                "items": [],
+                "total_items": 0
+            }
+
+        d_num = doc["doc_number"]
+        posted = ("проведен" in str(doc["status"]).lower() and "не проведен" not in str(doc["status"]).lower())
+
+        cur.execute("SELECT item_code, item_name, unit, price_type, price FROM price_document_rows WHERE doc_number = ? ORDER BY id ASC", (d_num,))
+        rows = cur.fetchall()
+
+        if not rows:
+            cur.execute("SELECT code, name FROM nomenklatura LIMIT 15")
+            n_rows = cur.fetchall()
+            items = []
+            pts = ["20", "cost"]
+            for nr in n_rows:
+                items.append({
+                    "code": nr["code"],
+                    "name": nr["name"],
+                    "artikul": "",
+                    "barcode": "",
+                    "unit": "əd",
+                    "prices": {"20": 4.50, "cost": 3.20}
+                })
+            doc_price_types = pts
+        else:
+            item_dict = {}
+            item_order = []
+            doc_price_types = []
+            for r in rows:
+                c = r["item_code"]
+                pt = r["price_type"]
+                pr = float(r["price"] or 0.0)
+                if pt and pt not in doc_price_types:
+                    doc_price_types.append(pt)
+                if c not in item_dict:
+                    item_dict[c] = {
+                        "code": c,
+                        "name": r["item_name"],
+                        "artikul": "",
+                        "barcode": "",
+                        "unit": r["unit"] or "əd",
+                        "prices": {}
+                    }
+                    item_order.append(c)
+                if pt:
+                    item_dict[c]["prices"][pt] = pr
+            items = [item_dict[c] for c in item_order]
+
+        cur.execute("SELECT name FROM price_types ORDER BY name")
+        all_price_types = [r["name"].strip() for r in cur.fetchall()]
+        if not all_price_types:
+            all_price_types = ["20", "cost", "60", "30", "10", "100", "50"]
+        for pt in doc_price_types:
+            if pt not in all_price_types:
+                all_price_types.append(pt)
+
+        return {
+            "number": d_num,
+            "date": format_1c_datetime(doc["doc_date"]),
+            "posted": posted,
+            "responsible": doc["responsible"] or "Keleshov Nasib",
+            "comment": doc["comment"] or "",
+            "zero_prices": False,
+            "price_types": doc_price_types if doc_price_types else ["20", "cost"],
+            "all_price_types": all_price_types,
+            "items": items,
+            "total_items": len(items)
+        }
     finally:
         conn.close()
 

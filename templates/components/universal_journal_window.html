@@ -9,7 +9,7 @@
   <div class="mdi-window-header" ondblclick="MdiManager.toggleMaximize('universalJournalWindow')">
     <div class="mdi-win-title-left">
       <span class="mdi-win-icon">🗂️</span>
-      <span class="mdi-win-title-text" id="ujWindowTitle">Журнал документов: Реализация товаров и услуг</span>
+      <span class="mdi-win-title-text" id="ujWindowTitle">Реализация товаров и услуг</span>
     </div>
     <div class="mdi-win-controls">
       <button class="mdi-win-btn mdi-win-btn-min" title="Qatla" onclick="MdiManager.minimizeWindow('universalJournalWindow')" onmousedown="event.stopPropagation()">_</button>
@@ -61,6 +61,12 @@
       <!-- Refresh Button (F5) - Icon Only right next to Edit -->
       <button type="button" class="btn-1c" onclick="UniversalJournal.refresh()" title="Обновить список (F5)" style="height: 24px; padding: 0 6px; display: inline-flex; align-items: center; justify-content: center; cursor: pointer;">
         <span style="font-size: 13px;">🔄</span>
+      </button>
+
+      <!-- Новое окно журнала (Eyni jurnaldan istənilən sayda açmaq) -->
+      <button type="button" class="btn-1c" onclick="UniversalJournal.openNewWindow()" title="Открыть еще одно окно журнала (Новое окно)" style="height: 24px; padding: 0 6px; display: inline-flex; align-items: center; gap: 4px; cursor: pointer; background: #ffffff;">
+        <span style="font-size: 12px;">📑</span>
+        <span style="font-size: 11px; font-weight: 500;">Новое окно</span>
       </button>
 
       <div class="mdi-tool-sep" style="height: 18px; width: 1px; background: #b0af9f; margin: 0 3px;"></div>

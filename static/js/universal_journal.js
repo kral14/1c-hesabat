@@ -93,6 +93,8 @@ const UniversalJournal = {
       this.endDateStr = `${String(lastDay).padStart(2, "0")}.${curMonth}.${curYear}`;
     }
     this.updatePeriodLabel();
+    this.loadActiveFiltersFromStorage();
+    this.updateActiveFilterBadgeUI();
   },
 
   open: function(defaultDocType) {
@@ -114,12 +116,15 @@ const UniversalJournal = {
       if (sel) sel.value = defaultDocType;
     }
 
+    this.loadActiveFiltersFromStorage();
+    this.updateActiveFilterBadgeUI();
+
     const win = document.getElementById("universalJournalWindow");
     if (!win) return;
 
     if (window.MdiManager) {
       MdiManager.activateWindow("universalJournalWindow", {
-        title: `Журнал документов: ${this.docTitle}`,
+        title: this.docTitle || "Реализация товаров и услуг",
         icon: "🗂️",
         closeFn: () => {
           this.clearPrefetchCache();
@@ -150,7 +155,7 @@ const UniversalJournal = {
     if (!sel) return;
     this.activeDocType = sel.value;
     this.selectedRow = null;
-    this.activeFilters = [];
+    this.loadActiveFiltersFromStorage();
     this.activePresetName = "";
     this.updateActiveFilterBadgeUI();
     this.updateEditButtonState();
@@ -173,18 +178,34 @@ const UniversalJournal = {
   updatePeriodLabel: function() {
     const lbl = document.getElementById("ujPeriodLabel");
     if (!lbl) return;
-    if (this.startDateStr && this.endDateStr) {
-      lbl.textContent = `[ ${this.startDateStr} - ${this.endDateStr} ]`;
+
+    const toDateOnly = (s) => {
+      if (!s) return "";
+      const m = String(s).trim().match(/^(\d{1,2}\.\d{1,2}\.\d{4})/);
+      return m ? m[1] : s.split(" ")[0];
+    };
+
+    const sDate = toDateOnly(this.startDateStr);
+    const eDate = toDateOnly(this.endDateStr);
+
+    if (sDate && eDate) {
+      lbl.textContent = `[ ${sDate} - ${eDate} ]`;
       lbl.style.color = "#002060";
-    } else if (this.startDateStr && !this.endDateStr) {
-      lbl.textContent = `[ с ${this.startDateStr} ]`;
+    } else if (sDate && !eDate) {
+      lbl.textContent = `[ с ${sDate} ]`;
       lbl.style.color = "#002060";
-    } else if (!this.startDateStr && this.endDateStr) {
-      lbl.textContent = `[ по ${this.endDateStr} ]`;
+    } else if (!sDate && eDate) {
+      lbl.textContent = `[ по ${eDate} ]`;
       lbl.style.color = "#002060";
     } else {
       lbl.textContent = "(Весь период)";
       lbl.style.color = "#555";
+    }
+
+    if (this.startDateStr || this.endDateStr) {
+      lbl.title = `Интервал: ${this.startDateStr || '...'} — ${this.endDateStr || '...'}`;
+    } else {
+      lbl.title = "Период не установлен (Весь период)";
     }
   },
 
@@ -228,6 +249,27 @@ const UniversalJournal = {
       return `${String(d).padStart(2, "0")}.${String(m).padStart(2, "0")}.${y} ${hh || "00"}:${mm || "00"}:${ss || "00"}`;
     }
     return s;
+  },
+
+  parseFullDateTimeMs: function(dStr, isEnd = false) {
+    if (!dStr) return null;
+    const s = String(dStr).trim();
+    const mDot = s.match(/^(\d{1,2})\.(\d{1,2})\.(\d{4})(?:\s+(\d{1,2}):(\d{1,2})(?::(\d{1,2}))?)?/);
+    if (mDot) {
+      const hh = mDot[4] !== undefined ? parseInt(mDot[4], 10) : (isEnd ? 23 : 0);
+      const mm = mDot[5] !== undefined ? parseInt(mDot[5], 10) : (isEnd ? 59 : 0);
+      const ss = mDot[6] !== undefined ? parseInt(mDot[6], 10) : (isEnd ? 59 : 0);
+      return new Date(parseInt(mDot[3], 10), parseInt(mDot[2], 10) - 1, parseInt(mDot[1], 10), hh, mm, ss).getTime();
+    }
+    const mIso = s.match(/^(\d{4})[-/.](\d{1,2})[-/.](\d{1,2})(?:[T\s](\d{1,2}):(\d{1,2})(?::(\d{1,2}))?)?/);
+    if (mIso) {
+      const hh = mIso[4] !== undefined ? parseInt(mIso[4], 10) : (isEnd ? 23 : 0);
+      const mm = mIso[5] !== undefined ? parseInt(mIso[5], 10) : (isEnd ? 59 : 0);
+      const ss = mIso[6] !== undefined ? parseInt(mIso[6], 10) : (isEnd ? 59 : 0);
+      return new Date(parseInt(mIso[1], 10), parseInt(mIso[2], 10) - 1, parseInt(mIso[3], 10), hh, mm, ss).getTime();
+    }
+    const parsed = Date.parse(s);
+    return isNaN(parsed) ? null : parsed;
   },
 
   initialChunkLimit: 500,
@@ -289,7 +331,20 @@ const UniversalJournal = {
 
       this.docTitle = data.doc_title || this.activeDocType;
       this.loadColumnsConfig(data.columns || []);
-      this.items = data.items || [];
+
+      let rawItems = data.items || [];
+      const startMs = this.parseFullDateTimeMs(this.startDateStr, false);
+      const endMs = this.parseFullDateTimeMs(this.endDateStr, true);
+      if (startMs !== null || endMs !== null) {
+        rawItems = rawItems.filter(it => {
+          const itMs = this.parseFullDateTimeMs(it.date);
+          if (itMs === null) return true;
+          if (startMs !== null && itMs < startMs) return false;
+          if (endMs !== null && itMs > endMs) return false;
+          return true;
+        });
+      }
+      this.items = rawItems;
       this.hasMoreDocs = Boolean(data.has_more);
       this.lastDocDate = data.last_date || null;
       this.lastDocNumber = data.last_number || null;
@@ -359,7 +414,18 @@ const UniversalJournal = {
         return;
       }
 
-      const newItems = data.items || [];
+      let newItems = data.items || [];
+      const startMs = this.parseFullDateTimeMs(this.startDateStr, false);
+      const endMs = this.parseFullDateTimeMs(this.endDateStr, true);
+      if (startMs !== null || endMs !== null) {
+        newItems = newItems.filter(it => {
+          const itMs = this.parseFullDateTimeMs(it.date);
+          if (itMs === null) return true;
+          if (startMs !== null && itMs < startMs) return false;
+          if (endMs !== null && itMs > endMs) return false;
+          return true;
+        });
+      }
       if (newItems.length > 0) {
         const existingMap = new Map();
         for (let i = 0; i < this.items.length; i++) {
@@ -1055,14 +1121,19 @@ const UniversalJournal = {
   filterOperators: [
     "Равно",
     "Не равно",
-    "В группе из списка",
+    "Меньше",
+    "Меньше или равно",
+    "Больше",
+    "Больше или равно",
+    "Интервал (>, <)",
+    "Интервал (>=, <=)",
+    "Интервал (>=, <)",
+    "Интервал (>, <=)",
+    "В списке",
     "Не в списке",
+    "В группе из списка",
     "Содержит",
     "Не содержит",
-    "Больше",
-    "Меньше",
-    "Больше или равно",
-    "Меньше или равно",
     "Заполнено",
     "Не заполнено"
   ],
@@ -1072,7 +1143,7 @@ const UniversalJournal = {
     const fields = [
       { key: "deleted", label: "Пометка удаления", type: "boolean" },
       { key: "posted", label: "Проведен", type: "boolean" },
-      { key: "date", label: "Дата", type: "text" },
+      { key: "date", label: "Дата", type: "date" },
       { key: "number", label: "Номер", type: "text" },
       { key: "kontragent", label: "Контрагент", type: "text" }
     ];
@@ -1168,7 +1239,7 @@ const UniversalJournal = {
     // Open as authentic MDI Window
     if (window.MdiManager) {
       MdiManager.activateWindow("ujFilterWindow", {
-        title: `Настройка списка: ${this.docTitle || this.activeDocType}`,
+        title: "Настройка списка",
         icon: "📑",
         closeFn: () => {
           this.closeFilterModal();
@@ -1324,7 +1395,12 @@ const UniversalJournal = {
       const rows = tbody.querySelectorAll("tr");
       rows.forEach((r, rIdx) => {
         const isSel = (rIdx === idx);
-        r.style.background = isSel ? "#dceaf7" : (rIdx % 2 === 1 ? "#f9f8f4" : "#ffffff");
+        r.style.background = isSel ? "#e2eefb" : (rIdx % 2 === 1 ? "#f9f8f4" : "#ffffff");
+        r.querySelectorAll("input.input-1c").forEach(inp => {
+          inp.style.setProperty("background", "#ffffff", "important");
+          inp.style.setProperty("background-color", "#ffffff", "important");
+          inp.style.setProperty("color", "#111111", "important");
+        });
       });
     }
   },
@@ -1350,7 +1426,15 @@ const UniversalJournal = {
 
   onFilterCritOpChange: function(idx, newOp) {
     if (this.tempFilterCriteria[idx]) {
-      this.tempFilterCriteria[idx].operator = newOp;
+      const crit = this.tempFilterCriteria[idx];
+      crit.operator = newOp;
+      if (newOp.startsWith("Интервал")) {
+        if (!crit.valueFrom && !crit.valueTo && crit.value) {
+          const parts = String(crit.value).split(/\s*(?:\.\.\.|—|-)\s*/);
+          crit.valueFrom = parts[0] || "";
+          crit.valueTo = parts[1] || "";
+        }
+      }
       this.renderFilterCriteriaRows();
     }
   },
@@ -1426,28 +1510,68 @@ const UniversalJournal = {
           </select>
         `;
       } else {
-        const placeholder = (crit.operator === "В группе из списка" || crit.operator === "В списке") 
-          ? "Код или наименование через точку с запятой..." 
-          : "Код или наименование...";
+        const isInterval = crit.operator && crit.operator.startsWith("Интервал");
         const structAttr = crit.structuredFilter ? `data-structured-list="${this.escapeHtml(JSON.stringify(crit.structuredFilter))}"` : '';
-        valueInputHtml = `
-          <div style="display: flex; align-items: center; width: 100%; gap: 1px; position: relative;">
-            <input type="text" id="ujFilterValInput_${idx}" class="input-1c" ${structAttr}
-                   style="flex: 1; height: 21px; font-size: 11px; padding: 1px 4px; outline: none; background: #ffffff !important; color: #111111 !important; border: 1px solid #7f9db9;"
-                   value="${this.escapeHtml(crit.value !== undefined ? String(crit.value) : '')}"
-                   placeholder="${placeholder}"
-                   onclick="event.stopPropagation()"
-                   onfocus="UniversalJournal.selectFilterCritRow(${idx})"
-                   oninput="UniversalJournal.onFilterValueInput(${idx}, this, event)"
-                   onkeydown="UniversalJournal.onFilterInputKeydown(${idx}, this, event)">
-            <button type="button" class="btn-1c filter-btn-pick" 
-                    style="height: 21px; width: 22px; padding: 0 4px; font-size: 11px; font-weight: bold; display: inline-flex; align-items: center; justify-content: center; cursor: pointer; flex-shrink: 0; background: #ece9d8; border: 1px solid #7f9db9; color: #111111;"
-                    onclick="event.stopPropagation(); UniversalJournal.openFilterFieldPicker(${idx})"
-                    title="Выбрать значение (...)">
-              ...
-            </button>
-          </div>
-        `;
+
+        if (isInterval) {
+          let valFrom = (crit.valueFrom !== undefined) ? crit.valueFrom : "";
+          let valTo = (crit.valueTo !== undefined) ? crit.valueTo : "";
+          if (!valFrom && !valTo && crit.value) {
+            const parts = String(crit.value).split(/\s*(?:\.\.\.|—|-)\s*/);
+            valFrom = parts[0] || "";
+            valTo = parts[1] || "";
+          }
+
+          valueInputHtml = `
+            <div style="display: flex; align-items: center; width: 100%; gap: 4px; position: relative;">
+              <span style="font-size: 11px; font-weight: bold; color: #222222; white-space: nowrap; user-select: none;">Начало:</span>
+              <input type="text" id="ujFilterValInput_${idx}_from" class="input-1c uj-filter-from" ${structAttr}
+                     style="flex: 1; min-width: 0; height: 21px; font-size: 11px; padding: 1px 4px; outline: none; background: #ffffff !important; color: #111111 !important; border: 1px solid #7f9db9;"
+                     value="${this.escapeHtml(valFrom)}"
+                     placeholder="Начало"
+                     title="Начало периода"
+                     onclick="event.stopPropagation()"
+                     onfocus="UniversalJournal.selectFilterCritRow(${idx})"
+                     oninput="UniversalJournal.onFilterIntervalInput(${idx}, 'from', this)"
+                     onblur="UniversalJournal.onFilterIntervalBlur(${idx}, 'from', this)"
+                     onkeydown="UniversalJournal.onFilterIntervalKeydown(${idx}, 'from', this, event)">
+              <span style="font-size: 11px; font-weight: bold; color: #222222; white-space: nowrap; user-select: none; margin-left: 4px;">Конец:</span>
+              <input type="text" id="ujFilterValInput_${idx}_to" class="input-1c uj-filter-to" ${structAttr}
+                     style="flex: 1; min-width: 0; height: 21px; font-size: 11px; padding: 1px 4px; outline: none; background: #ffffff !important; color: #111111 !important; border: 1px solid #7f9db9;"
+                     value="${this.escapeHtml(valTo)}"
+                     placeholder="Конец"
+                     title="Конец периода"
+                     onclick="event.stopPropagation()"
+                     onfocus="UniversalJournal.selectFilterCritRow(${idx})"
+                     oninput="UniversalJournal.onFilterIntervalInput(${idx}, 'to', this)"
+                     onblur="UniversalJournal.onFilterIntervalBlur(${idx}, 'to', this)"
+                     onkeydown="UniversalJournal.onFilterIntervalKeydown(${idx}, 'to', this, event)">
+            </div>
+          `;
+        } else {
+          const showPickBtn = (crit.fieldKey !== "date");
+          valueInputHtml = `
+            <div style="display: flex; align-items: center; width: 100%; gap: 1px; position: relative;">
+              <input type="text" id="ujFilterValInput_${idx}" class="input-1c uj-filter-single" ${structAttr}
+                     style="flex: 1; height: 21px; font-size: 11px; padding: 1px 4px; outline: none; background: #ffffff !important; color: #111111 !important; border: 1px solid #7f9db9;"
+                     value="${this.escapeHtml(crit.value !== undefined ? String(crit.value) : '')}"
+                     placeholder=""
+                     onclick="event.stopPropagation()"
+                     onfocus="UniversalJournal.selectFilterCritRow(${idx})"
+                     oninput="UniversalJournal.onFilterValueInput(${idx}, this, event)"
+                     onblur="UniversalJournal.onFilterSingleBlur(${idx}, this)"
+                     onkeydown="UniversalJournal.onFilterInputKeydown(${idx}, this, event)">
+              ${showPickBtn ? `
+                <button type="button" class="btn-1c filter-btn-pick" 
+                        style="height: 21px; width: 22px; padding: 0 4px; font-size: 11px; font-weight: bold; display: inline-flex; align-items: center; justify-content: center; cursor: pointer; flex-shrink: 0; background: #ece9d8; border: 1px solid #7f9db9; color: #111111;"
+                        onclick="event.stopPropagation(); UniversalJournal.openFilterFieldPicker(${idx})"
+                        title="Выбрать значение (...)">
+                  ...
+                </button>
+              ` : ''}
+            </div>
+          `;
+        }
       }
 
       rowsHtml += `
@@ -1458,11 +1582,20 @@ const UniversalJournal = {
                    style="cursor: pointer; vertical-align: middle;">
           </td>
           <td style="padding: 1px 4px; border: 1px solid #d4d0c8; width: 170px;">
-            <select class="select-1c" style="width: 100%; height: 21px; font-size: 11px; border: 1px solid #7f9db9; background: #ffffff !important; color: #111111 !important; font-weight: 500; cursor: pointer; padding: 0 2px;"
-                    onclick="event.stopPropagation()"
-                    onchange="UniversalJournal.onFilterCritFieldChange(${idx}, this.value)">
-              ${fieldOptionsHtml}
-            </select>
+            <div style="display: flex; align-items: center; width: 100%; height: 21px; background: #ffffff; border: 1px solid #7f9db9; padding: 0 1px; box-sizing: border-box;">
+              <span style="flex: 1; min-width: 0; padding: 0 4px; font-size: 11px; color: #111111; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; user-select: none; cursor: pointer;"
+                    onclick="UniversalJournal.openFieldSelectModal(${idx})"
+                    ondblclick="UniversalJournal.openFieldSelectModal(${idx})"
+                    title="Нажмите для выбора поля (${this.escapeHtml(fieldObj.label)})">
+                ${this.escapeHtml(fieldObj.label)}
+              </span>
+              <button type="button" class="btn-1c filter-field-btn-pick"
+                      onclick="event.stopPropagation(); UniversalJournal.openFieldSelectModal(${idx})"
+                      title="Выбрать поле (...)"
+                      style="width: 20px; height: 19px; padding: 0; margin: 0; font-size: 11px; font-weight: bold; background: #ece9d8; border: 1px solid #7f9db9; border-radius: 1px; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; color: #111111;">
+                ...
+              </button>
+            </div>
           </td>
           <td style="padding: 1px 4px; border: 1px solid #d4d0c8; width: 140px;">
             <select class="select-1c" style="width: 100%; height: 21px; font-size: 11px; border: 1px solid #7f9db9; background: #ffffff !important; color: #111111 !important; cursor: pointer; padding: 0 2px;"
@@ -1479,19 +1612,191 @@ const UniversalJournal = {
     });
 
     tbody.innerHTML = rowsHtml;
+
+    // 1C seqment seçimi: kliklənən rəqəm bloku seçilsin
+    setTimeout(() => {
+      if (window.PeriodPicker && typeof PeriodPicker.attachSegmentSelection === "function") {
+        tbody.querySelectorAll("input.uj-filter-from, input.uj-filter-to, input.uj-filter-single").forEach(inp => {
+          PeriodPicker.attachSegmentSelection(inp);
+        });
+      }
+    }, 15);
+  },
+
+  // ==========================================
+  // 1C "Выбор поля" Modal Picker Engine (...)
+  // ==========================================
+  fieldSelectTargetIdx: null,
+  fieldSelectCurrentKey: null,
+
+  openFieldSelectModal: function(idx) {
+    this.fieldSelectTargetIdx = idx;
+    const crit = this.tempFilterCriteria[idx];
+    this.fieldSelectCurrentKey = crit ? crit.fieldKey : "";
+    this.renderFieldSelectModalList(this.fieldSelectCurrentKey, "");
+
+    const modal = document.getElementById("ujFieldSelectModalOverlay");
+    if (modal) {
+      modal.style.display = "flex";
+      modal.classList.add("active");
+      const searchInp = document.getElementById("ujFieldSelectSearchInput");
+      if (searchInp) {
+        searchInp.value = "";
+        setTimeout(() => searchInp.focus(), 50);
+      }
+    }
+  },
+
+  closeFieldSelectModal: function() {
+    const modal = document.getElementById("ujFieldSelectModalOverlay");
+    if (modal) {
+      modal.classList.remove("active");
+      modal.style.display = "none";
+    }
+  },
+
+  renderFieldSelectModalList: function(selectedKey, query) {
+    const listEl = document.getElementById("ujFieldSelectModalList");
+    if (!listEl) return;
+
+    let availFields = this.getAvailableFields();
+    if (query && query.trim()) {
+      const q = query.trim().toLowerCase();
+      availFields = availFields.filter(f => f.label.toLowerCase().includes(q) || f.key.toLowerCase().includes(q));
+    }
+
+    if (availFields.length === 0) {
+      listEl.innerHTML = `<div style="padding: 20px; text-align: center; color: #888; font-style: italic;">Поле не найдено</div>`;
+      return;
+    }
+
+    let html = "";
+    availFields.forEach(f => {
+      const isSel = (f.key === selectedKey);
+      const bg = isSel ? "#316ac5" : "#ffffff";
+      const fg = isSel ? "#ffffff" : "#111111";
+      html += `
+        <div id="ujFmItem_${f.key}" data-key="${f.key}"
+             style="padding: 3px 8px; font-size: 11px; background: ${bg}; color: ${fg}; cursor: pointer; user-select: none; display: flex; align-items: center; gap: 6px; border-bottom: 1px dotted #e0dec8;"
+             onclick="UniversalJournal.selectFieldModalItem('${f.key}')"
+             ondblclick="UniversalJournal.confirmModalFieldSelection('${f.key}')">
+          <span style="font-size: 10px; color: ${isSel ? '#ffffff' : '#4a78c4'};">▬</span>
+          <span style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-weight: ${isSel ? 'bold' : 'normal'};">${this.escapeHtml(f.label)}</span>
+        </div>
+      `;
+    });
+    listEl.innerHTML = html;
+
+    const activeEl = listEl.querySelector(`[id='ujFmItem_${selectedKey}']`);
+    if (activeEl) {
+      activeEl.scrollIntoView({ block: "nearest" });
+    }
+  },
+
+  filterFieldSelectModalList: function(query) {
+    this.renderFieldSelectModalList(this.fieldSelectCurrentKey, query);
+  },
+
+  selectFieldModalItem: function(key) {
+    this.fieldSelectCurrentKey = key;
+    const listEl = document.getElementById("ujFieldSelectModalList");
+    if (!listEl) return;
+    listEl.querySelectorAll("[id^='ujFmItem_']").forEach(el => {
+      const isSel = (el.getAttribute("data-key") === key);
+      el.style.background = isSel ? "#316ac5" : "#ffffff";
+      el.style.color = isSel ? "#ffffff" : "#111111";
+      const icon = el.querySelector("span:first-child");
+      if (icon) icon.style.color = isSel ? "#ffffff" : "#4a78c4";
+      const lbl = el.querySelector("span:last-child");
+      if (lbl) lbl.style.fontWeight = isSel ? "bold" : "normal";
+    });
+  },
+
+  confirmModalFieldSelection: function(explicitKey) {
+    const key = explicitKey || this.fieldSelectCurrentKey;
+    const idx = this.fieldSelectTargetIdx;
+    if (idx !== undefined && idx !== null && key && this.tempFilterCriteria[idx]) {
+      this.onFilterCritFieldChange(idx, key);
+    }
+    this.closeFieldSelectModal();
+  },
+
+  onFieldSelectModalKeydown: function(e) {
+    if (e.key === "Escape") {
+      e.preventDefault();
+      this.closeFieldSelectModal();
+    } else if (e.key === "Enter") {
+      e.preventDefault();
+      this.confirmModalFieldSelection();
+    } else if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+      e.preventDefault();
+      const listEl = document.getElementById("ujFieldSelectModalList");
+      if (!listEl) return;
+      const items = Array.from(listEl.querySelectorAll("[id^='ujFmItem_']"));
+      if (items.length === 0) return;
+      let curIdx = items.findIndex(el => el.getAttribute("data-key") === this.fieldSelectCurrentKey);
+      if (e.key === "ArrowDown") {
+        curIdx = (curIdx + 1) < items.length ? curIdx + 1 : 0;
+      } else {
+        curIdx = (curIdx - 1) >= 0 ? curIdx - 1 : items.length - 1;
+      }
+      const nextKey = items[curIdx].getAttribute("data-key");
+      this.selectFieldModalItem(nextKey);
+      items[curIdx].scrollIntoView({ block: "nearest" });
+    }
   },
 
   // 1C [...] Value List & Catalog Picker Engine (Screenshot 2 / 3 Tovarni Sklad)
   openFilterFieldPicker: function(idx) {
     const crit = this.tempFilterCriteria[idx];
     if (!crit) return;
-    const inputEl = document.getElementById(`ujFilterValInput_${idx}`);
-    if (!inputEl) return;
+    const inputEl = document.getElementById(`ujFilterValInput_${idx}`) || document.getElementById(`ujFilterValInput_${idx}_from`);
 
     this.selectFilterCritRow(idx);
     this.hideFilterAutocomplete();
 
     const op = crit.operator || "Равно";
+    const isInterval = op.startsWith("Интервал");
+
+    // Tarix və ya interval üçün PeriodPicker modalını açırıq
+    if (crit.fieldKey === "date" || isInterval) {
+      if (window.PeriodPicker && typeof PeriodPicker.open === "function") {
+        let sStart = crit.valueFrom || "";
+        let sEnd = crit.valueTo || "";
+        if (!sStart && !sEnd) {
+          const curVal = (inputEl ? inputEl.value : (crit.value || "")) || "";
+          if (curVal.includes("...") || curVal.includes("—") || curVal.includes("-")) {
+            const parts = curVal.split(/\s*(?:\.\.\.|—|-)\s*/);
+            sStart = parts[0] || "";
+            sEnd = parts[1] || "";
+          } else {
+            sStart = curVal;
+            sEnd = curVal;
+          }
+        }
+        PeriodPicker.open({
+          startDate: sStart,
+          endDate: sEnd,
+          onSelect: (st, en) => {
+            if (isInterval) {
+              crit.valueFrom = st;
+              crit.valueTo = en;
+              crit.value = (st && en) ? `${st} ... ${en}` : (st || en || "");
+              const fromEl = document.getElementById(`ujFilterValInput_${idx}_from`);
+              const toEl = document.getElementById(`ujFilterValInput_${idx}_to`);
+              if (fromEl) fromEl.value = st;
+              if (toEl) toEl.value = en;
+            } else {
+              const res = st || en || "";
+              if (inputEl) inputEl.value = res;
+              crit.value = res;
+            }
+          }
+        });
+        return;
+      }
+    }
+
     const isMulti = (op === "В группе из списка" || op === "В списке" || op === "Не в списке");
 
     let catalog = null;
@@ -1582,9 +1887,135 @@ const UniversalJournal = {
     }
   },
 
+  onFilterIntervalInput: function(idx, which, inputEl) {
+    const crit = this.tempFilterCriteria[idx];
+    if (!crit) return;
+    if (crit.fieldKey === "date") {
+      inputEl.value = inputEl.value.replace(/[^0-9.:\s\/\-,]/g, "");
+    }
+    if (which === "from") crit.valueFrom = inputEl.value;
+    else crit.valueTo = inputEl.value;
+    const vFrom = crit.valueFrom || "";
+    const vTo = crit.valueTo || "";
+    crit.value = (vFrom || vTo) ? `${vFrom} ... ${vTo}` : "";
+  },
+
+  onFilterIntervalBlur: function(idx, which, inputEl) {
+    const crit = this.tempFilterCriteria[idx];
+    if (!crit) return;
+    const val = inputEl.value.trim();
+    if (val && window.PeriodPicker && typeof PeriodPicker.autoCompleteDate === "function") {
+      const defTime = (which === "to") ? "23:59:59" : "00:00:00";
+      inputEl.value = PeriodPicker.autoCompleteDate(val, defTime);
+      if (which === "from") crit.valueFrom = inputEl.value;
+      else crit.valueTo = inputEl.value;
+    }
+    this.validateFilterInterval(idx, which);
+    const vFrom = crit.valueFrom || "";
+    const vTo = crit.valueTo || "";
+    crit.value = (vFrom || vTo) ? `${vFrom} ... ${vTo}` : "";
+  },
+
+  onFilterIntervalKeydown: function(idx, which, inputEl, event) {
+    const crit = this.tempFilterCriteria[idx];
+    const isDateField = crit && (crit.fieldKey === "date");
+
+    if (isDateField) {
+      if ([
+        "Backspace", "Delete", "Tab", "Enter", "Escape", 
+        "ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown", 
+        "Home", "End", "F4"
+      ].includes(event.key)) {
+        // funksional düymələrə icazə ver
+      } else if (event.ctrlKey || event.metaKey) {
+        // Ctrl+C, Ctrl+V və s.
+      } else if (event.key === "." || event.key === ":" || event.key === " ") {
+        // ayrıcılar
+      } else if (!/^\d$/.test(event.key)) {
+        // HƏRF VƏ DİGƏR SİMOLLAR QƏTİ QADAĞANDIR!
+        event.preventDefault();
+        return;
+      }
+    }
+
+    if (event.key === "Enter") {
+      event.preventDefault();
+      const val = inputEl.value.trim();
+      if (val && window.PeriodPicker && typeof PeriodPicker.autoCompleteDate === "function") {
+        const defTime = (which === "to") ? "23:59:59" : "00:00:00";
+        inputEl.value = PeriodPicker.autoCompleteDate(val, defTime);
+        if (crit) {
+          if (which === "from") crit.valueFrom = inputEl.value;
+          else crit.valueTo = inputEl.value;
+        }
+      }
+      this.validateFilterInterval(idx, which);
+      if (crit) {
+        const vFrom = crit.valueFrom || "";
+        const vTo = crit.valueTo || "";
+        crit.value = (vFrom || vTo) ? `${vFrom} ... ${vTo}` : "";
+      }
+
+      if (which === "from") {
+        const toEl = document.getElementById(`ujFilterValInput_${idx}_to`);
+        if (toEl) {
+          toEl.focus();
+          if (toEl.setSelectionRange) toEl.setSelectionRange(0, 2);
+        }
+      } else {
+        inputEl.blur();
+      }
+    }
+  },
+
+  validateFilterInterval: function(idx, which) {
+    const crit = this.tempFilterCriteria[idx];
+    if (!crit) return;
+    const fromEl = document.getElementById(`ujFilterValInput_${idx}_from`);
+    const toEl = document.getElementById(`ujFilterValInput_${idx}_to`);
+    const sFrom = fromEl ? fromEl.value.trim() : (crit.valueFrom || "");
+    const sTo = toEl ? toEl.value.trim() : (crit.valueTo || "");
+    if (!sFrom || !sTo) return;
+
+    if (window.PeriodPicker && typeof PeriodPicker.parseDateObj === "function") {
+      const dtFrom = PeriodPicker.parseDateObj(sFrom, false);
+      const dtTo = PeriodPicker.parseDateObj(sTo, true);
+      if (dtFrom && dtTo && dtFrom.getTime() > dtTo.getTime()) {
+        if (which === "from") {
+          const d = String(dtFrom.getDate()).padStart(2, "0");
+          const m = String(dtFrom.getMonth() + 1).padStart(2, "0");
+          const y = dtFrom.getFullYear();
+          const syncedTo = `${d}.${m}.${y} 23:59:59`;
+          crit.valueTo = syncedTo;
+          if (toEl) toEl.value = syncedTo;
+        } else if (which === "to") {
+          const d = String(dtTo.getDate()).padStart(2, "0");
+          const m = String(dtTo.getMonth() + 1).padStart(2, "0");
+          const y = dtTo.getFullYear();
+          const syncedFrom = `${d}.${m}.${y} 00:00:00`;
+          crit.valueFrom = syncedFrom;
+          if (fromEl) fromEl.value = syncedFrom;
+        }
+      }
+    }
+  },
+
+  onFilterSingleBlur: function(idx, inputEl) {
+    const crit = this.tempFilterCriteria[idx];
+    if (!crit) return;
+    const val = inputEl.value.trim();
+    if (crit.fieldKey === "date" && val && window.PeriodPicker && typeof PeriodPicker.autoCompleteDate === "function") {
+      inputEl.value = PeriodPicker.autoCompleteDate(val, "00:00:00");
+      crit.value = inputEl.value;
+    }
+  },
+
   // Autocomplete Live Search Engine (Only triggered on user typing >= 1 char)
   onFilterValueInput: function(idx, inputEl, event) {
     if (this.tempFilterCriteria[idx]) {
+      if (this.tempFilterCriteria[idx].fieldKey === "date") {
+        inputEl.value = inputEl.value.replace(/[^0-9.:\s\/\-,]/g, "");
+      }
       this.tempFilterCriteria[idx].value = inputEl.value;
     }
     this.showFilterAutocomplete(idx, inputEl);
@@ -1750,8 +2181,39 @@ const UniversalJournal = {
   },
 
   onFilterInputKeydown: function(idx, inputEl, event) {
+    const crit = this.tempFilterCriteria[idx];
+    const isDateField = crit && (crit.fieldKey === "date");
+
+    if (isDateField) {
+      if ([
+        "Backspace", "Delete", "Tab", "Enter", "Escape", 
+        "ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown", 
+        "Home", "End", "F4"
+      ].includes(event.key)) {
+        // icazə ver
+      } else if (event.ctrlKey || event.metaKey) {
+        // icazə ver
+      } else if (event.key === "." || event.key === ":" || event.key === " ") {
+        // icazə ver
+      } else if (!/^\d$/.test(event.key)) {
+        // HƏRF VƏ YAD SİMVOL QADAĞANDIR!
+        event.preventDefault();
+        return;
+      }
+    }
+
     const popup = document.getElementById("ujFilterAutocompletePopup");
     if (!popup || popup.style.display !== "block") {
+      if (event.key === "Enter") {
+        event.preventDefault();
+        const val = inputEl.value.trim();
+        if (crit && crit.fieldKey === "date" && val && window.PeriodPicker && typeof PeriodPicker.autoCompleteDate === "function") {
+          inputEl.value = PeriodPicker.autoCompleteDate(val, "00:00:00");
+          crit.value = inputEl.value;
+        }
+        inputEl.blur();
+        return;
+      }
       if (event.key === "ArrowDown" || event.key === "F4") {
         event.preventDefault();
         this.showFilterAutocomplete(idx, inputEl);
@@ -1797,15 +2259,102 @@ const UniversalJournal = {
 
   finishFilterEditing: function() {
     this.hideFilterAutocomplete();
+
+    // Bütün cari inputların qiymətlərini topla, tamamla və dəqiqləşdir
+    for (let idx = 0; idx < this.tempFilterCriteria.length; idx++) {
+      const crit = this.tempFilterCriteria[idx];
+      if (!crit) continue;
+      const isInterval = crit.operator && crit.operator.startsWith("Интервал");
+
+      if (isInterval) {
+        const fromEl = document.getElementById(`ujFilterValInput_${idx}_from`);
+        const toEl = document.getElementById(`ujFilterValInput_${idx}_to`);
+
+        if (fromEl) {
+          fromEl.style.border = "1px solid #7f9db9";
+          if (fromEl.value.trim() && window.PeriodPicker && typeof PeriodPicker.autoCompleteDate === "function") {
+            fromEl.value = PeriodPicker.autoCompleteDate(fromEl.value.trim(), "00:00:00");
+          }
+          crit.valueFrom = fromEl.value.trim();
+        }
+        if (toEl) {
+          toEl.style.border = "1px solid #7f9db9";
+          if (toEl.value.trim() && window.PeriodPicker && typeof PeriodPicker.autoCompleteDate === "function") {
+            toEl.value = PeriodPicker.autoCompleteDate(toEl.value.trim(), "23:59:59");
+          }
+          crit.valueTo = toEl.value.trim();
+        }
+
+        // QƏTİ QADAĞA: НАЧАЛО HEÇ VAXT КОНЕЦ-DƏN BÖYÜK OLA BİLMƏZ!
+        if (crit.valueFrom && crit.valueTo && window.PeriodPicker && typeof PeriodPicker.parseDateObj === "function") {
+          const dtFrom = PeriodPicker.parseDateObj(crit.valueFrom, false);
+          const dtTo = PeriodPicker.parseDateObj(crit.valueTo, true);
+          if (dtFrom && dtTo && dtFrom.getTime() > dtTo.getTime()) {
+            if (fromEl) {
+              fromEl.style.border = "1px solid #cc0000";
+              fromEl.focus();
+            }
+            if (toEl) {
+              toEl.style.border = "1px solid #cc0000";
+            }
+            alert("Дата начала не может быть больше даты окончания!");
+            return; // İcazə verilmir, pəncərə bağlanmır!
+          }
+        }
+
+        crit.value = (crit.valueFrom || crit.valueTo) ? `${crit.valueFrom || ''} ... ${crit.valueTo || ''}` : '';
+      } else {
+        const singleEl = document.getElementById(`ujFilterValInput_${idx}`);
+        if (singleEl) {
+          if (crit.fieldKey === "date" && singleEl.value.trim() && window.PeriodPicker && typeof PeriodPicker.autoCompleteDate === "function") {
+            singleEl.value = PeriodPicker.autoCompleteDate(singleEl.value.trim(), "00:00:00");
+          }
+          crit.value = singleEl.value.trim();
+        }
+      }
+    }
+
     this.activeFilters = JSON.parse(JSON.stringify(this.tempFilterCriteria));
     if (this.activeFilters.length > 0 && !this.activePresetName) {
       this.activePresetName = "Пользовательский";
     } else if (this.activeFilters.length === 0) {
       this.activePresetName = "";
     }
+    this.saveActiveFiltersToStorage();
     this.closeFilterModal();
     this.applyFiltersAndSearch();
     this.updateStatus(this.activeFilters.length > 0 ? "Отбор применен" : "Отбор отключен");
+  },
+
+  // ==========================================
+  // Active Filters Persistence (Refresh F5 üçün)
+  // ==========================================
+  getActiveFiltersStorageKey: function() {
+    return "uj_active_filters_" + (this.activeDocType || "default");
+  },
+
+  loadActiveFiltersFromStorage: function() {
+    try {
+      const raw = localStorage.getItem(this.getActiveFiltersStorageKey());
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed)) {
+          this.activeFilters = parsed;
+          return;
+        }
+      }
+    } catch(e) {}
+    this.activeFilters = [];
+  },
+
+  saveActiveFiltersToStorage: function() {
+    try {
+      if (this.activeFilters && this.activeFilters.length > 0) {
+        localStorage.setItem(this.getActiveFiltersStorageKey(), JSON.stringify(this.activeFilters));
+      } else {
+        localStorage.removeItem(this.getActiveFiltersStorageKey());
+      }
+    } catch(e) {}
   },
 
   // ==========================================
@@ -2171,6 +2720,7 @@ const UniversalJournal = {
   clearFilter: function() {
     this.activeFilters = [];
     this.activePresetName = "";
+    this.saveActiveFiltersToStorage();
     this.applyFiltersAndSearch();
     this.updateFilterButtonsState();
     this.updateStatus("Отбор отключен");
@@ -2241,6 +2791,7 @@ const UniversalJournal = {
     }
 
     this.activePresetName = "";
+    this.saveActiveFiltersToStorage();
     this.applyFiltersAndSearch();
     this.updateFilterButtonsState();
     const activeCount = this.activeFilters.filter(c => c.enabled !== false).length;
@@ -2276,6 +2827,7 @@ const UniversalJournal = {
     const removedCrit = this.activeFilters[existingIdx];
     this.activeFilters.splice(existingIdx, 1);
     this.activePresetName = "";
+    this.saveActiveFiltersToStorage();
     this.applyFiltersAndSearch();
     this.updateFilterButtonsState();
 
@@ -2582,21 +3134,25 @@ const UniversalJournal = {
       });
     }
 
-    // 4. Date comparisons
+    // 4. Date comparisons (exact precision down to HH:MM:SS)
     if (key === "date") {
-      const parseDateVal = (dStr) => {
-        if (!dStr) return null;
-        const s = String(dStr).trim();
-        const mDot = s.match(/^(\d{1,2})\.(\d{1,2})\.(\d{4})/);
-        if (mDot) return new Date(parseInt(mDot[3]), parseInt(mDot[2]) - 1, parseInt(mDot[1])).getTime();
-        const mIso = s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
-        if (mIso) return new Date(parseInt(mIso[1]), parseInt(mIso[2]) - 1, parseInt(mIso[3])).getTime();
-        const parsed = Date.parse(s);
-        return isNaN(parsed) ? null : parsed;
-      };
+      const dtItem = this.parseFullDateTimeMs(itemVal, false);
 
-      const dtItem = parseDateVal(itemVal);
-      const dtTarget = parseDateVal(targetVal);
+      if (op.startsWith("Интервал")) {
+        const sFrom = (crit.valueFrom !== undefined && crit.valueFrom !== "") ? String(crit.valueFrom) : (String(targetVal || "").split(/\s*(?:\.\.\.|—|-)\s*/)[0] || "");
+        const sTo = (crit.valueTo !== undefined && crit.valueTo !== "") ? String(crit.valueTo) : (String(targetVal || "").split(/\s*(?:\.\.\.|—|-)\s*/)[1] || sFrom);
+        const dtStart = this.parseFullDateTimeMs(sFrom, false);
+        const dtEnd = this.parseFullDateTimeMs(sTo, true);
+        if (dtItem === null || dtStart === null || dtEnd === null) return true;
+
+        if (op === "Интервал (>, <)") return dtItem > dtStart && dtItem < dtEnd;
+        if (op === "Интервал (>=, <=)") return dtItem >= dtStart && dtItem <= dtEnd;
+        if (op === "Интервал (>=, <)") return dtItem >= dtStart && dtItem < dtEnd;
+        if (op === "Интервал (>, <=)") return dtItem > dtStart && dtItem <= dtEnd;
+      }
+
+      const isEndOp = (op === "Меньше или равно" || op === "Меньше");
+      const dtTarget = this.parseFullDateTimeMs(targetVal, isEndOp);
 
       if (dtItem !== null && dtTarget !== null) {
         const sItemDate = String(itemVal).trim().toLowerCase();
@@ -2610,7 +3166,34 @@ const UniversalJournal = {
       }
     }
 
-    // 5. Numeric comparisons (Strictly for 'amount' or when BOTH itemVal and targetVal are strictly pure numbers)
+    // 5. Interval comparisons for numbers or general text
+    if (op.startsWith("Интервал")) {
+      const sFrom = (crit.valueFrom !== undefined && crit.valueFrom !== "") ? String(crit.valueFrom) : (String(targetVal || "").split(/\s*(?:\.\.\.|—|-)\s*/)[0] || "");
+      const sTo = (crit.valueTo !== undefined && crit.valueTo !== "") ? String(crit.valueTo) : (String(targetVal || "").split(/\s*(?:\.\.\.|—|-)\s*/)[1] !== undefined ? String(targetVal || "").split(/\s*(?:\.\.\.|—|-)\s*/)[1] : sFrom);
+
+      const isStrictNumber = (str) => /^[-+]?\d+(\.\d+)?$/.test(str);
+      const isNum = !isNaN(parseFloat(itemVal)) && isStrictNumber(sFrom);
+      if (isNum) {
+        const numItem = parseFloat(itemVal);
+        const numStart = parseFloat(sFrom);
+        const numEnd = parseFloat(sTo);
+        if (op === "Интервал (>, <)") return numItem > numStart && numItem < numEnd;
+        if (op === "Интервал (>=, <=)") return numItem >= numStart && numItem <= numEnd;
+        if (op === "Интервал (>=, <)") return numItem >= numStart && numItem < numEnd;
+        if (op === "Интервал (>, <=)") return numItem > numStart && numItem <= numEnd;
+      } else {
+        const sItem = String(itemVal).toLowerCase().trim();
+        const sStart = sFrom.toLowerCase().trim();
+        const sEnd = sTo.toLowerCase().trim();
+        if (op === "Интервал (>, <)") return sItem > sStart && sItem < sEnd;
+        if (op === "Интервал (>=, <=)") return sItem >= sStart && sItem <= sEnd;
+        if (op === "Интервал (>=, <)") return sItem >= sStart && sItem < sEnd;
+        if (op === "Интервал (>, <=)") return sItem > sStart && sItem <= sEnd;
+      }
+      return true;
+    }
+
+    // 6. Numeric comparisons (Strictly for 'amount' or when BOTH itemVal and targetVal are strictly pure numbers)
     const sItemRaw = String(itemVal !== undefined && itemVal !== null ? itemVal : "").trim();
     const sTargetRaw = String(targetVal !== undefined && targetVal !== null ? targetVal : "").trim();
 
@@ -3106,11 +3689,99 @@ const UniversalJournal = {
       .replace(/>/g, "&gt;")
       .replace(/"/g, "&quot;")
       .replace(/'/g, "&#039;");
+  },
+
+  // Eyni jurnaldan istənilən sayda yeni pəncərə açmaq
+  _winCounter: 1,
+  openNewWindow: function(docType) {
+    const sel = document.getElementById("ujDocTypeSelect");
+    const targetDocType = docType || this.activeDocType || (sel ? sel.value : "РеализацияТоваровУслуг");
+    this._winCounter = (this._winCounter || 1) + 1;
+    const newId = `universalJournalWindow_${this._winCounter}`;
+
+    const baseWin = document.getElementById("universalJournalWindow");
+    if (!baseWin) return;
+
+    const newWin = baseWin.cloneNode(true);
+    newWin.id = newId;
+    newWin.style.display = "flex";
+    newWin.classList.remove("minimized");
+
+    const offset = (this._winCounter * 24) % 180;
+    newWin.style.top = `${25 + offset}px`;
+    newWin.style.left = `${35 + offset}px`;
+    newWin.setAttribute("onmousedown", `MdiManager.activateWindow('${newId}')`);
+
+    const selText = (sel && sel.options && sel.selectedIndex >= 0) ? sel.options[sel.selectedIndex].text : (this.docTitle || "Журнал документов");
+    const docName = selText || "Журнал документов";
+    const titleEl = newWin.querySelector(".mdi-win-title-text");
+    if (titleEl) {
+      titleEl.textContent = `${docName} (${this._winCounter})`;
+    }
+
+    // Daxili düymələr
+    const closeBtn = newWin.querySelector(".mdi-win-btn-close");
+    if (closeBtn) {
+      closeBtn.removeAttribute("onclick");
+      closeBtn.onclick = (e) => {
+        e.stopPropagation();
+        if (window.MdiManager) MdiManager.closeWindow(newId);
+        newWin.remove();
+      };
+    }
+    const maxBtn = newWin.querySelector(".mdi-win-btn-max");
+    if (maxBtn) {
+      maxBtn.removeAttribute("onclick");
+      maxBtn.onclick = (e) => {
+        e.stopPropagation();
+        MdiManager.toggleMaximize(newId);
+      };
+    }
+    const minBtn = newWin.querySelector(".mdi-win-btn-min");
+    if (minBtn) {
+      minBtn.removeAttribute("onclick");
+      minBtn.onclick = (e) => {
+        e.stopPropagation();
+        MdiManager.minimizeWindow(newId);
+      };
+    }
+    const header = newWin.querySelector(".mdi-window-header");
+    if (header) {
+      header.removeAttribute("ondblclick");
+      header.ondblclick = (e) => {
+        if (e.target.closest(".mdi-win-btn, .window-btn-close")) return;
+        MdiManager.toggleMaximize(newId);
+      };
+    }
+
+    const ws = document.getElementById("mdiWorkspace");
+    if (ws) ws.appendChild(newWin);
+
+    if (window.MdiManager) {
+      MdiManager.registerWindow(newId, {
+        title: `${docName} (${this._winCounter})`,
+        icon: "🗂️",
+        element: newWin,
+        closeFn: () => {
+          newWin.remove();
+        }
+      });
+      MdiManager.activateWindow(newId);
+    }
+    this.updateStatus(`Открыто новое окно: ${docName} (${this._winCounter})`);
+    return newId;
   }
 };
 
 window.UniversalJournal = UniversalJournal;
 window.openUniversalJournalWindow = function(docType) {
+  const ujWin = document.getElementById("universalJournalWindow");
+  if (ujWin && ujWin.style.display !== "none" && !ujWin.classList.contains("minimized")) {
+    if (window.UniversalJournal && typeof UniversalJournal.openNewWindow === "function") {
+      UniversalJournal.openNewWindow(docType);
+      return;
+    }
+  }
   UniversalJournal.open(docType);
 };
 
@@ -3155,3 +3826,14 @@ document.addEventListener("keydown", function(e) {
     }
   }
 });
+
+// DOM yükləndikdə ilkin inisializasiya və mövcud sahələrin render edilməsi
+document.addEventListener("DOMContentLoaded", function() {
+  if (typeof UniversalJournal !== "undefined") {
+    UniversalJournal.init();
+    if (typeof UniversalJournal.renderFilterAvailableFields === "function") {
+      UniversalJournal.renderFilterAvailableFields();
+    }
+  }
+});
+

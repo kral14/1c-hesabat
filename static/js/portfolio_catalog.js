@@ -1432,6 +1432,13 @@ document.addEventListener("click", function(e) {
 
 // Global helper for opening
 function openPortfolioReportWindow() {
+  const existingWin = document.getElementById("portfolioCatalogWindow");
+  if (existingWin && existingWin.style.display !== "none" && !existingWin.classList.contains("minimized")) {
+    if (window.MdiManager && typeof MdiManager.createDuplicatePortfolioWindow === "function") {
+      MdiManager.createDuplicatePortfolioWindow();
+      return;
+    }
+  }
   PortfolioCatalog.open();
 }
 

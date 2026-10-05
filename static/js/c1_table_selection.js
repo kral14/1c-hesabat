@@ -17,15 +17,19 @@
     return Boolean(
       target.closest("button") ||
       target.closest(".btn-1c") ||
-      target.closest("input[type='checkbox']") ||
-      target.closest("input[type='radio']") ||
+      target.closest("input") ||
+      target.closest("select") ||
+      target.closest("textarea") ||
       target.closest(".window-btn-close") ||
-      target.closest(".mdi-dropdown-entry")
+      target.closest(".mdi-dropdown-entry") ||
+      target.closest("#ujFilterWindow") ||
+      target.closest("#periodPickerModalOverlay")
     );
   }
 
   function highlightAndSelectCell(td, event) {
     if (!td || isInteractiveElement(event ? event.target : null)) return;
+    if (td.closest("#ujFilterWindow") || td.closest("#periodPickerModalOverlay")) return;
 
     const tr = td.closest("tr");
     if (!tr) return;

@@ -43,17 +43,68 @@ const CatalogSelector = {
     this.initialSearch = String(options.search || this.locateName || this.locateItem || (this.targetInput ? this.targetInput.value : "") || "").trim();
     this.preserveTargetCode = this.locateCode || this.locateItem || "";
 
-    const win = document.getElementById("catalogWindowModal");
-    if (!win) return;
+    // Multi-instance catalog windows support (Номенклатура, Склады və s. hər biri ayrı pəncərə və ayrı tabda açılır)
+    const catSafe = String(this.currentCatalog).replace(/[^a-zA-Z0-9_\u0400-\u04FF]/g, "_");
+    const winId = `catalogWin_${catSafe}`;
+    let win = document.getElementById(winId);
 
-    const titleEl = document.getElementById("catalogWindowTitle");
-    const iconEl = document.getElementById("catalogWindowIcon");
-    const rootLabel = document.getElementById("catalogTreeRootLabel");
-    const stockPane = document.getElementById("catalogStockPane");
-    const colArtikul = document.getElementById("colArtikulHeader");
-    const btnSelectFolder = document.getElementById("btnSelectCurrentFolder");
-    const banner = document.getElementById("catalogPodborBanner");
-    const podborCountEl = document.getElementById("catalogPodborCount");
+    const baseWin = document.getElementById("catalogWindowModal");
+    if (!win) {
+      if (!baseWin) return;
+      win = baseWin.cloneNode(true);
+      win.id = winId;
+      win.dataset.catalog = this.currentCatalog;
+      win.dataset.folder = "";
+      
+      const existingWins = document.querySelectorAll(".mdi-window:not([style*='display: none'])").length;
+      const offset = (existingWins * 25) % 180;
+      win.style.top = `${30 + offset}px`;
+      win.style.left = `${40 + offset}px`;
+      win.style.display = "flex";
+      document.getElementById("mdiWorkspace").appendChild(win);
+
+      win.setAttribute("onmousedown", `MdiManager.activateWindow('${winId}')`);
+
+      // Daxili düymələri unikal edirik
+      const minBtn = win.querySelector(".mdi-win-btn-min");
+      if (minBtn) {
+        minBtn.removeAttribute("onclick");
+        minBtn.onclick = (e) => { e.stopPropagation(); MdiManager.minimizeWindow(winId); };
+      }
+      const maxBtn = win.querySelector(".mdi-win-btn-max");
+      if (maxBtn) {
+        maxBtn.removeAttribute("onclick");
+        maxBtn.onclick = (e) => { e.stopPropagation(); MdiManager.toggleMaximize(winId); };
+      }
+      const closeBtn = win.querySelector(".mdi-win-btn-close");
+      if (closeBtn) {
+        closeBtn.removeAttribute("onclick");
+        closeBtn.onclick = (e) => {
+          e.stopPropagation();
+          MdiManager.closeWindow(winId);
+          win.remove();
+        };
+      }
+      const header = win.querySelector(".mdi-window-header");
+      if (header) {
+        header.removeAttribute("ondblclick");
+        header.ondblclick = (e) => {
+          if (e.target.closest(".mdi-win-btn, .window-btn-close")) return;
+          MdiManager.toggleMaximize(winId);
+        };
+      }
+    } else {
+      win.dataset.catalog = this.currentCatalog;
+    }
+
+    const titleEl = win.querySelector(".mdi-win-title-text, #catalogWindowTitle");
+    const iconEl = win.querySelector(".mdi-win-icon, #catalogWindowIcon");
+    const rootLabel = win.querySelector("#catalogTreeRootLabel, .catalog-tree-root span:last-child");
+    const stockPane = win.querySelector("#catalogStockPane, .catalog-bottom-pane");
+    const colArtikul = win.querySelector("#colArtikulHeader");
+    const btnSelectFolder = win.querySelector("#btnSelectCurrentFolder");
+    const banner = win.querySelector("#catalogPodborBanner");
+    const podborCountEl = win.querySelector("#catalogPodborCount");
 
     const catL = (this.currentCatalog || "").toLowerCase();
     let catTitle = "Справочник: " + this.currentCatalog;
@@ -97,58 +148,26 @@ const CatalogSelector = {
       if (podborCountEl) podborCountEl.textContent = "Seçilən: 0";
     }
 
-    // Show stock pane and artikul only for Nomenklatura
     if (stockPane) {
       stockPane.style.display = isNomenclature ? "flex" : "none";
     }
-
     if (colArtikul) {
       colArtikul.style.display = isNomenclature ? "" : "none";
     }
 
-    // Reset stock pane on open
-    this.resetStockPane(null);
+    this.resetStockPane(win);
 
-    console.log(`[CATALOG OPEN] catalog="${this.currentCatalog}", podborMode=${this.podborMode}, multiSelect=${this.multiSelect}, locateCode="${this.locateCode}"`);
+    console.log(`[CATALOG OPEN] catalog="${this.currentCatalog}", winId="${winId}"`);
 
     // MDI Window registration & activation
     const mdi = window.MdiManager || (typeof MdiManager !== "undefined" ? MdiManager : null);
     if (mdi && typeof mdi.activateWindow === "function") {
-      let winObj = mdi.windows["catalogWindowModal"];
-      if (!winObj) {
-        mdi.registerWindow("catalogWindowModal", {
-          title: fullTitle,
-          icon: catIcon,
-          element: win,
-          isDefault: true,
-          isDialog: true,
-          closeFn: () => CatalogSelector.close()
-        });
-        winObj = mdi.windows["catalogWindowModal"];
-      } else {
-        winObj.title = fullTitle;
-        winObj.icon = catIcon;
-      }
-
-      // Center nicely inside workspace if not positioned yet
-      const ws = document.getElementById("mdiWorkspace");
-      if (ws) {
-        const wsW = ws.clientWidth || window.innerWidth;
-        const wsH = ws.clientHeight || window.innerHeight;
-        const targetW = Math.min(960, Math.max(500, wsW - 40));
-        const targetH = Math.min(620, Math.max(380, wsH - 40));
-        win.style.width = `${targetW}px`;
-        win.style.height = `${targetH}px`;
-        const left = Math.max(15, Math.floor((wsW - targetW) / 2) + 20);
-        const top = Math.max(15, Math.floor((wsH - targetH) / 2) + 20);
-        win.style.left = `${left}px`;
-        win.style.top = `${top}px`;
-      }
-
-      mdi.activateWindow("catalogWindowModal", {
+      mdi.activateWindow(winId, {
         title: fullTitle,
         icon: catIcon,
-        closeFn: () => CatalogSelector.close()
+        closeFn: () => {
+          win.remove();
+        }
       });
     } else {
       win.style.display = "flex";
@@ -179,7 +198,9 @@ const CatalogSelector = {
     if (e && typeof e.stopPropagation === "function") {
       e.stopPropagation();
     }
-    console.log(`[CATALOG CLOSE] Closing catalog "${this.currentCatalog}"`);
+    const catSafe = String(this.currentCatalog).replace(/[^a-zA-Z0-9_\u0400-\u04FF]/g, "_");
+    const winId = `catalogWin_${catSafe}`;
+    console.log(`[CATALOG CLOSE] Closing catalog "${this.currentCatalog}" (#${winId})`);
     this.podborMode = false;
     this.podborCount = 0;
     this.locateCode = "";
@@ -187,16 +208,17 @@ const CatalogSelector = {
     this.locateItem = "";
 
     if (window.MdiManager) {
+      MdiManager.closeWindow(winId);
       MdiManager.closeWindow("catalogWindowModal");
-    } else {
-      const win = document.getElementById("catalogWindowModal");
-      if (win) {
-        win.style.display = "none";
-        win.classList.add("minimized");
-        win.classList.remove("active");
-      }
-      const tab = document.getElementById("tab-catalogWindowModal");
-      if (tab) tab.remove();
+    }
+    const win = document.getElementById(winId);
+    if (win) {
+      win.style.display = "none";
+      win.remove();
+    }
+    const baseWin = document.getElementById("catalogWindowModal");
+    if (baseWin) {
+      baseWin.style.display = "none";
     }
   },
 
@@ -212,6 +234,11 @@ const CatalogSelector = {
     }
   },
 
+  getActiveWindow() {
+    const catSafe = String(this.currentCatalog).replace(/[^a-zA-Z0-9_\u0400-\u04FF]/g, "_");
+    return document.getElementById(`catalogWin_${catSafe}`) || document.getElementById("catalogWindowModal");
+  },
+
   abortController: null,
 
   cancel() {
@@ -219,15 +246,17 @@ const CatalogSelector = {
       try { this.abortController.abort(); } catch (e) {}
       this.abortController = null;
     }
-    const itemsBody = document.getElementById("catalogItemsBody");
+    const win = this.getActiveWindow();
+    const itemsBody = win ? win.querySelector("#catalogItemsBody") : document.getElementById("catalogItemsBody");
     if (itemsBody) {
       itemsBody.innerHTML = `<tr><td colspan="6" style="text-align: center; color: #b71c1c; padding: 20px;">⏹ Sorğu dayandırıldı (Pause).</td></tr>`;
     }
   },
 
   async loadCatalogData(searchQuery = "") {
-    const treeList = document.getElementById("catalogTreeList");
-    const itemsBody = document.getElementById("catalogItemsBody");
+    const win = this.getActiveWindow();
+    const treeList = win ? win.querySelector("#catalogTreeList") : document.getElementById("catalogTreeList");
+    const itemsBody = win ? win.querySelector("#catalogItemsBody") : document.getElementById("catalogItemsBody");
 
     if (itemsBody) {
       itemsBody.innerHTML = `<tr><td colspan="6" style="text-align: center; color: #888; padding: 20px;">1C: Məlumatlar yüklənir...</td></tr>`;
@@ -325,7 +354,8 @@ const CatalogSelector = {
   },
 
   renderFolders(folders) {
-    const treeList = document.getElementById("catalogTreeList");
+    const win = this.getActiveWindow();
+    const treeList = win ? win.querySelector("#catalogTreeList") : document.getElementById("catalogTreeList");
     if (!treeList) return;
 
     // Root folder
@@ -370,7 +400,8 @@ const CatalogSelector = {
   },
 
   renderItems(items) {
-    const tbody = document.getElementById("catalogItemsBody");
+    const win = this.getActiveWindow();
+    const tbody = win ? win.querySelector("#catalogItemsBody") : document.getElementById("catalogItemsBody");
     if (!tbody) return;
     tbody.innerHTML = "";
 
@@ -445,9 +476,9 @@ const CatalogSelector = {
   },
 
   selectFolder(el, folderName) {
-    const tree = document.getElementById("catalogTreeContainer");
-    if (tree) {
-      tree.querySelectorAll(".catalog-tree-item").forEach(i => i.classList.remove("selected"));
+    const win = el.closest(".mdi-window") || this.getActiveWindow();
+    if (win) {
+      win.querySelectorAll(".catalog-tree-item").forEach(i => i.classList.remove("selected"));
     }
     el.classList.add("selected");
     this.currentFolder = folderName;
@@ -457,9 +488,10 @@ const CatalogSelector = {
   },
 
   updateFolderButton() {
-    const btnSelectFolder = document.getElementById("btnSelectCurrentFolder");
-    const btnFolderText = document.getElementById("btnSelectCurrentFolderText");
-    const label = document.getElementById("catalogSelectedLabel");
+    const win = this.getActiveWindow();
+    const btnSelectFolder = win ? win.querySelector("#btnSelectCurrentFolder") : document.getElementById("btnSelectCurrentFolder");
+    const btnFolderText = win ? win.querySelector("#btnSelectCurrentFolderText") : document.getElementById("btnSelectCurrentFolderText");
+    const label = win ? win.querySelector("#catalogSelectedLabel") : document.getElementById("catalogSelectedLabel");
 
     if (this.currentFolder) {
       if (btnSelectFolder) btnSelectFolder.style.display = "inline-flex";
@@ -483,16 +515,17 @@ const CatalogSelector = {
   },
 
   highlightItem(tr, item) {
-    const tbody = document.getElementById("catalogItemsBody");
+    const win = tr.closest(".mdi-window") || this.getActiveWindow();
+    const tbody = win ? win.querySelector("#catalogItemsBody") : document.getElementById("catalogItemsBody");
     if (tbody) {
       tbody.querySelectorAll("tr").forEach(r => r.classList.remove("selected"));
     }
     tr.classList.add("selected");
     this.selectedItem = item;
 
-    const label = document.getElementById("catalogSelectedLabel");
-    const previewTitle = document.getElementById("catalogSelectedPreviewTitle");
-    const btnText = document.getElementById("btnCatalogSelectText");
+    const label = win ? win.querySelector("#catalogSelectedLabel") : document.getElementById("catalogSelectedLabel");
+    const previewTitle = win ? win.querySelector("#catalogSelectedPreviewTitle") : document.getElementById("catalogSelectedPreviewTitle");
+    const btnText = win ? win.querySelector("#btnCatalogSelectText") : document.getElementById("btnCatalogSelectText");
 
     const prefix = item.is_folder ? "📁 [Qrup] " : "";
     if (label) label.textContent = `${prefix}${item.code ? '[' + item.code + '] ' : ''}${item.name}`;
@@ -507,7 +540,7 @@ const CatalogSelector = {
     if (isNom && !item.is_folder) {
       this.loadStockData(item.code, item.name);
     } else {
-      this.resetStockPane(item);
+      this.resetStockPane(win);
     }
   },
 
