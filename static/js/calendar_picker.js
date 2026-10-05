@@ -125,7 +125,7 @@ const OneCCalendar = {
       if (this.popupEl && this.popupEl.classList.contains("show")) {
         if (!this.popupEl.contains(e.target) && (!this.targetInput || !this.targetInput.contains(e.target))) {
           // If clicked a calendar trigger button, ignore here
-          if (!e.target.closest(".period-cal-btn")) {
+          if (!e.target.closest(".period-cal-btn, .pp-cal-btn")) {
             this.close();
           }
         }
@@ -281,9 +281,20 @@ const OneCCalendar = {
     
     let timeSuffix = "";
     if (this.targetInput && this.targetInput.value) {
-      const timeMatch = this.targetInput.value.match(/(\d{2}:\d{2}:\d{2})/);
+      const timeMatch = this.targetInput.value.match(/(\d{1,2}:\d{1,2}(?::\d{1,2})?)/);
       if (timeMatch) {
-        timeSuffix = " " + timeMatch[1];
+        const tParts = timeMatch[1].split(":");
+        const hh = tParts[0].padStart(2, "0");
+        const mi = (tParts[1] || "00").padStart(2, "0");
+        const ss = (tParts[2] || "00").padStart(2, "0");
+        timeSuffix = ` ${hh}:${mi}:${ss}`;
+      }
+    }
+    if (!timeSuffix && this.targetInput) {
+      if (this.targetInput.id.toLowerCase().includes("start")) {
+        timeSuffix = " 00:00:00";
+      } else if (this.targetInput.id.toLowerCase().includes("end")) {
+        timeSuffix = " 23:59:59";
       }
     }
     const dateStr = `${dd}.${mm}.${yyyy}${timeSuffix}`;
@@ -296,6 +307,10 @@ const OneCCalendar = {
 
       if (this.targetInput.id.startsWith("top")) {
         if (typeof syncDateInputsFromTop === "function") syncDateInputsFromTop();
+      } else if (this.targetInput.id.startsWith("pp")) {
+        if (window.PeriodPicker) {
+          PeriodPicker.onManualInputChange(this.targetInput.id.includes("Start") ? "start" : "end");
+        }
       } else {
         if (typeof syncDateInputsFromDlg === "function") syncDateInputsFromDlg();
       }

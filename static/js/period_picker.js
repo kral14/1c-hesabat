@@ -45,10 +45,20 @@ const PeriodPicker = {
       }
     }
 
+    // Normalize legacy date-only values to full DD.MM.YYYY HH:MM:SS
+    const addTime = (s, t) => {
+      if (!s) return "";
+      s = String(s).trim();
+      return /^\d{1,2}\.\d{1,2}\.\d{4}$/.test(s) ? `${s} ${t}` : s;
+    };
+    this.startDateStr = addTime(this.startDateStr, "00:00:00");
+    this.endDateStr = addTime(this.endDateStr, "23:59:59");
+
     // Set baseYear around current date or startDate
     const now = new Date();
-    if (this.startDateStr && /^\d{2}\.\d{2}\.\d{4}$/.test(this.startDateStr)) {
-      this.baseYear = parseInt(this.startDateStr.split(".")[2], 10);
+    const mYear = (this.startDateStr || "").match(/^(\d{1,2})\.(\d{1,2})\.(\d{4})/);
+    if (mYear) {
+      this.baseYear = parseInt(mYear[3], 10);
     } else {
       this.baseYear = now.getFullYear();
     }
@@ -206,9 +216,16 @@ const PeriodPicker = {
     const curMonth = now.getMonth(); // 0-indexed
 
     const parseDateObj = (str, isEnd) => {
-      if (!str || !/^\d{2}\.\d{2}\.\d{4}$/.test(str)) return null;
-      const [d, m, y] = str.split(".").map(Number);
-      return new Date(y, m - 1, d, isEnd ? 23 : 0, isEnd ? 59 : 0, isEnd ? 59 : 0);
+      if (!str) return null;
+      const m = String(str).trim().match(/^(\d{1,2})\.(\d{1,2})\.(\d{4})(?:\s+(\d{1,2}):(\d{1,2}):(\d{1,2}))?/);
+      if (!m) return null;
+      const d = parseInt(m[1], 10);
+      const mo = parseInt(m[2], 10) - 1;
+      const y = parseInt(m[3], 10);
+      const hh = m[4] !== undefined ? parseInt(m[4], 10) : (isEnd ? 23 : 0);
+      const mm = m[5] !== undefined ? parseInt(m[5], 10) : (isEnd ? 59 : 0);
+      const ss = m[6] !== undefined ? parseInt(m[6], 10) : (isEnd ? 59 : 0);
+      return new Date(y, mo, d, hh, mm, ss);
     };
 
     const dtStart = parseDateObj(this.startDateStr, false);
@@ -292,8 +309,8 @@ const PeriodPicker = {
 
       const lastDay = new Date(year, month + 1, 0).getDate();
       const mm = String(month + 1).padStart(2, "0");
-      this.startDateStr = `01.${mm}.${year}`;
-      this.endDateStr = `${String(lastDay).padStart(2, "0")}.${mm}.${year}`;
+      this.startDateStr = `01.${mm}.${year} 00:00:00`;
+      this.endDateStr = `${String(lastDay).padStart(2, "0")}.${mm}.${year} 23:59:59`;
     } else {
       // 2nd click: finish range between anchor and clicked month
       this.isSelectingRange = false;
@@ -316,8 +333,8 @@ const PeriodPicker = {
       }
 
       const lastDay = new Date(endY, endM + 1, 0).getDate();
-      this.startDateStr = `01.${String(startM + 1).padStart(2, "0")}.${startY}`;
-      this.endDateStr = `${String(lastDay).padStart(2, "0")}.${String(endM + 1).padStart(2, "0")}.${endY}`;
+      this.startDateStr = `01.${String(startM + 1).padStart(2, "0")}.${startY} 00:00:00`;
+      this.endDateStr = `${String(lastDay).padStart(2, "0")}.${String(endM + 1).padStart(2, "0")}.${endY} 23:59:59`;
       this.rangeAnchor = null;
     }
 
@@ -338,8 +355,8 @@ const PeriodPicker = {
 
     const lastDay = new Date(year, month + 1, 0).getDate();
     const mm = String(month + 1).padStart(2, "0");
-    this.startDateStr = `01.${mm}.${year}`;
-    this.endDateStr = `${String(lastDay).padStart(2, "0")}.${mm}.${year}`;
+    this.startDateStr = `01.${mm}.${year} 00:00:00`;
+    this.endDateStr = `${String(lastDay).padStart(2, "0")}.${mm}.${year} 23:59:59`;
 
     const inpStart = document.getElementById("ppStartDateInput");
     const inpEnd = document.getElementById("ppEndDateInput");
@@ -360,67 +377,61 @@ const PeriodPicker = {
    */
   autoCompleteDate: function(val) {
     if (!val) return "";
-    val = val.trim().replace(/[\/\-,]/g, ".");
+    val = val.trim();
+    let timePart = "";
+    const timeMatch = val.match(/\s+(\d{1,2}:\d{1,2}(?::\d{1,2})?)$/);
+    if (timeMatch) {
+      const tParts = timeMatch[1].split(":");
+      const hh = tParts[0].padStart(2, "0");
+      const mm = (tParts[1] || "00").padStart(2, "0");
+      const ss = (tParts[2] || "00").padStart(2, "0");
+      timePart = ` ${hh}:${mm}:${ss}`;
+      val = val.replace(/\s+\d{1,2}:\d{1,2}(?::\d{1,2})?$/, "").trim();
+    }
+    val = val.replace(/[\/\-,]/g, ".");
     const now = new Date();
     const curYear = this.baseYear || now.getFullYear();
     const curMonth = String(now.getMonth() + 1).padStart(2, "0");
 
+    let datePart = val;
     // Pattern 1: dd.mm.yyyy (already full)
     if (/^\d{1,2}\.\d{1,2}\.\d{4}$/.test(val)) {
       const parts = val.split(".");
       const dd = String(parseInt(parts[0], 10)).padStart(2, "0");
       const mm = String(parseInt(parts[1], 10)).padStart(2, "0");
       const yyyy = parts[2];
-      return `${dd}.${mm}.${yyyy}`;
-    }
-
-    // Pattern 2: dd.mm.yy (e.g. 01.03.26)
-    if (/^\d{1,2}\.\d{1,2}\.\d{2}$/.test(val)) {
+      datePart = `${dd}.${mm}.${yyyy}`;
+    } else if (/^\d{1,2}\.\d{1,2}\.\d{2}$/.test(val)) {
       const parts = val.split(".");
       const dd = String(parseInt(parts[0], 10)).padStart(2, "0");
       const mm = String(parseInt(parts[1], 10)).padStart(2, "0");
       const yyyy = "20" + parts[2];
-      return `${dd}.${mm}.${yyyy}`;
-    }
-
-    // Pattern 3: dd.mm or d.m (e.g. 01.03 -> 01.03.2026)
-    if (/^\d{1,2}\.\d{1,2}$/.test(val)) {
+      datePart = `${dd}.${mm}.${yyyy}`;
+    } else if (/^\d{1,2}\.\d{1,2}$/.test(val)) {
       const parts = val.split(".");
       const dd = String(parseInt(parts[0], 10)).padStart(2, "0");
       const mm = String(parseInt(parts[1], 10)).padStart(2, "0");
-      return `${dd}.${mm}.${curYear}`;
-    }
-
-    // Pattern 4: 4 digits (e.g. 0103 -> 01.03.2026)
-    if (/^\d{4}$/.test(val)) {
+      datePart = `${dd}.${mm}.${curYear}`;
+    } else if (/^\d{4}$/.test(val)) {
       const dd = val.substring(0, 2);
       const mm = val.substring(2, 4);
-      return `${dd}.${mm}.${curYear}`;
-    }
-
-    // Pattern 5: 6 digits (e.g. 010326 -> 01.03.2026)
-    if (/^\d{6}$/.test(val)) {
+      datePart = `${dd}.${mm}.${curYear}`;
+    } else if (/^\d{6}$/.test(val)) {
       const dd = val.substring(0, 2);
       const mm = val.substring(2, 4);
       const yyyy = "20" + val.substring(4, 6);
-      return `${dd}.${mm}.${yyyy}`;
-    }
-
-    // Pattern 6: 8 digits (e.g. 01032026 -> 01.03.2026)
-    if (/^\d{8}$/.test(val)) {
+      datePart = `${dd}.${mm}.${yyyy}`;
+    } else if (/^\d{8}$/.test(val)) {
       const dd = val.substring(0, 2);
       const mm = val.substring(2, 4);
       const yyyy = val.substring(4, 8);
-      return `${dd}.${mm}.${yyyy}`;
-    }
-
-    // Pattern 7: single day number (e.g. 15 -> 15.<curMonth>.<curYear>)
-    if (/^\d{1,2}$/.test(val)) {
+      datePart = `${dd}.${mm}.${yyyy}`;
+    } else if (/^\d{1,2}$/.test(val)) {
       const dd = String(parseInt(val, 10)).padStart(2, "0");
-      return `${dd}.${curMonth}.${curYear}`;
+      datePart = `${dd}.${curMonth}.${curYear}`;
     }
 
-    return val;
+    return `${datePart}${timePart}`;
   },
 
   onInputKeyDown: function(e, which) {
@@ -469,8 +480,9 @@ const PeriodPicker = {
     this.isSelectingRange = false;
 
     // If a year is entered, adjust baseYear if needed
-    if (this.startDateStr && /^\d{2}\.\d{2}\.\d{4}$/.test(this.startDateStr)) {
-      const y = parseInt(this.startDateStr.split(".")[2], 10);
+    const mY = (this.startDateStr || "").match(/^\d{1,2}\.\d{1,2}\.(\d{4})/);
+    if (mY) {
+      const y = parseInt(mY[1], 10);
       if (Math.abs(y - this.baseYear) > 1) {
         this.baseYear = y;
       }
@@ -524,41 +536,42 @@ const PeriodPicker = {
     const curMonth = now.getMonth();
     const curDay = now.getDate();
 
-    const fmt = (d) => {
+    const fmt = (d, isEnd) => {
       const dd = String(d.getDate()).padStart(2, "0");
       const mm = String(d.getMonth() + 1).padStart(2, "0");
       const yyyy = d.getFullYear();
-      return `${dd}.${mm}.${yyyy}`;
+      const time = isEnd ? "23:59:59" : "00:00:00";
+      return `${dd}.${mm}.${yyyy} ${time}`;
     };
 
     if (presetKey === "today") {
-      this.startDateStr = fmt(now);
-      this.endDateStr = fmt(now);
+      this.startDateStr = fmt(now, false);
+      this.endDateStr = fmt(now, true);
     } else if (presetKey === "yesterday") {
       const yest = new Date(curYear, curMonth, curDay - 1);
-      this.startDateStr = fmt(yest);
-      this.endDateStr = fmt(yest);
+      this.startDateStr = fmt(yest, false);
+      this.endDateStr = fmt(yest, true);
     } else if (presetKey === "this_week") {
       let dayOfWeek = now.getDay() - 1;
       if (dayOfWeek === -1) dayOfWeek = 6;
       const monday = new Date(curYear, curMonth, curDay - dayOfWeek);
       const sunday = new Date(curYear, curMonth, curDay - dayOfWeek + 6);
-      this.startDateStr = fmt(monday);
-      this.endDateStr = fmt(sunday);
+      this.startDateStr = fmt(monday, false);
+      this.endDateStr = fmt(sunday, true);
     } else if (presetKey === "this_month") {
       const first = new Date(curYear, curMonth, 1);
       const last = new Date(curYear, curMonth + 1, 0);
-      this.startDateStr = fmt(first);
-      this.endDateStr = fmt(last);
+      this.startDateStr = fmt(first, false);
+      this.endDateStr = fmt(last, true);
     } else if (presetKey === "this_quarter") {
       const qMonth = Math.floor(curMonth / 3) * 3;
       const first = new Date(curYear, qMonth, 1);
       const last = new Date(curYear, qMonth + 3, 0);
-      this.startDateStr = fmt(first);
-      this.endDateStr = fmt(last);
+      this.startDateStr = fmt(first, false);
+      this.endDateStr = fmt(last, true);
     } else if (presetKey === "this_year") {
-      this.startDateStr = `01.01.${curYear}`;
-      this.endDateStr = `31.12.${curYear}`;
+      this.startDateStr = `01.01.${curYear} 00:00:00`;
+      this.endDateStr = `31.12.${curYear} 23:59:59`;
     } else if (presetKey === "all") {
       this.startDateStr = "";
       this.endDateStr = "";
