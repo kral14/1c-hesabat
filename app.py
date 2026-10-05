@@ -2361,6 +2361,12 @@ class OneCService(threading.Thread):
                         deal_lbl = "Номер заказа" if is_realization else "Сделка"
                         columns.append({"key": "deal", "label": deal_lbl, "width": 120, "align": "left"})
 
+                    if is_realization:
+                        sel_parts.append("ЕСТЬNULL(ОбрВложенный.Номер, \"\") КАК ObrabotkaNumber")
+                        columns.append({"key": "obrabotka_number", "label": "Номер обработки", "width": 125, "align": "left"})
+                        sel_parts.append("ЕСТЬNULL(ПРЕДСТАВЛЕНИЕ(ВМС.СтатусВМС), \"\") КАК StatusVMS")
+                        columns.append({"key": "vms_status", "label": "Статус ВМС", "width": 135, "align": "left"})
+
                     if has_contract:
                         sel_parts.append("Т.ДоговорКонтрагента.Наименование КАК Contract")
                         columns.append({"key": "contract", "label": "Договор", "width": 150, "align": "left"})
@@ -2421,6 +2427,18 @@ class OneCService(threading.Thread):
                                 П.Накладная
                         ) КАК ПогрузкаВложенный
                         ПО Т.Ссылка = ПогрузкаВложенный.Накладная
+                        ЛЕВОЕ СОЕДИНЕНИЕ (
+                            ВЫБРАТЬ
+                                Обр.Заказ КАК Заказ,
+                                МАКСИМУМ(Обр.Ссылка.Номер) КАК Номер
+                            ИЗ
+                                Документ.ОбработкаЗаказов.ДанныеДляАнализа КАК Обр
+                            СГРУППИРОВАТЬ ПО
+                                Обр.Заказ
+                        ) КАК ОбрВложенный
+                        ПО Т.Сделка = ОбрВложенный.Заказ
+                        ЛЕВОЕ СОЕДИНЕНИЕ РегистрСведений.СтатусВМС.СрезПоследних КАК ВМС
+                        ПО Т.Ссылка = ВМС.Документ1С
                         """
 
                     q_doc.Text = f"""
@@ -2466,6 +2484,15 @@ class OneCService(threading.Thread):
                             row_data["warehouse"] = str(res_doc.Warehouse or "").strip()
                         if has_deal:
                             row_data["deal"] = str(res_doc.Deal or "").strip()
+                        if is_realization:
+                            try:
+                                row_data["obrabotka_number"] = str(res_doc.ObrabotkaNumber or "").strip()
+                            except Exception:
+                                row_data["obrabotka_number"] = ""
+                            try:
+                                row_data["vms_status"] = str(res_doc.StatusVMS or "").strip()
+                            except Exception:
+                                row_data["vms_status"] = ""
                         if has_contract:
                             row_data["contract"] = str(res_doc.Contract or "").strip()
                             if is_realization:

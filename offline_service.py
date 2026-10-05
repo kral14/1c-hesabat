@@ -194,6 +194,8 @@ def get_documents_list(payload):
                 {"key": "amount", "label": "Сумма", "width": 100, "align": "right"},
                 {"key": "warehouse", "label": "Склад", "width": 160, "align": "left"},
                 {"key": "deal", "label": "Номер заказа", "width": 120, "align": "left"},
+                {"key": "obrabotka_number", "label": "Номер обработки", "width": 125, "align": "left"},
+                {"key": "vms_status", "label": "Статус ВМС", "width": 135, "align": "left"},
                 {"key": "contract", "label": "Договор", "width": 150, "align": "left"},
                 {"key": "contract_price_type", "label": "Тип цен договора", "width": 130, "align": "left"},
                 {"key": "pogruzka_marshrut", "label": "Пагрузка маршрут", "width": 130, "align": "left"},
@@ -244,6 +246,8 @@ def get_documents_list(payload):
                     "amount": amount_val,
                     "warehouse": "1.Anbar - AZTRADE",
                     "deal": f"C00044{r['min_id']:04d}",
+                    "obrabotka_number": f"00001{r['min_id']:04d}",
+                    "vms_status": "Подтвержден WMS",
                     "contract": "Основной договор",
                     "contract_price_type": "60",
                     "pogruzka_marshrut": "5329",
@@ -256,7 +260,7 @@ def get_documents_list(payload):
                     "status": "posted"
                 }
                 if search_str:
-                    target = f"{item['number']} {item['date']} {item['kontragent']} {item['kontragent_code']} {item['deal']} {item['pogruzka_marshrut']} {item['pogruzka_voditel']}".lower()
+                    target = f"{item['number']} {item['date']} {item['kontragent']} {item['kontragent_code']} {item['deal']} {item['obrabotka_number']} {item['vms_status']} {item['pogruzka_marshrut']} {item['pogruzka_voditel']}".lower()
                     if search_str not in target:
                         continue
                 items.append(item)
