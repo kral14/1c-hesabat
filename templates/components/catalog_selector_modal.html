@@ -128,6 +128,9 @@
             <table class="catalog-stock-table">
               <thead>
                 <tr>
+                  <th style="width: 26px; text-align: center; padding: 2px;">
+                    <input type="checkbox" id="catalogWhSelectAll" title="Bütün anbarları seç / təmizlə" onchange="CatalogSelector.toggleSelectAllWarehouses(this.checked)" style="cursor: pointer; margin: 0;">
+                  </th>
                   <th>Характеристика / Склад</th>
                   <th style="width: 110px; text-align: right;">Общий остаток</th>
                   <th style="width: 110px; text-align: right;">Свободный</th>
@@ -136,7 +139,7 @@
               </thead>
               <tbody id="catalogStockBody">
                 <tr>
-                  <td colspan="4" style="text-align: center; color: #888; padding: 16px; font-style: italic;">
+                  <td colspan="5" style="text-align: center; color: #888; padding: 16px; font-style: italic;">
                     Qalıqları görmək üçün siyahıdan bir mal seçin
                   </td>
                 </tr>
