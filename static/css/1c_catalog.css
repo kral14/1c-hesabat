@@ -290,11 +290,20 @@
 .catalog-stock-table td {
   border-bottom: 1px solid #eee;
   border-right: 1px solid #eee;
-  padding: 2px 6px;
+  padding: 3px 8px;
   text-align: right;
+  vertical-align: middle;
 }
 
-.catalog-stock-table td:first-child {
+.catalog-stock-table td:nth-child(1),
+.catalog-stock-table th:nth-child(1) {
+  text-align: center;
+  width: 28px;
+  padding: 2px;
+}
+
+.catalog-stock-table td:nth-child(2),
+.catalog-stock-table th:nth-child(2) {
   text-align: left;
 }
 

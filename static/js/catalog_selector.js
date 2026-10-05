@@ -622,11 +622,11 @@ const CatalogSelector = {
 
       return `
         <tr style="${rowBg} cursor: pointer; user-select: none;" onclick="CatalogSelector.toggleWarehouseRow(${idx})" title="Bu anbarı seçmək üçün klikləyin">
-          <td style="text-align: center; width: 26px; padding: 2px;">
+          <td style="text-align: center; width: 28px; padding: 2px;">
             <input type="checkbox" class="wh-stock-checkbox" ${isChecked ? 'checked' : ''} 
                    onclick="event.stopPropagation(); CatalogSelector.toggleWarehouseRow(${idx})" style="cursor: pointer; margin: 0;">
           </td>
-          <td>${escapeHtml(w.warehouse)}${charStr}</td>
+          <td style="text-align: left; font-weight: 500; color: #222;">${escapeHtml(w.warehouse)}${charStr}</td>
           <td style="text-align: right; ${totStyle}">${tot > 0 ? tot.toFixed(2) : "-"}</td>
           <td style="text-align: right; ${freeStyle}">${free > 0 ? free.toFixed(2) : "-"}</td>
           <td style="text-align: right; ${resStyle}">${res > 0 ? res.toFixed(2) : "0.00"}</td>
@@ -641,7 +641,7 @@ const CatalogSelector = {
       summaryHtml += `
         <tr style="background: #e8f5e9; font-weight: bold; border-top: 2px solid #2e7d32; border-bottom: 1px solid #a5d6a7;">
           <td style="text-align: center; color: #2e7d32; font-size: 13px;">☑</td>
-          <td style="color: #1b5e20;">
+          <td style="color: #1b5e20; text-align: left;">
             <span style="background: #2e7d32; color: #fff; padding: 1px 6px; border-radius: 10px; font-size: 10px; margin-right: 5px;">${selCount} anbar seçilib</span>
             SEÇİLƏNLƏRİN CƏMİ:
           </td>
@@ -657,7 +657,7 @@ const CatalogSelector = {
       summaryHtml += `
         <tr style="background: #eef3f8; font-weight: bold; border-top: ${selCount > 0 ? '1px dashed #b0c4de' : '2px solid #b0c4de'};">
           <td></td>
-          <td style="color: #002060;">ИТОГО (Bütün anbarlar):</td>
+          <td style="color: #002060; text-align: left;">ИТОГО (Bütün anbarlar):</td>
           <td style="text-align: right; color: #002060;">${totStockSum.toFixed(2)}</td>
           <td style="text-align: right; color: #2e7d32;">${freeStockSum.toFixed(2)}</td>
           <td style="text-align: right; color: #d32f2f;">${resStockSum.toFixed(2)}</td>
