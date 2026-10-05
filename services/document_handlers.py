@@ -33,7 +33,8 @@ def handle_get_documents_list(conn, payload, key, resp_q):
         "Т.Номер КАК Number",
         "Т.Дата КАК Date",
         "Т.Проведен КАК Posted",
-        "Т.ПометкаУдаления КАК DeletionMark"
+        "Т.ПометкаУдаления КАК DeletionMark",
+        "Т.ВерсияДанных КАК DataVersion"
     ]
 
     columns = [
@@ -126,6 +127,33 @@ def handle_get_documents_list(conn, payload, key, resp_q):
         except Exception as e_dt:
             print("date_to parse error:", e_dt)
 
+    last_date = payload.get("last_date", "").strip()
+    last_number = payload.get("last_number", "").strip()
+    if last_date:
+        try:
+            dt_parts = last_date.replace("T", " ").split(" ")
+            d_part = dt_parts[0]
+            t_part = dt_parts[1] if len(dt_parts) > 1 else "00:00:00"
+            if "." in d_part:
+                d, m, y = map(int, d_part.split(".")[:3])
+            elif "-" in d_part:
+                y, m, d = map(int, d_part.split("-")[:3])
+            else:
+                d, m, y = 1, 1, 2026
+            t_splits = t_part.split(":")
+            hh = int(t_splits[0]) if len(t_splits) > 0 else 0
+            mm = int(t_splits[1]) if len(t_splits) > 1 else 0
+            ss = int(t_splits[2]) if len(t_splits) > 2 else 0
+            dt_last = datetime.datetime(y, m, d, hh, mm, ss)
+            q_doc.SetParameter("LastDate", dt_last)
+            if last_number:
+                q_doc.SetParameter("LastNumber", last_number)
+                where_parts.append("(Т.Дата < &LastDate ИЛИ (Т.Дата = &LastDate И Т.Номер < &LastNumber))")
+            else:
+                where_parts.append("Т.Дата < &LastDate")
+        except Exception as e_ld:
+            print("last_date parse error:", e_ld)
+
     where_sql = ("ГДЕ " + " И ".join(where_parts)) if where_parts else ""
 
     from_clause = f"Документ.{doc_type} КАК Т"
@@ -165,51 +193,13 @@ def handle_get_documents_list(conn, payload, key, resp_q):
         {from_clause}
     {where_sql}
     УПОРЯДОЧИТЬ ПО
-        Т.Дата УБЫВ
+        Т.Дата УБЫВ,
+        Т.Номер УБЫВ
     """
-
-    # Batch fetch nomenclatures for the document period if tabular section 'Товары' exists
-    tab_names = set(str(t.Имя) for t in doc_meta.ТабличныеЧасти)
-    has_tovary = "Товары" in tab_names
-    doc_noms_map = {}
-    doc_nomkeys_map = {}
-    if has_tovary:
-        try:
-            q_noms = conn.NewObject("Запрос")
-            noms_where = []
-            if date_from and 'dt_f' in locals():
-                q_noms.SetParameter("DateFrom", dt_f)
-                noms_where.append("Т.Ссылка.Дата >= &DateFrom")
-            if date_to and 'dt_t' in locals():
-                q_noms.SetParameter("DateTo", dt_t)
-                noms_where.append("Т.Ссылка.Дата <= &DateTo")
-            noms_where_sql = ("ГДЕ " + " И ".join(noms_where)) if noms_where else ""
-            q_noms.Text = f"""
-            ВЫБРАТЬ РАЗЛИЧНЫЕ
-                Т.Ссылка.Номер КАК Number,
-                Т.Номенклатура.Наименование КАК NomName,
-                Т.Номенклатура.Код КАК NomCode,
-                Т.Номенклатура.Артикул КАК NomArt
-            ИЗ
-                Документ.{doc_type}.Товары КАК Т
-            {noms_where_sql}
-            """
-            res_noms = q_noms.Execute().Choose()
-            while res_noms.Next():
-                d_n = str(res_noms.Number or "").strip()
-                n_m = str(res_noms.NomName or "").strip()
-                n_c = str(res_noms.NomCode or "").strip()
-                n_a = str(res_noms.NomArt or "").strip()
-                clean_code = n_c.lstrip("0") or n_c
-                if d_n:
-                    if n_m:
-                        doc_noms_map.setdefault(d_n, []).append(n_m)
-                    doc_nomkeys_map.setdefault(d_n, []).append(f"{n_c}|{clean_code}|{n_a}|{n_m}".lower())
-        except Exception as e:
-            print("Batch nomenclature fetch skipped:", e)
 
     res_doc = q_doc.Execute().Choose()
     items = []
+    doc_numbers = []
     while res_doc.Next():
         raw_date = res_doc.Date
         date_str = ""
@@ -219,11 +209,23 @@ def handle_get_documents_list(conn, payload, key, resp_q):
             except Exception:
                 date_str = str(raw_date)[:19]
 
+        d_num = str(res_doc.Number or "").strip()
+        doc_numbers.append(d_num)
+
+        dv_str = ""
+        try:
+            dv = res_doc.DataVersion
+            if dv is not None:
+                dv_str = str(conn.Base64Строка(dv)).strip()
+        except Exception:
+            pass
+
         row_data = {
-            "number": str(res_doc.Number or "").strip(),
+            "number": d_num,
             "date": date_str,
             "posted": bool(res_doc.Posted),
             "deleted": bool(res_doc.DeletionMark),
+            "data_version": dv_str,
         }
 
         if has_kontr:
@@ -277,26 +279,70 @@ def handle_get_documents_list(conn, payload, key, resp_q):
         if has_comm:
             row_data["comment"] = str(res_doc.Comment or "").strip()
 
-        # Attach nomenclatures
-        n_list = doc_noms_map.get(row_data["number"], [])
-        row_data["nomenclatures"] = n_list
-        row_data["nomenclature"] = ", ".join(n_list)
-        row_data["nom_keys"] = doc_nomkeys_map.get(row_data["number"], [])
+        items.append(row_data)
 
-        # Client side quick filter if search_str
+    # Batch fetch nomenclatures ONLY for this chunk's documents (lightning fast)
+    tab_names = set(str(t.Имя) for t in doc_meta.ТабличныеЧасти)
+    has_tovary = "Товары" in tab_names
+    doc_noms_map = {}
+    doc_nomkeys_map = {}
+    if has_tovary and not payload.get("skip_nomenclatures") and doc_numbers:
+        try:
+            q_noms = conn.NewObject("Запрос")
+            arr_nums = conn.NewObject("Массив")
+            for num in doc_numbers:
+                arr_nums.Add(num)
+            q_noms.SetParameter("DocNumbers", arr_nums)
+            q_noms.Text = f"""
+            ВЫБРАТЬ РАЗЛИЧНЫЕ
+                Т.Ссылка.Номер КАК Number,
+                Т.Номенклатура.Наименование КАК NomName,
+                Т.Номенклатура.Код КАК NomCode,
+                Т.Номенклатура.Артикул КАК NomArt
+            ИЗ
+                Документ.{doc_type}.Товары КАК Т
+            ГДЕ
+                Т.Ссылка.Номер В (&DocNumbers)
+            """
+            res_noms = q_noms.Execute().Choose()
+            while res_noms.Next():
+                d_n = str(res_noms.Number or "").strip()
+                n_m = str(res_noms.NomName or "").strip()
+                n_c = str(res_noms.NomCode or "").strip()
+                n_a = str(res_noms.NomArt or "").strip()
+                clean_code = n_c.lstrip("0") or n_c
+                if d_n:
+                    if n_m:
+                        doc_noms_map.setdefault(d_n, []).append(n_m)
+                    doc_nomkeys_map.setdefault(d_n, []).append(f"{n_c}|{clean_code}|{n_a}|{n_m}".lower())
+        except Exception as e:
+            print("Chunk nomenclature fetch skipped:", e)
+
+    filtered_items = []
+    for it in items:
+        n_list = doc_noms_map.get(it["number"], [])
+        it["nomenclatures"] = n_list
+        it["nomenclature"] = ", ".join(n_list)
+        it["nom_keys"] = doc_nomkeys_map.get(it["number"], [])
+
         if search_str:
-            search_target = " ".join(str(v) for v in row_data.values()).lower()
+            search_target = " ".join(str(v) for v in it.values()).lower()
             if search_str.lower() not in search_target:
                 continue
+        filtered_items.append(it)
 
-        items.append(row_data)
+    has_more = (len(items) == limit_count) if (limit_count and limit_count > 0) else False
+    last_item = items[-1] if items else None
 
     resp_q.put((True, {
         "doc_type": doc_type,
         "doc_title": doc_synonym,
         "columns": columns,
-        "items": items,
-        "total": len(items)
+        "items": filtered_items,
+        "total": len(filtered_items),
+        "has_more": has_more,
+        "last_date": last_item["date"] if last_item else "",
+        "last_number": last_item["number"] if last_item else ""
     }))
 
 

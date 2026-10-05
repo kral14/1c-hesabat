@@ -19,7 +19,10 @@ def documents_list_endpoint():
             "doc_title": res.get("doc_title"),
             "columns": res.get("columns", []),
             "items": res.get("items", []),
-            "total": res.get("total", 0)
+            "total": res.get("total", 0),
+            "has_more": res.get("has_more", False),
+            "last_date": res.get("last_date", ""),
+            "last_number": res.get("last_number", "")
         })
     except Exception as e:
         print_server_error("/api/documents/list", e, data)

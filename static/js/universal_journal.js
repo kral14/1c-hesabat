@@ -194,8 +194,28 @@ const UniversalJournal = {
     return `${y}-${m}-${d}`;
   },
 
+  initialChunkLimit: 500,
+  backgroundChunkLimit: 1000,
+  currentLoadSessionId: 0,
+  isLoadingBackground: false,
+  hasMoreDocs: false,
+  lastDocDate: null,
+  lastDocNumber: null,
+  _bgTimer: null,
+
   loadDocuments: function() {
     this.clearPrefetchCache();
+    if (this._bgTimer) {
+      clearTimeout(this._bgTimer);
+      this._bgTimer = null;
+    }
+    this.currentLoadSessionId = (this.currentLoadSessionId || 0) + 1;
+    const sessionId = this.currentLoadSessionId;
+    this.isLoadingBackground = false;
+    this.hasMoreDocs = false;
+    this.lastDocDate = null;
+    this.lastDocNumber = null;
+
     const loadingEl = document.getElementById("ujLoadingState");
     const emptyEl = document.getElementById("ujEmptyState");
     const tableEl = document.getElementById("ujTable");
@@ -211,7 +231,9 @@ const UniversalJournal = {
       date_from: this.formatDateForBackend(this.startDateStr),
       date_to: this.formatDateForBackend(this.endDateStr),
       search: "",
-      limit: 0
+      limit: this.initialChunkLimit,
+      last_date: null,
+      last_number: null
     };
 
     fetch("/api/documents/list", {
@@ -221,6 +243,7 @@ const UniversalJournal = {
     })
     .then(res => res.json())
     .then(data => {
+      if (sessionId !== this.currentLoadSessionId) return;
       if (loadingEl) loadingEl.style.display = "none";
 
       if (!data.success) {
@@ -232,6 +255,9 @@ const UniversalJournal = {
       this.docTitle = data.doc_title || this.activeDocType;
       this.loadColumnsConfig(data.columns || []);
       this.items = data.items || [];
+      this.hasMoreDocs = Boolean(data.has_more);
+      this.lastDocDate = data.last_date || null;
+      this.lastDocNumber = data.last_number || null;
 
       // Update Window Header
       const titleEl = document.getElementById("ujWindowTitle");
@@ -239,11 +265,112 @@ const UniversalJournal = {
 
       // Check and apply startup default filter or active session filter
       this.checkAndApplyStartupFilter();
+
+      // Schedule background chunk loading if more documents exist
+      if (this.hasMoreDocs) {
+        this.updateStatus(`Загружено первых ${this.items.length} документов (фоновое докачивание остальных...)`);
+        this.scheduleBackgroundChunk(sessionId);
+      } else {
+        this.updateStatus(`Загружено ${this.items.length} документов`);
+      }
     })
     .catch(err => {
+      if (sessionId !== this.currentLoadSessionId) return;
       if (loadingEl) loadingEl.style.display = "none";
       console.error("Error loading documents:", err);
       this.updateStatus("Ошибка сети при загрузке документов");
+    });
+  },
+
+  scheduleBackgroundChunk: function(sessionId) {
+    if (sessionId !== this.currentLoadSessionId) return;
+    if (!this.hasMoreDocs) return;
+
+    if (this._bgTimer) clearTimeout(this._bgTimer);
+    this._bgTimer = setTimeout(() => {
+      this.fetchNextChunk(sessionId);
+    }, 60);
+  },
+
+  fetchNextChunk: function(sessionId) {
+    if (sessionId !== this.currentLoadSessionId) return;
+    if (!this.hasMoreDocs) return;
+    if (this.isLoadingBackground) return;
+
+    this.isLoadingBackground = true;
+    const creds = window.SessionManager ? SessionManager.getCredentials() : {};
+    const payload = {
+      ...creds,
+      doc_type: this.activeDocType,
+      date_from: this.formatDateForBackend(this.startDateStr),
+      date_to: this.formatDateForBackend(this.endDateStr),
+      search: "",
+      limit: this.backgroundChunkLimit,
+      last_date: this.lastDocDate,
+      last_number: this.lastDocNumber
+    };
+
+    fetch("/api/documents/list", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload)
+    })
+    .then(res => res.json())
+    .then(data => {
+      this.isLoadingBackground = false;
+      if (sessionId !== this.currentLoadSessionId) return;
+
+      if (!data.success) {
+        console.warn("[UNIVERSAL JOURNAL] Background chunk fetch error:", data.error);
+        return;
+      }
+
+      const newItems = data.items || [];
+      if (newItems.length > 0) {
+        const existingMap = new Map();
+        for (let i = 0; i < this.items.length; i++) {
+          const it = this.items[i];
+          const k = it.id || it.number;
+          if (k) existingMap.set(k, i);
+        }
+
+        let updatedCount = 0;
+        let addedCount = 0;
+        for (const newItem of newItems) {
+          const k = newItem.id || newItem.number;
+          if (k && existingMap.has(k)) {
+            const idx = existingMap.get(k);
+            const oldItem = this.items[idx];
+            // If data_version changed in 1C, update row in-place
+            if (newItem.data_version && oldItem.data_version && newItem.data_version !== oldItem.data_version) {
+              this.items[idx] = newItem;
+              updatedCount++;
+            }
+          } else {
+            this.items.push(newItem);
+            if (k) existingMap.set(k, this.items.length - 1);
+            addedCount++;
+          }
+        }
+
+        // Re-apply filters and search, preserving scroll position
+        this.applyFiltersAndSearch(true);
+      }
+
+      this.hasMoreDocs = Boolean(data.has_more);
+      this.lastDocDate = data.last_date || null;
+      this.lastDocNumber = data.last_number || null;
+
+      if (this.hasMoreDocs) {
+        this.updateStatus(`Фоновая загрузка: получено ${this.items.length} документов...`);
+        this.scheduleBackgroundChunk(sessionId);
+      } else {
+        this.updateStatus(`Все документы загружены (${this.items.length} документов)`);
+      }
+    })
+    .catch(err => {
+      this.isLoadingBackground = false;
+      console.warn("[UNIVERSAL JOURNAL] Background chunk network error:", err);
     });
   },
 
@@ -2180,7 +2307,7 @@ const UniversalJournal = {
   // ==========================================
   // Unified Filter & Search Execution Pipeline
   // ==========================================
-  applyFiltersAndSearch: function() {
+  applyFiltersAndSearch: function(preserveScroll = false) {
     const activeCrits = (this.activeFilters || []).filter(c => c.enabled !== false);
     const searchInp = document.getElementById("ujSearchInput");
     const q = searchInp ? searchInp.value.trim().toLowerCase() : "";
@@ -2222,8 +2349,16 @@ const UniversalJournal = {
       this.applySort();
     }
 
-    // 4. Render virtualized rows
+    // 4. Render virtualized rows (preserving scroll position if requested)
+    const wrapper = document.getElementById("ujTableWrapper");
+    const savedScrollTop = (preserveScroll && wrapper) ? wrapper.scrollTop : null;
+
     this.renderTable();
+
+    if (savedScrollTop !== null && wrapper) {
+      wrapper.scrollTop = savedScrollTop;
+      this.updateVirtualRows();
+    }
 
     // 5. Update Status and Badges
     const isFiltered = (activeCrits.length > 0 || Boolean(q));

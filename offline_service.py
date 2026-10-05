@@ -125,6 +125,7 @@ def get_documents_list(payload):
     search_str = payload.get("search", "").strip().lower()
     date_from = payload.get("date_from", "").strip()
     date_to = payload.get("date_to", "").strip()
+    last_date = payload.get("last_date", "").strip()
 
     conn = get_connection()
     try:
@@ -141,6 +142,9 @@ def get_documents_list(payload):
             if date_to:
                 conditions.append("doc_date <= ?")
                 params.append(date_to + " 23:59:59")
+            if last_date:
+                conditions.append("doc_date < ?")
+                params.append(last_date)
             if conditions:
                 sql += " WHERE " + " AND ".join(conditions)
             if limit_count and limit_count > 0:
@@ -170,7 +174,8 @@ def get_documents_list(payload):
                     "comment": r["comment"] or "",
                     "posted": posted,
                     "deleted": False,
-                    "status": "posted" if posted else "draft"
+                    "status": "posted" if posted else "draft",
+                    "data_version": f"off_{r['doc_number']}"
                 }
                 if search_str:
                     target = f"{item['number']} {item['date']} {item['responsible']} {item['comment']}".lower()
@@ -178,12 +183,17 @@ def get_documents_list(payload):
                         continue
                 items.append(item)
 
+            has_more = (len(items) == limit_count) if (limit_count and limit_count > 0) else False
+            last_item = items[-1] if items else None
             return {
                 "doc_type": "УстановкаЦенНоменклатуры",
                 "doc_title": "Установка цен номенклатуры",
                 "columns": columns,
                 "items": items,
-                "total": len(items)
+                "total": len(items),
+                "has_more": has_more,
+                "last_date": last_item["date"] if last_item else "",
+                "last_number": last_item["number"] if last_item else ""
             }
 
         # 2. Реализация товаров и услуг (Sales Documents)
@@ -227,6 +237,9 @@ def get_documents_list(payload):
             if date_to:
                 conditions.append("period <= ?")
                 params.append(date_to)
+            if last_date:
+                conditions.append("period < ?")
+                params.append(last_date.split(" ")[0])
 
             if conditions:
                 sql += " AND " + " AND ".join(conditions)
@@ -276,7 +289,8 @@ def get_documents_list(payload):
                     "nom_keys": nom_keys_arr,
                     "posted": True,
                     "deleted": False,
-                    "status": "posted"
+                    "status": "posted",
+                    "data_version": f"off_sales_{r['min_id']}"
                 }
                 if search_str:
                     target = f"{item['number']} {item['date']} {item['kontragent']} {item['kontragent_code']} {item['deal']} {item['obrabotka_number']} {item['vms_status']} {item['pogruzka_marshrut']} {item['pogruzka_voditel']}".lower()
@@ -284,12 +298,17 @@ def get_documents_list(payload):
                         continue
                 items.append(item)
 
+            has_more = (len(items) == limit_count) if (limit_count and limit_count > 0) else False
+            last_item = items[-1] if items else None
             return {
                 "doc_type": "РеализацияТоваровУслуг",
                 "doc_title": "Реализация товаров и услуг",
                 "columns": columns,
                 "items": items,
-                "total": len(items)
+                "total": len(items),
+                "has_more": has_more,
+                "last_date": last_item["date"] if last_item else "",
+                "last_number": last_item["number"] if last_item else ""
             }
 
         # 3. Поступление товаров и услуг (Purchase Documents)
