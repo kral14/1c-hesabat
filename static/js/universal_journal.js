@@ -2070,32 +2070,92 @@ const UniversalJournal = {
     this.updateStatus(`Применен отбор: [${fieldLabel}] ${op === "Не заполнено" ? "(Не заполнено)" : '= "' + targetVal + '"'} (${activeCount} активных условий)`);
   },
 
+  removeFilterByCurrentColumn: function() {
+    if (!this.activeFilters || this.activeFilters.length === 0) {
+      this.updateStatus("Отбор не установлен");
+      return;
+    }
+
+    const colKey = this.selectedColKey || "kontragent";
+    const availFields = this.getAvailableFields();
+    let fieldDef = availFields.find(f => f.key === colKey) || { key: colKey, label: colKey, type: "text" };
+
+    let targetKey = fieldDef.key;
+    if (colKey === "status") {
+      targetKey = (this.selectedRow && this.selectedRow.deleted) ? "deleted" : "posted";
+    }
+
+    // Find criterion matching targetKey or colKey
+    let existingIdx = this.activeFilters.findIndex(c => c.fieldKey === targetKey || c.fieldKey === colKey);
+    if (existingIdx < 0 && colKey === "status") {
+      existingIdx = this.activeFilters.findIndex(c => c.fieldKey === "deleted" || c.fieldKey === "posted");
+    }
+
+    if (existingIdx < 0) {
+      this.updateStatus(`В колонке [${fieldDef.label}] отбор не установлен`);
+      return;
+    }
+
+    const removedCrit = this.activeFilters[existingIdx];
+    this.activeFilters.splice(existingIdx, 1);
+    this.activePresetName = "";
+    this.applyFiltersAndSearch();
+    this.updateFilterButtonsState();
+
+    const remCount = this.activeFilters.filter(c => c.enabled !== false).length;
+    this.updateStatus(`Снят отбор по колонке: [${removedCrit.fieldLabel || fieldDef.label}] (Осталось условий: ${remCount})`);
+  },
+
   updateFilterButtonsState: function() {
-    const btnClearFilter = document.getElementById("ujBtnClearFilter");
     const activeCrits = (this.activeFilters || []).filter(c => c.enabled !== false);
     const hasFilter = (activeCrits.length > 0);
 
+    // 1. Number Badge on 1st Filter button (ujFilterCountBadge)
+    const countBadge = document.getElementById("ujFilterCountBadge");
+    if (countBadge) {
+      if (hasFilter) {
+        countBadge.textContent = String(activeCrits.length);
+        countBadge.style.display = "inline-block";
+      } else {
+        countBadge.style.display = "none";
+      }
+    }
+
+    // 2. Clear All Filters button (ujBtnClearFilter)
+    const btnClearFilter = document.getElementById("ujBtnClearFilter");
     if (btnClearFilter) {
       btnClearFilter.disabled = !hasFilter;
       btnClearFilter.style.opacity = hasFilter ? "1" : "0.4";
       btnClearFilter.style.cursor = hasFilter ? "pointer" : "default";
-      btnClearFilter.title = hasFilter ? `Отключить отбор (${activeCrits.length} активных условий)` : "Отбор не установлен";
+      btnClearFilter.title = hasFilter ? `Отключить все отборы (${activeCrits.length} активных условий)` : "Отбор не установлен";
     }
 
+    // 3. Quick Filter button (ujBtnQuickFilter)
     const btnQuick = document.getElementById("ujBtnQuickFilter");
+    const colKey = this.selectedColKey || "kontragent";
+    const availFields = this.getAvailableFields();
+    const fieldDef = availFields.find(f => f.key === colKey) || { label: colKey };
+
     if (btnQuick) {
       if (this.selectedRow && this.selectedColKey) {
-        const colKey = this.selectedColKey;
         const val = this.selectedRow[colKey];
         const dispVal = (val !== undefined && val !== null && String(val).trim() !== "") ? String(val).trim() : "(пусто)";
-        const availFields = this.getAvailableFields();
-        const fieldDef = availFields.find(f => f.key === colKey) || { label: colKey };
         btnQuick.title = `Отбор по значению: [${fieldDef.label}] "${dispVal}" (F7)`;
         btnQuick.style.opacity = "1";
       } else {
         btnQuick.title = "Отбор по значению в текущей колонке (F7)";
         btnQuick.style.opacity = "0.7";
       }
+    }
+
+    // 4. Remove Column Filter button (ujBtnRemoveColumnFilter)
+    const isColFiltered = activeCrits.some(c => c.fieldKey === colKey || c.fieldKey === fieldDef.key || (colKey === "status" && (c.fieldKey === "deleted" || c.fieldKey === "posted")));
+    const btnRemCol = document.getElementById("ujBtnRemoveColumnFilter");
+    if (btnRemCol) {
+      btnRemCol.disabled = !isColFiltered;
+      btnRemCol.style.opacity = isColFiltered ? "1" : "0.4";
+      btnRemCol.style.cursor = isColFiltered ? "pointer" : "default";
+      btnRemCol.title = isColFiltered ? `Снять отбор по колонке [${fieldDef.label}] (Shift+F7)` : `Снять отбор по колонке [${fieldDef.label}] (отбор не установлен)`;
     }
   },
 
@@ -2771,8 +2831,15 @@ document.addEventListener("keydown", function(e) {
   const ujWin = document.getElementById("universalJournalWindow");
   if (!ujWin || ujWin.style.display === "none") return;
 
+  // Shift + F7: Remove filter for current column
+  if (e.key === "F7" && e.shiftKey) {
+    e.preventDefault();
+    if (typeof UniversalJournal !== "undefined" && UniversalJournal.removeFilterByCurrentColumn) {
+      UniversalJournal.removeFilterByCurrentColumn();
+    }
+  }
   // F7: Quick Filter by selected column value
-  if (e.key === "F7") {
+  else if (e.key === "F7") {
     e.preventDefault();
     if (typeof UniversalJournal !== "undefined" && UniversalJournal.filterByCurrentValue) {
       UniversalJournal.filterByCurrentValue();
