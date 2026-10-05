@@ -75,14 +75,34 @@
 
       <div class="mdi-tool-sep" style="height: 18px; width: 1px; background: #b0af9f; margin: 0 3px;"></div>
 
-      <!-- 8. 1C Filter & Preset Toolbar Buttons (Authentic 1C Icons) -->
-      <!-- 8a. Настройка списка (Отбор) -->
-      <button type="button" class="btn-1c" id="ujBtnFilter" onclick="UniversalJournal.openFilterModal()" title="Настройка списка (Отбор)..." style="height: 24px; padding: 0 6px; display: inline-flex; align-items: center; justify-content: center; cursor: pointer; background: #ffffff;">
-        <svg width="15" height="15" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <rect x="2" y="2" width="7" height="11" rx="1" fill="#e8eaf6" stroke="#5c6bc0" stroke-width="1"/>
-          <line x1="4" y1="5" x2="7" y2="5" stroke="#7986cb" stroke-width="0.8"/>
-          <line x1="4" y1="7" x2="7" y2="7" stroke="#7986cb" stroke-width="0.8"/>
-          <path d="M5.5 3 L14.5 3 L10.5 8 L10.5 13.5 L8.5 14.5 L8.5 8 Z" fill="#90a4ae" stroke="#37474f" stroke-width="1"/>
+      <!-- 8. 1C Filter System (3 Core Filter Actions from 1C 8.3) -->
+      <!-- 8a. 1-ci ikon: Настройка списка (Отбор и сортировка) -->
+      <button type="button" class="btn-1c" id="ujBtnFilter" onclick="UniversalJournal.openFilterModal()" title="Настройка списка (Отбор и сортировка)..." style="height: 24px; padding: 0 6px; display: inline-flex; align-items: center; justify-content: center; cursor: pointer; background: #ffffff;">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <rect x="2" y="3" width="8" height="11" rx="1" fill="#f8fafc" stroke="#78909c" stroke-width="1"/>
+          <line x1="4" y1="6" x2="8" y2="6" stroke="#90a4ae" stroke-width="0.8"/>
+          <line x1="4" y1="8" x2="8" y2="8" stroke="#90a4ae" stroke-width="0.8"/>
+          <line x1="4" y1="10" x2="7" y2="10" stroke="#90a4ae" stroke-width="0.8"/>
+          <path d="M5.5 2.5 L14.5 2.5 L10.8 7.5 L10.8 13 L8.8 14 L8.8 7.5 Z" fill="#cfd8dc" stroke="#546e7a" stroke-width="1" stroke-linejoin="round"/>
+          <path d="M13.5 10 L13.5 14 M11.5 12.5 L13.5 14.5 L15.5 12.5" stroke="#37474f" stroke-width="1" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </button>
+
+      <!-- 8b. 2-ci ikon: Отбор по значению в текущей колонке (Быстрый отбор) -->
+      <button type="button" class="btn-1c" id="ujBtnQuickFilter" onclick="UniversalJournal.filterByCurrentValue()" title="Отбор по значению в текущей колонке (F7)" style="height: 24px; padding: 0 6px; display: inline-flex; align-items: center; justify-content: center; cursor: pointer; background: #ffffff;">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M2.5 2.5 L13.5 2.5 L9.5 7.5 L9.5 13 L7.5 14 L7.5 7.5 Z" fill="#cfd8dc" stroke="#546e7a" stroke-width="1" stroke-linejoin="round"/>
+          <rect x="8.5" y="8.5" width="6.5" height="6.5" rx="1" fill="#e1f5fe" stroke="#0288d1" stroke-width="1"/>
+          <path d="M9.8 11.8 L11.2 13.2 L14 10" stroke="#0277bd" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </button>
+
+      <!-- 8c. 3-cu ikon: Отключить отбор (Снять фильтр) -->
+      <button type="button" class="btn-1c" id="ujBtnClearFilter" onclick="UniversalJournal.clearFilter()" title="Отключить отбор" style="height: 24px; padding: 0 6px; display: inline-flex; align-items: center; justify-content: center; cursor: default; background: #ffffff; opacity: 0.4;" disabled>
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M2.5 2.5 L13.5 2.5 L9.5 7.5 L9.5 13 L7.5 14 L7.5 7.5 Z" fill="#cfd8dc" stroke="#546e7a" stroke-width="1" stroke-linejoin="round"/>
+          <line x1="9.5" y1="9.5" x2="14.5" y2="14.5" stroke="#d32f2f" stroke-width="2.2" stroke-linecap="round"/>
+          <line x1="14.5" y1="9.5" x2="9.5" y2="14.5" stroke="#d32f2f" stroke-width="2.2" stroke-linecap="round"/>
         </svg>
       </button>
 

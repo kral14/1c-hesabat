@@ -1995,12 +1995,108 @@ const UniversalJournal = {
     this.activeFilters = [];
     this.activePresetName = "";
     this.applyFiltersAndSearch();
+    this.updateFilterButtonsState();
     this.updateStatus("Отбор отключен");
   },
 
   clearFilterAndCloseModal: function() {
     this.clearFilter();
     this.closePresetRestoreModal();
+  },
+
+  filterByCurrentValue: function() {
+    if (!this.selectedRow) {
+      if (this.filteredItems && this.filteredItems.length > 0) {
+        this.selectRow(0);
+      } else {
+        this.updateStatus("Выберите ячейку в списке для быстрого отбора");
+        return;
+      }
+    }
+
+    const colKey = this.selectedColKey || "kontragent";
+    const availFields = this.getAvailableFields();
+    let fieldDef = availFields.find(f => f.key === colKey) || { key: colKey, label: colKey, type: "text" };
+
+    let targetVal = "";
+    let op = "Равно";
+    let fieldKey = fieldDef.key;
+    let fieldLabel = fieldDef.label;
+
+    if (colKey === "status") {
+      if (this.selectedRow.deleted) {
+        fieldKey = "deleted";
+        fieldLabel = "Пометка удаления";
+        targetVal = "Да";
+      } else {
+        fieldKey = "posted";
+        fieldLabel = "Проведен";
+        targetVal = this.selectedRow.posted ? "Да" : "Нет";
+      }
+    } else {
+      const rawVal = this.selectedRow[colKey];
+      if (rawVal === undefined || rawVal === null || String(rawVal).trim() === "") {
+        targetVal = "";
+        op = "Не заполнено";
+      } else {
+        targetVal = String(rawVal).trim();
+        op = "Равно";
+      }
+    }
+
+    const newCrit = {
+      fieldKey: fieldKey,
+      fieldLabel: fieldLabel,
+      comparison: op,
+      operator: op,
+      value: targetVal,
+      enabled: true
+    };
+
+    if (!Array.isArray(this.activeFilters)) this.activeFilters = [];
+
+    // Filter stacking: if filter on this field already exists, update it, otherwise add to stack
+    const existingIdx = this.activeFilters.findIndex(c => c.fieldKey === fieldKey);
+    if (existingIdx >= 0) {
+      this.activeFilters[existingIdx] = newCrit;
+    } else {
+      this.activeFilters.push(newCrit);
+    }
+
+    this.activePresetName = "";
+    this.applyFiltersAndSearch();
+    this.updateFilterButtonsState();
+    const activeCount = this.activeFilters.filter(c => c.enabled !== false).length;
+    this.updateStatus(`Применен отбор: [${fieldLabel}] ${op === "Не заполнено" ? "(Не заполнено)" : '= "' + targetVal + '"'} (${activeCount} активных условий)`);
+  },
+
+  updateFilterButtonsState: function() {
+    const btnClearFilter = document.getElementById("ujBtnClearFilter");
+    const activeCrits = (this.activeFilters || []).filter(c => c.enabled !== false);
+    const hasFilter = (activeCrits.length > 0);
+
+    if (btnClearFilter) {
+      btnClearFilter.disabled = !hasFilter;
+      btnClearFilter.style.opacity = hasFilter ? "1" : "0.4";
+      btnClearFilter.style.cursor = hasFilter ? "pointer" : "default";
+      btnClearFilter.title = hasFilter ? `Отключить отбор (${activeCrits.length} активных условий)` : "Отбор не установлен";
+    }
+
+    const btnQuick = document.getElementById("ujBtnQuickFilter");
+    if (btnQuick) {
+      if (this.selectedRow && this.selectedColKey) {
+        const colKey = this.selectedColKey;
+        const val = this.selectedRow[colKey];
+        const dispVal = (val !== undefined && val !== null && String(val).trim() !== "") ? String(val).trim() : "(пусто)";
+        const availFields = this.getAvailableFields();
+        const fieldDef = availFields.find(f => f.key === colKey) || { label: colKey };
+        btnQuick.title = `Отбор по значению: [${fieldDef.label}] "${dispVal}" (F7)`;
+        btnQuick.style.opacity = "1";
+      } else {
+        btnQuick.title = "Отбор по значению в текущей колонке (F7)";
+        btnQuick.style.opacity = "0.7";
+      }
+    }
   },
 
   updateActiveFilterBadgeUI: function() {
@@ -2063,6 +2159,7 @@ const UniversalJournal = {
       this.updateCountBadge(this.items.length);
     }
     this.updateActiveFilterBadgeUI();
+    this.updateFilterButtonsState();
   },
 
   matchesCondition: function(item, crit) {
@@ -2324,6 +2421,7 @@ const UniversalJournal = {
     this.selectedRow = this.filteredItems[idx] || null;
     if (colKey) this.selectedColKey = colKey;
     this.updateEditButtonState();
+    this.updateFilterButtonsState();
 
     const tbody = document.getElementById("ujTableBody");
     if (!tbody) return;
@@ -2667,3 +2765,24 @@ window.UniversalJournal = UniversalJournal;
 window.openUniversalJournalWindow = function(docType) {
   UniversalJournal.open(docType);
 };
+
+// Hotkeys for Universal Journal: F7 (Quick Filter), Ctrl+Shift+F (Clear Filter)
+document.addEventListener("keydown", function(e) {
+  const ujWin = document.getElementById("universalJournalWindow");
+  if (!ujWin || ujWin.style.display === "none") return;
+
+  // F7: Quick Filter by selected column value
+  if (e.key === "F7") {
+    e.preventDefault();
+    if (typeof UniversalJournal !== "undefined" && UniversalJournal.filterByCurrentValue) {
+      UniversalJournal.filterByCurrentValue();
+    }
+  }
+  // Ctrl + Shift + F: Clear all filters
+  if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key.toLowerCase() === "f") {
+    e.preventDefault();
+    if (typeof UniversalJournal !== "undefined" && UniversalJournal.clearFilter) {
+      UniversalJournal.clearFilter();
+    }
+  }
+});
