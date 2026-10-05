@@ -121,7 +121,7 @@ def get_all_price_types():
 # 8. Get Documents List (Universal Documents Engine)
 def get_documents_list(payload):
     doc_type = payload.get("doc_type") or "РеализацияТоваровУслуг"
-    limit_count = int(payload.get("limit", 300))
+    limit_count = int(payload.get("limit", 0))
     search_str = payload.get("search", "").strip().lower()
     date_from = payload.get("date_from", "").strip()
     date_to = payload.get("date_to", "").strip()
@@ -143,8 +143,11 @@ def get_documents_list(payload):
                 params.append(date_to + " 23:59:59")
             if conditions:
                 sql += " WHERE " + " AND ".join(conditions)
-            sql += " ORDER BY doc_date DESC LIMIT ?"
-            params.append(limit_count)
+            if limit_count and limit_count > 0:
+                sql += " ORDER BY doc_date DESC LIMIT ?"
+                params.append(limit_count)
+            else:
+                sql += " ORDER BY doc_date DESC"
             cur.execute(sql, params)
             rows = cur.fetchall()
 
@@ -227,8 +230,10 @@ def get_documents_list(payload):
             if conditions:
                 sql += " AND " + " AND ".join(conditions)
 
-            sql += " GROUP BY period, kontragent ORDER BY period DESC, min_id DESC LIMIT ?"
-            params.append(limit_count)
+            sql += " GROUP BY period, kontragent ORDER BY period DESC, min_id DESC"
+            if limit_count and limit_count > 0:
+                sql += " LIMIT ?"
+                params.append(limit_count)
 
             cur.execute(sql, params)
             rows = cur.fetchall()
@@ -286,11 +291,12 @@ def get_documents_list(payload):
                 {"key": "comment", "label": "Комментарий", "width": 220, "align": "left"}
             ]
 
-            cur.execute("""
-                SELECT code, name FROM kontragenty 
-                WHERE is_group = 0 AND name NOT LIKE '%физ%' 
-                ORDER BY code ASC LIMIT ?
-            """, (min(limit_count, 150),))
+            k_sql = "SELECT code, name FROM kontragenty WHERE is_group = 0 AND name NOT LIKE '%физ%' ORDER BY code ASC"
+            k_params = ()
+            if limit_count and limit_count > 0:
+                k_sql += " LIMIT ?"
+                k_params = (limit_count,)
+            cur.execute(k_sql, k_params)
             k_rows = cur.fetchall()
 
             cur.execute("SELECT name FROM sklady LIMIT 10")

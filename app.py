@@ -2303,7 +2303,7 @@ class OneCService(threading.Thread):
                     date_from = payload.get("date_from", "").strip()
                     date_to = payload.get("date_to", "").strip()
                     search_str = payload.get("search", "").strip()
-                    limit_count = int(payload.get("limit", 300))
+                    limit_count = int(payload.get("limit", 0))
 
                     doc_meta = conn.Метаданные.Документы.Найти(doc_type)
                     if not doc_meta:
@@ -2441,8 +2441,10 @@ class OneCService(threading.Thread):
                         ПО Т.Ссылка = ВМС.Документ1С
                         """
 
+                    first_clause = f"ПЕРВЫЕ {limit_count}" if limit_count and limit_count > 0 else ""
+
                     q_doc.Text = f"""
-                    ВЫБРАТЬ ПЕРВЫЕ {limit_count}
+                    ВЫБРАТЬ {first_clause}
                         {", ".join(sel_parts)}
                     ИЗ
                         {from_clause}

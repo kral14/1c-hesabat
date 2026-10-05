@@ -321,7 +321,7 @@ const UniversalJournal = {
       date_from: this.formatDateForBackend(this.startDateStr),
       date_to: this.formatDateForBackend(this.endDateStr),
       search: "",
-      limit: 500
+      limit: 0
     };
 
     fetch("/api/documents/list", {
