@@ -20,7 +20,12 @@ def open_electron():
         pass
     print("Masaüstü Electron Pəncərəsi açılır...", flush=True)
     try:
-        subprocess.Popen("npx electron .", cwd=app_dir, shell=True)
+        electron_cmd = os.path.join(app_dir, "node_modules", ".bin", "electron.cmd")
+        if os.path.exists(electron_cmd):
+            cmd = f'"{electron_cmd}" "{app_dir}"'
+        else:
+            cmd = f'npx -y electron "{app_dir}"'
+        subprocess.Popen(cmd, cwd=app_dir, shell=True)
     except Exception as e:
         print(f"Electron xətası: {e}", flush=True)
 
