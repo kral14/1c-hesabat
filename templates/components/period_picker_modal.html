@@ -1,5 +1,5 @@
 <!-- ========================================================
-     1C:ENTERPRISE NATIVE PERIOD PICKER DIALOG (Р’С‹Р±РµСЂРёС‚Рµ РїРµСЂРёРѕРґ)
+     1C:ENTERPRISE NATIVE PERIOD PICKER DIALOG (Выберите период)
      templates/components/period_picker_modal.html
      ======================================================== -->
 
@@ -9,11 +9,11 @@
     <!-- Header -->
     <div class="modal-header-1c" id="periodPickerHeader" style="background: linear-gradient(to bottom, #fdfdfe, #d6d9e0); padding: 4px 8px; border-bottom: 1px solid #a0a0a0; display: flex; align-items: center; justify-content: space-between; cursor: move; user-select: none;">
       <div style="font-weight: bold; color: #000; font-size: 11px; display: flex; align-items: center; gap: 5px;">
-        <span>рџ“…</span>
-        <span>Р’С‹Р±РµСЂРёС‚Рµ РїРµСЂРёРѕРґ</span>
+        <span>📅</span>
+        <span>Выберите период</span>
       </div>
       <div style="display: flex; gap: 2px;">
-        <button type="button" class="window-btn-close" onclick="PeriodPicker.close()" style="width: 17px; height: 17px; border: 1px solid #7f9db9; background: #e5e2cf; font-size: 10px; cursor: pointer; line-height: 1;">вњ•</button>
+        <button type="button" class="window-btn-close" onclick="PeriodPicker.close()" style="width: 17px; height: 17px; border: 1px solid #7f9db9; background: #e5e2cf; font-size: 10px; cursor: pointer; line-height: 1;">✕</button>
       </div>
     </div>
 
@@ -26,7 +26,7 @@
         <!-- Start Date -->
         <div style="display: inline-flex; align-items: center; background: #fff; border: 1px solid #7f9db9; height: 22px; padding: 0 2px; width: 175px;">
           <input type="text" id="ppStartDateInput" placeholder="01.04.2026 00:00:00" style="width: 130px; height: 18px; border: none; outline: none; font-size: 11px; font-family: Tahoma, sans-serif; padding: 0 2px;" onchange="PeriodPicker.onManualInputChange('start')" onkeydown="PeriodPicker.onInputKeyDown(event, 'start')" onblur="PeriodPicker.onInputBlur('start')">
-          <button type="button" class="pp-cal-btn" onclick="PeriodPicker.openMiniCal('start', this)" title="Р’С‹Р±СЂР°С‚СЊ РґР°С‚Сѓ РёР· РєР°Р»РµРЅРґР°СЂСЏ" style="background: none; border: none; cursor: pointer; padding: 0; width: 18px; height: 18px; display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0;">
+          <button type="button" class="pp-cal-btn" onclick="PeriodPicker.openMiniCal('start', this)" title="Выбрать дату из календаря" style="background: none; border: none; cursor: pointer; padding: 0; width: 18px; height: 18px; display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0;">
             <svg width="15" height="15" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" style="pointer-events: none;">
               <rect x="1" y="2.5" width="14" height="12" rx="1.5" fill="#ffffff" stroke="#316ac5" stroke-width="1.2"/>
               <rect x="1" y="2.5" width="14" height="3.5" rx="1" fill="#316ac5"/>
@@ -40,7 +40,7 @@
               <line x1="11.5" y1="1" x2="11.5" y2="3" stroke="#222" stroke-width="1.2" stroke-linecap="round"/>
             </svg>
           </button>
-          <button type="button" onclick="PeriodPicker.clearInput('start')" title="РћС‡РёСЃС‚РёС‚СЊ" style="background: none; border: none; cursor: pointer; padding: 0; width: 16px; height: 18px; display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; font-size: 11px; color: #888; font-weight: bold;">вњ•</button>
+          <button type="button" onclick="PeriodPicker.clearInput('start')" title="Очистить" style="background: none; border: none; cursor: pointer; padding: 0; width: 16px; height: 18px; display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; font-size: 11px; color: #888; font-weight: bold;">✕</button>
         </div>
 
         <span style="font-weight: bold; color: #555;">-</span>
@@ -48,7 +48,7 @@
         <!-- End Date -->
         <div style="display: inline-flex; align-items: center; background: #fff; border: 1px solid #7f9db9; height: 22px; padding: 0 2px; width: 175px;">
           <input type="text" id="ppEndDateInput" placeholder="05.04.2026 23:59:59" style="width: 130px; height: 18px; border: none; outline: none; font-size: 11px; font-family: Tahoma, sans-serif; padding: 0 2px;" onchange="PeriodPicker.onManualInputChange('end')" onkeydown="PeriodPicker.onInputKeyDown(event, 'end')" onblur="PeriodPicker.onInputBlur('end')">
-          <button type="button" class="pp-cal-btn" onclick="PeriodPicker.openMiniCal('end', this)" title="Р’С‹Р±СЂР°С‚СЊ РґР°С‚Сѓ РёР· РєР°Р»РµРЅРґР°СЂСЏ" style="background: none; border: none; cursor: pointer; padding: 0; width: 18px; height: 18px; display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0;">
+          <button type="button" class="pp-cal-btn" onclick="PeriodPicker.openMiniCal('end', this)" title="Выбрать дату из календаря" style="background: none; border: none; cursor: pointer; padding: 0; width: 18px; height: 18px; display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0;">
             <svg width="15" height="15" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" style="pointer-events: none;">
               <rect x="1" y="2.5" width="14" height="12" rx="1.5" fill="#ffffff" stroke="#316ac5" stroke-width="1.2"/>
               <rect x="1" y="2.5" width="14" height="3.5" rx="1" fill="#316ac5"/>
@@ -62,11 +62,11 @@
               <line x1="11.5" y1="1" x2="11.5" y2="3" stroke="#222" stroke-width="1.2" stroke-linecap="round"/>
             </svg>
           </button>
-          <button type="button" onclick="PeriodPicker.clearInput('end')" title="РћС‡РёСЃС‚РёС‚СЊ" style="background: none; border: none; cursor: pointer; padding: 0; width: 16px; height: 18px; display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; font-size: 11px; color: #888; font-weight: bold;">вњ•</button>
+          <button type="button" onclick="PeriodPicker.clearInput('end')" title="Очистить" style="background: none; border: none; cursor: pointer; padding: 0; width: 16px; height: 18px; display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; font-size: 11px; color: #888; font-weight: bold;">✕</button>
         </div>
 
         <!-- Clear period link -->
-        <a href="javascript:void(0)" onclick="PeriodPicker.clearPeriod()" style="color: #004080; text-decoration: underline; margin-left: 10px; font-size: 11px;">РћС‡РёСЃС‚РёС‚СЊ РїРµСЂРёРѕРґ</a>
+        <a href="javascript:void(0)" onclick="PeriodPicker.clearPeriod()" style="color: #004080; text-decoration: underline; margin-left: 10px; font-size: 11px;">Очистить период</a>
       </div>
 
       <!-- 3-Year Months Matrix Container -->
@@ -74,13 +74,13 @@
         
         <!-- Year Navigator Header -->
         <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
-          <button type="button" onclick="PeriodPicker.prevYears()" title="РџСЂРµРґС‹РґСѓС‰РёРµ РіРѕРґС‹" style="border: 1px solid #7f9db9; background: #e5e2cf; width: 20px; height: 20px; cursor: pointer; font-size: 10px;">в—Ђ</button>
+          <button type="button" onclick="PeriodPicker.prevYears()" title="Предыдущие годы" style="border: 1px solid #7f9db9; background: #e5e2cf; width: 20px; height: 20px; cursor: pointer; font-size: 10px;">◀</button>
           <div style="display: flex; flex: 1; justify-content: space-around; font-weight: bold; font-size: 12px; color: #111;">
             <span id="ppYearLabel0">2025</span>
             <span id="ppYearLabel1">2026</span>
             <span id="ppYearLabel2">2027</span>
           </div>
-          <button type="button" onclick="PeriodPicker.nextYears()" title="РЎР»РµРґСѓСЋС‰РёРµ РіРѕРґС‹" style="border: 1px solid #7f9db9; background: #e5e2cf; width: 20px; height: 20px; cursor: pointer; font-size: 10px;">в–¶</button>
+          <button type="button" onclick="PeriodPicker.nextYears()" title="Следующие годы" style="border: 1px solid #7f9db9; background: #e5e2cf; width: 20px; height: 20px; cursor: pointer; font-size: 10px;">▶</button>
         </div>
 
         <!-- 3 Years Columns -->
@@ -95,10 +95,10 @@
         <div>
           <label style="display: flex; align-items: center; gap: 5px; font-size: 11px; cursor: pointer; color: #222;">
             <input type="checkbox" id="ppRememberPeriod" checked style="cursor: pointer;">
-            <span>Р—Р°РїРѕРјРЅРёС‚СЊ РІС‹Р±СЂР°РЅРЅС‹Р№ РїРµСЂРёРѕРґ</span>
+            <span>Запомнить выбранный период</span>
           </label>
           <div style="margin-top: 4px;">
-            <a href="javascript:void(0)" onclick="PeriodPicker.togglePresets()" style="color: #004080; text-decoration: underline; font-size: 11px;">РџРѕРєР°Р·Р°С‚СЊ СЃС‚Р°РЅРґР°СЂС‚РЅС‹Рµ РїРµСЂРёРѕРґС‹</a>
+            <a href="javascript:void(0)" onclick="PeriodPicker.togglePresets()" style="color: #004080; text-decoration: underline; font-size: 11px;">Показать стандартные периоды</a>
           </div>
         </div>
       </div>
@@ -106,20 +106,20 @@
       <!-- Standard presets dropdown menu (hidden by default) -->
       <div id="ppPresetsMenu" style="display: none; background: #fff; border: 1px solid #7f9db9; padding: 6px; box-shadow: 2px 2px 8px rgba(0,0,0,0.2); margin-bottom: 10px; max-height: 120px; overflow-y: auto;">
         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 4px; font-size: 11px;">
-          <a href="javascript:void(0)" onclick="PeriodPicker.applyPreset('today')" style="color: #003366; text-decoration: none; padding: 2px 4px;">РЎРµРіРѕРґРЅСЏ</a>
-          <a href="javascript:void(0)" onclick="PeriodPicker.applyPreset('yesterday')" style="color: #003366; text-decoration: none; padding: 2px 4px;">Р’С‡РµСЂР°</a>
-          <a href="javascript:void(0)" onclick="PeriodPicker.applyPreset('this_week')" style="color: #003366; text-decoration: none; padding: 2px 4px;">РўРµРєСѓС‰Р°СЏ РЅРµРґРµР»СЏ</a>
-          <a href="javascript:void(0)" onclick="PeriodPicker.applyPreset('this_month')" style="color: #003366; text-decoration: none; padding: 2px 4px;">РўРµРєСѓС‰РёР№ РјРµСЃСЏС†</a>
-          <a href="javascript:void(0)" onclick="PeriodPicker.applyPreset('this_quarter')" style="color: #003366; text-decoration: none; padding: 2px 4px;">РўРµРєСѓС‰РёР№ РєРІР°СЂС‚Р°Р»</a>
-          <a href="javascript:void(0)" onclick="PeriodPicker.applyPreset('this_year')" style="color: #003366; text-decoration: none; padding: 2px 4px;">РЎ РЅР°С‡Р°Р»Р° РіРѕРґР°</a>
-          <a href="javascript:void(0)" onclick="PeriodPicker.applyPreset('all')" style="color: #003366; text-decoration: none; padding: 2px 4px;">Р’РµСЃСЊ РїРµСЂРёРѕРґ (РћС‡РёСЃС‚РёС‚СЊ)</a>
+          <a href="javascript:void(0)" onclick="PeriodPicker.applyPreset('today')" style="color: #003366; text-decoration: none; padding: 2px 4px;">Сегодня</a>
+          <a href="javascript:void(0)" onclick="PeriodPicker.applyPreset('yesterday')" style="color: #003366; text-decoration: none; padding: 2px 4px;">Вчера</a>
+          <a href="javascript:void(0)" onclick="PeriodPicker.applyPreset('this_week')" style="color: #003366; text-decoration: none; padding: 2px 4px;">Текущая неделя</a>
+          <a href="javascript:void(0)" onclick="PeriodPicker.applyPreset('this_month')" style="color: #003366; text-decoration: none; padding: 2px 4px;">Текущий месяц</a>
+          <a href="javascript:void(0)" onclick="PeriodPicker.applyPreset('this_quarter')" style="color: #003366; text-decoration: none; padding: 2px 4px;">Текущий квартал</a>
+          <a href="javascript:void(0)" onclick="PeriodPicker.applyPreset('this_year')" style="color: #003366; text-decoration: none; padding: 2px 4px;">С начала года</a>
+          <a href="javascript:void(0)" onclick="PeriodPicker.applyPreset('all')" style="color: #003366; text-decoration: none; padding: 2px 4px;">Весь период (Очистить)</a>
         </div>
       </div>
 
       <!-- Footer Buttons -->
       <div style="display: flex; justify-content: flex-end; align-items: center; gap: 10px; padding-top: 6px; border-top: 1px solid #d5d3c3;">
-        <button type="button" class="btn-1c btn-1c-primary" onclick="PeriodPicker.confirm()" style="min-width: 82px; height: 24px; font-weight: bold; background: linear-gradient(to bottom, #ffea88, #d8a020); border: 1px solid #7c6817; color: #000; cursor: pointer;">Р’С‹Р±СЂР°С‚СЊ</button>
-        <button type="button" class="btn-1c" onclick="PeriodPicker.close()" style="min-width: 70px; height: 24px; cursor: pointer;">РћС‚РјРµРЅР°</button>
+        <button type="button" class="btn-1c btn-1c-primary" onclick="PeriodPicker.confirm()" style="min-width: 82px; height: 24px; font-weight: bold; background: linear-gradient(to bottom, #ffea88, #d8a020); border: 1px solid #7c6817; color: #000; cursor: pointer;">Выбрать</button>
+        <button type="button" class="btn-1c" onclick="PeriodPicker.close()" style="min-width: 70px; height: 24px; cursor: pointer;">Отмена</button>
       </div>
 
     </div>
