@@ -528,7 +528,7 @@ const CatalogSelector = {
     this.stockAbortController = new AbortController();
 
     if (stockBody) {
-      stockBody.innerHTML = `<tr><td colspan="5" style="text-align: center; color: #004080; padding: 12px; font-weight: 500;">⏳ 1C: Anbar qalıqları və qiymətlər yüklənir...</td></tr>`;
+      stockBody.innerHTML = `<tr><td colspan="6" style="text-align: center; color: #004080; padding: 12px; font-weight: 500;">⏳ 1C: Anbar qalıqları və qiymətlər yüklənir...</td></tr>`;
     }
     if (pricesList) {
       pricesList.innerHTML = `<span style="color: #666; font-size: 11px;">Qiymətlər oxunur...</span>`;
@@ -547,13 +547,32 @@ const CatalogSelector = {
         throw new Error(data.error || "Qalıqlar alına bilmədi");
       }
 
-      this.renderStockTable(data.warehouses || []);
-      this.renderPricesList(data.prices || []);
+      this.currentPrices = data.prices || [];
+      this.currentWarehouses = data.warehouses || [];
+
+      // Default: Find price type "20" (standard 20 always selected)
+      let defaultIdx = this.currentPrices.findIndex(p => {
+        const pt = String(p.price_type || "").trim();
+        return pt === "20";
+      });
+      if (defaultIdx < 0) {
+        defaultIdx = this.currentPrices.findIndex(p => {
+          const pt = String(p.price_type || "").trim().toLowerCase();
+          return pt.startsWith("20") && !pt.includes("возвр");
+        });
+      }
+      if (defaultIdx < 0 && this.currentPrices.length > 0) {
+        defaultIdx = 0;
+      }
+      this.selectedPriceTypeIndex = (defaultIdx >= 0) ? defaultIdx : 0;
+
+      this.renderPricesList();
+      this.renderStockTable(this.currentWarehouses);
 
     } catch (err) {
       if (err.name === "AbortError") return;
       if (stockBody) {
-        stockBody.innerHTML = `<tr><td colspan="5" style="text-align: center; color: #b71c1c; padding: 10px;">Xəta: ${escapeHtml(err.message)}</td></tr>`;
+        stockBody.innerHTML = `<tr><td colspan="6" style="text-align: center; color: #b71c1c; padding: 10px;">Xəta: ${escapeHtml(err.message)}</td></tr>`;
       }
       if (pricesList) {
         pricesList.innerHTML = `<span style="color: #b71c1c; font-size: 11px;">Qiymət xətası</span>`;
@@ -564,11 +583,28 @@ const CatalogSelector = {
   },
 
   currentWarehouses: [],
+  currentPrices: [],
+  selectedPriceTypeIndex: 0,
   selectedWarehouseIndices: new Set(),
 
   renderStockTable(warehouses) {
     this.currentWarehouses = warehouses || [];
     this.selectedWarehouseIndices = new Set(); // Normalda heç bir seçim olmur
+    this.updateStockTableRows();
+  },
+
+  getSelectedPrice() {
+    if (!this.currentPrices || this.currentPrices.length === 0) return null;
+    const idx = (typeof this.selectedPriceTypeIndex === "number" && this.selectedPriceTypeIndex >= 0 && this.selectedPriceTypeIndex < this.currentPrices.length)
+      ? this.selectedPriceTypeIndex
+      : 0;
+    return this.currentPrices[idx];
+  },
+
+  selectPriceType(idx) {
+    if (this.selectedPriceTypeIndex === idx) return;
+    this.selectedPriceTypeIndex = idx;
+    this.renderPricesList();
     this.updateStockTableRows();
   },
 
@@ -578,7 +614,7 @@ const CatalogSelector = {
 
     const warehouses = this.currentWarehouses || [];
     if (warehouses.length === 0) {
-      stockBody.innerHTML = `<tr><td colspan="5" style="text-align: center; color: #666; padding: 14px; font-style: italic;">Heç bir anbarda qalıq yoxdur (Qalıq: 0)</td></tr>`;
+      stockBody.innerHTML = `<tr><td colspan="6" style="text-align: center; color: #666; padding: 14px; font-style: italic;">Heç bir anbarda qalıq yoxdur (Qalıq: 0)</td></tr>`;
       const selectAllCb = document.getElementById("catalogWhSelectAll");
       if (selectAllCb) {
         selectAllCb.checked = false;
@@ -587,11 +623,16 @@ const CatalogSelector = {
       return;
     }
 
+    const selPriceObj = this.getSelectedPrice();
+    const unitPrice = selPriceObj ? Number(selPriceObj.price || 0) : 0;
+
     let totStockSum = 0;
+    let totStockAmountSum = 0;
     let freeStockSum = 0;
     let resStockSum = 0;
 
     let selTotSum = 0;
+    let selTotAmountSum = 0;
     let selFreeSum = 0;
     let selResSum = 0;
     let selCount = 0;
@@ -600,14 +641,17 @@ const CatalogSelector = {
       const tot = Number(w.total_stock || 0);
       const free = Number(w.free_stock || 0);
       const res = Number(w.reserve_stock || 0);
+      const rowAmount = (tot > 0 && unitPrice > 0) ? (tot * unitPrice) : 0;
 
       totStockSum += tot;
+      totStockAmountSum += rowAmount;
       freeStockSum += free;
       resStockSum += res;
 
       const isChecked = this.selectedWarehouseIndices.has(idx);
       if (isChecked) {
         selTotSum += tot;
+        selTotAmountSum += rowAmount;
         selFreeSum += free;
         selResSum += res;
         selCount += 1;
@@ -615,10 +659,12 @@ const CatalogSelector = {
 
       const charStr = w.characteristic ? ` <span style="color: #777;">(${escapeHtml(w.characteristic)})</span>` : "";
       const totStyle = tot > 0 ? "font-weight: bold; color: #002060;" : "color: #888;";
+      const amountStyle = rowAmount > 0 ? "font-weight: bold; color: #004080;" : "color: #888;";
       const freeStyle = free > 0 ? "font-weight: bold; color: #2e7d32;" : "color: #888;";
       const resStyle = res > 0 ? "font-weight: bold; color: #d32f2f;" : "color: #888;";
 
       const rowBg = isChecked ? "background: #e3f2fd;" : "";
+      const amountStr = rowAmount > 0 ? rowAmount.toLocaleString("ru-RU", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : "-";
 
       return `
         <tr style="${rowBg} cursor: pointer; user-select: none;" onclick="CatalogSelector.toggleWarehouseRow(${idx})" title="Bu anbarı seçmək üçün klikləyin">
@@ -628,6 +674,7 @@ const CatalogSelector = {
           </td>
           <td style="text-align: left; font-weight: 500; color: #222;">${escapeHtml(w.warehouse)}${charStr}</td>
           <td style="text-align: right; ${totStyle}">${tot > 0 ? tot.toFixed(2) : "-"}</td>
+          <td style="text-align: right; ${amountStyle}">${amountStr}</td>
           <td style="text-align: right; ${freeStyle}">${free > 0 ? free.toFixed(2) : "-"}</td>
           <td style="text-align: right; ${resStyle}">${res > 0 ? res.toFixed(2) : "0.00"}</td>
         </tr>
@@ -638,6 +685,7 @@ const CatalogSelector = {
 
     // Əgər istifadəçi 1 və ya daha çox anbar seçibsə, seçilənlərin cəmi parlaq şəkildə çıxır
     if (selCount > 0) {
+      const selAmountFormatted = selTotAmountSum > 0 ? selTotAmountSum.toLocaleString("ru-RU", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : "-";
       summaryHtml += `
         <tr style="background: #e8f5e9; font-weight: bold; border-top: 2px solid #2e7d32; border-bottom: 1px solid #a5d6a7;">
           <td style="text-align: center; color: #2e7d32; font-size: 13px;">☑</td>
@@ -646,6 +694,7 @@ const CatalogSelector = {
             SEÇİLƏNLƏRİN CƏMİ:
           </td>
           <td style="text-align: right; color: #1b5e20; font-size: 12px;">${selTotSum.toFixed(2)}</td>
+          <td style="text-align: right; color: #004080; font-size: 12px; font-weight: bold;">${selAmountFormatted}</td>
           <td style="text-align: right; color: #2e7d32; font-size: 12px;">${selFreeSum.toFixed(2)}</td>
           <td style="text-align: right; color: #d32f2f; font-size: 12px;">${selResSum.toFixed(2)}</td>
         </tr>
@@ -654,11 +703,13 @@ const CatalogSelector = {
 
     // Bütün anbarlar üzrə ümumi cəm
     if (warehouses.length > 1) {
+      const totAmountFormatted = totStockAmountSum > 0 ? totStockAmountSum.toLocaleString("ru-RU", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : "-";
       summaryHtml += `
         <tr style="background: #eef3f8; font-weight: bold; border-top: ${selCount > 0 ? '1px dashed #b0c4de' : '2px solid #b0c4de'};">
           <td></td>
           <td style="color: #002060; text-align: left;">ИТОГО (Bütün anbarlar):</td>
           <td style="text-align: right; color: #002060;">${totStockSum.toFixed(2)}</td>
+          <td style="text-align: right; color: #004080; font-weight: bold;">${totAmountFormatted}</td>
           <td style="text-align: right; color: #2e7d32;">${freeStockSum.toFixed(2)}</td>
           <td style="text-align: right; color: #d32f2f;">${resStockSum.toFixed(2)}</td>
         </tr>
@@ -694,27 +745,30 @@ const CatalogSelector = {
     this.updateStockTableRows();
   },
 
-  renderPricesList(prices) {
+  renderPricesList() {
     const pricesList = document.getElementById("catalogPricesList");
     if (!pricesList) return;
 
-    if (!prices || prices.length === 0) {
+    const prices = this.currentPrices || [];
+    if (prices.length === 0) {
       pricesList.innerHTML = `<span style="color: #888; font-size: 11px;">Təyin edilmiş qiymət yoxdur</span>`;
       return;
     }
 
-    // Default: Check 80 or the first price type
     pricesList.innerHTML = prices.map((p, i) => {
-      const isDefaultChecked = (p.price_type.includes("80") && !p.price_type.toLowerCase().includes("возвр")) || (i === 0);
+      const isSelected = (this.selectedPriceTypeIndex === i);
       const prVal = Number(p.price || 0);
       const prText = prVal > 0 ? `${prVal.toFixed(2)} ${escapeHtml(p.currency || 'AZN')}` : "-";
+      const rowBg = isSelected ? "background: #e3f2fd; border: 1px solid #90caf9;" : "background: transparent; border: 1px solid transparent;";
+      const radioChecked = isSelected ? "checked" : "";
+
       return `
-        <label class="checkbox-1c-label" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2px; font-size: 11px; padding: 2px 4px; border-radius: 2px; cursor: pointer;" onmouseover="this.style.background='#f0f4f8'" onmouseout="this.style.background='transparent'">
-          <span style="display: flex; align-items: center; gap: 4px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 170px;" title="${escapeHtml(p.price_type)}">
-            <input type="checkbox" ${isDefaultChecked ? 'checked' : ''} style="margin: 0;">
-            <span style="color: #222;">${escapeHtml(p.price_type)}</span>
+        <label class="radio-1c-label" onclick="CatalogSelector.selectPriceType(${i})" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2px; font-size: 11px; padding: 2px 5px; border-radius: 3px; cursor: pointer; ${rowBg}" onmouseover="if (!${isSelected}) this.style.background='#f0f4f8'" onmouseout="if (!${isSelected}) this.style.background='transparent'">
+          <span style="display: flex; align-items: center; gap: 5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 170px;" title="${escapeHtml(p.price_type)}">
+            <input type="radio" name="catalogPriceTypeSelection" ${radioChecked} onclick="event.stopPropagation(); CatalogSelector.selectPriceType(${i})" style="margin: 0; cursor: pointer;">
+            <span style="color: ${isSelected ? '#002060; font-weight: bold;' : '#222;'}">${escapeHtml(p.price_type)}</span>
           </span>
-          <b style="color: #002060; margin-left: 6px; white-space: nowrap;">${prText}</b>
+          <b style="color: ${isSelected ? '#004080' : '#444'}; margin-left: 6px; white-space: nowrap;">${prText}</b>
         </label>
       `;
     }).join("");
@@ -722,6 +776,8 @@ const CatalogSelector = {
 
   resetStockPane(item) {
     this.currentWarehouses = [];
+    this.currentPrices = [];
+    this.selectedPriceTypeIndex = 0;
     this.selectedWarehouseIndices = new Set();
 
     const stockBody = document.getElementById("catalogStockBody");
@@ -738,7 +794,7 @@ const CatalogSelector = {
       previewTitle.textContent = item ? (item.is_folder ? `Qrup: ${item.name}` : `Seçilmiş mal: ${item.name}`) : "Seçilmiş mal: -";
     }
     if (stockBody) {
-      stockBody.innerHTML = `<tr><td colspan="5" style="text-align: center; color: #888; padding: 16px; font-style: italic;">Qalıqları görmək üçün siyahıdan bir mal seçin</td></tr>`;
+      stockBody.innerHTML = `<tr><td colspan="6" style="text-align: center; color: #888; padding: 16px; font-style: italic;">Qalıqları görmək üçün siyahıdan bir mal seçin</td></tr>`;
     }
     if (pricesList) {
       pricesList.innerHTML = `<span style="color: #888; font-size: 11px; font-style: italic;">Mal seçildikdə qiymətlər əks olunacaq</span>`;
