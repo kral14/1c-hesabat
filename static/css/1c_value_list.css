@@ -60,12 +60,12 @@
   cursor: pointer;
   border-bottom: 1px solid #f0f0f0;
   white-space: nowrap;
+  background-color: #ffffff !important;
+  color: #111111 !important;
 }
 
-.autocomplete-item:hover,
-.autocomplete-item.active {
-  background-color: #316ac5;
-  color: #ffffff;
+.autocomplete-item span {
+  color: #111111 !important;
 }
 
 .autocomplete-item .item-icon {
@@ -75,10 +75,27 @@
 .autocomplete-item .item-code {
   font-family: var(--1c-font-mono);
   font-size: 10px;
-  color: #666;
+  color: #666666 !important;
 }
 
+.autocomplete-item .item-art {
+  font-family: var(--1c-font-mono);
+  font-size: 10px;
+  color: #0044cc !important;
+  font-weight: 600;
+}
+
+.autocomplete-item:hover,
+.autocomplete-item.active {
+  background-color: #316ac5 !important;
+  color: #ffffff !important;
+}
+
+.autocomplete-item:hover span,
+.autocomplete-item.active span,
 .autocomplete-item:hover .item-code,
-.autocomplete-item.active .item-code {
-  color: #e0e0e0;
+.autocomplete-item.active .item-code,
+.autocomplete-item:hover .item-art,
+.autocomplete-item.active .item-art {
+  color: #ffffff !important;
 }

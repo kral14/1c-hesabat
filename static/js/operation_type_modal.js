@@ -37,7 +37,7 @@ const OperationTypeSelector = {
     this.selectedNames.clear();
 
     if (this.targetInput && this.targetInput.value.trim()) {
-      const parts = this.targetInput.value.split(/[;,]/).map(s => s.trim()).filter(Boolean);
+      const parts = this.targetInput.value.split(";").map(s => s.trim()).filter(Boolean);
       parts.forEach(p => this.selectedNames.add(p));
     }
 

@@ -21,6 +21,49 @@
 
   <!-- Window Body -->
   <div class="mdi-window-body" style="background-color: #f7f6f0; display: flex; flex-direction: column;">
+    <style>
+      #settingsWindowModal select,
+      #settingsWindowModal select option,
+      #settingsWindowModal input[type="text"],
+      .filters-table select,
+      .filters-table select option,
+      .filter-comp-sel,
+      .filter-comp-sel option,
+      .filter-field-sel,
+      .filter-field-sel option {
+        color: #111111 !important;
+        background-color: #ffffff !important;
+        -webkit-text-fill-color: #111111 !important;
+      }
+      .autocomplete-suggestions-box {
+        background-color: #ffffff !important;
+        color: #111111 !important;
+      }
+      .autocomplete-item {
+        background-color: #ffffff !important;
+        color: #111111 !important;
+      }
+      .autocomplete-item span {
+        color: #111111 !important;
+      }
+      .autocomplete-item:hover,
+      .autocomplete-item.active {
+        background-color: #316ac5 !important;
+        color: #ffffff !important;
+      }
+      .autocomplete-item:hover span,
+      .autocomplete-item.active span {
+        color: #ffffff !important;
+      }
+      .filters-table select option:checked,
+      .filters-table select option:hover,
+      .filter-comp-sel option:checked,
+      .filter-comp-sel option:hover {
+        background-color: #316ac5 !important;
+        color: #ffffff !important;
+        -webkit-text-fill-color: #ffffff !important;
+      }
+    </style>
     <div class="settings-body" style="flex: 1; padding: 8px 10px; display: flex; flex-direction: column; gap: 8px; overflow-y: auto;">
       
       <!-- Top Section: Period & Parameters -->

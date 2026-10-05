@@ -1,0 +1,202 @@
+<!-- ========================================================
+     1C:ENTERPRISE UNIVERSAL JOURNAL - НАСТРОЙКА СПИСКА (ОТБОР) WINDOW
+     templates/components/universal_journal_filter_window.html
+     ======================================================== -->
+
+<div class="mdi-window" id="ujFilterWindow" style="display: none; top: 45px; left: 80px; width: 850px; height: 530px; min-width: 650px; min-height: 400px; z-index: 135;" onmousedown="MdiManager.activateWindow('ujFilterWindow')">
+  
+  <!-- Window Header -->
+  <div class="mdi-window-header" ondblclick="MdiManager.toggleMaximize('ujFilterWindow')">
+    <div class="mdi-win-title-left">
+      <span class="mdi-win-icon">📑</span>
+      <span class="mdi-win-title-text" id="ujFilterWindowTitle">Настройка списка: Реализация товаров и услуг</span>
+    </div>
+    <div class="mdi-win-controls">
+      <button class="mdi-win-btn mdi-win-btn-min" title="Qatla" onclick="MdiManager.minimizeWindow('ujFilterWindow')" onmousedown="event.stopPropagation()">_</button>
+      <button class="mdi-win-btn mdi-win-btn-max" title="Böyüt / Bərpa et" onclick="MdiManager.toggleMaximize('ujFilterWindow')" onmousedown="event.stopPropagation()">□</button>
+      <button class="mdi-win-btn mdi-win-btn-close" title="Bağla" onclick="UniversalJournal.closeFilterModal()" onmousedown="event.stopPropagation()">✕</button>
+    </div>
+  </div>
+
+  <!-- Window Body -->
+  <div class="mdi-window-body" style="background-color: #f0eee3; display: flex; flex-direction: column; height: 100%; overflow: hidden; font-family: Tahoma, 'MS Sans Serif', Arial, sans-serif; font-size: 11px;">
+    
+    <style>
+      #ujFilterWindow select,
+      #ujFilterWindow select option,
+      #ujFilterWindow input[type="text"] {
+        color: #111111 !important;
+        background-color: #ffffff !important;
+        -webkit-text-fill-color: #111111 !important;
+      }
+      #ujFilterCriteriaTbody tr.selected td {
+        background-color: #e2eefb !important;
+      }
+      #ujFilterCriteriaTbody tr.selected td input[type="text"],
+      #ujFilterCriteriaTbody tr.selected td select {
+        color: #111111 !important;
+        background-color: #ffffff !important;
+      }
+    </style>
+
+    <!-- 1C Tabs Row (Screenshot 1) -->
+    <div style="padding: 4px 6px 0 6px; background: #e5e2cf; border-bottom: 1px solid #b0af9f; display: flex; gap: 2px;">
+      <button type="button" class="uj-filter-tab" id="ujTabOsnovnye" onclick="UniversalJournal.switchFilterTab('osnovnye')" 
+              style="padding: 4px 10px; font-size: 11px; border: 1px solid #b0af9f; background: #dfdcce; cursor: pointer; display: flex; align-items: center; gap: 4px;">
+        <span>📄</span><span>Основные</span>
+      </button>
+      <button type="button" class="uj-filter-tab active" id="ujTabOtbor" onclick="UniversalJournal.switchFilterTab('otbor')" 
+              style="padding: 4px 12px; font-size: 11px; font-weight: bold; border: 1px solid #b0af9f; border-bottom: none; background: #f0eee3; cursor: pointer; display: flex; align-items: center; gap: 4px; border-top: 2px solid #e28700;">
+        <span>📑</span><span>Отбор</span>
+      </button>
+      <button type="button" class="uj-filter-tab" id="ujTabSort" onclick="UniversalJournal.switchFilterTab('sort')" 
+              style="padding: 4px 10px; font-size: 11px; border: 1px solid #b0af9f; background: #dfdcce; cursor: pointer; display: flex; align-items: center; gap: 4px;">
+        <span>📶</span><span>Сортировка</span>
+      </button>
+      <button type="button" class="uj-filter-tab" id="ujTabStyle" onclick="UniversalJournal.switchFilterTab('style')" 
+              style="padding: 4px 10px; font-size: 11px; border: 1px solid #b0af9f; background: #dfdcce; cursor: pointer; display: flex; align-items: center; gap: 4px;">
+        <span>🖌</span><span>Условное оформление</span>
+      </button>
+      <button type="button" class="uj-filter-tab" id="ujTabGroup" onclick="UniversalJournal.switchFilterTab('group')" 
+              style="padding: 4px 10px; font-size: 11px; border: 1px solid #b0af9f; background: #dfdcce; cursor: pointer; display: flex; align-items: center; gap: 4px;">
+        <span>💬</span><span>Группировка</span>
+      </button>
+    </div>
+
+    <!-- Main Content Container (Two Panes: Available Fields + Conditions Table) -->
+    <div id="ujFilterTabBodyOtbor" style="flex: 1; display: flex; overflow: hidden; padding: 6px; gap: 6px; background: #f0eee3; position: relative;">
+
+      <!-- Left Pane: Доступные поля (Available Fields) -->
+      <div style="width: 235px; display: flex; flex-direction: column; background: #ffffff; border: 1px solid #7f9db9;">
+        
+        <!-- Left Action Header: 'Выбрать' -->
+        <div style="padding: 3px 6px; background: #f0eee3; border-bottom: 1px solid #d4d0c8; display: flex; align-items: center; justify-content: space-between;">
+          <button type="button" class="btn-1c" onclick="UniversalJournal.addFilterCriterion(UniversalJournal.filterSelectedFieldKey)" 
+                  title="Добавить выбранное поле в отбор" style="height: 20px; padding: 0 8px; font-size: 11px; cursor: pointer;">
+            Выбрать
+          </button>
+        </div>
+
+        <!-- Available Fields Title -->
+        <div style="padding: 2px 6px; background: #e5e2cf; border-bottom: 1px solid #b0af9f; font-weight: bold; font-size: 10px; color: #444;">
+          Доступные поля
+        </div>
+
+        <!-- Available Fields Scrollable List -->
+        <div id="ujFilterAvailFieldsList" style="flex: 1; overflow-y: auto; background: #ffffff;">
+          <!-- Populated dynamically via JS -->
+        </div>
+
+      </div>
+
+      <!-- Right Pane: Отбор Criteria Table & Actions -->
+      <div style="flex: 1; display: flex; flex-direction: column; background: #ffffff; border: 1px solid #7f9db9; overflow: hidden; position: relative;">
+        
+        <!-- Right Pane Toolbar (➕, ❌, ⇧, ⇩, Очистить) -->
+        <div style="padding: 3px 6px; background: #f0eee3; border-bottom: 1px solid #d4d0c8; display: flex; align-items: center; gap: 4px;">
+          <button type="button" class="btn-1c" onclick="UniversalJournal.addFilterCriterion(UniversalJournal.filterSelectedFieldKey)" 
+                  title="Добавить новый элемент" style="height: 22px; padding: 0 6px; display: inline-flex; align-items: center; gap: 4px; cursor: pointer;">
+            <span style="color: #2e7d32; font-weight: bold;">➕</span>
+            <span style="font-size: 11px;">Добавить новый элемент</span>
+          </button>
+
+          <div style="height: 16px; width: 1px; background: #b0af9f; margin: 0 2px;"></div>
+
+          <button type="button" class="btn-1c" style="height: 22px; padding: 0 6px; opacity: 0.6; cursor: not-allowed;" title="Сгруппировать условия" disabled>
+            Сгруппировать условия
+          </button>
+
+          <button type="button" class="btn-1c" onclick="UniversalJournal.removeFilterCriterion()" 
+                  title="Удалить выбранный элемент (❌)" style="height: 22px; padding: 0 6px; cursor: pointer; color: #c62828;">
+            ❌
+          </button>
+
+          <button type="button" class="btn-1c" onclick="UniversalJournal.moveFilterCriterionUp()" 
+                  title="Переместить вверх (⇧)" style="height: 22px; padding: 0 6px; cursor: pointer; font-weight: bold; color: #004080;">
+            ⇧
+          </button>
+
+          <button type="button" class="btn-1c" onclick="UniversalJournal.moveFilterCriterionDown()" 
+                  title="Переместить вниз (⇩)" style="height: 22px; padding: 0 6px; cursor: pointer; font-weight: bold; color: #004080;">
+            ⇩
+          </button>
+
+          <div style="height: 16px; width: 1px; background: #b0af9f; margin: 0 2px;"></div>
+
+          <button type="button" class="btn-1c" onclick="UniversalJournal.clearAllFilterCriteria()" 
+                  title="Очистить все условия" style="height: 22px; padding: 0 6px; cursor: pointer; font-size: 10px;">
+            Очистить
+          </button>
+        </div>
+
+        <!-- Root Tree Header 'Представление / Отбор' -->
+        <div style="background: #e3dec9; border-bottom: 1px solid #b0af9f; padding: 3px 6px; font-weight: bold; font-size: 11px; display: flex; align-items: center; justify-content: space-between;">
+          <div style="display: flex; align-items: center; gap: 5px;">
+            <span>🔘</span>
+            <span>Представление: <strong>Отбор</strong></span>
+          </div>
+          <div id="ujFilterCountSummary" style="font-weight: normal; font-size: 10px; color: #555;">
+            0 элементов
+          </div>
+        </div>
+
+        <!-- Conditions Table Container -->
+        <div style="flex: 1; overflow: auto; background: #ffffff;" id="ujFilterTableContainer" onclick="UniversalJournal.hideFilterAutocomplete()">
+          <table style="width: 100%; border-collapse: collapse; table-layout: fixed; font-size: 11px;">
+            <thead>
+              <tr style="background: #f0eee3; border-bottom: 1px solid #b0af9f; height: 20px;">
+                <th style="width: 28px; text-align: center; border: 1px solid #d4d0c8;">
+                  <input type="checkbox" checked title="Отметить все / Снять все" onclick="UniversalJournal.checkAllFilterCriteria(this.checked)">
+                </th>
+                <th style="width: 170px; text-align: left; padding: 2px 6px; border: 1px solid #d4d0c8;">Поле</th>
+                <th style="width: 140px; text-align: left; padding: 2px 6px; border: 1px solid #d4d0c8;">Вид сравнения</th>
+                <th style="text-align: left; padding: 2px 6px; border: 1px solid #d4d0c8;">Значение</th>
+              </tr>
+            </thead>
+            <tbody id="ujFilterCriteriaTbody">
+              <!-- Populated dynamically via JS without full DOM recreation -->
+            </tbody>
+          </table>
+        </div>
+
+        <!-- 1C Live Autocomplete / Search Dropdown Popup Container -->
+        <div id="ujFilterAutocompletePopup" style="display: none; position: absolute; z-index: 500; background: #ffffff; border: 1px solid #7f9db9; box-shadow: 0 4px 14px rgba(0,0,0,0.3); max-height: 220px; width: 280px; overflow-y: auto; font-family: Tahoma, sans-serif; font-size: 11px;">
+          <!-- Suggestions injected here -->
+        </div>
+
+      </div>
+
+    </div>
+
+    <!-- Placeholder for Other Tabs -->
+    <div id="ujFilterTabBodyOther" style="display: none; flex: 1; align-items: center; justify-content: center; background: #ffffff; border: 1px solid #7f9db9; color: #666; font-size: 12px; flex-direction: column; gap: 8px; margin: 6px;">
+      <span style="font-size: 28px;">⚙️</span>
+      <span id="ujFilterTabOtherLabel">Вкладка доступна через основную таблицу журнала.</span>
+      <button type="button" class="btn-1c" onclick="UniversalJournal.switchFilterTab('otbor')" style="height: 24px; padding: 0 12px;">Вернуться к отбору</button>
+    </div>
+
+    <!-- Footer Buttons (Authentic 1C Golden Button) -->
+    <div style="padding: 6px 10px; background: #e5e2cf; border-top: 1px solid #b0af9f; display: flex; justify-content: space-between; align-items: center;">
+      <div style="display: flex; gap: 6px;">
+        <button type="button" class="btn-1c" onclick="UniversalJournal.openPresetSaveModal()" title="Сохранить эти условия в настройку" style="height: 24px; padding: 0 8px; display: inline-flex; align-items: center; gap: 4px;">
+          <span>💾</span>
+          <span>Сохранить настройку...</span>
+        </button>
+      </div>
+      <div style="display: flex; gap: 6px; align-items: center;">
+        <button type="button" onclick="UniversalJournal.finishFilterEditing()" 
+                style="height: 24px; min-width: 140px; font-weight: bold; background: #ffe3a8; border: 1px solid #c99c47; color: #111; cursor: pointer; border-radius: 2px; padding: 0 14px; box-shadow: inset 0 1px 0 #fff;">
+          Завершить редактирование
+        </button>
+        <button type="button" class="btn-1c" onclick="UniversalJournal.closeFilterModal()" style="height: 24px; min-width: 70px;">
+          Отмена
+        </button>
+        <button type="button" class="btn-1c" style="height: 24px; width: 24px; font-weight: bold;" title="Справка">
+          ?
+        </button>
+      </div>
+    </div>
+
+  </div>
+
+</div>

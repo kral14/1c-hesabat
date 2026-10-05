@@ -84,6 +84,53 @@
         <span style="font-size: 11px;">Обновить</span>
       </button>
 
+      <div class="mdi-tool-sep" style="height: 18px; width: 1px; background: #b0af9f; margin: 0 3px;"></div>
+
+      <!-- 8. 1C Filter & Preset Toolbar Buttons (Authentic 1C Icons) -->
+      <!-- 8a. Настройка списка (Отбор) -->
+      <button type="button" class="btn-1c" id="ujBtnFilter" onclick="UniversalJournal.openFilterModal()" title="Настройка списка (Отбор)..." style="height: 24px; padding: 0 6px; display: inline-flex; align-items: center; justify-content: center; cursor: pointer; background: #ffffff;">
+        <svg width="15" height="15" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <rect x="2" y="2" width="7" height="11" rx="1" fill="#e8eaf6" stroke="#5c6bc0" stroke-width="1"/>
+          <line x1="4" y1="5" x2="7" y2="5" stroke="#7986cb" stroke-width="0.8"/>
+          <line x1="4" y1="7" x2="7" y2="7" stroke="#7986cb" stroke-width="0.8"/>
+          <path d="M5.5 3 L14.5 3 L10.5 8 L10.5 13.5 L8.5 14.5 L8.5 8 Z" fill="#90a4ae" stroke="#37474f" stroke-width="1"/>
+        </svg>
+      </button>
+
+      <!-- 8b. Выбрать настройку (Папка с шестеренкой) -->
+      <button type="button" class="btn-1c" id="ujBtnRestorePreset" onclick="UniversalJournal.openPresetRestoreModal()" title="Выбрать настройку (Сохраненные фильтры)..." style="height: 24px; padding: 0 6px; display: inline-flex; align-items: center; justify-content: center; cursor: pointer; background: #ffffff;">
+        <svg width="15" height="15" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M1.5 3.5 C1.5 2.8 2 2.5 2.8 2.5 L6 2.5 L7.5 4 L13.5 4 C14.3 4 14.5 4.5 14.5 5.2 L14.5 12 C14.5 12.8 14 13.5 13 13.5 L2.5 13.5 C1.8 13.5 1.5 12.8 1.5 12 Z" fill="#fbc02d" stroke="#f57f17" stroke-width="1"/>
+          <circle cx="11.5" cy="11.5" r="3.2" fill="#9e9e9e" stroke="#616161" stroke-width="0.8"/>
+          <circle cx="11.5" cy="11.5" r="1.2" fill="#fff"/>
+        </svg>
+      </button>
+
+      <!-- 8c. Сохранить настройку (Дискета с шестеренкой) -->
+      <button type="button" class="btn-1c" id="ujBtnSavePreset" onclick="UniversalJournal.openPresetSaveModal()" title="Сохранить настройку (Сохранить текущий фильтр)..." style="height: 24px; padding: 0 6px; display: inline-flex; align-items: center; justify-content: center; cursor: pointer; background: #ffffff;">
+        <svg width="15" height="15" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <rect x="2" y="2" width="12" height="12" rx="1.5" fill="#90caf9" stroke="#1565c0" stroke-width="1.1"/>
+          <rect x="4.5" y="2" width="7" height="4.5" fill="#fff" stroke="#90caf9" stroke-width="0.8"/>
+          <circle cx="11.5" cy="11.5" r="3.2" fill="#9e9e9e" stroke="#616161" stroke-width="0.8"/>
+          <circle cx="11.5" cy="11.5" r="1.2" fill="#fff"/>
+        </svg>
+      </button>
+
+      <!-- Active Filter Chip / Badge -->
+      <div id="ujActiveFilterBadge" style="display: none; align-items: center; gap: 4px; padding: 2px 7px; background: #fff8e1; border: 1px solid #ffb300; border-radius: 2px; font-size: 11px; color: #5d4037;">
+        <span style="font-size: 11px;">🔍</span>
+        <span id="ujActiveFilterName" style="font-weight: 500; max-width: 170px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">Отбор</span>
+        <span onclick="UniversalJournal.clearFilter()" title="Отключить отбор" style="cursor: pointer; color: #c62828; font-weight: bold; font-size: 12px; margin-left: 3px; line-height: 1;">✕</span>
+      </div>
+
+      <div class="mdi-tool-sep" style="height: 18px; width: 1px; background: #b0af9f; margin: 0 3px;"></div>
+
+      <!-- 9. Form Columns Settings Button -->
+      <button type="button" class="btn-1c" id="ujBtnSettings" onclick="UniversalJournal.openFormSettingsModal()" title="Настройка формы / списка (колонки, видимость, порядок, ширина)..." style="height: 24px; padding: 0 8px; display: inline-flex; align-items: center; gap: 4px; cursor: pointer; background: #ffffff;">
+        <span style="font-size: 12px;">⚙️</span>
+        <span style="font-size: 11px; font-weight: 500;">Колонки...</span>
+      </button>
+
       <!-- Search Filter Input Box -->
       <div style="flex: 1; min-width: 140px; display: flex; align-items: center; margin-left: 6px;">
         <input type="text" id="ujSearchInput" class="input-1c" placeholder="Быстрый поиск по списку..." style="width: 100%; height: 22px; padding: 2px 6px; font-size: 11px;" oninput="UniversalJournal.onSearchInput()">
@@ -108,7 +155,7 @@
       </div>
 
       <!-- Documents Table -->
-      <table class="uj-table" id="ujTable" style="width: 100%; border-collapse: collapse; font-family: Tahoma, 'MS Sans Serif', Arial, sans-serif; font-size: 11px;">
+      <table class="uj-table" id="ujTable" style="table-layout: fixed; width: max-content; min-width: 100%; border-collapse: collapse; font-family: Tahoma, 'MS Sans Serif', Arial, sans-serif; font-size: 11px;">
         <thead>
           <tr id="ujTableHeadRow" style="background: #e3dec9; border-bottom: 2px solid #5a5a5a; position: sticky; top: 0; z-index: 10;">
             <!-- Populated dynamically via JS -->

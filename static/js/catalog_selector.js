@@ -22,8 +22,9 @@ const CatalogSelector = {
     this.multiSelect = options.multiSelect || false;
     this.podborMode = options.podborMode || false;
     this.podborCount = 0;
-    this.currentFolder = "";
+    this.currentFolder = options.folder || "";
     this.selectedItem = null;
+    this.initialSearch = options.initialSearch || (this.targetInput ? this.targetInput.value : "") || "";
 
     const win = document.getElementById("catalogWindowModal");
     if (!win) return;
@@ -37,10 +38,36 @@ const CatalogSelector = {
     const banner = document.getElementById("catalogPodborBanner");
     const podborCountEl = document.getElementById("catalogPodborCount");
 
-    const isWarehouse = this.currentCatalog === "Склады" || this.currentCatalog === "Склад";
-    const isPriceTypes = this.currentCatalog === "ТипыЦенНоменклатуры";
-    const catIcon = isWarehouse ? "🏢" : (isPriceTypes ? "🏷️" : "📋");
-    const catTitle = isWarehouse ? "Справочник: Склады" : (isPriceTypes ? "Справочник: Типы цен" : "Справочник: Номенклатура");
+    const catL = (this.currentCatalog || "").toLowerCase();
+    let catTitle = "Справочник: " + this.currentCatalog;
+    let catIcon = "📋";
+    const isNomenclature = catL.includes("номенклатур") || catL.includes("məhsul") || catL.includes("tovar");
+
+    if (catL.includes("тип") && catL.includes("цен")) {
+      catTitle = "Справочник: Типы цен номенклатуры";
+      catIcon = "🏷️";
+    } else if (catL.includes("контрагент")) {
+      catTitle = "Справочник: Контрагенты";
+      catIcon = "👥";
+    } else if (catL.includes("склад")) {
+      catTitle = "Справочник: Склады";
+      catIcon = "🏢";
+    } else if (catL.includes("договор")) {
+      catTitle = "Справочник: Договоры контрагентов";
+      catIcon = "📄";
+    } else if (catL.includes("пользовател") || catL.includes("ответственн")) {
+      catTitle = "Справочник: Пользователи";
+      catIcon = "👤";
+    } else if (catL.includes("водит")) {
+      catTitle = "Справочник: Водители";
+      catIcon = "🚚";
+    } else if (catL.includes("портфел")) {
+      catTitle = "Справочник: Портфели";
+      catIcon = "💼";
+    } else if (isNomenclature) {
+      catTitle = "Справочник: Номенклатура";
+      catIcon = "📦";
+    }
     const fullTitle = catTitle + (this.podborMode ? " (Подбор)" : "");
 
     if (titleEl) titleEl.textContent = fullTitle;
@@ -53,13 +80,13 @@ const CatalogSelector = {
       if (podborCountEl) podborCountEl.textContent = "Seçilən: 0";
     }
 
-    // Show stock pane only for Nomenklatura
+    // Show stock pane and artikul only for Nomenklatura
     if (stockPane) {
-      stockPane.style.display = this.currentCatalog === "Номенклатура" ? "flex" : "none";
+      stockPane.style.display = isNomenclature ? "flex" : "none";
     }
 
     if (colArtikul) {
-      colArtikul.style.display = this.currentCatalog === "Номенклатура" ? "" : "none";
+      colArtikul.style.display = isNomenclature ? "" : "none";
     }
 
     console.log(`[CATALOG OPEN] catalog="${this.currentCatalog}", podborMode=${this.podborMode}, multiSelect=${this.multiSelect}`);
@@ -123,7 +150,9 @@ const CatalogSelector = {
     }
 
     // Load Folders & Items
-    this.loadCatalogData();
+    const searchInput = document.getElementById("catalogSearchInput");
+    if (searchInput) searchInput.value = this.initialSearch || "";
+    this.loadCatalogData(this.initialSearch || "");
   },
 
   close(e) {
@@ -207,8 +236,28 @@ const CatalogSelector = {
         throw new Error(data.error || "Məlumat yüklənmədi");
       }
 
+      if (data.target_folder) {
+        this.currentFolder = data.target_folder;
+        this.updateFolderButton();
+      }
       this.renderFolders(data.folders || []);
       this.renderItems(data.items || []);
+
+      if (data.target_code) {
+        const tbody = document.getElementById("catalogItemsBody");
+        if (tbody) {
+          const foundTr = Array.from(tbody.querySelectorAll("tr")).find(r => r.dataset.code === data.target_code || r.dataset.name === data.target_code);
+          if (foundTr) {
+            tbody.querySelectorAll("tr").forEach(r => r.classList.remove("selected"));
+            foundTr.classList.add("selected");
+            const itemObj = (data.items || []).find(it => it.code === data.target_code || it.name === data.target_code);
+            if (itemObj) this.selectedItem = itemObj;
+            setTimeout(() => {
+              foundTr.scrollIntoView({ block: "center", behavior: "smooth" });
+            }, 50);
+          }
+        }
+      }
 
     } catch (err) {
       if (err.name === "AbortError") {
@@ -381,7 +430,7 @@ const CatalogSelector = {
       if (this.targetInput) {
         if (this.multiSelect && this.targetInput.value.trim()) {
           const cur = this.targetInput.value.trim();
-          const existing = cur.split(/[;,]/).map(s => s.trim());
+          const existing = cur.split(";").map(s => s.trim());
           if (!existing.includes(chosenVal)) {
             this.targetInput.value = `${cur}; ${chosenVal}`;
           }

@@ -419,6 +419,22 @@ const MdiManager = {
       });
     }
 
+    // 11b. Universal Document Journal Filter Window (Настройка списка - starts hidden)
+    const ujFilterWin = document.getElementById("ujFilterWindow");
+    if (ujFilterWin) {
+      this.registerWindow("ujFilterWindow", {
+        title: "Настройка списка",
+        icon: "📑",
+        element: ujFilterWin,
+        isDefault: true,
+        isDialog: true,
+        startHidden: true,
+        closeFn: () => {
+          if (typeof UniversalJournal !== "undefined" && UniversalJournal.closeFilterModal) UniversalJournal.closeFilterModal();
+        }
+      });
+    }
+
     // 12. Price Document Editor Window (Установка цен номенклатуры - starts hidden)
     const pdeWin = document.getElementById("priceDocEditorWindow");
     if (pdeWin) {

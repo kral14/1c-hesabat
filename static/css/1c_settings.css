@@ -520,14 +520,30 @@ tr:hover .grouping-btn-pick {
 }
 
 .filters-table select,
-.filters-table input[type="text"] {
+.filters-table select option,
+.filters-table input[type="text"],
+.filter-comp-sel,
+.filter-comp-sel option,
+.filter-field-sel,
+.filter-field-sel option {
   width: 100%;
   height: 19px;
   font-family: var(--1c-font);
   font-size: 11px;
   border: 1px solid #7f9db9;
   padding: 0 4px;
-  background: #ffffff;
+  background-color: #ffffff !important;
+  color: #111111 !important;
+  -webkit-text-fill-color: #111111 !important;
+}
+
+.filters-table select option:checked,
+.filters-table select option:hover,
+.filter-comp-sel option:checked,
+.filter-comp-sel option:hover {
+  background-color: #316ac5 !important;
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
 }
 
 /* Modal Footer */

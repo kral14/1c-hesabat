@@ -4,7 +4,7 @@
      ======================================================== -->
 
 <div id="valueListModalOverlay" class="modal-overlay-1c">
-  <div class="settings-window" id="valueListWindowModal" tabindex="0" onkeydown="ValueListModal.handleKeydown(event)" style="width: 480px; height: 440px; max-width: 95vw; max-height: 90vh; outline: none;" onmousedown="MdiManager.bringModalToFront(document.getElementById('valueListModalOverlay'))">
+  <div class="settings-window" id="valueListWindowModal" tabindex="0" onkeydown="ValueListModal.handleKeydown(event)" style="width: 820px; height: 460px; min-width: 620px; max-width: 96vw; max-height: 92vh; outline: none;" onmousedown="MdiManager.bringModalToFront(document.getElementById('valueListModalOverlay'))">
     
     <!-- Title Bar -->
     <div class="settings-header" ondblclick="ValueListModal.toggleMaximize()">
@@ -19,13 +19,65 @@
     </div>
 
     <!-- Body -->
-    <div class="settings-body" style="padding: 6px; background-color: #f7f6f0;">
+    <div class="settings-body" style="padding: 6px; background-color: #f7f6f0; display: flex; flex-direction: column;">
       
-      <!-- Top Label & Toolbar (Screenshot 2) -->
-      <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px;">
-        <span style="font-size: 11px; color: #222; font-weight: 500;">Список значений...</span>
+      <style>
+        #valueListWindowModal select,
+        #valueListWindowModal select option,
+        #valueListWindowModal input[type="text"] {
+          color: #111111 !important;
+          background-color: #ffffff !important;
+          -webkit-text-fill-color: #111111 !important;
+        }
+        #valueListWindowModal select option:checked,
+        #valueListWindowModal select option:hover {
+          background-color: #316ac5 !important;
+          color: #ffffff !important;
+          -webkit-text-fill-color: #ffffff !important;
+        }
+        #vlAutocompleteBox .autocomplete-item {
+          background-color: #ffffff !important;
+          color: #111111 !important;
+        }
+        #vlAutocompleteBox .autocomplete-item span {
+          color: #111111 !important;
+        }
+        #vlAutocompleteBox .autocomplete-item:hover,
+        #vlAutocompleteBox .autocomplete-item.active {
+          background-color: #316ac5 !important;
+          color: #ffffff !important;
+        }
+        #vlAutocompleteBox .autocomplete-item:hover span,
+        #vlAutocompleteBox .autocomplete-item.active span {
+          color: #ffffff !important;
+        }
+      </style>
+
+      <!-- Top Label, MatchAll & Toolbar (Screenshot 2 & 3) -->
+      <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px; gap: 4px; flex-wrap: wrap;">
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <span style="font-size: 11px; color: #222; font-weight: bold; white-space: nowrap;">Список значений</span>
+          
+          <!-- Match All Checkbox (Hər ikisi/hamısı eyni sənəddə olsun - "И") -->
+          <label style="display: inline-flex; align-items: center; gap: 4px; font-size: 11px; cursor: pointer; user-select: none; background: #eaf1fb; border: 1px solid #7f9db9; padding: 2px 6px; border-radius: 2px;"
+                 title="Aktiv edildikdə sənəddə bu siyahıdakı BÜTÜN mallar eyni vaxtda olmalıdır (Məntiqi VƏ / И). Deaktiv olduqda ən azı biri olduqda tapır (Məntiqi VƏ YA / ИЛИ).">
+            <input type="checkbox" id="vlMatchAllChk" onchange="ValueListModal.onMatchAllChange(this.checked)" style="cursor: pointer; margin: 0;">
+            <span style="font-weight: bold; color: #003399;">Все одновременно (И)</span>
+          </label>
+        </div>
         
         <div style="display: flex; align-items: center; gap: 3px;">
+          <!-- Search Scope Dropdown (Screenshot 3: Все видимые поля / Наименование / Артикул / Код / Штрихкод) -->
+          <select id="vlSearchFieldSelect" class="select-1c" onchange="ValueListModal.onSearchScopeChange(this.value)" 
+                  style="height: 22px; font-size: 11px; border: 1px solid #7f9db9; background: #ffffff !important; color: #111111 !important; cursor: pointer; padding: 0 4px; outline: none; margin-right: 4px;"
+                  title="Axtarış sahəsi">
+            <option value="all" selected>Все видимые поля</option>
+            <option value="name">Наименование</option>
+            <option value="artikul">Артикул</option>
+            <option value="code">Код</option>
+            <option value="barcode">Штрихкод</option>
+          </select>
+
           <!-- [+] Add Row (Yeni sətir əlavə et) -->
           <button class="box-tool-btn" onclick="ValueListModal.addNewRow()" title="Yeni sətir əlavə et (+ və ya Ins)">
             <span style="color: #2b7814; font-weight: bold; font-size: 13px;">➕</span>
@@ -48,19 +100,32 @@
           </button>
           
           <!-- "Подбор" Button (Screenshot 2) -->
-          <button class="btn-1c primary" onclick="ValueListModal.openPodbor()" style="height: 20px; padding: 0 8px; margin-left: 6px; font-weight: bold;" title="Soraqçadan çoxsaylı seçim (Подбор)">
+          <button class="btn-1c primary" onclick="ValueListModal.openPodbor()" style="height: 20px; padding: 0 8px; margin-left: 4px; font-weight: bold;" title="Soraqçadan çoxsaylı seçim (Подбор)">
             <span>Подбор</span>
           </button>
         </div>
       </div>
 
-      <!-- Values List Container (Screenshot 2) -->
-      <div style="flex: 1; background: #ffffff; border: 1px solid #7f9db9; overflow-y: auto; min-height: 260px;">
+      <!-- Values List Container with 1C Table Header -->
+      <div style="flex: 1; background: #ffffff; border: 1px solid #7f9db9; overflow-y: auto; min-height: 260px; position: relative;" id="vlListContainer">
         <table style="width: 100%; border-collapse: collapse; font-size: 11px;" id="valueListTable">
+          <thead style="background: #ece9d8; border-bottom: 1px solid #7f9db9; font-size: 10px; color: #333; position: sticky; top: 0; z-index: 5; user-select: none;">
+            <tr>
+              <th style="width: 28px; padding: 3px 2px; text-align: center; border-right: 1px solid #d0d0d0; font-weight: bold;">№</th>
+              <th style="width: 85px; padding: 3px 4px; text-align: left; border-right: 1px solid #d0d0d0; font-weight: bold;">Вид сравнения</th>
+              <th style="width: 75px; padding: 3px 4px; text-align: center; border-right: 1px solid #d0d0d0; font-weight: bold;">Код</th>
+              <th id="vlThArtikul" style="width: 85px; padding: 3px 4px; text-align: center; border-right: 1px solid #d0d0d0; font-weight: bold;">Артикул</th>
+              <th id="vlThBarcode" style="width: 105px; padding: 3px 4px; text-align: center; border-right: 1px solid #d0d0d0; font-weight: bold;">Штрихкод</th>
+              <th style="padding: 3px 6px; text-align: left; font-weight: bold;">Значение (Наименование)</th>
+              <th style="width: 28px; padding: 3px 2px; text-align: center; font-weight: bold;">...</th>
+            </tr>
+          </thead>
           <tbody id="valueListTbody">
-            <!-- Dynamic value rows with blue selection bar -->
+            <!-- Dynamic value rows with comparison combobox and input -->
           </tbody>
         </table>
+        <!-- Floating Autocomplete Suggestions Dropdown -->
+        <div id="vlAutocompleteBox" class="autocomplete-suggestions-box" style="position: absolute; display: none; z-index: 2500;"></div>
       </div>
 
     </div>

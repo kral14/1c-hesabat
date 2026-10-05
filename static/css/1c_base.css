@@ -359,6 +359,29 @@ td.pde-cell-active input {
   pointer-events: auto !important;
 }
 
+.modal-overlay-1c:has(> .maximized),
+.modal-overlay-1c.has-maximized {
+  align-items: stretch !important;
+  justify-content: stretch !important;
+}
+
+.modal-overlay-1c > .maximized {
+  position: absolute !important;
+  top: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
+  bottom: 0 !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  height: 100% !important;
+  max-height: 100% !important;
+  border: none !important;
+  border-radius: 0 !important;
+  resize: none !important;
+  margin: 0 !important;
+  box-sizing: border-box !important;
+}
+
 /* Loading Overlay */
 .loading-box-1c {
   position: fixed;

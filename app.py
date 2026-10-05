@@ -813,10 +813,28 @@ class OneCService(threading.Thread):
                         elif f_field == "Номенклатура":
                             if not f_val:
                                 continue
-                            n_parts = [w.strip() for w in re.split(r'[;,]', f_val) if w.strip()]
+                            match_all = False
+                            clean_val = f_val
+                            if clean_val.startswith("[И]"):
+                                match_all = True
+                                clean_val = clean_val[3:].strip()
+
+                            n_parts = [w.strip() for w in re.split(r'[;,]', clean_val) if w.strip()]
                             if len(n_parts) > 1 or f_comp in ["in_list", "in_group", "in_group_list"]:
                                 sub_p = []
                                 for part in n_parts:
+                                    is_contains = False
+                                    if part.lower().startswith("содержит:"):
+                                        is_contains = True
+                                        part = part[9:].strip()
+
+                                    if is_contains:
+                                        p_name = f"NomParam_{p_idx}"
+                                        p_idx += 1
+                                        sub_p.append(f"(Т.Номенклатура.Наименование ПОДОБНО &{p_name} ИЛИ Т.Номенклатура.Код ПОДОБНО &{p_name} ИЛИ Т.Номенклатура.Артикул ПОДОБНО &{p_name})")
+                                        q.SetParameter(p_name, f"%{part}%")
+                                        continue
+
                                     try:
                                         q_chk = conn.NewObject("Запрос")
                                         q_chk.Text = 'ВЫБРАТЬ ПЕРВЫЕ 1 Т.Ссылка КАК Ref, Т.ЭтоГруппа КАК IsFolder ИЗ Справочник.Номенклатура КАК Т ГДЕ Т.ЭтоГруппа И (Т.Наименование ПОДОБНО &PName ИЛИ Т.Код ПОДОБНО &PName)'
@@ -839,10 +857,11 @@ class OneCService(threading.Thread):
                                         q.SetParameter(p_name, part)
 
                                 if sub_p:
+                                    join_operator = " И " if match_all else " ИЛИ "
                                     if f_comp == "not_equal":
-                                        where_clauses.append("НЕ (" + " ИЛИ ".join(sub_p) + ")")
+                                        where_clauses.append("НЕ (" + join_operator.join(sub_p) + ")")
                                     else:
-                                        where_clauses.append("(" + " ИЛИ ".join(sub_p) + ")")
+                                        where_clauses.append("(" + join_operator.join(sub_p) + ")")
                             elif f_comp == "equal": # "Равно" - strictly exact item, NO hierarchy!
                                 p_name = f"NomParam_{p_idx}"
                                 p_idx += 1
@@ -1423,18 +1442,126 @@ class OneCService(threading.Thread):
                         }))
                         continue
 
+                    # Map user or field catalog name to real 1C metadata catalog name
+                    cat_lower = str(cat_name or "").lower().strip()
                     ref_cat = "Номенклатура"
-                    if "контрагент" in cat_name.lower():
+                    if any(w in cat_lower for w in ["тип цен", "типы цен", "типцен", "типыценноменклатуры", "price_type", "contract_price_type"]):
+                        ref_cat = "ТипыЦенНоменклатуры"
+                    elif any(w in cat_lower for w in ["договор", "договоры", "договорыконтрагентов", "contract"]):
+                        ref_cat = "ДоговорыКонтрагентов"
+                    elif any(w in cat_lower for w in ["контрагент", "клиент", "müştəri", "kontragent"]):
                         ref_cat = "Контрагенты"
-                    elif "склад" in cat_name.lower():
+                    elif any(w in cat_lower for w in ["склад", "склады", "anbar", "warehouse"]):
                         ref_cat = "Склады"
-                    elif "группа" in cat_name.lower():
+                    elif any(w in cat_lower for w in ["пользовател", "пользователи", "ответственн", "responsible", "user"]):
+                        ref_cat = "Пользователи"
+                    elif any(w in cat_lower for w in ["водитель", "водители", "sürücü", "voditel", "pogruzka_voditel"]):
+                        ref_cat = "Водители"
+                    elif any(w in cat_lower for w in ["группа", "номенклатурныегруппы"]):
                         ref_cat = "НоменклатурныеГруппы"
+                    elif any(w in cat_lower for w in ["портфел", "портфели", "portfolio"]):
+                        ref_cat = "Портфели"
+                    elif any(w in cat_lower for w in ["номенклатур", "məhsul", "tovar", "nomenclature"]):
+                        ref_cat = "Номенклатура"
+                    else:
+                        meta_cat = conn.Метаданные.Справочники.Найти(cat_name)
+                        if meta_cat:
+                            ref_cat = str(meta_cat.Имя)
+                        else:
+                            ref_cat = "Номенклатура"
+
+                    cat_meta = conn.Метаданные.Справочники.Найти(ref_cat)
+                    is_hier = bool(cat_meta.Иерархический) if cat_meta else False
 
                     folders = []
                     items = []
+                    target_code = None
+                    target_folder = None
 
-                    # 1. Fetch folders
+                    locate_code = payload.get("locate_code", "").strip()
+                    locate_name = payload.get("locate_name", "").strip()
+                    locate_val = payload.get("locate_item", "").strip()
+
+                    if is_hier and (locate_code or locate_name or locate_val) and not folder_name and not search_q:
+                        try:
+                            q_loc = conn.NewObject("Запрос")
+                            where_loc = []
+                            if locate_code:
+                                where_loc.append("Т.Код = &LocCode")
+                                q_loc.SetParameter("LocCode", locate_code)
+                            if locate_name:
+                                where_loc.append("Т.Наименование = &LocName")
+                                q_loc.SetParameter("LocName", locate_name)
+                            if locate_val and not locate_code and not locate_name:
+                                where_loc.append("(Т.Код = &LocVal ИЛИ Т.Наименование = &LocVal ИЛИ Т.Код ПОДОБНО &LocLike ИЛИ Т.Наименование ПОДОБНО &LocLike)")
+                                q_loc.SetParameter("LocVal", locate_val)
+                                q_loc.SetParameter("LocLike", f"%{locate_val}%")
+                            
+                            if where_loc:
+                                q_loc.Text = f"""
+                                ВЫБРАТЬ ПЕРВЫЕ 1
+                                    Т.Код КАК Code,
+                                    Т.Наименование КАК Name,
+                                    ЕСТЬNULL(Т.Родитель.Наименование, "") КАК FolderName
+                                ИЗ
+                                    Справочник.{ref_cat} КАК Т
+                                ГДЕ
+                                    НЕ Т.ПометкаУдаления
+                                    И НЕ Т.ЭтоГруппа
+                                    И ({" ИЛИ ".join(where_loc)})
+                                """
+                                res_loc = q_loc.Execute().Choose()
+                                if res_loc.Next():
+                                    target_code = str(res_loc.Code).strip()
+                                    target_folder = str(res_loc.FolderName or "").strip()
+                                    if target_folder:
+                                        folder_name = target_folder
+                        except Exception as eloc:
+                            print(f"Error locating item in catalog {ref_cat}:", eloc)
+
+                    # 1. Non-hierarchical (Flat) Catalogs (e.g. ТипыЦенНоменклатуры, Portfolios, etc.)
+                    if not is_hier:
+                        q_items = conn.NewObject("Запрос")
+                        where_c = ["НЕ Т.ПометкаУдаления"]
+                        if search_q:
+                            where_c.append("(Т.Наименование ПОДОБНО &Search ИЛИ Т.Код ПОДОБНО &Search)")
+                            q_items.SetParameter("Search", f"%{search_q}%")
+                        w_sql = "ГДЕ " + " И ".join(where_c)
+                        q_items.Text = f"""
+                        ВЫБРАТЬ ПЕРВЫЕ 100
+                            Т.Код КАК Code,
+                            Т.Наименование КАК Name
+                        ИЗ
+                            Справочник.{ref_cat} КАК Т
+                        {w_sql}
+                        УПОРЯДОЧИТЬ ПО
+                            Name
+                        """
+                        try:
+                            res_i = q_items.Execute().Choose()
+                            while res_i.Next():
+                                items.append({
+                                    "code": str(res_i.Code).strip(),
+                                    "name": str(res_i.Name).strip(),
+                                    "artikul": "",
+                                    "barcode": "",
+                                    "vid_nom": "",
+                                    "unit": "",
+                                    "is_folder": False
+                                })
+                        except Exception as ei:
+                            print(f"Error fetching items for flat catalog {ref_cat}:", ei)
+
+                        resp_q.put((True, {
+                            "catalog": cat_name,
+                            "folder": "",
+                            "folders": [],
+                            "items": items
+                        }))
+                        continue
+
+                    # 2. Hierarchical Catalogs (e.g. Номенклатура, Контрагенты, Склады, Договоры, etc.)
+                    # 2a. Fetch folders
                     q_f = conn.NewObject("Запрос")
                     if search_q:
                         q_f.Text = f"""
@@ -1490,33 +1617,64 @@ class OneCService(threading.Thread):
                                 "is_folder": True
                             })
                     except Exception as ef:
-                        print("Error fetching folders:", ef)
+                        # Some catalogs are hierarchical by element (not group)
+                        pass
 
-                    # 2. Fetch items (elements)
+                    # 2b. Fetch items (elements)
                     artikul_sql = "Т.Артикул КАК Artikul," if ref_cat == "Номенклатура" else '"" КАК Artikul,'
+                    barcode_sql = "ЕСТЬNULL(Ш.Штрихкод, \"\") КАК Barcode," if ref_cat == "Номенклатура" else '"" КАК Barcode,'
                     vid_sql = "Т.ВидНоменклатуры.Наименование КАК VidNom," if ref_cat == "Номенклатура" else '"" КАК VidNom,'
                     unit_sql = "Т.БазоваяЕдиницаИзмерения.Наименование КАК Unit" if ref_cat == "Номенклатура" else '"" КАК Unit'
+                    join_barcode = """ЛЕВОЕ СОЕДИНЕНИЕ (
+                        ВЫБРАТЬ
+                            Штрихкоды.Владелец КАК Владелец,
+                            МИНИМУМ(Штрихкоды.Штрихкод) КАК Штрихкод
+                        ИЗ
+                            РегистрСведений.Штрихкоды КАК Штрихкоды
+                        ГДЕ
+                            НЕ Штрихкоды.Штрихкод ЕСТЬ NULL И Штрихкоды.Штрихкод <> ""
+                        СГРУППИРОВАТЬ ПО
+                            Штрихкоды.Владелец
+                    ) КАК Ш ПО (Ш.Владелец = Т.Ссылка)""" if ref_cat == "Номенклатура" else ""
 
+                    search_field = payload.get("search_field", "all")
                     q_items = conn.NewObject("Запрос")
                     if search_q:
-                        artikul_cond = "ИЛИ Т.Артикул ПОДОБНО &Search" if ref_cat == "Номенклатура" else ""
+                        if search_field == "artikul" and ref_cat == "Номенклатура":
+                            where_search = "Т.Артикул ПОДОБНО &Search"
+                            order_search = "Т.ЭтоГруппа УБЫВ, Т.Артикул, Name"
+                        elif search_field == "code":
+                            where_search = "Т.Код ПОДОБНО &Search"
+                            order_search = "Т.ЭтоГруппа УБЫВ, Т.Код, Name"
+                        elif search_field == "barcode" and ref_cat == "Номенклатура":
+                            where_search = "Ш.Штрихкод ПОДОБНО &Search"
+                            order_search = "Т.ЭтоГруппа УБЫВ, Ш.Штрихкод, Name"
+                        elif search_field == "name":
+                            where_search = "Т.Наименование ПОДОБНО &Search"
+                            order_search = "Т.ЭтоГруппа УБЫВ, Name"
+                        else:
+                            artikul_cond = "ИЛИ Т.Артикул ПОДОБНО &Search ИЛИ Ш.Штрихкод ПОДОБНО &Search" if ref_cat == "Номенклатура" else ""
+                            where_search = f"(Т.Наименование ПОДОБНО &Search ИЛИ Т.Код ПОДОБНО &Search {artikul_cond})"
+                            order_search = "Т.ЭтоГруппа УБЫВ, Name"
+
                         q_items.Text = f"""
                         ВЫБРАТЬ ПЕРВЫЕ 100
                             Т.Код КАК Code,
                             Т.Наименование КАК Name,
                             {artikul_sql}
+                            {barcode_sql}
                             {vid_sql}
                             {unit_sql},
                             Т.ЭтоГруппа КАК IsFolder
                         ИЗ
                             Справочник.{ref_cat} КАК Т
+                            {join_barcode}
                         ГДЕ
                             НЕ Т.ПометкаУдаления
                             И НЕ Т.ЭтоГруппа
-                            И (Т.Наименование ПОДОБНО &Search ИЛИ Т.Код ПОДОБНО &Search {artikul_cond})
+                            И {where_search}
                         УПОРЯДОЧИТЬ ПО
-                            Т.ЭтоГруппа УБЫВ,
-                            Name
+                            {order_search}
                         """
                         q_items.SetParameter("Search", f"%{search_q}%")
                     elif folder_name:
@@ -1525,11 +1683,13 @@ class OneCService(threading.Thread):
                             Т.Код КАК Code,
                             Т.Наименование КАК Name,
                             {artikul_sql}
+                            {barcode_sql}
                             {vid_sql}
                             {unit_sql},
                             Т.ЭтоГруппа КАК IsFolder
                         ИЗ
                             Справочник.{ref_cat} КАК Т
+                            {join_barcode}
                         ГДЕ
                             НЕ Т.ПометкаУдаления
                             И Т.Родитель.Наименование = &Parent
@@ -1544,11 +1704,13 @@ class OneCService(threading.Thread):
                             Т.Код КАК Code,
                             Т.Наименование КАК Name,
                             {artikul_sql}
+                            {barcode_sql}
                             {vid_sql}
                             {unit_sql},
                             Т.ЭтоГруппа КАК IsFolder
                         ИЗ
                             Справочник.{ref_cat} КАК Т
+                            {join_barcode}
                         ГДЕ
                             НЕ Т.ПометкаУдаления
                             И (Т.Родитель ЕСТЬ NULL ИЛИ Т.Родитель = ЗНАЧЕНИЕ(Справочник.{ref_cat}.ПустаяСсылка))
@@ -1564,6 +1726,7 @@ class OneCService(threading.Thread):
                                 "code": str(res_i.Code).strip(),
                                 "name": str(res_i.Name).strip(),
                                 "artikul": str(res_i.Artikul).strip() if ref_cat == "Номенклатура" else "",
+                                "barcode": str(res_i.Barcode).strip() if ref_cat == "Номенклатура" else "",
                                 "vid_nom": str(res_i.VidNom).strip() if ref_cat == "Номенклатура" else "",
                                 "unit": str(res_i.Unit).strip() if ref_cat == "Номенклатура" else "",
                                 "is_folder": bool(res_i.IsFolder)
@@ -1575,7 +1738,9 @@ class OneCService(threading.Thread):
                         "catalog": cat_name,
                         "folder": folder_name,
                         "folders": folders,
-                        "items": items
+                        "items": items,
+                        "target_code": target_code,
+                        "target_folder": target_folder
                     }))
 
                 # 7. Action: Get Saved Reports list
@@ -2370,6 +2535,8 @@ class OneCService(threading.Thread):
                     if has_contract:
                         sel_parts.append("Т.ДоговорКонтрагента.Наименование КАК Contract")
                         columns.append({"key": "contract", "label": "Договор", "width": 150, "align": "left"})
+                        sel_parts.append("ПРЕДСТАВЛЕНИЕ(Т.ДоговорКонтрагента.Портфель) КАК Portfolio")
+                        columns.append({"key": "portfolio", "label": "Портфель", "width": 140, "align": "left"})
                         if is_realization:
                             sel_parts.append("Т.ДоговорКонтрагента.ТипЦен.Наименование КАК ContractPriceType")
                             columns.append({"key": "contract_price_type", "label": "Тип цен договора", "width": 130, "align": "left"})
@@ -2397,19 +2564,27 @@ class OneCService(threading.Thread):
 
                     if date_from:
                         try:
-                            yf, mf, df = map(int, date_from.split("-"))
+                            if "-" in date_from:
+                                yf, mf, df = map(int, date_from.split("-")[:3])
+                            elif "." in date_from:
+                                df, mf, yf = map(int, date_from.split(".")[:3])
                             dt_f = datetime.datetime(yf, mf, df, 0, 0, 0)
                             q_doc.SetParameter("DateFrom", dt_f)
                             where_parts.append("Т.Дата >= &DateFrom")
-                        except Exception: pass
+                        except Exception as e_df:
+                            print("date_from parse error:", e_df)
 
                     if date_to:
                         try:
-                            yt, mt, dt = map(int, date_to.split("-"))
+                            if "-" in date_to:
+                                yt, mt, dt = map(int, date_to.split("-")[:3])
+                            elif "." in date_to:
+                                dt, mt, yt = map(int, date_to.split(".")[:3])
                             dt_t = datetime.datetime(yt, mt, dt, 23, 59, 59)
                             q_doc.SetParameter("DateTo", dt_t)
                             where_parts.append("Т.Дата <= &DateTo")
-                        except Exception: pass
+                        except Exception as e_dt:
+                            print("date_to parse error:", e_dt)
 
                     where_sql = ("ГДЕ " + " И ".join(where_parts)) if where_parts else ""
 
@@ -2452,6 +2627,46 @@ class OneCService(threading.Thread):
                     УПОРЯДОЧИТЬ ПО
                         Т.Дата УБЫВ
                     """
+
+                    # Batch fetch nomenclatures for the document period if tabular section 'Товары' exists
+                    tab_names = set(str(t.Имя) for t in doc_meta.ТабличныеЧасти)
+                    has_tovary = "Товары" in tab_names
+                    doc_noms_map = {}
+                    doc_nomkeys_map = {}
+                    if has_tovary:
+                        try:
+                            q_noms = conn.NewObject("Запрос")
+                            noms_where = []
+                            if date_from and 'dt_f' in locals():
+                                q_noms.SetParameter("DateFrom", dt_f)
+                                noms_where.append("Т.Ссылка.Дата >= &DateFrom")
+                            if date_to and 'dt_t' in locals():
+                                q_noms.SetParameter("DateTo", dt_t)
+                                noms_where.append("Т.Ссылка.Дата <= &DateTo")
+                            noms_where_sql = ("ГДЕ " + " И ".join(noms_where)) if noms_where else ""
+                            q_noms.Text = f"""
+                            ВЫБРАТЬ РАЗЛИЧНЫЕ
+                                Т.Ссылка.Номер КАК Number,
+                                Т.Номенклатура.Наименование КАК NomName,
+                                Т.Номенклатура.Код КАК NomCode,
+                                Т.Номенклатура.Артикул КАК NomArt
+                            ИЗ
+                                Документ.{doc_type}.Товары КАК Т
+                            {noms_where_sql}
+                            """
+                            res_noms = q_noms.Execute().Choose()
+                            while res_noms.Next():
+                                d_n = str(res_noms.Number or "").strip()
+                                n_m = str(res_noms.NomName or "").strip()
+                                n_c = str(res_noms.NomCode or "").strip()
+                                n_a = str(res_noms.NomArt or "").strip()
+                                clean_code = n_c.lstrip("0") or n_c
+                                if d_n:
+                                    if n_m:
+                                        doc_noms_map.setdefault(d_n, []).append(n_m)
+                                    doc_nomkeys_map.setdefault(d_n, []).append(f"{n_c}|{clean_code}|{n_a}|{n_m}".lower())
+                        except Exception as e:
+                            print("Batch nomenclature fetch skipped:", e)
 
                     res_doc = q_doc.Execute().Choose()
                     items = []
@@ -2497,6 +2712,10 @@ class OneCService(threading.Thread):
                                 row_data["vms_status"] = ""
                         if has_contract:
                             row_data["contract"] = str(res_doc.Contract or "").strip()
+                            try:
+                                row_data["portfolio"] = str(res_doc.Portfolio or "").strip()
+                            except Exception:
+                                row_data["portfolio"] = ""
                             if is_realization:
                                 try:
                                     row_data["contract_price_type"] = str(res_doc.ContractPriceType or "").strip()
@@ -2517,6 +2736,12 @@ class OneCService(threading.Thread):
                             row_data["responsible"] = str(res_doc.Responsible or "").strip()
                         if has_comm:
                             row_data["comment"] = str(res_doc.Comment or "").strip()
+
+                        # Attach nomenclatures
+                        n_list = doc_noms_map.get(row_data["number"], [])
+                        row_data["nomenclatures"] = n_list
+                        row_data["nomenclature"] = ", ".join(n_list)
+                        row_data["nom_keys"] = doc_nomkeys_map.get(row_data["number"], [])
 
                         # Client side quick filter if search_str
                         if search_str:

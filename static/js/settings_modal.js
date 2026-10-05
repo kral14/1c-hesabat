@@ -879,8 +879,8 @@ function bindAutocomplete(input) {
     else if (field === "Контрагент") catalog = "Контрагенты";
     else if (field === "Портфель") catalog = "Портфели";
 
-    // Extract last typed word if semicolon- or comma-separated
-    const parts = query.split(/[;,]/);
+    // Extract last typed word if semicolon-separated
+    const parts = query.split(";");
     const lastWord = parts[parts.length - 1].trim();
 
     if (!lastWord) {
@@ -928,7 +928,47 @@ function renderAutocompleteItems(dropdown, input, folders, items) {
   const seen = new Set();
   const all = [];
 
-  folders.slice(0, 10).forEach(f => {
+  const rawQuery = (input.value || "").split(";").pop().trim().toLowerCase();
+  const cleanQ = rawQuery.replace(/^0+/, "");
+
+  // Prioritize exact/prefix matches for items (especially Artikul like 8530 and Code)
+  items.sort((a, b) => {
+    const aArt = String(a.artikul || "").trim().toLowerCase();
+    const bArt = String(b.artikul || "").trim().toLowerCase();
+    const aCode = String(a.code || "").trim().toLowerCase();
+    const bCode = String(b.code || "").trim().toLowerCase();
+    const aName = String(a.name || "").trim().toLowerCase();
+    const bName = String(b.name || "").trim().toLowerCase();
+
+    const aExactArt = (aArt === rawQuery || (cleanQ && aArt.replace(/^0+/, "") === cleanQ));
+    const bExactArt = (bArt === rawQuery || (cleanQ && bArt.replace(/^0+/, "") === cleanQ));
+    if (aExactArt && !bExactArt) return -1;
+    if (!aExactArt && bExactArt) return 1;
+
+    const aExactCode = (aCode === rawQuery || (cleanQ && aCode.replace(/^0+/, "") === cleanQ));
+    const bExactCode = (bCode === rawQuery || (cleanQ && bCode.replace(/^0+/, "") === cleanQ));
+    if (aExactCode && !bExactCode) return -1;
+    if (!aExactCode && bExactCode) return 1;
+
+    const aStartArt = aArt.startsWith(rawQuery) || (cleanQ && aArt.replace(/^0+/, "").startsWith(cleanQ));
+    const bStartArt = bArt.startsWith(rawQuery) || (cleanQ && bArt.replace(/^0+/, "").startsWith(cleanQ));
+    if (aStartArt && !bStartArt) return -1;
+    if (!aStartArt && bStartArt) return 1;
+
+    const aStartCode = aCode.startsWith(rawQuery) || (cleanQ && aCode.replace(/^0+/, "").startsWith(cleanQ));
+    const bStartCode = bCode.startsWith(rawQuery) || (cleanQ && bCode.replace(/^0+/, "").startsWith(cleanQ));
+    if (aStartCode && !bStartCode) return -1;
+    if (!aStartCode && bStartCode) return 1;
+
+    const aStartName = aName.startsWith(rawQuery);
+    const bStartName = bName.startsWith(rawQuery);
+    if (aStartName && !bStartName) return -1;
+    if (!aStartName && bStartName) return 1;
+
+    return aName.localeCompare(bName, "ru");
+  });
+
+  folders.slice(0, 8).forEach(f => {
     const key = (f.code || "") + ":" + (f.name || "");
     if (!seen.has(key)) {
       seen.add(key);
@@ -936,7 +976,7 @@ function renderAutocompleteItems(dropdown, input, folders, items) {
     }
   });
 
-  items.slice(0, 15).forEach(it => {
+  items.slice(0, 20).forEach(it => {
     const key = (it.code || "") + ":" + (it.name || "");
     if (!seen.has(key)) {
       seen.add(key);
@@ -954,16 +994,18 @@ function renderAutocompleteItems(dropdown, input, folders, items) {
     const div = document.createElement("div");
     div.className = "autocomplete-item";
     const icon = item.is_folder ? "📁" : "📄";
+    const artBadge = item.artikul ? `<span class="item-art" style="font-family: monospace; font-size: 10px; color: #0044cc; font-weight: 600; margin-right: 4px;">[Арт: ${escapeHtml(item.artikul)}]</span>` : "";
     div.innerHTML = `
       <span class="item-icon">${icon}</span>
-      <span class="item-code">[${escapeHtml(item.code || "")}]</span>
-      <span style="font-weight: ${item.is_folder ? 'bold' : 'normal'};">${escapeHtml(item.name)}</span>
+      <span class="item-code" style="color: #666; font-size: 10px; margin-right: 4px;">[${escapeHtml(item.code || "")}]</span>
+      ${artBadge}
+      <span style="font-weight: ${item.is_folder ? 'bold' : 'normal'}; color: #111111;">${escapeHtml(item.name)}</span>
     `;
 
     div.onclick = (e) => {
       e.stopPropagation();
       const current = input.value;
-      const parts = current.split(/[;,]/).map(p => p.trim()).filter(Boolean);
+      const parts = current.split(";").map(p => p.trim()).filter(Boolean);
       if (parts.length > 1) {
         parts[parts.length - 1] = item.name;
         input.value = parts.join("; ");

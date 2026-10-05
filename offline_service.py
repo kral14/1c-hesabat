@@ -200,6 +200,7 @@ def get_documents_list(payload):
                 {"key": "obrabotka_number", "label": "Номер обработки", "width": 125, "align": "left"},
                 {"key": "vms_status", "label": "Статус ВМС", "width": 135, "align": "left"},
                 {"key": "contract", "label": "Договор", "width": 150, "align": "left"},
+                {"key": "portfolio", "label": "Портфель", "width": 140, "align": "left"},
                 {"key": "contract_price_type", "label": "Тип цен договора", "width": 130, "align": "left"},
                 {"key": "pogruzka_marshrut", "label": "Пагрузка маршрут", "width": 130, "align": "left"},
                 {"key": "pogruzka_voditel", "label": "Пагрузка водитель", "width": 150, "align": "left"},
@@ -243,6 +244,15 @@ def get_documents_list(payload):
                 doc_num = f"C00004{r['min_id']:05d}"
                 dt_str = f"{r['period']} 12:00:00"
                 amount_val = float(r["tot_sum"] or 0.0)
+                port_val = "01 MONDELEZ" if (r['min_id'] % 2 == 0) else "04 FERRERO"
+                noms_arr = ["Шоколад Milka", "Печенье Oreo"] if (r['min_id'] % 2 == 0) else ["Raffaello", "Nutella"]
+                nom_keys_arr = [
+                    "00000008530|8530|art8530|шоколад milka",
+                    "00000008531|8531|art8531|печенье oreo"
+                ] if (r['min_id'] % 2 == 0) else [
+                    "00000009101|9101|art9101|raffaello",
+                    "00000009102|9102|art9102|nutella"
+                ]
                 item = {
                     "number": doc_num,
                     "date": dt_str,
@@ -254,12 +264,16 @@ def get_documents_list(payload):
                     "obrabotka_number": f"00001{r['min_id']:04d}",
                     "vms_status": "Подтвержден WMS",
                     "contract": "Основной договор",
+                    "portfolio": port_val,
                     "contract_price_type": "60",
                     "pogruzka_marshrut": "5329",
                     "pogruzka_voditel": "99JP085",
                     "agent": r["podrazdelenie"] or "Основное подразделение",
                     "responsible": "Ali",
                     "comment": f"Продажа товаров ({r['item_cnt']} поз.)",
+                    "nomenclatures": noms_arr,
+                    "nomenclature": ", ".join(noms_arr),
+                    "nom_keys": nom_keys_arr,
                     "posted": True,
                     "deleted": False,
                     "status": "posted"
@@ -789,7 +803,8 @@ def catalog_data(payload):
         folder = payload.get("folder", "").strip()
         search_q = payload.get("search", "").strip()
 
-        if "контрагент" in cat.lower():
+        cat_l = cat.lower()
+        if "контрагент" in cat_l:
             cur.execute("""
                 SELECT code, name, inn, is_group, parent FROM kontragenty 
                 WHERE (parent = ? OR ? = '') AND is_group = 0
@@ -800,10 +815,30 @@ def catalog_data(payload):
             folders = [{"name": r["parent"], "code": ""} for r in cur.fetchall()]
             return {"catalog": "Контрагенты", "folders": folders, "items": items}
 
-        elif "склад" in cat.lower():
+        elif "склад" in cat_l:
             cur.execute("SELECT code, name FROM sklady ORDER BY name")
             items = [{"code": r["code"], "name": r["name"], "is_folder": False} for r in cur.fetchall()]
             return {"catalog": "Склады", "folders": [], "items": items}
+
+        elif any(w in cat_l for w in ["тип цен", "типы цен", "price_type", "типыценноменклатуры"]):
+            cur.execute("SELECT code, name FROM price_types ORDER BY name")
+            items = [{"code": r["code"], "name": r["name"], "is_folder": False} for r in cur.fetchall()]
+            return {"catalog": "Типы цен", "folders": [], "items": items}
+
+        elif any(w in cat_l for w in ["договор", "contract"]):
+            cur.execute("SELECT DISTINCT contract FROM documents WHERE contract IS NOT NULL AND contract != '' ORDER BY contract")
+            items = [{"code": "", "name": r["contract"], "is_folder": False} for r in cur.fetchall()]
+            return {"catalog": "Договоры", "folders": [], "items": items}
+
+        elif any(w in cat_l for w in ["пользовател", "ответственн", "responsible", "user"]):
+            cur.execute("SELECT DISTINCT responsible FROM documents WHERE responsible IS NOT NULL AND responsible != '' ORDER BY responsible")
+            items = [{"code": "", "name": r["responsible"], "is_folder": False} for r in cur.fetchall()]
+            return {"catalog": "Пользователи", "folders": [], "items": items}
+
+        elif any(w in cat_l for w in ["водитель", "водители", "voditel"]):
+            cur.execute("SELECT DISTINCT pogruzka_voditel FROM documents WHERE pogruzka_voditel IS NOT NULL AND pogruzka_voditel != '' ORDER BY pogruzka_voditel")
+            items = [{"code": "", "name": r["pogruzka_voditel"], "is_folder": False} for r in cur.fetchall()]
+            return {"catalog": "Водители", "folders": [], "items": items}
 
         else: # Номенклатура
             cur.execute("""
