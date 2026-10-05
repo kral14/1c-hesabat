@@ -163,37 +163,34 @@ const SalesDocEditor = {
     let html = "";
     this.filteredItems.forEach((it, idx) => {
       const isSel = (this.selectedRowIdx === idx);
-      const bg = isSel ? "#e4edf7" : (idx % 2 === 1 ? "#f9f8f2" : "#ffffff");
+      const bg = isSel ? "#dceaf7" : (idx % 2 === 1 ? "#f9f8f2" : "#ffffff");
 
       html += `
-        <tr style="background: ${bg}; height: 22px; cursor: pointer;" onclick="SalesDocEditor.selectRow(${idx})" class="${isSel ? 'sde-row-selected' : ''}">
+        <tr style="background: ${bg}; height: 22px; cursor: pointer; user-select: text;" data-row-idx="${idx}" class="${isSel ? 'sde-row-selected' : ''}" onclick="SalesDocEditor.selectRow(${idx})">
           <!-- № -->
-          <td style="text-align: center; border: 1px solid #d4d0c8; padding: 2px; color: #555;">${it.line_num || (idx + 1)}</td>
+          <td data-col="num" style="text-align: center; border: 1px solid #d4d0c8; padding: 2px; color: #555; user-select: text;" onclick="SalesDocEditor.selectCell(${idx}, 'num', this, event)">${it.line_num || (idx + 1)}</td>
 
           <!-- Код -->
-          <td style="border: 1px solid #d4d0c8; padding: 1px 4px; font-weight: bold; color: #004080; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+          <td data-col="code" style="border: 1px solid #d4d0c8; padding: 1px 4px; font-weight: bold; color: #004080; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; user-select: text;" onclick="SalesDocEditor.selectCell(${idx}, 'code', this, event)">
             ${this.escapeHtml(it.code)}
           </td>
 
           <!-- Артикул -->
-          <td style="border: 1px solid #d4d0c8; padding: 1px 4px; color: #333; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+          <td data-col="artikul" style="border: 1px solid #d4d0c8; padding: 1px 4px; color: #333; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; user-select: text;" onclick="SalesDocEditor.selectCell(${idx}, 'artikul', this, event)">
             ${this.escapeHtml(it.artikul || "-")}
           </td>
 
           <!-- Номенклатура (с кнопками ... и 🔍) -->
-          <td style="border: 1px solid #d4d0c8; padding: 1px 2px; position: relative;">
+          <td data-col="name" style="border: 1px solid #d4d0c8; padding: 1px 2px; position: relative; user-select: text;" onclick="SalesDocEditor.selectCell(${idx}, 'name', this, event)">
             <div style="display: flex; align-items: stretch; width: 100%; height: 19px;">
               <input type="text" value="${this.escapeHtml(it.name)}" 
                      title="${this.escapeHtml(it.name)}"
                      onchange="SalesDocEditor.onNameChange(${idx}, this.value)"
                      style="flex: 1; min-width: 0; height: 100%; border: 1px solid transparent; background: transparent; font-family: Tahoma, sans-serif; font-size: 11px; padding: 0 4px; outline: none; text-overflow: ellipsis; overflow: hidden; box-sizing: border-box;"
-                     onmouseover="this.style.border='1px solid #7f9db9'"
-                     onmouseout="if(document.activeElement!==this) this.style.border='1px solid transparent'"
-                     onfocusin="this.style.border='1px solid #0055ea'; this.style.background='#fff'; SalesDocEditor.selectRow(${idx});"
-                     onfocusout="this.style.border='1px solid transparent'; this.style.background='transparent';">
+                     onfocus="this.select(); SalesDocEditor.selectCell(${idx}, 'name', this.closest('td'));">
               <div style="display: flex; align-items: stretch; flex-shrink: 0; height: 100%;">
                 <button type="button" onclick="event.stopPropagation(); SalesDocEditor.openNomPicker(${idx})" 
-                        title="Выбрать из справочника (F4)"
+                        title="Открыть карточку номенклатуры / Выбрать (F4)"
                         style="height: 100%; width: 19px; padding: 0; border: 1px solid #7f9db9; border-right: none; background: #e0dfd5; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: bold; color: #222;"
                         onmouseover="this.style.background='#f0eee3'"
                         onmouseout="this.style.background='#e0dfd5'">
@@ -211,50 +208,42 @@ const SalesDocEditor = {
           </td>
 
           <!-- Количество -->
-          <td style="border: 1px solid #d4d0c8; padding: 1px 3px; text-align: right;">
+          <td data-col="quantity" style="border: 1px solid #d4d0c8; padding: 1px 3px; text-align: right; user-select: text;" onclick="SalesDocEditor.selectCell(${idx}, 'quantity', this, event)">
             <input type="text" value="${Number(it.quantity).toFixed(2)}"
                    onchange="SalesDocEditor.onQtyChange(${idx}, this.value)"
-                   onfocus="this.select()"
-                   style="width: 100%; height: 19px; text-align: right; border: 1px solid transparent; background: transparent; font-family: Tahoma, sans-serif; font-size: 11px; font-weight: bold; outline: none; padding: 0 2px; box-sizing: border-box;"
-                   onmouseover="this.style.border='1px solid #7f9db9'"
-                   onmouseout="if(document.activeElement!==this) this.style.border='1px solid transparent'"
-                   onfocusin="this.style.border='1px solid #0055ea'; this.style.background='#fff';"
-                   onfocusout="this.style.border='1px solid transparent'; this.style.background='transparent';">
+                   onfocus="this.select(); SalesDocEditor.selectCell(${idx}, 'quantity', this.closest('td'));"
+                   style="width: 100%; height: 19px; text-align: right; border: 1px solid transparent; background: transparent; font-family: Tahoma, sans-serif; font-size: 11px; font-weight: bold; outline: none; padding: 0 2px; box-sizing: border-box;">
           </td>
 
           <!-- Единица -->
-          <td style="text-align: center; border: 1px solid #d4d0c8; padding: 2px; color: #444;">${this.escapeHtml(it.unit || "əd")}</td>
+          <td data-col="unit" style="text-align: center; border: 1px solid #d4d0c8; padding: 2px; color: #444; user-select: text;" onclick="SalesDocEditor.selectCell(${idx}, 'unit', this, event)">${this.escapeHtml(it.unit || "əd")}</td>
 
           <!-- Коэффициент -->
-          <td style="text-align: center; border: 1px solid #d4d0c8; padding: 2px; color: #666;">${Number(it.coefficient || 1).toFixed(0)}</td>
+          <td data-col="coefficient" style="text-align: center; border: 1px solid #d4d0c8; padding: 2px; color: #666; user-select: text;" onclick="SalesDocEditor.selectCell(${idx}, 'coefficient', this, event)">${Number(it.coefficient || 1).toFixed(0)}</td>
 
           <!-- Цена -->
-          <td style="border: 1px solid #d4d0c8; padding: 1px 3px; text-align: right;">
+          <td data-col="price" style="border: 1px solid #d4d0c8; padding: 1px 3px; text-align: right; user-select: text;" onclick="SalesDocEditor.selectCell(${idx}, 'price', this, event)">
             <input type="text" value="${Number(it.price).toFixed(2)}"
                    onchange="SalesDocEditor.onPriceChange(${idx}, this.value)"
-                   onfocus="this.select()"
-                   style="width: 100%; height: 19px; text-align: right; border: 1px solid transparent; background: transparent; font-family: Tahoma, sans-serif; font-size: 11px; font-weight: bold; outline: none; padding: 0 2px; box-sizing: border-box;"
-                   onmouseover="this.style.border='1px solid #7f9db9'"
-                   onmouseout="if(document.activeElement!==this) this.style.border='1px solid transparent'"
-                   onfocusin="this.style.border='1px solid #0055ea'; this.style.background='#fff';"
-                   onfocusout="this.style.border='1px solid transparent'; this.style.background='transparent';">
+                   onfocus="this.select(); SalesDocEditor.selectCell(${idx}, 'price', this.closest('td'));"
+                   style="width: 100%; height: 19px; text-align: right; border: 1px solid transparent; background: transparent; font-family: Tahoma, sans-serif; font-size: 11px; font-weight: bold; outline: none; padding: 0 2px; box-sizing: border-box;">
           </td>
 
           <!-- Сумма -->
-          <td style="text-align: right; border: 1px solid #d4d0c8; padding: 2px 6px; font-weight: bold; color: #111;">
+          <td data-col="sum" style="text-align: right; border: 1px solid #d4d0c8; padding: 2px 6px; font-weight: bold; color: #111; user-select: text;" onclick="SalesDocEditor.selectCell(${idx}, 'sum', this, event)">
             ${Number(it.sum).toFixed(2)}
           </td>
 
           <!-- % НДС -->
-          <td style="text-align: center; border: 1px solid #d4d0c8; padding: 2px; color: #555;">${this.escapeHtml(it.vat_rate || "18%")}</td>
+          <td data-col="vat_rate" style="text-align: center; border: 1px solid #d4d0c8; padding: 2px; color: #555; user-select: text;" onclick="SalesDocEditor.selectCell(${idx}, 'vat_rate', this, event)">${this.escapeHtml(it.vat_rate || "18%")}</td>
 
           <!-- Сумма НДС -->
-          <td style="text-align: right; border: 1px solid #d4d0c8; padding: 2px 5px; color: #444;">
+          <td data-col="vat_sum" style="text-align: right; border: 1px solid #d4d0c8; padding: 2px 5px; color: #444; user-select: text;" onclick="SalesDocEditor.selectCell(${idx}, 'vat_sum', this, event)">
             ${Number(it.vat_sum).toFixed(2)}
           </td>
 
           <!-- Всего -->
-          <td style="text-align: right; border: 1px solid #d4d0c8; padding: 2px 6px; font-weight: bold; color: #002060;">
+          <td data-col="total" style="text-align: right; border: 1px solid #d4d0c8; padding: 2px 6px; font-weight: bold; color: #002060; user-select: text;" onclick="SalesDocEditor.selectCell(${idx}, 'total', this, event)">
             ${Number(it.total).toFixed(2)}
           </td>
         </tr>
@@ -265,15 +254,75 @@ const SalesDocEditor = {
     this.updateRowCount();
   },
 
-  selectRow: function(idx) {
-    this.selectedRowIdx = idx;
-    const rows = document.querySelectorAll("#sdeTableBody tr");
+  selectedColKey: "name",
+
+  selectCell: function(rowIdx, colKey, targetTd, event) {
+    if (event) event.stopPropagation();
+    this.selectedRowIdx = rowIdx;
+    if (colKey) this.selectedColKey = colKey;
+
+    const tbody = document.getElementById("sdeTableBody");
+    if (!tbody) return;
+    const rows = tbody.querySelectorAll("tr");
     rows.forEach((r, i) => {
-      const isSel = (i === idx);
-      r.style.background = isSel ? "#e4edf7" : (i % 2 === 1 ? "#f9f8f2" : "#ffffff");
+      const isSel = (i === rowIdx);
+      const defaultBg = (i % 2 === 1 ? "#f9f8f2" : "#ffffff");
+      r.style.background = isSel ? "#dceaf7" : defaultBg;
+      r.style.color = "#111111";
       if (isSel) r.classList.add("sde-row-selected");
       else r.classList.remove("sde-row-selected");
+
+      const cells = r.querySelectorAll("td");
+      cells.forEach(td => {
+        const k = td.getAttribute("data-col");
+        const isCellActive = isSel && (targetTd ? td === targetTd : k === this.selectedColKey);
+        const inp = td.querySelector("input:not([type='checkbox']):not([type='button']), textarea");
+
+        if (isCellActive) {
+          td.style.setProperty("background", "#316ac5", "important");
+          td.style.setProperty("color", "#ffffff", "important");
+          td.classList.add("c1-cell-active");
+          td.classList.add("sde-cell-active");
+
+          if (inp) {
+            inp.style.setProperty("background", "#316ac5", "important");
+            inp.style.setProperty("color", "#ffffff", "important");
+            inp.focus();
+            inp.select();
+            window.lastActive1cCellText = inp.value;
+          } else {
+            this.copyAndSelectCellText(td);
+          }
+        } else {
+          td.style.setProperty("background", isSel ? "#dceaf7" : defaultBg);
+          td.style.setProperty("color", "#111111");
+          td.classList.remove("c1-cell-active");
+          td.classList.remove("sde-cell-active");
+
+          if (inp) {
+            inp.style.setProperty("background", "transparent");
+            inp.style.setProperty("color", (k === "code") ? "#004080" : "#111111");
+          }
+        }
+      });
     });
+  },
+
+  selectRow: function(idx) {
+    this.selectCell(idx, this.selectedColKey || "name");
+  },
+
+  copyAndSelectCellText: function(cellEl) {
+    if (!cellEl) return;
+    const text = cellEl.innerText.trim();
+    window.lastActive1cCellText = text;
+    try {
+      const sel = window.getSelection();
+      const range = document.createRange();
+      range.selectNodeContents(cellEl);
+      sel.removeAllRanges();
+      sel.addRange(range);
+    } catch(e) {}
   },
 
   onQtyChange: function(idx, rawVal) {
@@ -414,16 +463,35 @@ const SalesDocEditor = {
   },
 
   openNomPicker: function(idx) {
-    if (typeof PriceDocEditor !== "undefined" && PriceDocEditor.openNomPickerForRow) {
-      PriceDocEditor.pickerTargetRowIdx = idx;
-      PriceDocEditor.openNomPickerForRow(idx);
+    const it = this.filteredItems[idx];
+    if (!it) return;
+    // 3 dots button opens the authentic 1C Nomenclature Item Card
+    if (typeof NomenclatureCard !== "undefined" && NomenclatureCard.open) {
+      NomenclatureCard.open(it.code, it.name);
+    } else if (typeof CatalogSelector !== "undefined" && CatalogSelector.open) {
+      CatalogSelector.open({
+        catalog: "Номенклатура",
+        onSelect: (selected) => {
+          if (selected) {
+            it.code = selected.code || it.code;
+            it.name = selected.name || it.name;
+            it.artikul = selected.artikul || it.artikul;
+            this.renderTable();
+          }
+        }
+      });
     } else {
-      this.openItemPicker();
+      alert(`Товар: ${it.name}\nКод: ${it.code}\nАртикул: ${it.artikul}`);
     }
   },
 
   openItemPicker: function() {
-    if (window.openPortfolioReportWindow) {
+    if (typeof CatalogSelector !== "undefined" && CatalogSelector.open) {
+      CatalogSelector.open({
+        catalog: "Номенклатура",
+        podborMode: true
+      });
+    } else if (window.openPortfolioReportWindow) {
       openPortfolioReportWindow();
     }
   },

@@ -53,7 +53,17 @@ body {
   user-select: none;
 }
 
-/* Allow text selection in table cells and inputs for easy copying */
+/* Allow text selection in all table cells and inputs for easy copying */
+table,
+table tr,
+table td,
+table th,
+.uj-row,
+.uj-row td,
+.sde-row,
+.sde-row td,
+.pde-row,
+.pde-row td,
 .pc-report-table,
 .pc-report-table tr,
 .pc-report-table td,
@@ -69,12 +79,56 @@ select {
   -webkit-user-select: text !important;
 }
 
+/* 1C Classic Active Row (Light Blue) */
+tr.c1-row-selected,
+tr.uj-row-selected,
+tr.sde-row-selected,
+tr.pde-row-selected {
+  background-color: #dceaf7 !important;
+  color: #111111 !important;
+}
+
+tr.c1-row-selected > td,
+tr.uj-row-selected > td,
+tr.sde-row-selected > td,
+tr.pde-row-selected > td {
+  background-color: #dceaf7 !important;
+  color: #111111 !important;
+}
+
+/* Active Selected Cell: Solid 1C Blue with Crisp White Text */
+td.c1-cell-active,
+td.uj-cell-active,
+td.sde-cell-active,
+td.pde-cell-active {
+  background-color: #316ac5 !important;
+  color: #ffffff !important;
+  outline: 1px dotted #ffffff;
+  outline-offset: -1px;
+}
+
+td.c1-cell-active *,
+td.uj-cell-active *,
+td.sde-cell-active *,
+td.pde-cell-active * {
+  color: #ffffff !important;
+}
+
+td.c1-cell-active input,
+td.uj-cell-active input,
+td.sde-cell-active input,
+td.pde-cell-active input {
+  background-color: #316ac5 !important;
+  color: #ffffff !important;
+  border-color: #316ac5 !important;
+}
+
 ::selection {
-  background: #0055ea !important;
+  background: #316ac5 !important;
   color: #ffffff !important;
 }
 ::-moz-selection {
-  background: #0055ea !important;
+  background: #316ac5 !important;
   color: #ffffff !important;
 }
 

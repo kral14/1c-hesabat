@@ -396,7 +396,7 @@ const UniversalJournal = {
         statusIconHtml = `<span title="Не проведен (Черновик)" style="color:#666666; font-size:11px;">📄</span>`;
       }
 
-      html += `<tr class="uj-row" data-row-idx="${i}" style="background: ${rowBg}; color: ${textColor}; height: 21px; cursor: pointer; user-select: none;" onclick="UniversalJournal.selectRow(${i})" ondblclick="UniversalJournal.editSelectedDocument()">`;
+      html += `<tr class="uj-row" data-row-idx="${i}" style="background: ${rowBg}; color: ${textColor}; height: 21px; cursor: pointer; user-select: text;" onclick="UniversalJournal.selectRow(${i})" ondblclick="UniversalJournal.editSelectedDocument()">`;
 
       for (let c = 0; c < this.columns.length; c++) {
         const col = this.columns[c];
@@ -404,7 +404,7 @@ const UniversalJournal = {
         let val = row[key];
 
         if (key === "status") {
-          html += `<td style="padding: 2px; text-align: center; border: 1px solid #d4d0c8;">${statusIconHtml}</td>`;
+          html += `<td data-col-key="status" style="padding: 2px; text-align: center; border: 1px solid #d4d0c8; user-select: text;" onclick="UniversalJournal.selectCell(${i}, 'status', this, event)">${statusIconHtml}</td>`;
           continue;
         }
 
@@ -414,7 +414,7 @@ const UniversalJournal = {
 
         const align = col.align || "left";
         const cellText = (val !== undefined && val !== null) ? String(val) : "";
-        html += `<td style="padding: 2px 6px; text-align: ${align}; border: 1px solid #d4d0c8; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${this.escapeHtml(cellText)}</td>`;
+        html += `<td data-col-key="${key}" style="padding: 2px 6px; text-align: ${align}; border: 1px solid #d4d0c8; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; user-select: text;" onclick="UniversalJournal.selectCell(${i}, '${key}', this, event)">${this.escapeHtml(cellText)}</td>`;
       }
 
       html += `</tr>`;
@@ -445,22 +445,60 @@ const UniversalJournal = {
     headRow.innerHTML = html;
   },
 
-  selectRow: function(idx) {
+  selectedColKey: "number",
+
+  selectCell: function(idx, colKey, targetTd, event) {
+    if (event) event.stopPropagation();
+    this.selectRow(idx, colKey, targetTd);
+  },
+
+  selectRow: function(idx, colKey, targetTd) {
     this.selectedRow = this.filteredItems[idx] || null;
+    if (colKey) this.selectedColKey = colKey;
     this.updateEditButtonState();
 
-    // Re-render highlight
-    const rows = document.querySelectorAll("#ujTableBody tr");
+    const tbody = document.getElementById("ujTableBody");
+    if (!tbody) return;
+    const rows = tbody.querySelectorAll("tr");
     rows.forEach((tr, i) => {
       const isSel = (i === idx);
       const defaultBg = (i % 2 === 1) ? "#f7f6f0" : "#ffffff";
-      tr.style.background = isSel ? "#316ac5" : defaultBg;
-      tr.style.color = isSel ? "#ffffff" : "#111111";
+      tr.style.background = isSel ? "#dceaf7" : defaultBg;
+      tr.style.color = "#111111";
+
+      const cells = tr.querySelectorAll("td");
+      cells.forEach(td => {
+        const k = td.getAttribute("data-col-key");
+        const isCellActive = isSel && (targetTd ? td === targetTd : k === this.selectedColKey);
+        if (isCellActive) {
+          td.style.background = "#316ac5";
+          td.style.color = "#ffffff";
+          td.classList.add("c1-cell-active");
+          this.copyAndSelectCellText(td);
+        } else {
+          td.style.background = isSel ? "#dceaf7" : defaultBg;
+          td.style.color = "#111111";
+          td.classList.remove("c1-cell-active");
+        }
+      });
     });
 
     if (this.selectedRow) {
       this.updateStatus(`Выбран документ: № ${this.selectedRow.number} от ${this.selectedRow.date}`);
     }
+  },
+
+  copyAndSelectCellText: function(cellEl) {
+    if (!cellEl) return;
+    const text = cellEl.innerText.trim();
+    window.lastActive1cCellText = text;
+    try {
+      const sel = window.getSelection();
+      const range = document.createRange();
+      range.selectNodeContents(cellEl);
+      sel.removeAllRanges();
+      sel.addRange(range);
+    } catch(e) {}
   },
 
   updateEditButtonState: function() {
