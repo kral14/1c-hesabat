@@ -363,68 +363,98 @@ const UniversalJournal = {
     });
   },
 
+  renderedCount: 0,
+  renderBatchSize: 300,
+
   renderTable: function() {
     this.renderTableHead();
     const tbody = document.getElementById("ujTableBody");
     const emptyEl = document.getElementById("ujEmptyState");
-    const tableEl = document.getElementById("ujTable");
     if (!tbody) return;
 
+    this.renderedCount = 0;
+    tbody.innerHTML = "";
+
     if (this.filteredItems.length === 0) {
-      tbody.innerHTML = "";
       if (emptyEl) emptyEl.style.display = "flex";
       return;
     }
 
     if (emptyEl) emptyEl.style.display = "none";
+    this.renderMoreRows();
+    this.attachInfiniteScrollListener();
+  },
 
-    let html = "";
-    for (let i = 0; i < this.filteredItems.length; i++) {
-      const row = this.filteredItems[i];
-      const isSelected = this.selectedRow && this.selectedRow.number === row.number;
-      const defaultBg = (i % 2 === 1) ? "#f7f6f0" : "#ffffff";
-      const rowBg = isSelected ? "#316ac5" : defaultBg;
-      const textColor = isSelected ? "#ffffff" : "#111111";
+  renderRowHtml: function(row, i) {
+    const isSelected = this.selectedRow && this.selectedRow.number === row.number;
+    const defaultBg = (i % 2 === 1) ? "#f7f6f0" : "#ffffff";
+    const rowBg = isSelected ? "#316ac5" : defaultBg;
+    const textColor = isSelected ? "#ffffff" : "#111111";
 
-      // Status icon
-      let statusIconHtml = "";
-      if (row.deleted) {
-        statusIconHtml = `<span title="Помечен на удаление" style="color:#d32f2f; font-weight:bold; font-size:12px;">✕</span>`;
-      } else if (row.posted) {
-        statusIconHtml = `<span title="Проведен" style="color:#2e7d32; font-weight:bold; font-size:13px;">✔</span>`;
-      } else {
-        statusIconHtml = `<span title="Не проведен (Черновик)" style="color:#666666; font-size:11px;">📄</span>`;
-      }
-
-      html += `<tr class="uj-row" data-row-idx="${i}" style="background: ${rowBg}; color: ${textColor}; height: 21px; cursor: pointer; user-select: text;" onclick="UniversalJournal.selectRow(${i})" ondblclick="UniversalJournal.editSelectedDocument()">`;
-
-      for (let c = 0; c < this.columns.length; c++) {
-        const col = this.columns[c];
-        const key = col.key;
-        let val = row[key];
-
-        if (key === "status") {
-          html += `<td data-col-key="status" style="padding: 2px; text-align: center; border: 1px solid #d4d0c8; user-select: text;" onclick="UniversalJournal.selectCell(${i}, 'status', this, event)">${statusIconHtml}</td>`;
-          continue;
-        }
-
-        if (key === "amount" && typeof val === "number") {
-          val = val.toLocaleString("ru-RU", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-        }
-
-        const align = col.align || "left";
-        const cellText = (val !== undefined && val !== null) ? String(val) : "";
-        html += `<td data-col-key="${key}" style="padding: 2px 6px; text-align: ${align}; border: 1px solid #d4d0c8; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; user-select: text;" onclick="UniversalJournal.selectCell(${i}, '${key}', this, event)">${this.escapeHtml(cellText)}</td>`;
-      }
-
-      html += `</tr>`;
+    let statusIconHtml = "";
+    if (row.deleted) {
+      statusIconHtml = `<span title="Помечен на удаление" style="color:#d32f2f; font-weight:bold; font-size:12px;">✕</span>`;
+    } else if (row.posted) {
+      statusIconHtml = `<span title="Проведен" style="color:#2e7d32; font-weight:bold; font-size:13px;">✔</span>`;
+    } else {
+      statusIconHtml = `<span title="Не проведен (Черновик)" style="color:#666666; font-size:11px;">📄</span>`;
     }
 
-    tbody.innerHTML = html;
+    const cells = [];
+    for (let c = 0; c < this.columns.length; c++) {
+      const col = this.columns[c];
+      const key = col.key;
+      let val = row[key];
+
+      if (key === "status") {
+        cells.push(`<td data-col-key="status" style="padding: 2px; text-align: center; border: 1px solid #d4d0c8; user-select: text;" onclick="UniversalJournal.selectCell(${i}, 'status', this, event)">${statusIconHtml}</td>`);
+        continue;
+      }
+
+      if (key === "amount" && typeof val === "number") {
+        val = val.toLocaleString("ru-RU", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+      }
+
+      const align = col.align || "left";
+      const cellText = (val !== undefined && val !== null) ? String(val) : "";
+      cells.push(`<td data-col-key="${key}" style="padding: 2px 6px; text-align: ${align}; border: 1px solid #d4d0c8; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; user-select: text;" onclick="UniversalJournal.selectCell(${i}, '${key}', this, event)">${this.escapeHtml(cellText)}</td>`);
+    }
+
+    return `<tr class="uj-row" data-row-idx="${i}" style="background: ${rowBg}; color: ${textColor}; height: 21px; cursor: pointer; user-select: text;" onclick="UniversalJournal.selectRow(${i})" ondblclick="UniversalJournal.editSelectedDocument()">${cells.join("")}</tr>`;
+  },
+
+  renderMoreRows: function() {
+    const tbody = document.getElementById("ujTableBody");
+    if (!tbody || this.renderedCount >= this.filteredItems.length) return;
+
+    const start = this.renderedCount;
+    const end = Math.min(this.filteredItems.length, start + this.renderBatchSize);
+    const chunk = [];
+    for (let i = start; i < end; i++) {
+      chunk.push(this.renderRowHtml(this.filteredItems[i], i));
+    }
+
+    tbody.insertAdjacentHTML("beforeend", chunk.join(""));
+    this.renderedCount = end;
+
     this.attachScrollPrefetchListener();
     setTimeout(() => {
       this.queueVisibleDocumentsForPrefetch();
     }, 80);
+  },
+
+  attachInfiniteScrollListener: function() {
+    const wrapper = document.getElementById("ujTableWrapper");
+    if (!wrapper || wrapper._hasInfiniteScroll) return;
+    wrapper._hasInfiniteScroll = true;
+
+    wrapper.addEventListener("scroll", () => {
+      if (wrapper.scrollTop + wrapper.clientHeight >= wrapper.scrollHeight - 350) {
+        if (this.renderedCount < this.filteredItems.length) {
+          this.renderMoreRows();
+        }
+      }
+    }, { passive: true });
   },
 
   renderTableHead: function() {
@@ -460,9 +490,10 @@ const UniversalJournal = {
     const tbody = document.getElementById("ujTableBody");
     if (!tbody) return;
     const rows = tbody.querySelectorAll("tr");
-    rows.forEach((tr, i) => {
-      const isSel = (i === idx);
-      const defaultBg = (i % 2 === 1) ? "#f7f6f0" : "#ffffff";
+    rows.forEach((tr) => {
+      const rowIdx = parseInt(tr.getAttribute("data-row-idx"));
+      const isSel = (rowIdx === idx);
+      const defaultBg = (rowIdx % 2 === 1) ? "#f7f6f0" : "#ffffff";
       tr.style.background = isSel ? "#dceaf7" : defaultBg;
       tr.style.color = "#111111";
 
