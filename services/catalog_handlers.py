@@ -122,8 +122,8 @@ def handle_search_nomenklatura(conn, payload, key, resp_q):
 
 def handle_catalog_data(conn, payload, key, resp_q):
     cat_name = payload.get("catalog", "Номенклатура")
-    folder_name = payload.get("folder", "").strip()
-    search_q = payload.get("search", "").strip()
+    folder_name = str(payload.get("folder") or "").strip()
+    search_q = str(payload.get("search") or "").strip()
 
     if "портфел" in cat_name.lower():
         q_port = conn.NewObject("Запрос")
@@ -194,21 +194,24 @@ def handle_catalog_data(conn, payload, key, resp_q):
     items = []
     target_code = None
     target_folder = None
+    parent_folder = None
 
-    locate_code = payload.get("locate_code", "").strip()
-    locate_name = payload.get("locate_name", "").strip()
-    locate_val = payload.get("locate_item", "").strip()
+    locate_code = str(payload.get("locate_code") or "").strip()
+    locate_name = str(payload.get("locate_name") or "").strip()
+    locate_val = str(payload.get("locate_item") or "").strip()
 
-    if is_hier and (locate_code or locate_name or locate_val) and not folder_name and not search_q:
+    if is_hier and (locate_code or locate_name or locate_val) and not folder_name:
         try:
             q_loc = conn.NewObject("Запрос")
             where_loc = []
             if locate_code:
-                where_loc.append("Т.Код = &LocCode")
+                where_loc.append("(Т.Код = &LocCode ИЛИ Т.Код ПОДОБНО &LocCodeLike)")
                 q_loc.SetParameter("LocCode", locate_code)
+                q_loc.SetParameter("LocCodeLike", f"{locate_code}%")
             if locate_name:
-                where_loc.append("Т.Наименование = &LocName")
+                where_loc.append("(Т.Наименование = &LocName ИЛИ Т.Наименование ПОДОБНО &LocNameLike)")
                 q_loc.SetParameter("LocName", locate_name)
+                q_loc.SetParameter("LocNameLike", f"{locate_name}%")
             if locate_val and not locate_code and not locate_name:
                 where_loc.append("(Т.Код = &LocVal ИЛИ Т.Наименование = &LocVal ИЛИ Т.Код ПОДОБНО &LocLike ИЛИ Т.Наименование ПОДОБНО &LocLike)")
                 q_loc.SetParameter("LocVal", locate_val)
@@ -219,7 +222,8 @@ def handle_catalog_data(conn, payload, key, resp_q):
                 ВЫБРАТЬ ПЕРВЫЕ 1
                     Т.Код КАК Code,
                     Т.Наименование КАК Name,
-                    ЕСТЬNULL(Т.Родитель.Наименование, "") КАК FolderName
+                    ЕСТЬNULL(Т.Родитель.Наименование, "") КАК FolderName,
+                    ЕСТЬNULL(Т.Родитель.Родитель.Наименование, "") КАК ParentFolderName
                 ИЗ
                     Справочник.{ref_cat} КАК Т
                 ГДЕ
@@ -231,10 +235,31 @@ def handle_catalog_data(conn, payload, key, resp_q):
                 if res_loc.Next():
                     target_code = str(res_loc.Code).strip()
                     target_folder = str(res_loc.FolderName or "").strip()
+                    parent_folder = str(res_loc.ParentFolderName or "").strip()
                     if target_folder:
                         folder_name = target_folder
         except Exception as eloc:
             print(f"Error locating item in catalog {ref_cat}:", eloc)
+
+    if is_hier and folder_name and not parent_folder:
+        try:
+            q_p = conn.NewObject("Запрос")
+            q_p.Text = f"""
+            ВЫБРАТЬ ПЕРВЫЕ 1
+                ЕСТЬNULL(Т.Родитель.Наименование, "") КАК ParentName
+            ИЗ
+                Справочник.{ref_cat} КАК Т
+            ГДЕ
+                Т.ЭтоГруппа
+                И НЕ Т.ПометкаУдаления
+                И Т.Наименование = &FolderName
+            """
+            q_p.SetParameter("FolderName", folder_name)
+            res_p = q_p.Execute().Choose()
+            if res_p.Next():
+                parent_folder = str(res_p.ParentName or "").strip()
+        except Exception:
+            pass
 
     # 1. Non-hierarchical (Flat) Catalogs (e.g. ТипыЦенНоменклатуры, Portfolios, etc.)
     if not is_hier:
@@ -488,6 +513,7 @@ def handle_catalog_data(conn, payload, key, resp_q):
     resp_q.put((True, {
         "catalog": cat_name,
         "folder": folder_name,
+        "parent_folder": parent_folder,
         "folders": folders,
         "items": items,
         "target_code": target_code,

@@ -474,6 +474,7 @@ const SalesDocEditor = {
         locate_code: it ? it.code : "",
         locate_name: it ? it.name : "",
         locate_item: it ? (it.code || it.name) : "",
+        search: it ? (it.name || it.code || "") : "",
         onSelect: (selected) => {
           if (selected && it) {
             it.code = selected.code || it.code;

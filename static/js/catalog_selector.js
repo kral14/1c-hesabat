@@ -23,6 +23,7 @@ const CatalogSelector = {
     this.podborMode = options.podborMode || false;
     this.podborCount = 0;
     this.currentFolder = options.folder || "";
+    this.parentFolder = "";
     this.selectedItem = null;
 
     // Item locate support
@@ -30,12 +31,17 @@ const CatalogSelector = {
     this.locateName = String(options.locate_name || options.name || "").trim();
     this.locateItem = String(options.locate_item || options.locate_val || "").trim();
 
-    // If locating a specific item, do NOT prefill search box because we want to open the parent folder and highlight the item!
-    if (this.locateCode || this.locateName || this.locateItem) {
-      this.initialSearch = options.search || "";
-    } else {
-      this.initialSearch = options.search || (this.targetInput ? this.targetInput.value : "") || "";
+    if (!this.locateCode && !this.locateName && !this.locateItem && this.targetInput && this.targetInput.value) {
+      const rawVal = this.targetInput.value.trim();
+      const val = rawVal.includes(";") ? rawVal.split(";").pop().trim() : rawVal;
+      if (val) {
+        this.locateItem = val;
+      }
     }
+
+    // The search box should contain the product's name/code as requested by the user
+    this.initialSearch = String(options.search || this.locateName || this.locateItem || (this.targetInput ? this.targetInput.value : "") || "").trim();
+    this.preserveTargetCode = this.locateCode || this.locateItem || "";
 
     const win = document.getElementById("catalogWindowModal");
     if (!win) return;
@@ -263,20 +269,25 @@ const CatalogSelector = {
 
       if (data.target_folder) {
         this.currentFolder = data.target_folder;
+        this.parentFolder = data.parent_folder || "";
         this.updateFolderButton();
+      }
+      if (data.target_code) {
+        this.preserveTargetCode = data.target_code;
       }
       this.renderFolders(data.folders || []);
       this.renderItems(data.items || []);
 
-      if (data.target_code) {
+      const targetToHighlight = data.target_code || this.preserveTargetCode;
+      if (targetToHighlight) {
         const tbody = document.getElementById("catalogItemsBody");
         if (tbody) {
           const foundTr = Array.from(tbody.querySelectorAll("tr")).find(
-            r => r.dataset.code === data.target_code || r.dataset.name === data.target_code
+            r => r.dataset.code === targetToHighlight || r.dataset.name === targetToHighlight
           );
           if (foundTr) {
             const itemObj = (data.items || []).find(
-              it => it.code === data.target_code || it.name === data.target_code
+              it => it.code === targetToHighlight || it.name === targetToHighlight
             );
             if (itemObj) {
               this.highlightItem(foundTr, itemObj);
@@ -304,6 +315,15 @@ const CatalogSelector = {
     }
   },
 
+  navigateUpFolder() {
+    this.currentFolder = this.parentFolder || "";
+    this.parentFolder = "";
+    this.updateFolderButton();
+    const searchInput = document.getElementById("catalogSearchInput");
+    if (searchInput) searchInput.value = "";
+    this.loadCatalogData("");
+  },
+
   renderFolders(folders) {
     const treeList = document.getElementById("catalogTreeList");
     if (!treeList) return;
@@ -316,26 +336,37 @@ const CatalogSelector = {
       </li>
     `;
 
+    // Parent folder if exists in hierarchy
+    let parentFolderHtml = "";
+    if (this.parentFolder && this.parentFolder !== this.currentFolder) {
+      parentFolderHtml = `
+        <li class="catalog-tree-item" onclick="CatalogSelector.selectFolder(this, '${escapeHtml(this.parentFolder)}')">
+          <span style="padding-left: 10px;">📁</span>
+          <span>${escapeHtml(this.parentFolder)}</span>
+        </li>
+      `;
+    }
+
     // Active current folder in tree if selected
     let currentFolderHtml = "";
     if (this.currentFolder) {
       currentFolderHtml = `
         <li class="catalog-tree-item selected" onclick="CatalogSelector.selectFolder(this, '${escapeHtml(this.currentFolder)}')">
-          <span style="padding-left: 12px;">📂</span>
+          <span style="padding-left: ${this.parentFolder ? '20px' : '12px'};">📂</span>
           <span style="font-weight: bold; color: #002060;">${escapeHtml(this.currentFolder)}</span>
         </li>
       `;
     }
 
     // Subfolders list
-    const subHtml = (folders || []).filter(f => f.name !== this.currentFolder).map(f => `
+    const subHtml = (folders || []).filter(f => f.name !== this.currentFolder && f.name !== this.parentFolder).map(f => `
       <li class="catalog-tree-item" onclick="CatalogSelector.selectFolder(this, '${escapeHtml(f.name)}')">
-        <span style="padding-left: ${this.currentFolder ? '24px' : '14px'};">📁</span>
+        <span style="padding-left: ${this.currentFolder ? '28px' : '14px'};">📁</span>
         <span>${escapeHtml(f.name)}</span>
       </li>
     `).join("");
 
-    treeList.innerHTML = rootHtml + currentFolderHtml + subHtml;
+    treeList.innerHTML = rootHtml + parentFolderHtml + currentFolderHtml + subHtml;
   },
 
   renderItems(items) {
@@ -343,12 +374,33 @@ const CatalogSelector = {
     if (!tbody) return;
     tbody.innerHTML = "";
 
-    if (items.length === 0) {
-      tbody.innerHTML = `<tr><td colspan="6" style="text-align: center; color: #888; padding: 20px;">Heç bir element tapılmadı.</td></tr>`;
-      return;
+    const isNom = this.currentCatalog === "Номенклатура";
+
+    // 1C standard ".." up-folder navigation row
+    if (this.currentFolder) {
+      const upTr = document.createElement("tr");
+      upTr.style.background = "#faf9f5";
+      upTr.style.cursor = "pointer";
+      upTr.title = "Yuxarı qovluğa keçmək üçün klikləyin";
+      upTr.onclick = () => this.navigateUpFolder();
+      const artikulUp = isNom ? `<td></td>` : "";
+      upTr.innerHTML = `
+        <td style="text-align: center; width: 30px;">📁</td>
+        <td style="font-family: monospace; font-weight: bold; color: #004080; width: 100px;">..</td>
+        ${artikulUp}
+        <td colspan="3" style="color: #666; font-style: italic;">
+          [.. Yuxarı qovluq${this.parentFolder ? ': ' + escapeHtml(this.parentFolder) : ''}]
+        </td>
+      `;
+      tbody.appendChild(upTr);
     }
 
-    const isNom = this.currentCatalog === "Номенклатура";
+    if (items.length === 0) {
+      const emptyTr = document.createElement("tr");
+      emptyTr.innerHTML = `<td colspan="6" style="text-align: center; color: #888; padding: 20px;">Heç bir element tapılmadı.</td>`;
+      tbody.appendChild(emptyTr);
+      return;
+    }
 
     items.forEach((item, idx) => {
       const tr = document.createElement("tr");
