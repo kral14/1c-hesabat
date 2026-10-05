@@ -2321,6 +2321,8 @@ class OneCService(threading.Thread):
                     has_agent = "Агент" in req_names
                     has_info = "Информация" in req_names
 
+                    is_realization = (doc_type == "РеализацияТоваровУслуг")
+
                     sel_parts = [
                         "Т.Ссылка КАК Ref",
                         "Т.Номер КАК Number",
@@ -2338,6 +2340,9 @@ class OneCService(threading.Thread):
                     if has_kontr:
                         sel_parts.append("Т.Контрагент.Наименование КАК Kontragent")
                         columns.append({"key": "kontragent", "label": "Контрагент", "width": 240, "align": "left"})
+                        if is_realization:
+                            sel_parts.append("Т.Контрагент.Код КАК KontragentCode")
+                            columns.append({"key": "kontragent_code", "label": "Код контрагента", "width": 115, "align": "left"})
 
                     if has_agent:
                         sel_parts.append("Т.Агент.Наименование КАК Agent")
@@ -2353,11 +2358,21 @@ class OneCService(threading.Thread):
 
                     if has_deal:
                         sel_parts.append("Т.Сделка.Номер КАК Deal")
-                        columns.append({"key": "deal", "label": "Сделка", "width": 120, "align": "left"})
+                        deal_lbl = "Номер заказа" if is_realization else "Сделка"
+                        columns.append({"key": "deal", "label": deal_lbl, "width": 120, "align": "left"})
 
                     if has_contract:
                         sel_parts.append("Т.ДоговорКонтрагента.Наименование КАК Contract")
                         columns.append({"key": "contract", "label": "Договор", "width": 150, "align": "left"})
+                        if is_realization:
+                            sel_parts.append("Т.ДоговорКонтрагента.ТипЦен.Наименование КАК ContractPriceType")
+                            columns.append({"key": "contract_price_type", "label": "Тип цен договора", "width": 130, "align": "left"})
+
+                    if is_realization:
+                        sel_parts.append("ПогрузкаВложенный.Маршрут КАК PogruzkaMarshrut")
+                        columns.append({"key": "pogruzka_marshrut", "label": "Пагрузка маршрут", "width": 130, "align": "left"})
+                        sel_parts.append("ПРЕДСТАВЛЕНИЕ(ПогрузкаВложенный.Водитель) КАК PogruzkaVoditel")
+                        columns.append({"key": "pogruzka_voditel", "label": "Пагрузка водитель", "width": 150, "align": "left"})
 
                     if has_info:
                         sel_parts.append("Т.Информация КАК Info")
@@ -2392,11 +2407,27 @@ class OneCService(threading.Thread):
 
                     where_sql = ("ГДЕ " + " И ".join(where_parts)) if where_parts else ""
 
+                    from_clause = f"Документ.{doc_type} КАК Т"
+                    if is_realization:
+                        from_clause += """
+                        ЛЕВОЕ СОЕДИНЕНИЕ (
+                            ВЫБРАТЬ
+                                П.Накладная КАК Накладная,
+                                МАКСИМУМ(П.Ссылка.Маршрут) КАК Маршрут,
+                                МАКСИМУМ(П.Ссылка.Водитель) КАК Водитель
+                            ИЗ
+                                Документ.ПогрузкиМашин.СписокРеализаций КАК П
+                            СГРУППИРОВАТЬ ПО
+                                П.Накладная
+                        ) КАК ПогрузкаВложенный
+                        ПО Т.Ссылка = ПогрузкаВложенный.Накладная
+                        """
+
                     q_doc.Text = f"""
                     ВЫБРАТЬ ПЕРВЫЕ {limit_count}
                         {", ".join(sel_parts)}
                     ИЗ
-                        Документ.{doc_type} КАК Т
+                        {from_clause}
                     {where_sql}
                     УПОРЯДОЧИТЬ ПО
                         Т.Дата УБЫВ
@@ -2422,6 +2453,11 @@ class OneCService(threading.Thread):
 
                         if has_kontr:
                             row_data["kontragent"] = str(res_doc.Kontragent or "").strip()
+                            if is_realization:
+                                try:
+                                    row_data["kontragent_code"] = str(res_doc.KontragentCode or "").strip()
+                                except Exception:
+                                    row_data["kontragent_code"] = ""
                         if has_agent:
                             row_data["agent"] = str(res_doc.Agent or "").strip()
                         if has_sum:
@@ -2432,6 +2468,20 @@ class OneCService(threading.Thread):
                             row_data["deal"] = str(res_doc.Deal or "").strip()
                         if has_contract:
                             row_data["contract"] = str(res_doc.Contract or "").strip()
+                            if is_realization:
+                                try:
+                                    row_data["contract_price_type"] = str(res_doc.ContractPriceType or "").strip()
+                                except Exception:
+                                    row_data["contract_price_type"] = ""
+                        if is_realization:
+                            try:
+                                row_data["pogruzka_marshrut"] = str(res_doc.PogruzkaMarshrut or "").strip()
+                            except Exception:
+                                row_data["pogruzka_marshrut"] = ""
+                            try:
+                                row_data["pogruzka_voditel"] = str(res_doc.PogruzkaVoditel or "").strip()
+                            except Exception:
+                                row_data["pogruzka_voditel"] = ""
                         if has_info:
                             row_data["info"] = str(res_doc.Info or "").strip()
                         if has_resp:

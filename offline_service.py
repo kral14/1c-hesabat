@@ -187,13 +187,19 @@ def get_documents_list(payload):
         elif doc_type == "РеализацияТоваровУслуг":
             columns = [
                 {"key": "status", "label": "", "width": 30, "align": "center"},
-                {"key": "date", "label": "Дата", "width": 135, "align": "left"},
-                {"key": "number", "label": "Номер", "width": 125, "align": "left"},
-                {"key": "kontragent", "label": "Контрагент", "width": 260, "align": "left"},
-                {"key": "amount", "label": "Сумма", "width": 110, "align": "right"},
-                {"key": "agent", "label": "Подразделение", "width": 160, "align": "left"},
-                {"key": "responsible", "label": "Ответственный", "width": 140, "align": "left"},
-                {"key": "comment", "label": "Комментарий", "width": 220, "align": "left"}
+                {"key": "date", "label": "Дата", "width": 125, "align": "left"},
+                {"key": "number", "label": "Номер", "width": 115, "align": "left"},
+                {"key": "kontragent", "label": "Контрагент", "width": 240, "align": "left"},
+                {"key": "kontragent_code", "label": "Код контрагента", "width": 115, "align": "left"},
+                {"key": "amount", "label": "Сумма", "width": 100, "align": "right"},
+                {"key": "warehouse", "label": "Склад", "width": 160, "align": "left"},
+                {"key": "deal", "label": "Номер заказа", "width": 120, "align": "left"},
+                {"key": "contract", "label": "Договор", "width": 150, "align": "left"},
+                {"key": "contract_price_type", "label": "Тип цен договора", "width": 130, "align": "left"},
+                {"key": "pogruzka_marshrut", "label": "Пагрузка маршрут", "width": 130, "align": "left"},
+                {"key": "pogruzka_voditel", "label": "Пагрузка водитель", "width": 150, "align": "left"},
+                {"key": "responsible", "label": "Ответственный", "width": 130, "align": "left"},
+                {"key": "comment", "label": "Комментарий", "width": 200, "align": "left"}
             ]
 
             sql = """
@@ -227,23 +233,30 @@ def get_documents_list(payload):
 
             items = []
             for r in rows:
-                doc_num = f"РТ-{r['min_id']:08d}"
+                doc_num = f"C00004{r['min_id']:05d}"
                 dt_str = f"{r['period']} 12:00:00"
                 amount_val = float(r["tot_sum"] or 0.0)
                 item = {
                     "number": doc_num,
                     "date": dt_str,
                     "kontragent": r["kontragent"],
+                    "kontragent_code": f"C{r['min_id']:08d}",
                     "amount": amount_val,
+                    "warehouse": "1.Anbar - AZTRADE",
+                    "deal": f"C00044{r['min_id']:04d}",
+                    "contract": "Основной договор",
+                    "contract_price_type": "60",
+                    "pogruzka_marshrut": "5329",
+                    "pogruzka_voditel": "99JP085",
                     "agent": r["podrazdelenie"] or "Основное подразделение",
-                    "responsible": "Keleshov Nasib",
+                    "responsible": "Ali",
                     "comment": f"Продажа товаров ({r['item_cnt']} поз.)",
                     "posted": True,
                     "deleted": False,
                     "status": "posted"
                 }
                 if search_str:
-                    target = f"{item['number']} {item['date']} {item['kontragent']} {item['agent']}".lower()
+                    target = f"{item['number']} {item['date']} {item['kontragent']} {item['kontragent_code']} {item['deal']} {item['pogruzka_marshrut']} {item['pogruzka_voditel']}".lower()
                     if search_str not in target:
                         continue
                 items.append(item)
