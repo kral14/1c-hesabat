@@ -23,11 +23,41 @@ def format_1c_datetime(raw_date):
         return f"{int(d):02d}.{int(mo):02d}.{int(y):04d} {int(hh or 0):02d}:{int(mm or 0):02d}:{int(ss or 0):02d}"
     return s[:19]
 
+def parse_query_datetime(val, is_end=False):
+    if not val:
+        return None
+    if isinstance(val, datetime.datetime):
+        return val
+    val = str(val).strip().replace("T", " ")
+    parts = val.split(" ")
+    d_part = parts[0]
+    t_part = parts[1] if len(parts) > 1 else ""
+
+    if "." in d_part:
+        d, m, y = map(int, d_part.split(".")[:3])
+    elif "-" in d_part:
+        y, m, d = map(int, d_part.split("-")[:3])
+    else:
+        return None
+
+    if t_part:
+        t_splits = t_part.split(":")
+        hh = int(t_splits[0]) if len(t_splits) > 0 else (23 if is_end else 0)
+        mm = int(t_splits[1]) if len(t_splits) > 1 else (59 if is_end else 0)
+        ss = int(t_splits[2]) if len(t_splits) > 2 else (59 if is_end else 0)
+    else:
+        hh = 23 if is_end else 0
+        mm = 59 if is_end else 0
+        ss = 59 if is_end else 0
+
+    return datetime.datetime(y, m, d, hh, mm, ss)
+
 def handle_get_documents_list(conn, payload, key, resp_q):
     doc_type = payload.get("doc_type") or "УстановкаЦенНоменклатуры"
     date_from = payload.get("date_from", "").strip()
     date_to = payload.get("date_to", "").strip()
     search_str = payload.get("search", "").strip()
+    offset = int(payload.get("offset", 0))
     limit_count = int(payload.get("limit", 0))
 
     doc_meta = conn.Метаданные.Документы.Найти(doc_type)
@@ -125,54 +155,21 @@ def handle_get_documents_list(conn, payload, key, resp_q):
 
     if date_from:
         try:
-            if "-" in date_from:
-                yf, mf, df = map(int, date_from.split("-")[:3])
-            elif "." in date_from:
-                df, mf, yf = map(int, date_from.split(".")[:3])
-            dt_f = datetime.datetime(yf, mf, df, 0, 0, 0)
-            q_doc.SetParameter("DateFrom", dt_f)
-            where_parts.append("Т.Дата >= &DateFrom")
+            dt_f = parse_query_datetime(date_from, is_end=False)
+            if dt_f:
+                q_doc.SetParameter("DateFrom", dt_f)
+                where_parts.append("Т.Дата >= &DateFrom")
         except Exception as e_df:
             print("date_from parse error:", e_df)
 
     if date_to:
         try:
-            if "-" in date_to:
-                yt, mt, dt = map(int, date_to.split("-")[:3])
-            elif "." in date_to:
-                dt, mt, yt = map(int, date_to.split(".")[:3])
-            dt_t = datetime.datetime(yt, mt, dt, 23, 59, 59)
-            q_doc.SetParameter("DateTo", dt_t)
-            where_parts.append("Т.Дата <= &DateTo")
+            dt_t = parse_query_datetime(date_to, is_end=True)
+            if dt_t:
+                q_doc.SetParameter("DateTo", dt_t)
+                where_parts.append("Т.Дата <= &DateTo")
         except Exception as e_dt:
             print("date_to parse error:", e_dt)
-
-    last_date = payload.get("last_date", "").strip()
-    last_number = payload.get("last_number", "").strip()
-    if last_date:
-        try:
-            dt_parts = last_date.replace("T", " ").split(" ")
-            d_part = dt_parts[0]
-            t_part = dt_parts[1] if len(dt_parts) > 1 else "00:00:00"
-            if "." in d_part:
-                d, m, y = map(int, d_part.split(".")[:3])
-            elif "-" in d_part:
-                y, m, d = map(int, d_part.split("-")[:3])
-            else:
-                d, m, y = 1, 1, 2026
-            t_splits = t_part.split(":")
-            hh = int(t_splits[0]) if len(t_splits) > 0 else 0
-            mm = int(t_splits[1]) if len(t_splits) > 1 else 0
-            ss = int(t_splits[2]) if len(t_splits) > 2 else 0
-            dt_last = datetime.datetime(y, m, d, hh, mm, ss)
-            q_doc.SetParameter("LastDate", dt_last)
-            if last_number:
-                q_doc.SetParameter("LastNumber", last_number)
-                where_parts.append("(Т.Дата < &LastDate ИЛИ (Т.Дата = &LastDate И Т.Номер < &LastNumber))")
-            else:
-                where_parts.append("Т.Дата < &LastDate")
-        except Exception as e_ld:
-            print("last_date parse error:", e_ld)
 
     where_sql = ("ГДЕ " + " И ".join(where_parts)) if where_parts else ""
 
@@ -204,7 +201,8 @@ def handle_get_documents_list(conn, payload, key, resp_q):
         ПО Т.Ссылка = ВМС.Документ1С
         """
 
-    first_clause = f"ПЕРВЫЕ {limit_count}" if limit_count and limit_count > 0 else ""
+    fetch_total = (offset + limit_count + 1) if (limit_count and limit_count > 0) else 0
+    first_clause = f"ПЕРВЫЕ {fetch_total}" if fetch_total > 0 else ""
 
     q_doc.Text = f"""
     ВЫБРАТЬ {first_clause}
@@ -220,10 +218,24 @@ def handle_get_documents_list(conn, payload, key, resp_q):
     res_doc = q_doc.Execute().Choose()
     items = []
     doc_numbers = []
+    doc_refs = []
+
+    if offset > 0:
+        skipped = 0
+        while skipped < offset and res_doc.Next():
+            skipped += 1
+
+    fetched_count = 0
+    has_more = False
+
     while res_doc.Next():
-        date_str = format_1c_datetime(res_doc.Date)
+        fetched_count += 1
         d_num = str(res_doc.Number or "").strip()
         doc_numbers.append(d_num)
+        try:
+            doc_refs.append(res_doc.Ref)
+        except Exception:
+            pass
 
         dv_str = ""
         try:
@@ -294,18 +306,22 @@ def handle_get_documents_list(conn, payload, key, resp_q):
 
         items.append(row_data)
 
-    # Batch fetch nomenclatures ONLY for this chunk's documents (lightning fast)
+        if limit_count and limit_count > 0 and fetched_count >= limit_count:
+            has_more = bool(res_doc.Next())
+            break
+
+    # Batch fetch nomenclatures ONLY for this chunk's documents (lightning fast via indexed DocRefs)
     tab_names = set(str(t.Имя) for t in doc_meta.ТабличныеЧасти)
     has_tovary = "Товары" in tab_names
     doc_noms_map = {}
     doc_nomkeys_map = {}
-    if has_tovary and not payload.get("skip_nomenclatures") and doc_numbers:
+    if has_tovary and not payload.get("skip_nomenclatures") and doc_refs:
         try:
             q_noms = conn.NewObject("Запрос")
-            arr_nums = conn.NewObject("Массив")
-            for num in doc_numbers:
-                arr_nums.Add(num)
-            q_noms.SetParameter("DocNumbers", arr_nums)
+            arr_refs = conn.NewObject("Массив")
+            for r in doc_refs:
+                arr_refs.Add(r)
+            q_noms.SetParameter("DocRefs", arr_refs)
             q_noms.Text = f"""
             ВЫБРАТЬ РАЗЛИЧНЫЕ
                 Т.Ссылка.Номер КАК Number,
@@ -315,7 +331,7 @@ def handle_get_documents_list(conn, payload, key, resp_q):
             ИЗ
                 Документ.{doc_type}.Товары КАК Т
             ГДЕ
-                Т.Ссылка.Номер В (&DocNumbers)
+                Т.Ссылка В (&DocRefs)
             """
             res_noms = q_noms.Execute().Choose()
             while res_noms.Next():
@@ -344,7 +360,6 @@ def handle_get_documents_list(conn, payload, key, resp_q):
                 continue
         filtered_items.append(it)
 
-    has_more = (len(items) == limit_count) if (limit_count and limit_count > 0) else False
     last_item = items[-1] if items else None
 
     resp_q.put((True, {
@@ -354,6 +369,8 @@ def handle_get_documents_list(conn, payload, key, resp_q):
         "items": filtered_items,
         "total": len(filtered_items),
         "has_more": has_more,
+        "offset": offset,
+        "limit": limit_count,
         "last_date": last_item["date"] if last_item else "",
         "last_number": last_item["number"] if last_item else ""
     }))

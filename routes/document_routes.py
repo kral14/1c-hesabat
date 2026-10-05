@@ -21,6 +21,8 @@ def documents_list_endpoint():
             "items": res.get("items", []),
             "total": res.get("total", 0),
             "has_more": res.get("has_more", False),
+            "offset": res.get("offset", 0),
+            "limit": res.get("limit", 0),
             "last_date": res.get("last_date", ""),
             "last_number": res.get("last_number", "")
         })

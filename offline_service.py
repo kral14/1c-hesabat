@@ -140,6 +140,7 @@ def get_all_price_types():
 # 8. Get Documents List (Universal Documents Engine)
 def get_documents_list(payload):
     doc_type = payload.get("doc_type") or "РеализацияТоваровУслуг"
+    offset = int(payload.get("offset", 0))
     limit_count = int(payload.get("limit", 0))
     search_str = payload.get("search", "").strip().lower()
     date_from = payload.get("date_from", "").strip()
@@ -160,15 +161,16 @@ def get_documents_list(payload):
                 params.append(date_from)
             if date_to:
                 conditions.append("doc_date <= ?")
-                params.append(date_to + " 23:59:59")
+                date_to_param = date_to if " " in date_to else (date_to + " 23:59:59")
+                params.append(date_to_param)
             if last_date:
                 conditions.append("doc_date < ?")
                 params.append(last_date)
             if conditions:
                 sql += " WHERE " + " AND ".join(conditions)
             if limit_count and limit_count > 0:
-                sql += " ORDER BY doc_date DESC LIMIT ?"
-                params.append(limit_count)
+                sql += " ORDER BY doc_date DESC LIMIT ? OFFSET ?"
+                params.extend([limit_count, offset])
             else:
                 sql += " ORDER BY doc_date DESC"
             cur.execute(sql, params)
@@ -265,8 +267,8 @@ def get_documents_list(payload):
 
             sql += " GROUP BY period, kontragent ORDER BY period DESC, min_id DESC"
             if limit_count and limit_count > 0:
-                sql += " LIMIT ?"
-                params.append(limit_count)
+                sql += " LIMIT ? OFFSET ?"
+                params.extend([limit_count, offset])
 
             cur.execute(sql, params)
             rows = cur.fetchall()

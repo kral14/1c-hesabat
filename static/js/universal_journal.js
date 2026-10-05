@@ -188,11 +188,30 @@ const UniversalJournal = {
     }
   },
 
-  formatDateForBackend: function(dStr) {
+  formatDateForBackend: function(dStr, isEnd = false) {
     if (!dStr) return "";
-    const m = String(dStr).trim().match(/^(\d{1,2})\.(\d{1,2})\.(\d{4})/);
-    if (!m) return "";
-    return `${m[3]}-${m[2].padStart(2, "0")}-${m[1].padStart(2, "0")}`;
+    const s = String(dStr).trim();
+    const mDot = s.match(/^(\d{1,2})\.(\d{1,2})\.(\d{4})(?:\s+(\d{1,2}):(\d{1,2}):(\d{1,2}))?/);
+    if (mDot) {
+      const yyyy = mDot[3];
+      const mm = mDot[2].padStart(2, "0");
+      const dd = mDot[1].padStart(2, "0");
+      const timePart = mDot[4] !== undefined
+        ? `${mDot[4].padStart(2, "0")}:${mDot[5].padStart(2, "0")}:${mDot[6].padStart(2, "0")}`
+        : (isEnd ? "23:59:59" : "00:00:00");
+      return `${yyyy}-${mm}-${dd} ${timePart}`;
+    }
+    const mIso = s.match(/^(\d{4})[-/.](\d{1,2})[-/.](\d{1,2})(?:[T\s](\d{1,2}):(\d{1,2}):(\d{1,2}))?/);
+    if (mIso) {
+      const yyyy = mIso[1];
+      const mm = mIso[2].padStart(2, "0");
+      const dd = mIso[3].padStart(2, "0");
+      const timePart = mIso[4] !== undefined
+        ? `${mIso[4].padStart(2, "0")}:${mIso[5].padStart(2, "0")}:${mIso[6].padStart(2, "0")}`
+        : (isEnd ? "23:59:59" : "00:00:00");
+      return `${yyyy}-${mm}-${dd} ${timePart}`;
+    }
+    return s;
   },
 
   formatDateTime: function(val) {
@@ -245,12 +264,11 @@ const UniversalJournal = {
     const payload = {
       ...creds,
       doc_type: this.activeDocType,
-      date_from: this.formatDateForBackend(this.startDateStr),
-      date_to: this.formatDateForBackend(this.endDateStr),
+      date_from: this.formatDateForBackend(this.startDateStr, false),
+      date_to: this.formatDateForBackend(this.endDateStr, true),
       search: "",
       limit: this.initialChunkLimit,
-      last_date: null,
-      last_number: null
+      offset: 0
     };
 
     fetch("/api/documents/list", {
@@ -306,7 +324,7 @@ const UniversalJournal = {
     if (this._bgTimer) clearTimeout(this._bgTimer);
     this._bgTimer = setTimeout(() => {
       this.fetchNextChunk(sessionId);
-    }, 60);
+    }, 150);
   },
 
   fetchNextChunk: function(sessionId) {
@@ -319,12 +337,11 @@ const UniversalJournal = {
     const payload = {
       ...creds,
       doc_type: this.activeDocType,
-      date_from: this.formatDateForBackend(this.startDateStr),
-      date_to: this.formatDateForBackend(this.endDateStr),
+      date_from: this.formatDateForBackend(this.startDateStr, false),
+      date_to: this.formatDateForBackend(this.endDateStr, true),
       search: "",
       limit: this.backgroundChunkLimit,
-      last_date: this.lastDocDate,
-      last_number: this.lastDocNumber
+      offset: this.items.length
     };
 
     fetch("/api/documents/list", {
@@ -503,6 +520,13 @@ const UniversalJournal = {
       if (!ticking) {
         window.requestAnimationFrame(() => {
           this.updateVirtualRows();
+
+          // Infinite scroll on scrollbar pull near bottom
+          const scrollBottom = wrapper.scrollHeight - wrapper.scrollTop - wrapper.clientHeight;
+          if (scrollBottom < 400 && this.hasMoreDocs && !this.isLoadingBackground) {
+            this.fetchNextChunk(this.currentLoadSessionId);
+          }
+
           ticking = false;
         });
         ticking = true;
