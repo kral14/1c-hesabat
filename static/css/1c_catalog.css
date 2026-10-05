@@ -344,24 +344,37 @@
   height: 19px;
 }
 
+/* ========================================================
+   Document Tables: Nomenclature Cell Buttons (... and 🔍)
+   (Yalnız textbox-a klikləyəndə / fokuslandıqda görünür, adi halda gizlidir)
+   ======================================================== */
+.sde-nom-btns-group,
 .pde-nom-btns-group {
   display: flex;
   align-items: stretch;
   flex-shrink: 0;
   height: 100%;
   opacity: 0;
+  visibility: hidden;
   pointer-events: none;
-  transition: opacity 0.08s ease;
+  transition: opacity 0.05s ease;
 }
 
-.pde-nom-cell-wrapper:hover .pde-nom-btns-group,
+/* Yalnız xanaya və ya daxilindəki textbox-a kliklədikdə (aktiv olduqda) görünsün */
+.sde-nom-cell-wrapper:focus-within .sde-nom-btns-group,
+.sde-nom-cell.sde-cell-active .sde-nom-btns-group,
+.sde-nom-cell.c1-cell-active .sde-nom-btns-group,
+.sde-nom-cell:focus-within .sde-nom-btns-group,
+td[data-col="name"].sde-cell-active .sde-nom-btns-group,
 .pde-nom-cell-wrapper:focus-within .pde-nom-btns-group,
-tr.pde-row-selected .pde-nom-btns-group,
-td:focus-within .pde-nom-btns-group {
-  opacity: 1;
-  pointer-events: auto;
+.pde-nom-cell.c1-cell-active .pde-nom-btns-group,
+.pde-nom-cell:focus-within .pde-nom-btns-group {
+  opacity: 1 !important;
+  visibility: visible !important;
+  pointer-events: auto !important;
 }
 
+.sde-cell-btn,
 .pde-cell-btn {
   height: 100%;
   width: 19px;
@@ -377,6 +390,7 @@ td:focus-within .pde-nom-btns-group {
   line-height: 1;
 }
 
+.sde-cell-btn.btn-1c-dots,
 .pde-cell-btn.btn-1c-dots {
   border-right: none;
   font-size: 11px;
@@ -384,11 +398,13 @@ td:focus-within .pde-nom-btns-group {
   color: #222;
 }
 
+.sde-cell-btn.btn-1c-lupa,
 .pde-cell-btn.btn-1c-lupa {
   font-size: 11px;
   color: #004080;
 }
 
+.sde-cell-btn:hover,
 .pde-cell-btn:hover {
   background: #f4f3ec !important;
   border-color: #0055ea !important;

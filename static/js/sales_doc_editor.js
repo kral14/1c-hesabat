@@ -181,28 +181,23 @@ const SalesDocEditor = {
           </td>
 
           <!-- Номенклатура (с кнопками ... и 🔍) -->
-          <td data-col="name" style="border: 1px solid #d4d0c8; padding: 1px 2px; position: relative; user-select: text;" onclick="SalesDocEditor.selectCell(${idx}, 'name', this, event)">
-            <div style="display: flex; align-items: stretch; width: 100%; height: 19px;">
+          <td data-col="name" class="sde-nom-cell" style="border: 1px solid #d4d0c8; padding: 1px 2px; position: relative; user-select: text;" onclick="SalesDocEditor.selectCell(${idx}, 'name', this, event)">
+            <div class="sde-nom-cell-wrapper" style="display: flex; align-items: stretch; width: 100%; height: 19px;">
               <input type="text" value="${this.escapeHtml(it.name)}" 
-                     title="${this.escapeHtml(it.name)} (F4 və ya cüt kliklə kataloqda aç)"
+                     title="${this.escapeHtml(it.name)} (F4 və ya ... ilə kataloqda aç)"
                      onchange="SalesDocEditor.onNameChange(${idx}, this.value)"
-                     ondblclick="SalesDocEditor.openNomPicker(${idx})"
                      onkeydown="if(event.key === 'F4'){ event.preventDefault(); SalesDocEditor.openNomPicker(${idx}); }"
                      style="flex: 1; min-width: 0; height: 100%; border: 1px solid transparent; background: transparent; font-family: Tahoma, sans-serif; font-size: 11px; padding: 0 4px; outline: none; text-overflow: ellipsis; overflow: hidden; box-sizing: border-box;"
                      onfocus="this.select(); SalesDocEditor.selectCell(${idx}, 'name', this.closest('td'));">
-              <div style="display: flex; align-items: stretch; flex-shrink: 0; height: 100%;">
+              <div class="sde-nom-btns-group">
                 <button type="button" onclick="event.stopPropagation(); SalesDocEditor.openNomPicker(${idx})" 
-                        title="Справочник: Номенклатура (Выбрать товар из списка...)"
-                        style="height: 100%; width: 19px; padding: 0; border: 1px solid #7f9db9; border-right: none; background: #e0dfd5; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: bold; color: #222;"
-                        onmouseover="this.style.background='#f0eee3'"
-                        onmouseout="this.style.background='#e0dfd5'">
+                        title="Справочник: Номенклатура (Выбрать товар из списка...) [F4]"
+                        class="sde-cell-btn btn-1c-dots">
                   ...
                 </button>
                 <button type="button" onclick="event.stopPropagation(); SalesDocEditor.openItemCard(${idx})" 
-                        title="Открыть карточку номенклатуры (Lupa - открыть внутри)"
-                        style="height: 100%; width: 19px; padding: 0; border: 1px solid #7f9db9; background: #e0dfd5; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 11px; color: #004080;"
-                        onmouseover="this.style.background='#f0eee3'"
-                        onmouseout="this.style.background='#e0dfd5'">
+                        title="Открыть карточку номенклатуры (Lupa)"
+                        class="sde-cell-btn btn-1c-lupa">
                   🔍
                 </button>
               </div>
@@ -750,3 +745,16 @@ const SalesDocEditor = {
 };
 
 window.SalesDocEditor = SalesDocEditor;
+
+document.addEventListener("keydown", function(e) {
+  const sdeWin = document.getElementById("salesDocEditorWindow");
+  if (!sdeWin || sdeWin.style.display === "none") return;
+
+  // F4 opens nomenclature catalog picker for selected row
+  if (e.key === "F4" && !e.ctrlKey && !e.altKey) {
+    if (typeof SalesDocEditor !== "undefined" && SalesDocEditor.selectedRowIdx >= 0) {
+      e.preventDefault();
+      SalesDocEditor.openNomPicker(SalesDocEditor.selectedRowIdx);
+    }
+  }
+});
