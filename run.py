@@ -1,18 +1,54 @@
 # -*- coding: utf-8 -*-
-import subprocess
-import threading
-import time
+"""
+1C:Enterprise Electron Desktop Runner.
+
+Bu skript sadəcə Electron interfeys pəncərəsini açır.
+Əgər server.py artıq işləyirsə, serverə toxunmur və birbaşa Electron-u açır.
+Electron bağlandıqda da server.py arxa planda işləməyə və 1C bağlantısını saxlamağa davam edir.
+"""
 import os
 import sys
+import time
+import subprocess
+import urllib.request
 
-# Ensure scratch directory is in path
 app_dir = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, app_dir)
 
-from app import app
+def is_server_running():
+    try:
+        req = urllib.request.Request("http://127.0.0.1:5050/api/bases")
+        with urllib.request.urlopen(req, timeout=1.0) as resp:
+            return resp.status == 200
+    except Exception:
+        return False
+
+def ensure_server():
+    if is_server_running():
+        print("✅ Arxa plan 1C serveri (server.py) artıq işləyir. Mövcud 1C bağlantısı istifadə olunur.", flush=True)
+        return True
+
+    print("⚠️ Arxa plan serveri (server.py) tapılmadı!", flush=True)
+    print("🔄 Server arxa planda işə salınır (python server.py)...", flush=True)
+
+    server_script = os.path.join(app_dir, "server.py")
+    creation_flags = 0
+    if sys.platform == "win32":
+        creation_flags = subprocess.CREATE_NEW_CONSOLE
+
+    subprocess.Popen([sys.executable, server_script], cwd=app_dir, creationflags=creation_flags)
+
+    # Server cavab verənə qədər gözləyirik
+    for _ in range(30):
+        time.sleep(0.3)
+        if is_server_running():
+            print("✅ Arxa plan serveri işə düşdü və cavab verir!", flush=True)
+            return True
+
+    print("⚠️ Serverin tam hazır olması üçün gözlənilir, Electron açılır...", flush=True)
+    return False
 
 def open_electron():
-    time.sleep(1.5)
     print("Masaüstü Electron Pəncərəsi açılır...", flush=True)
     try:
         electron_cmd = os.path.join(app_dir, "node_modules", ".bin", "electron.cmd")
@@ -20,35 +56,13 @@ def open_electron():
             cmd = f'"{electron_cmd}" "{app_dir}"'
         else:
             cmd = f'npx -y electron "{app_dir}"'
+        
         proc = subprocess.Popen(cmd, cwd=app_dir, shell=True)
         proc.wait()
-        print("\n[Electron bağlandı] Tətbiq dayandırılır...", flush=True)
-        os._exit(0)
+        print("\n[Electron pəncərəsi bağlandı] Arxa plan 1C serveri (server.py) aktiv qalmağa davam edir.", flush=True)
     except Exception as e:
         print(f"Electron xətası: {e}", flush=True)
 
-def free_port_5050():
-    try:
-        res = subprocess.run('netstat -ano | findstr :5050', shell=True, capture_output=True, text=True)
-        lines = res.stdout.strip().splitlines()
-        my_pid = os.getpid()
-        killed = set()
-        for line in lines:
-            if "LISTENING" in line:
-                parts = line.strip().split()
-                pid = int(parts[-1])
-                if pid != my_pid and pid > 0 and pid not in killed:
-                    print(f"🔄 Port 5050-dəki köhnə server prosesi (PID: {pid}) təmizlənir...", flush=True)
-                    subprocess.run(f'taskkill /F /PID {pid}', shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-                    killed.add(pid)
-    except Exception:
-        pass
-
 if __name__ == "__main__":
-    free_port_5050()
-    threading.Thread(target=open_electron, daemon=True).start()
-    print("=" * 60)
-    print("  1C:ENTERPRISE ELECTRON MASAÜSTÜ TƏTBİQİ İŞƏ DÜŞDÜ")
-    print("  Ünvan: http://127.0.0.1:5050")
-    print("=" * 60)
-    app.run(host="127.0.0.1", port=5050, debug=False)
+    ensure_server()
+    open_electron()

@@ -128,13 +128,18 @@ const SessionManager = {
   },
 
   async warmupConnection() {
-    this.setConnectionStatus("connecting");
+    // Only show "connecting" spinner if ping takes longer than 250ms (avoids flicker on F5 reload)
+    const showConnectingTimer = setTimeout(() => {
+      this.setConnectionStatus("connecting");
+    }, 250);
+
     try {
       const res = await fetch("/api/ping_connection", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(this.getCredentials())
       });
+      clearTimeout(showConnectingTimer);
       const data = await res.json();
       if (data.success) {
         this.setConnectionStatus("connected");
@@ -143,6 +148,7 @@ const SessionManager = {
         this.setConnectionStatus("error", data.error);
       }
     } catch (e) {
+      clearTimeout(showConnectingTimer);
       console.error("1C warmup connection network error:", e);
       this.setConnectionStatus("error", e.message);
     }
