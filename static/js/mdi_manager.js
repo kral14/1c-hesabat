@@ -1190,21 +1190,23 @@ const MdiManager = {
       return true;
     }
     const cal = document.getElementById("calendarPickerModal");
-    if (cal && cal.style.display !== "none") {
+    if (cal && (cal.style.display === "block" || cal.style.display === "flex" || cal.classList.contains("show"))) {
       if (typeof closeDatePicker === "function") closeDatePicker();
       else cal.style.display = "none";
       return true;
     }
 
-    // 2. Close context menus & dropdowns
+    // 2. Close context menus & dropdowns ONLY if genuinely open
     const ctxMenu = document.getElementById("reportContextMenu");
-    if (ctxMenu && ctxMenu.style.display !== "none") {
+    if (ctxMenu && (ctxMenu.classList.contains("show") || ctxMenu.style.display === "block")) {
+      ctxMenu.classList.remove("show");
       ctxMenu.style.display = "none";
       return true;
     }
 
     const priceDropdown = document.getElementById("priceTypeDropdownMenu");
-    if (priceDropdown && priceDropdown.style.display !== "none") {
+    if (priceDropdown && (priceDropdown.classList.contains("show") || priceDropdown.style.display === "block")) {
+      priceDropdown.classList.remove("show");
       priceDropdown.style.display = "none";
       return true;
     }
@@ -1221,23 +1223,35 @@ const MdiManager = {
       return true;
     }
 
-    // 2.5 Close Period Picker Modal if open
+    // 2.5 Close transient overlays / sub-modals if open
     const ppModal = document.getElementById("periodPickerModalOverlay");
-    if (ppModal && ppModal.style.display === "flex") {
+    if (ppModal && (ppModal.style.display === "flex" || ppModal.style.display === "block")) {
       if (typeof PeriodPicker !== "undefined") PeriodPicker.close();
       else ppModal.style.display = "none";
       return true;
     }
 
     const ujDetModal = document.getElementById("ujDocDetailsModal");
-    if (ujDetModal && ujDetModal.style.display === "flex") {
+    if (ujDetModal && (ujDetModal.style.display === "flex" || ujDetModal.style.display === "block")) {
       ujDetModal.style.display = "none";
+      return true;
+    }
+
+    const ujFormModal = document.getElementById("ujFormSettingsModal");
+    if (ujFormModal && (ujFormModal.style.display === "flex" || ujFormModal.style.display === "block")) {
+      ujFormModal.style.display = "none";
+      return true;
+    }
+
+    const sdePrintModal = document.getElementById("sdePrintModal");
+    if (sdePrintModal && (sdePrintModal.style.display === "flex" || sdePrintModal.style.display === "block")) {
+      sdePrintModal.style.display = "none";
       return true;
     }
 
     // 2.6 Close Portfolio Find Modal if open
     const pcFindModal = document.getElementById("pcFindModal");
-    if (pcFindModal && pcFindModal.style.display === "flex") {
+    if (pcFindModal && (pcFindModal.style.display === "flex" || pcFindModal.style.display === "block")) {
       if (typeof PortfolioCatalog !== "undefined" && PortfolioCatalog.closeFindModal) {
         PortfolioCatalog.closeFindModal();
         return true;
