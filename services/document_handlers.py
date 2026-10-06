@@ -75,6 +75,9 @@ def handle_get_documents_list(conn, payload, key, resp_q):
     has_contract = "ДоговорКонтрагента" in req_names
     has_agent = "Агент" in req_names
     has_info = "Информация" in req_names
+    tab_names = set(str(t.Имя) for t in doc_meta.ТабличныеЧасти)
+    has_tovary = "Товары" in tab_names
+    has_nom_filter = False
 
     is_realization = (doc_type == "РеализацияТоваровУслуг")
 
@@ -150,6 +153,16 @@ def handle_get_documents_list(conn, payload, key, resp_q):
         sel_parts.append("Т.Комментарий КАК Comment")
         columns.append({"key": "comment", "label": "Комментарий", "width": 200, "align": "left"})
 
+    filters = payload.get("filters") or []
+    last_date = payload.get("last_date", "").strip()
+    last_number = payload.get("last_number", "").strip()
+
+    # When search or filters are specified, retrieve all matching records directly
+    if search_str or filters:
+        if limit_count <= 0 or limit_count < 5000:
+            limit_count = 5000
+        offset = 0
+
     where_parts = []
     q_doc = conn.NewObject("Запрос")
 
@@ -170,6 +183,255 @@ def handle_get_documents_list(conn, payload, key, resp_q):
                 where_parts.append("Т.Дата <= &DateTo")
         except Exception as e_dt:
             print("date_to parse error:", e_dt)
+
+    # Direct search in 1C SQL
+    if search_str:
+        q_doc.SetParameter("SearchPattern", f"%{search_str}%")
+        search_conds = [
+            "Т.Номер ПОДОБНО &SearchPattern",
+            "Т.Комментарий ПОДОБНО &SearchPattern"
+        ]
+        if has_kontr:
+            search_conds.append("Т.Контрагент.Наименование ПОДОБНО &SearchPattern")
+            if is_realization:
+                search_conds.append("Т.Контрагент.Код ПОДОБНО &SearchPattern")
+        if has_deal:
+            search_conds.append("Т.Сделка.Номер ПОДОБНО &SearchPattern")
+        if has_sklad:
+            search_conds.append("Т.Склад.Наименование ПОДОБНО &SearchPattern")
+        if has_agent:
+            search_conds.append("Т.Агент.Наименование ПОДОБНО &SearchPattern")
+        if has_contract:
+            search_conds.append("Т.ДоговорКонтрагента.Наименование ПОДОБНО &SearchPattern")
+        if has_resp:
+            search_conds.append("Т.Ответственный.Наименование ПОДОБНО &SearchPattern")
+        if is_realization:
+            search_conds.append("ЕСТЬNULL(ОбрВложенный.Номер, \"\") ПОДОБНО &SearchPattern")
+            search_conds.append("ЕСТЬNULL(ПогрузкаВложенный.Маршрут, \"\") ПОДОБНО &SearchPattern")
+        if has_tovary:
+            search_conds.append(f"Т.Ссылка В (ВЫБРАТЬ РАЗЛИЧНЫЕ ТЧ.Ссылка ИЗ Документ.{doc_type}.Товары КАК ТЧ ГДЕ ТЧ.Номенклатура.Наименование ПОДОБНО &SearchPattern ИЛИ ТЧ.Номенклатура.Код ПОДОБНО &SearchPattern ИЛИ ТЧ.Номенклатура.Артикул ПОДОБНО &SearchPattern)")
+        where_parts.append(f"({' ИЛИ '.join(search_conds)})")
+
+    debug_params = {}
+    if search_str:
+        debug_params["SearchPattern"] = f"%{search_str}%"
+
+    # Direct column/criteria filters in 1C SQL
+    if filters and isinstance(filters, list):
+        for idx, crit in enumerate(filters):
+            if not isinstance(crit, dict) or crit.get("enabled") is False:
+                continue
+            f_key = crit.get("fieldKey")
+            f_op = crit.get("operator", "Равно")
+            f_val = str(crit.get("value", "")).strip()
+            param_key = f"FilParam_{idx}"
+
+            field_sql = None
+            if f_key == "number":
+                field_sql = "Т.Номер"
+            elif f_key == "kontragent" and has_kontr:
+                field_sql = "Т.Контрагент.Наименование"
+            elif f_key == "kontragent_code" and has_kontr and is_realization:
+                field_sql = "Т.Контрагент.Код"
+            elif f_key == "warehouse" and has_sklad:
+                field_sql = "Т.Склад.Наименование"
+            elif f_key == "deal" and has_deal:
+                field_sql = "Т.Сделка.Номер"
+            elif f_key == "comment" and has_comm:
+                field_sql = "Т.Комментарий"
+            elif f_key == "agent" and has_agent:
+                field_sql = "Т.Агент.Наименование"
+            elif f_key == "responsible" and has_resp:
+                field_sql = "Т.Ответственный.Наименование"
+            elif f_key == "contract" and has_contract:
+                field_sql = "Т.ДоговорКонтрагента.Наименование"
+            elif f_key == "amount" and has_sum:
+                field_sql = "Т.СуммаДокумента"
+            elif f_key == "obrabotka_number" and is_realization:
+                field_sql = "ЕСТЬNULL(ОбрВложенный.Номер, \"\")"
+            elif f_key == "pogruzka_marshrut" and is_realization:
+                field_sql = "ЕСТЬNULL(ПогрузкаВложенный.Маршрут, \"\")"
+            elif f_key == "nomenclature" and has_tovary:
+                has_nom_filter = True
+                s_filter = crit.get("structuredFilter") or {}
+                s_items = s_filter.get("items") or []
+                match_all = bool(s_filter.get("matchAll"))
+
+                if not s_items:
+                    raw_val = f_val
+                    if raw_val.startswith("[И]"):
+                        match_all = True
+                        raw_val = raw_val[3:].strip()
+                    tokens = [tok.strip() for tok in raw_val.split(";") if tok.strip()]
+                    for tok in tokens:
+                        if tok.lower().startswith("содержит:"):
+                            s_items.append({"comp": "contains", "value": tok[9:].strip()})
+                        else:
+                            s_items.append({"comp": "equal", "value": tok})
+
+                if f_op == "Заполнено":
+                    where_parts.append(f"Т.Ссылка В (ВЫБРАТЬ РАЗЛИЧНЫЕ ТЧ.Ссылка ИЗ Документ.{doc_type}.Товары КАК ТЧ)")
+                    continue
+                elif f_op == "Не заполнено":
+                    where_parts.append(f"НЕ (Т.Ссылка В (ВЫБРАТЬ РАЗЛИЧНЫЕ ТЧ.Ссылка ИЗ Документ.{doc_type}.Товары КАК ТЧ))")
+                    continue
+
+                item_cond_list = []
+                for s_idx, s_item in enumerate(s_items):
+                    s_val = str(s_item.get("value") or "").strip()
+                    s_code = str(s_item.get("code") or "").strip()
+                    s_art = str(s_item.get("artikul") or "").strip()
+                    s_comp = s_item.get("comp") or ("contains" if f_op == "Содержит" else "equal")
+
+                    single_parts = []
+                    if s_code:
+                        param_c = f"NomCode_{idx}_{s_idx}"
+                        q_doc.SetParameter(param_c, s_code)
+                        single_parts.append(f"ТЧ.Номенклатура.Код = &{param_c}")
+                        clean_code = s_code.lstrip("0")
+                        if clean_code and clean_code != s_code:
+                            param_cc = f"NomCleanCode_{idx}_{s_idx}"
+                            q_doc.SetParameter(param_cc, clean_code)
+                            single_parts.append(f"ТЧ.Номенклатура.Код = &{param_cc}")
+                    if s_art:
+                        param_a = f"NomArt_{idx}_{s_idx}"
+                        q_doc.SetParameter(param_a, s_art)
+                        single_parts.append(f"ТЧ.Номенклатура.Артикул = &{param_a}")
+                    if s_val:
+                        import re
+                        cleaned_val = re.sub(r"^\[[^\]]+\]\s*", "", s_val).strip()
+                        param_v = f"NomVal_{idx}_{s_idx}"
+                        param_vpattern = f"%{cleaned_val}%"
+                        q_doc.SetParameter(param_v, param_vpattern)
+                        single_parts.append(f"ТЧ.Номенклатура.Наименование ПОДОБНО &{param_v}")
+                        single_parts.append(f"ТЧ.Номенклатура.Код ПОДОБНО &{param_v}")
+                        single_parts.append(f"ТЧ.Номенклатура.Артикул ПОДОБНО &{param_v}")
+                        param_vexact = f"NomExact_{idx}_{s_idx}"
+                        q_doc.SetParameter(param_vexact, cleaned_val)
+                        single_parts.append(f"ТЧ.Номенклатура.Наименование = &{param_vexact}")
+                        single_parts.append(f"ТЧ.Номенклатура.Код = &{param_vexact}")
+
+                    if single_parts:
+                        item_cond_list.append(f"({' ИЛИ '.join(single_parts)})")
+
+                is_neg = (f_op in ("Не равно", "Не в списке", "Не содержит"))
+                if item_cond_list:
+                    if match_all:
+                        all_subqueries = [f"Т.Ссылка В (ВЫБРАТЬ РАЗЛИЧНЫЕ ТЧ.Ссылка ИЗ Документ.{doc_type}.Товары КАК ТЧ ГДЕ {ic})" for ic in item_cond_list]
+                        if is_neg:
+                            where_parts.append(f"НЕ ({' И '.join(all_subqueries)})")
+                        else:
+                            where_parts.extend(all_subqueries)
+                    else:
+                        comb_cond = " ИЛИ ".join(item_cond_list)
+                        if is_neg:
+                            where_parts.append(f"НЕ (Т.Ссылка В (ВЫБРАТЬ РАЗЛИЧНЫЕ ТЧ.Ссылка ИЗ Документ.{doc_type}.Товары КАК ТЧ ГДЕ ({comb_cond})))")
+                        else:
+                            where_parts.append(f"Т.Ссылка В (ВЫБРАТЬ РАЗЛИЧНЫЕ ТЧ.Ссылка ИЗ Документ.{doc_type}.Товары КАК ТЧ ГДЕ ({comb_cond}))")
+                continue
+            elif f_key == "status" or f_key in ("posted", "deleted"):
+                if f_val in ("deleted", "Помечен на удаление"):
+                    where_parts.append("Т.ПометкаУдаления = ИСТИНА")
+                elif f_val in ("posted", "Проведен"):
+                    where_parts.append("(Т.Проведен = ИСТИНА И Т.ПометкаУдаления = ЛОЖЬ)")
+                elif f_val in ("not_posted", "Не проведен"):
+                    where_parts.append("(Т.Проведен = ЛОЖЬ И Т.ПометкаУдаления = ЛОЖЬ)")
+                continue
+
+            if field_sql:
+                if f_op == "Заполнено":
+                    where_parts.append(f"({field_sql} <> \"\" И НЕ {field_sql} ЕСТЬ NULL)")
+                elif f_op == "Не заполнено":
+                    where_parts.append(f"({field_sql} = \"\" ИЛИ {field_sql} ЕСТЬ NULL)")
+                elif f_key == "amount":
+                    try:
+                        amt_num = float(f_val.replace(" ", "").replace(",", "."))
+                        q_doc.SetParameter(param_key, amt_num)
+                        if f_op == "Больше":
+                            where_parts.append(f"{field_sql} > &{param_key}")
+                        elif f_op == "Меньше":
+                            where_parts.append(f"{field_sql} < &{param_key}")
+                        else:
+                            where_parts.append(f"{field_sql} = &{param_key}")
+                    except Exception:
+                        pass
+                elif f_op in ("В группе из списка", "В списке", "Не в списке") or (";" in f_val and f_op in ("Равно", "Содержит")):
+                    raw_val = f_val
+                    tokens = [t.strip() for t in raw_val.split(";") if t.strip()]
+                    tok_conds = []
+                    for t_idx, tok in enumerate(tokens):
+                        param_t = f"{param_key}_t{t_idx}"
+                        t_parts = []
+                        if f_key in ("kontragent", "kontragent_code") and has_kontr:
+                            name_part = tok
+                            code_part = ""
+                            if " - " in tok:
+                                sub_p = tok.split(" - ")
+                                name_part = sub_p[0].strip()
+                                code_part = sub_p[-1].strip()
+                            
+                            param_name = f"{param_t}_name"
+                            q_doc.SetParameter(param_name, f"%{name_part}%")
+                            debug_params[param_name] = f"%{name_part}%"
+                            t_parts.append(f"Т.Контрагент.Наименование ПОДОБНО &{param_name}")
+                            if code_part:
+                                param_code = f"{param_t}_code"
+                                q_doc.SetParameter(param_code, f"%{code_part}%")
+                                debug_params[param_code] = f"%{code_part}%"
+                                t_parts.append(f"Т.Контрагент.Код ПОДОБНО &{param_code}")
+                            param_exact = f"{param_t}_exact"
+                            q_doc.SetParameter(param_exact, tok)
+                            debug_params[param_exact] = tok
+                            t_parts.append(f"Т.Контрагент.Наименование = &{param_exact}")
+                        else:
+                            clean_tok = tok.replace("Содержит:", "").replace("содержит:", "").strip()
+                            param_like = f"{param_t}_like"
+                            q_doc.SetParameter(param_like, f"%{clean_tok}%")
+                            debug_params[param_like] = f"%{clean_tok}%"
+                            t_parts.append(f"{field_sql} ПОДОБНО &{param_like}")
+                            param_exact = f"{param_t}_exact"
+                            q_doc.SetParameter(param_exact, clean_tok)
+                            debug_params[param_exact] = clean_tok
+                            t_parts.append(f"{field_sql} = &{param_exact}")
+
+                        if t_parts:
+                            tok_conds.append(f"({' ИЛИ '.join(t_parts)})")
+                    
+                    if tok_conds:
+                        comb = " ИЛИ ".join(tok_conds)
+                        if f_op == "Не в списке":
+                            where_parts.append(f"НЕ ({comb})")
+                        else:
+                            where_parts.append(f"({comb})")
+                else:
+                    if f_op == "Равно":
+                        q_doc.SetParameter(param_key, f_val)
+                        debug_params[param_key] = f_val
+                        where_parts.append(f"{field_sql} = &{param_key}")
+                    elif f_op == "Не равно":
+                        q_doc.SetParameter(param_key, f_val)
+                        debug_params[param_key] = f_val
+                        where_parts.append(f"{field_sql} <> &{param_key}")
+                    elif f_op == "Не содержит":
+                        q_doc.SetParameter(param_key, f"%{f_val}%")
+                        debug_params[param_key] = f"%{f_val}%"
+                        where_parts.append(f"НЕ ({field_sql} ПОДОБНО &{param_key})")
+                    else:  # Содержит / default
+                        q_doc.SetParameter(param_key, f"%{f_val}%")
+                        debug_params[param_key] = f"%{f_val}%"
+                        where_parts.append(f"{field_sql} ПОДОБНО &{param_key}")
+
+    # Keyset pagination for normal chunking (when NO search and NO filters)
+    if last_date and not search_str and not filters:
+        try:
+            dt_last = parse_query_datetime(last_date, is_end=False)
+            if dt_last:
+                q_doc.SetParameter("LastDate", dt_last)
+                q_doc.SetParameter("LastNumber", last_number or "")
+                where_parts.append("(Т.Дата < &LastDate ИЛИ (Т.Дата = &LastDate И Т.Номер < &LastNumber))")
+                offset = 0 # No COM skipping needed!
+        except Exception as e_lp:
+            print("keyset pagination error:", e_lp)
 
     where_sql = ("ГДЕ " + " И ".join(where_parts)) if where_parts else ""
 
@@ -316,12 +578,12 @@ def handle_get_documents_list(conn, payload, key, resp_q):
             has_more = bool(res_doc.Next())
             break
 
-    # Batch fetch nomenclatures ONLY for this chunk's documents (lightning fast via indexed DocRefs)
+    # Batch fetch nomenclatures ONLY if explicitly requested
     tab_names = set(str(t.Имя) for t in doc_meta.ТабличныеЧасти)
     has_tovary = "Товары" in tab_names
     doc_noms_map = {}
     doc_nomkeys_map = {}
-    if has_tovary and not payload.get("skip_nomenclatures") and doc_refs:
+    if has_tovary and (payload.get("include_nomenclatures") or has_nom_filter or search_str) and doc_refs:
         try:
             q_noms = conn.NewObject("Запрос")
             arr_refs = conn.NewObject("Массив")
@@ -359,14 +621,9 @@ def handle_get_documents_list(conn, payload, key, resp_q):
         it["nomenclatures"] = n_list
         it["nomenclature"] = ", ".join(n_list)
         it["nom_keys"] = doc_nomkeys_map.get(it["number"], [])
-
-        if search_str:
-            search_target = " ".join(str(v) for v in it.values()).lower()
-            if search_str.lower() not in search_target:
-                continue
         filtered_items.append(it)
 
-    last_item = items[-1] if items else None
+    last_item = filtered_items[-1] if filtered_items else None
 
     resp_q.put((True, {
         "doc_type": doc_type,
@@ -378,7 +635,14 @@ def handle_get_documents_list(conn, payload, key, resp_q):
         "offset": offset,
         "limit": limit_count,
         "last_date": last_item["date"] if last_item else "",
-        "last_number": last_item["number"] if last_item else ""
+        "last_number": last_item["number"] if last_item else "",
+        "debug_info": {
+            "where_sql": where_sql,
+            "parameters": debug_params,
+            "filters_count": len([c for c in (filters or []) if isinstance(c, dict) and c.get("enabled") is not False]),
+            "search": search_str or "",
+            "total_fetched": len(filtered_items)
+        }
     }))
 
 

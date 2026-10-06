@@ -161,11 +161,16 @@ def get_all_price_types():
 def get_documents_list(payload):
     doc_type = payload.get("doc_type") or "РеализацияТоваровУслуг"
     offset = int(payload.get("offset", 0))
-    limit_count = int(payload.get("limit", 0))
     search_str = payload.get("search", "").strip().lower()
+    filters = payload.get("filters") or []
     date_from = payload.get("date_from", "").strip()
     date_to = payload.get("date_to", "").strip()
     last_date = payload.get("last_date", "").strip()
+
+    if search_str or filters:
+        if limit_count <= 0 or limit_count < 5000:
+            limit_count = 5000
+        offset = 0
 
     conn = get_connection()
     try:
@@ -345,6 +350,66 @@ def get_documents_list(payload):
                     target = f"{item['number']} {item['date']} {item['kontragent']} {item['kontragent_code']} {item['deal']} {item['obrabotka_number']} {item['vms_status']} {item['pogruzka_marshrut']} {item['pogruzka_voditel']}".lower()
                     if search_str not in target:
                         continue
+                if filters and isinstance(filters, list):
+                    match_fil = True
+                    for crit in filters:
+                        if not isinstance(crit, dict) or crit.get("enabled") is False:
+                            continue
+                        f_k = crit.get("fieldKey")
+                        f_v = str(crit.get("value", "")).lower().strip()
+                        r_v = str(item.get(f_k, "")).lower().strip()
+                        if f_k == "nomenclature":
+                            s_filter = crit.get("structuredFilter") or {}
+                            s_items = s_filter.get("items") or []
+                            match_all = bool(s_filter.get("matchAll"))
+                            if not s_items and f_v:
+                                raw_v = f_v
+                                if raw_v.startswith("[и]"):
+                                    match_all = True
+                                    raw_v = raw_v[3:].strip()
+                                for tok in raw_v.split(";"):
+                                    if tok.strip():
+                                        s_items.append({"value": tok.strip()})
+                            if s_items:
+                                item_noms_str = " ".join(item.get("nom_keys", []) + item.get("nomenclatures", [])).lower()
+                                def check_s(si):
+                                    c_v = str(si.get("value", "")).lower().strip()
+                                    c_c = str(si.get("code", "")).lower().strip()
+                                    c_a = str(si.get("artikul", "")).lower().strip()
+                                    return (c_v and c_v in item_noms_str) or (c_c and c_c in item_noms_str) or (c_a and c_a in item_noms_str)
+                                if match_all:
+                                    if not all(check_s(si) for si in s_items):
+                                        match_fil = False
+                                        break
+                                else:
+                                    if not any(check_s(si) for si in s_items):
+                                        match_fil = False
+                                        break
+                        elif f_v:
+                            f_op = crit.get("operator", "Равно")
+                            if f_op in ("в группе из списка", "в списке", "не в списке") or ";" in f_v:
+                                toks = [t.strip().lower() for t in f_v.split(";") if t.strip()]
+                                def tok_match(t):
+                                    if " - " in t:
+                                        t_parts = t.split(" - ")
+                                        return any(tp.strip() in r_v or r_v in tp.strip() for tp in t_parts if tp.strip())
+                                    return (t in r_v) or (r_v in t)
+                                
+                                is_in = any(tok_match(t) for t in toks)
+                                if f_op in ("не в списке", "не равно"):
+                                    if is_in:
+                                        match_fil = False
+                                        break
+                                else:
+                                    if not is_in:
+                                        match_fil = False
+                                        break
+                            else:
+                                if f_v not in r_v and r_v not in f_v:
+                                    match_fil = False
+                                    break
+                    if not match_fil:
+                        continue
                 items.append(item)
 
             has_more = (len(items) == limit_count) if (limit_count and limit_count > 0) else False
@@ -357,7 +422,14 @@ def get_documents_list(payload):
                 "total": len(items),
                 "has_more": has_more,
                 "last_date": last_item["date"] if last_item else "",
-                "last_number": last_item["number"] if last_item else ""
+                "last_number": last_item["number"] if last_item else "",
+                "debug_info": {
+                    "where_sql": "OFFLINE / LOCAL DB SIMULATION",
+                    "parameters": {"search": search_str, "filters_count": len(filters) if filters else 0},
+                    "filters_count": len(filters) if filters else 0,
+                    "search": search_str or "",
+                    "total_fetched": len(items)
+                }
             }
 
         # 3. Поступление товаров и услуг (Purchase Documents)
@@ -1152,7 +1224,8 @@ def get_portfolio_catalog_items(payload):
                 "unit": r["unit"] or "əd",
                 "price": p_map.get(selected_price_types[0], 0.0) if selected_price_types else 0.0,
                 "prices": {pt: p_map.get(pt, 0.0) for pt in selected_price_types},
-                "manufacturer": ""
+                "manufacturer": "",
+                "comment": ""
             })
 
         return {

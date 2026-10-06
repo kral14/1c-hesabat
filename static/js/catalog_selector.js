@@ -235,6 +235,10 @@ const CatalogSelector = {
   },
 
   getActiveWindow() {
+    if (window.MdiManager && window.MdiManager.activeWindowId && window.MdiManager.activeWindowId.startsWith("catalogWin_")) {
+      const activeEl = document.getElementById(window.MdiManager.activeWindowId);
+      if (activeEl) return activeEl;
+    }
     const catSafe = String(this.currentCatalog).replace(/[^a-zA-Z0-9_\u0400-\u04FF]/g, "_");
     return document.getElementById(`catalogWin_${catSafe}`) || document.getElementById("catalogWindowModal");
   },

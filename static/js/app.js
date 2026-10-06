@@ -116,13 +116,29 @@ function confirmCloseWindow() {
   closeAppWindow();
 }
 
+function openReportDirect() {
+  const primaryWin = window.MdiManager?.windows?.["mdiWindow-1"];
+  // Əgər əsas hesabat artıq açılıbsa (hətta minimize olunsa da), Dashboard-dan basanda MÜTLƏQ ikincisini açırıq
+  if (primaryWin && primaryWin.isOpen) {
+    if (window.MdiManager && typeof MdiManager.createNewReportWindow === "function") {
+      MdiManager.createNewReportWindow();
+      return;
+    }
+  }
+  if (window.MdiManager && typeof MdiManager.openOrRestoreReportWindow === "function") {
+    MdiManager.openOrRestoreReportWindow();
+  }
+}
+window.openReportDirect = openReportDirect;
+
 function openCatalogDirect(catalogName) {
   const catSafe = String(catalogName).replace(/[^a-zA-Z0-9_\u0400-\u04FF]/g, "_");
   const winId = `catalogWin_${catSafe}`;
+  const winObj = window.MdiManager?.windows?.[winId];
   const existingWin = document.getElementById(winId);
 
-  // Əgər pəncərə artıq açıqdırsa, təkrar kliklədikdə dərhal ikincisini / yeni nüsxəsini açırıq
-  if (existingWin && existingWin.style.display !== "none" && !existingWin.classList.contains("minimized")) {
+  // Əgər pəncərə artıq açılıbsa (hətta minimize olunsa da), təkrar kliklədikdə dərhal ikincisini / yeni nüsxəsini açırıq
+  if ((winObj && winObj.isOpen) || (existingWin && existingWin.dataset && existingWin.dataset.opened === "true")) {
     if (window.MdiManager && typeof MdiManager.createDuplicateCatalogWindow === "function") {
       MdiManager.createDuplicateCatalogWindow(catalogName);
       return;
@@ -139,9 +155,13 @@ function openCatalogDirect(catalogName) {
         console.log("Selected item:", item);
       }
     });
+    const openedWin = document.getElementById(winId);
+    if (openedWin) openedWin.dataset.opened = "true";
   }
 }
+window.openCatalogDirect = openCatalogDirect;
 
 function toggleFullScreenApp() {
   maximizeAppWindow();
 }
+

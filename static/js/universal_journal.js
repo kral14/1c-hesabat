@@ -141,6 +141,11 @@ const UniversalJournal = {
 
   close: function() {
     this.clearPrefetchCache();
+    if (this._bgTimer) {
+      clearTimeout(this._bgTimer);
+      this._bgTimer = null;
+    }
+    this.updateBottomLoadingState(false);
     if (window.MdiManager) {
       MdiManager.closeWindow("universalJournalWindow");
     } else {
@@ -272,16 +277,29 @@ const UniversalJournal = {
     return isNaN(parsed) ? null : parsed;
   },
 
-  initialChunkLimit: 500,
-  backgroundChunkLimit: 1000,
+  initialChunkLimit: 1500,
+  backgroundChunkLimit: 2000,
   currentLoadSessionId: 0,
   isLoadingBackground: false,
   hasMoreDocs: false,
   lastDocDate: null,
   lastDocNumber: null,
   _bgTimer: null,
+  _searchDebounceTimer: null,
+  isServerFiltered: false,
 
-  loadDocuments: function() {
+  updateBottomLoadingState: function(isLoading) {
+    const indicator = document.getElementById("ujBottomLoadingIndicator");
+    if (indicator) {
+      if (isLoading && this.hasMoreDocs) {
+        indicator.style.display = "flex";
+      } else {
+        indicator.style.display = "none";
+      }
+    }
+  },
+
+  loadDocuments: function(options = {}) {
     this.clearPrefetchCache();
     if (this._bgTimer) {
       clearTimeout(this._bgTimer);
@@ -293,23 +311,39 @@ const UniversalJournal = {
     this.hasMoreDocs = false;
     this.lastDocDate = null;
     this.lastDocNumber = null;
+    this.updateBottomLoadingState(false);
+
+    const searchInp = document.getElementById("ujSearchInput");
+    const querySearch = (options.search !== undefined) ? options.search : (searchInp ? searchInp.value.trim() : "");
+    const queryFilters = (options.filters !== undefined) ? options.filters : (this.activeFilters || []);
+    const activeCrits = (queryFilters || []).filter(c => c && c.enabled !== false);
+
+    const isFilteredQuery = Boolean(querySearch || activeCrits.length > 0);
+    this.isServerFiltered = isFilteredQuery;
 
     const loadingEl = document.getElementById("ujLoadingState");
     const emptyEl = document.getElementById("ujEmptyState");
-    const tableEl = document.getElementById("ujTable");
 
     if (loadingEl) loadingEl.style.display = "flex";
     if (emptyEl) emptyEl.style.display = "none";
-    this.updateStatus("Загрузка списка документов из 1C...");
 
+    if (isFilteredQuery) {
+      this.updateStatus(querySearch ? `1C: Прямой поиск: "${querySearch}"...` : `1C: Прямой отбор (${activeCrits.length} условий)...`);
+    } else {
+      this.updateStatus("Загрузка списка документов из 1C...");
+    }
+
+    const hasNomFilter = activeCrits.some(c => c && c.fieldKey === "nomenclature" && c.enabled !== false);
     const creds = window.SessionManager ? SessionManager.getCredentials() : {};
     const payload = {
       ...creds,
       doc_type: this.activeDocType,
       date_from: this.formatDateForBackend(this.startDateStr, false),
       date_to: this.formatDateForBackend(this.endDateStr, true),
-      search: "",
-      limit: this.initialChunkLimit,
+      search: querySearch,
+      filters: activeCrits,
+      include_nomenclatures: hasNomFilter || Boolean(options.include_nomenclatures),
+      limit: isFilteredQuery ? 5000 : this.initialChunkLimit,
       offset: 0
     };
 
@@ -324,8 +358,33 @@ const UniversalJournal = {
       if (loadingEl) loadingEl.style.display = "none";
 
       if (!data.success) {
+        this.lastDiagnostics = {
+          timestamp: new Date().toLocaleTimeString(),
+          docType: this.activeDocType,
+          docTitle: this.docTitle,
+          period: {
+            startDate: this.startDateStr || "(Весь период)",
+            endDate: this.endDateStr || "(Весь период)"
+          },
+          search: querySearch,
+          filters: JSON.parse(JSON.stringify(activeCrits || [])),
+          responseSuccess: false,
+          rawCount: 0,
+          filteredCount: 0,
+          serverDebug: null,
+          error: data.error || "Sənədlər yüklənə bilmədi"
+        };
+        const badge = document.getElementById("ujDebugBadge");
+        if (badge) {
+          badge.style.display = "inline";
+          badge.textContent = "!";
+          badge.style.background = "#d32f2f";
+          badge.title = "Ошибка: " + data.error;
+        }
+
         alert("1C Xətası: " + (data.error || "Sənədlər yüklənə bilmədi"));
         this.updateStatus("Ошибка: " + data.error);
+        this.updateBottomLoadingState(false);
         return;
       }
 
@@ -345,7 +404,7 @@ const UniversalJournal = {
         });
       }
       this.items = rawItems;
-      this.hasMoreDocs = Boolean(data.has_more);
+      this.filteredItems = rawItems;
       this.lastDocDate = data.last_date || null;
       this.lastDocNumber = data.last_number || null;
 
@@ -353,47 +412,132 @@ const UniversalJournal = {
       const titleEl = document.getElementById("ujWindowTitle");
       if (titleEl) titleEl.textContent = `Журнал документов: ${this.docTitle}`;
 
+      // Save diagnostic snapshot
+      this.lastDiagnostics = {
+        timestamp: new Date().toLocaleTimeString(),
+        docType: this.activeDocType,
+        docTitle: this.docTitle,
+        period: {
+          startDate: this.startDateStr || "(Весь период)",
+          endDate: this.endDateStr || "(Весь период)"
+        },
+        search: querySearch,
+        filters: JSON.parse(JSON.stringify(activeCrits || [])),
+        responseSuccess: true,
+        rawCount: rawItems.length,
+        filteredCount: rawItems.length,
+        serverDebug: data.debug_info || null,
+        error: null
+      };
+
+      // When search or filter is active: verify with client-side filter and display full result
+      if (isFilteredQuery) {
+        this.hasMoreDocs = false;
+        this.updateBottomLoadingState(false);
+        this.applyFiltersAndSearch();
+        this.lastDiagnostics.filteredCount = this.filteredItems.length;
+
+        const badge = document.getElementById("ujDebugBadge");
+        if (badge) {
+          if (this.filteredItems.length === 0) {
+            badge.style.display = "inline";
+            badge.textContent = "0";
+            badge.style.background = "#e65100";
+            badge.title = "0 результатов по заданному отбору/поиску";
+          } else {
+            badge.style.display = "none";
+          }
+        }
+
+        this.updateStatus(`Найдено: ${this.filteredItems.length} документов`);
+        this.updateCountBadge(`Всего: ${this.filteredItems.length}`);
+        this.updateActiveFilterBadgeUI();
+        this.updateFilterButtonsState();
+        return;
+      }
+
+      const badge = document.getElementById("ujDebugBadge");
+      if (badge) badge.style.display = "none";
+
+      this.hasMoreDocs = Boolean(data.has_more);
+
       // Check and apply startup default filter or active session filter
       this.checkAndApplyStartupFilter();
 
       // Schedule background chunk loading if more documents exist
       if (this.hasMoreDocs) {
-        this.updateStatus(`Загружено первых ${this.items.length} документов (фоновое докачивание остальных...)`);
+        this.updateStatus(`Загружено ${this.items.length} документов (фоновое докачивание...)`);
+        this.updateBottomLoadingState(true);
         this.scheduleBackgroundChunk(sessionId);
       } else {
+        this.updateBottomLoadingState(false);
         this.updateStatus(`Загружено ${this.items.length} документов`);
       }
     })
     .catch(err => {
       if (sessionId !== this.currentLoadSessionId) return;
       if (loadingEl) loadingEl.style.display = "none";
+      this.updateBottomLoadingState(false);
       console.error("Error loading documents:", err);
       this.updateStatus("Ошибка сети при загрузке документов");
+
+      this.lastDiagnostics = {
+        timestamp: new Date().toLocaleTimeString(),
+        docType: this.activeDocType,
+        docTitle: this.docTitle,
+        period: {
+          startDate: this.startDateStr || "(Весь период)",
+          endDate: this.endDateStr || "(Весь период)"
+        },
+        search: querySearch,
+        filters: JSON.parse(JSON.stringify(activeCrits || [])),
+        responseSuccess: false,
+        rawCount: 0,
+        filteredCount: 0,
+        serverDebug: null,
+        error: err.message || String(err)
+      };
+      const badge = document.getElementById("ujDebugBadge");
+      if (badge) {
+        badge.style.display = "inline";
+        badge.textContent = "!";
+        badge.style.background = "#d32f2f";
+        badge.title = "Сетевая ошибка: " + (err.message || String(err));
+      }
     });
   },
 
   scheduleBackgroundChunk: function(sessionId) {
     if (sessionId !== this.currentLoadSessionId) return;
+    if (this.isServerFiltered) return;
     if (!this.hasMoreDocs) return;
 
     if (this._bgTimer) clearTimeout(this._bgTimer);
     this._bgTimer = setTimeout(() => {
       this.fetchNextChunk(sessionId);
-    }, 150);
+    }, 120);
   },
 
   fetchNextChunk: function(sessionId) {
     if (sessionId !== this.currentLoadSessionId) return;
-    if (!this.hasMoreDocs) return;
+    if (this.isServerFiltered) return; // Do not trickle in background if searching or filtered
+    if (!this.hasMoreDocs) {
+      this.updateBottomLoadingState(false);
+      return;
+    }
     if (this.isLoadingBackground) return;
 
     this.isLoadingBackground = true;
+    this.updateBottomLoadingState(true);
+
     const creds = window.SessionManager ? SessionManager.getCredentials() : {};
     const payload = {
       ...creds,
       doc_type: this.activeDocType,
       date_from: this.formatDateForBackend(this.startDateStr, false),
       date_to: this.formatDateForBackend(this.endDateStr, true),
+      last_date: this.lastDocDate || "",
+      last_number: this.lastDocNumber || "",
       search: "",
       limit: this.backgroundChunkLimit,
       offset: this.items.length
@@ -411,6 +555,7 @@ const UniversalJournal = {
 
       if (!data.success) {
         console.warn("[UNIVERSAL JOURNAL] Background chunk fetch error:", data.error);
+        this.updateBottomLoadingState(false);
         return;
       }
 
@@ -463,13 +608,16 @@ const UniversalJournal = {
 
       if (this.hasMoreDocs) {
         this.updateStatus(`Фоновая загрузка: получено ${this.items.length} документов...`);
+        this.updateBottomLoadingState(true);
         this.scheduleBackgroundChunk(sessionId);
       } else {
+        this.updateBottomLoadingState(false);
         this.updateStatus(`Все документы загружены (${this.items.length} документов)`);
       }
     })
     .catch(err => {
       this.isLoadingBackground = false;
+      this.updateBottomLoadingState(false);
       console.warn("[UNIVERSAL JOURNAL] Background chunk network error:", err);
     });
   },
@@ -589,7 +737,11 @@ const UniversalJournal = {
 
           // Infinite scroll on scrollbar pull near bottom
           const scrollBottom = wrapper.scrollHeight - wrapper.scrollTop - wrapper.clientHeight;
-          if (scrollBottom < 400 && this.hasMoreDocs && !this.isLoadingBackground) {
+          if (scrollBottom < 600 && this.hasMoreDocs && !this.isLoadingBackground) {
+            if (this._bgTimer) {
+              clearTimeout(this._bgTimer);
+              this._bgTimer = null;
+            }
             this.fetchNextChunk(this.currentLoadSessionId);
           }
 
@@ -632,6 +784,7 @@ const UniversalJournal = {
     const bottomSpacerHeight = (totalCount - endIdx) * this.rowHeight;
 
     const chunks = [];
+
     if (topSpacerHeight > 0) {
       chunks.push(`<tr style="height: ${topSpacerHeight}px; border: none;"><td colspan="${colCount}" style="padding: 0; border: none; height: ${topSpacerHeight}px; background: transparent;"></td></tr>`);
     }
@@ -833,6 +986,30 @@ const UniversalJournal = {
   formSettingsSelectedIdx: 0,
 
   openFormSettingsModal: function() {
+    if (window.OneCColumnSettings) {
+      OneCColumnSettings.open({
+        title: this.docTitle || this.activeDocType || "Журнал документов",
+        columns: this.columns,
+        defaultColumns: typeof this.getDefaultColumns === "function" ? this.getDefaultColumns() : this.columns,
+        storageKey: typeof this.getStorageKey === "function" ? this.getStorageKey() : "uj_columns_config",
+        onApply: (newCols) => {
+          this.columns = newCols;
+          this.saveColumnsConfig();
+          this.renderTable();
+          this.updateStatus("Настройки колонок применены");
+        },
+        onReset: (defCols) => {
+          if (typeof this.getStorageKey === "function") {
+            localStorage.removeItem(this.getStorageKey());
+          }
+          this.loadColumnsConfig();
+          this.renderTable();
+          this.updateStatus("Настройки колонок сброшены к стандартным");
+        }
+      });
+      return;
+    }
+
     this.tempSettingsColumns = JSON.parse(JSON.stringify(this.columns));
     this.formSettingsSelectedIdx = 0;
 
@@ -1219,6 +1396,11 @@ const UniversalJournal = {
 
   openFilterModal: function() {
     this.tempFilterCriteria = JSON.parse(JSON.stringify(this.activeFilters || []));
+    this.tempFilterCriteria.forEach(c => {
+      if (c.enabled === undefined) {
+        c.enabled = Boolean(c.value || c.valueFrom || c.valueTo || c.structuredFilter);
+      }
+    });
     this.filterSelectedCritIdx = 0;
     this.activeFilterTab = "otbor";
 
@@ -1409,6 +1591,28 @@ const UniversalJournal = {
     if (this.tempFilterCriteria[idx]) {
       this.tempFilterCriteria[idx].enabled = checked;
     }
+    this.updateHeaderCheckAllState();
+  },
+
+  setCritEnabled: function(idx, enabled = true) {
+    if (this.tempFilterCriteria[idx]) {
+      this.tempFilterCriteria[idx].enabled = enabled;
+      const chk = document.getElementById(`ujCritEnabled_${idx}`);
+      if (chk) {
+        chk.checked = enabled;
+      }
+      this.updateHeaderCheckAllState();
+    }
+  },
+
+  updateHeaderCheckAllState: function() {
+    const chkAll = document.querySelector("#ujFilterTableContainer thead input[type='checkbox']");
+    if (chkAll && this.tempFilterCriteria && this.tempFilterCriteria.length > 0) {
+      const allEnabled = this.tempFilterCriteria.every(c => c.enabled !== false);
+      const someEnabled = this.tempFilterCriteria.some(c => c.enabled !== false);
+      chkAll.checked = allEnabled;
+      chkAll.indeterminate = (!allEnabled && someEnabled);
+    }
   },
 
   onFilterCritFieldChange: function(idx, newKey) {
@@ -1435,6 +1639,9 @@ const UniversalJournal = {
           crit.valueTo = parts[1] || "";
         }
       }
+      if (newOp === "Заполнено" || newOp === "Не заполнено" || (crit.value && String(crit.value).trim().length > 0)) {
+        crit.enabled = true;
+      }
       this.renderFilterCriteriaRows();
     }
   },
@@ -1453,6 +1660,7 @@ const UniversalJournal = {
       const checks = tbody.querySelectorAll("input[type='checkbox']");
       checks.forEach(chk => chk.checked = checked);
     }
+    this.updateHeaderCheckAllState();
   },
 
   renderFilterCriteriaRows: function() {
@@ -1504,7 +1712,7 @@ const UniversalJournal = {
         valueInputHtml = `
           <select class="select-1c" style="width: 100%; height: 21px; font-size: 11px; background: #ffffff !important; color: #111111 !important; border: 1px solid #7f9db9;"
                   onclick="event.stopPropagation()"
-                  onchange="UniversalJournal.tempFilterCriteria[${idx}].value = this.value">
+                  onchange="UniversalJournal.tempFilterCriteria[${idx}].value = this.value; UniversalJournal.setCritEnabled(${idx}, true);">
             <option value="Да" ${valStr === 'Да' ? 'selected' : ''} style="color: #111111 !important; background-color: #ffffff !important;">Да</option>
             <option value="Нет" ${valStr === 'Нет' ? 'selected' : ''} style="color: #111111 !important; background-color: #ffffff !important;">Нет</option>
           </select>
@@ -1549,10 +1757,13 @@ const UniversalJournal = {
             </div>
           `;
         } else {
-          const showPickBtn = (crit.fieldKey !== "date");
+          const isDateInput = (crit.fieldKey === "date");
+          const dateClass = isDateInput ? "uj-filter-date" : "";
+          const showPickBtn = !isDateInput;
           valueInputHtml = `
             <div style="display: flex; align-items: center; width: 100%; gap: 1px; position: relative;">
-              <input type="text" id="ujFilterValInput_${idx}" class="input-1c uj-filter-single" ${structAttr}
+              <input type="text" id="ujFilterValInput_${idx}" class="input-1c uj-filter-single ${dateClass}" ${structAttr}
+                     data-field-key="${crit.fieldKey || ''}"
                      style="flex: 1; height: 21px; font-size: 11px; padding: 1px 4px; outline: none; background: #ffffff !important; color: #111111 !important; border: 1px solid #7f9db9;"
                      value="${this.escapeHtml(crit.value !== undefined ? String(crit.value) : '')}"
                      placeholder=""
@@ -1577,7 +1788,7 @@ const UniversalJournal = {
       rowsHtml += `
         <tr id="ujCritRow_${idx}" style="background: ${bg}; height: 25px;" onclick="UniversalJournal.selectFilterCritRow(${idx})">
           <td style="width: 28px; text-align: center; border: 1px solid #d4d0c8;">
-            <input type="checkbox" ${isChecked ? 'checked' : ''}
+            <input type="checkbox" id="ujCritEnabled_${idx}" ${isChecked ? 'checked' : ''}
                    onclick="event.stopPropagation(); UniversalJournal.toggleFilterCritEnabled(${idx}, this.checked)"
                    style="cursor: pointer; vertical-align: middle;">
           </td>
@@ -1612,11 +1823,12 @@ const UniversalJournal = {
     });
 
     tbody.innerHTML = rowsHtml;
+    this.updateHeaderCheckAllState();
 
-    // 1C seqment seçimi: kliklənən rəqəm bloku seçilsin
+    // 1C seqment seçimi: yalnız tarix xanaları üçün (məhsul və s. mətn xanalarına toxunulmur)
     setTimeout(() => {
       if (window.PeriodPicker && typeof PeriodPicker.attachSegmentSelection === "function") {
-        tbody.querySelectorAll("input.uj-filter-from, input.uj-filter-to, input.uj-filter-single").forEach(inp => {
+        tbody.querySelectorAll("input.uj-filter-from, input.uj-filter-to, input.uj-filter-date").forEach(inp => {
           PeriodPicker.attachSegmentSelection(inp);
         });
       }
@@ -1791,6 +2003,9 @@ const UniversalJournal = {
               if (inputEl) inputEl.value = res;
               crit.value = res;
             }
+            if (st || en || crit.value) {
+              this.setCritEnabled(idx, true);
+            }
           }
         });
         return;
@@ -1826,9 +2041,13 @@ const UniversalJournal = {
             catalog: catalog,
             structuredFilter: crit.structuredFilter,
             onApply: (data) => {
-              crit.value = inputEl.value;
+              crit.value = (data && data.displayStr) ? data.displayStr : (inputEl ? inputEl.value : "");
               crit.structuredFilter = data;
-              inputEl.dataset.structuredList = JSON.stringify(data);
+              if (inputEl) {
+                inputEl.value = crit.value;
+                inputEl.dataset.structuredList = JSON.stringify(data);
+              }
+              this.setCritEnabled(idx, true);
             }
           });
         }
@@ -1841,8 +2060,9 @@ const UniversalJournal = {
             onSelect: (selectedItem) => {
               if (selectedItem) {
                 const name = selectedItem.name || selectedItem.Наименование || "";
-                inputEl.value = name;
+                if (inputEl) inputEl.value = name;
                 crit.value = name;
+                this.setCritEnabled(idx, true);
               }
             }
           });
@@ -1858,9 +2078,13 @@ const UniversalJournal = {
           catalog: "Статусы ВМС",
           structuredFilter: crit.structuredFilter,
           onApply: (data) => {
-            crit.value = inputEl.value;
+            crit.value = (data && data.displayStr) ? data.displayStr : (inputEl ? inputEl.value : "");
             crit.structuredFilter = data;
-            inputEl.dataset.structuredList = JSON.stringify(data);
+            if (inputEl) {
+              inputEl.value = crit.value;
+              inputEl.dataset.structuredList = JSON.stringify(data);
+            }
+            this.setCritEnabled(idx, true);
           }
         });
       } else {
@@ -1869,6 +2093,7 @@ const UniversalJournal = {
         const nextIdx = (statuses.indexOf(cur) + 1) % statuses.length;
         inputEl.value = statuses[nextIdx];
         crit.value = statuses[nextIdx];
+        this.setCritEnabled(idx, true);
       }
       return;
     }
@@ -1879,9 +2104,13 @@ const UniversalJournal = {
         catalog: crit.fieldLabel || crit.fieldKey,
         structuredFilter: crit.structuredFilter,
         onApply: (data) => {
-          crit.value = inputEl.value;
+          crit.value = (data && data.displayStr) ? data.displayStr : (inputEl ? inputEl.value : "");
           crit.structuredFilter = data;
-          inputEl.dataset.structuredList = JSON.stringify(data);
+          if (inputEl) {
+            inputEl.value = crit.value;
+            inputEl.dataset.structuredList = JSON.stringify(data);
+          }
+          this.setCritEnabled(idx, true);
         }
       });
     }
@@ -1898,6 +2127,9 @@ const UniversalJournal = {
     const vFrom = crit.valueFrom || "";
     const vTo = crit.valueTo || "";
     crit.value = (vFrom || vTo) ? `${vFrom} ... ${vTo}` : "";
+    if ((vFrom || vTo).trim().length > 0) {
+      this.setCritEnabled(idx, true);
+    }
   },
 
   onFilterIntervalBlur: function(idx, which, inputEl) {
@@ -1914,6 +2146,9 @@ const UniversalJournal = {
     const vFrom = crit.valueFrom || "";
     const vTo = crit.valueTo || "";
     crit.value = (vFrom || vTo) ? `${vFrom} ... ${vTo}` : "";
+    if ((vFrom || vTo).trim().length > 0) {
+      this.setCritEnabled(idx, true);
+    }
   },
 
   onFilterIntervalKeydown: function(idx, which, inputEl, event) {
@@ -2004,6 +2239,9 @@ const UniversalJournal = {
     const crit = this.tempFilterCriteria[idx];
     if (!crit) return;
     const val = inputEl.value.trim();
+    if (val) {
+      this.setCritEnabled(idx, true);
+    }
     if (crit.fieldKey === "date" && val && window.PeriodPicker && typeof PeriodPicker.autoCompleteDate === "function") {
       inputEl.value = PeriodPicker.autoCompleteDate(val, "00:00:00");
       crit.value = inputEl.value;
@@ -2013,10 +2251,14 @@ const UniversalJournal = {
   // Autocomplete Live Search Engine (Only triggered on user typing >= 1 char)
   onFilterValueInput: function(idx, inputEl, event) {
     if (this.tempFilterCriteria[idx]) {
-      if (this.tempFilterCriteria[idx].fieldKey === "date") {
+      const crit = this.tempFilterCriteria[idx];
+      if (crit.fieldKey === "date" || inputEl.classList.contains("uj-filter-date")) {
         inputEl.value = inputEl.value.replace(/[^0-9.:\s\/\-,]/g, "");
       }
-      this.tempFilterCriteria[idx].value = inputEl.value;
+      crit.value = inputEl.value;
+      if (inputEl.value.trim().length > 0) {
+        this.setCritEnabled(idx, true);
+      }
     }
     this.showFilterAutocomplete(idx, inputEl);
   },
@@ -2169,6 +2411,7 @@ const UniversalJournal = {
       if (inputEl) inputEl.value = cleanVal;
     }
 
+    this.setCritEnabled(idx, true);
     this.hideFilterAutocomplete();
     if (inputEl) inputEl.focus();
   },
@@ -2322,7 +2565,7 @@ const UniversalJournal = {
     }
     this.saveActiveFiltersToStorage();
     this.closeFilterModal();
-    this.applyFiltersAndSearch();
+    this.executeSearchOrFilter();
     this.updateStatus(this.activeFilters.length > 0 ? "Отбор применен" : "Отбор отключен");
   },
 
@@ -2675,7 +2918,7 @@ const UniversalJournal = {
     this.activeFilters = JSON.parse(JSON.stringify(target.criteria || []));
     this.activePresetName = target.name || "";
     this.closePresetRestoreModal();
-    this.applyFiltersAndSearch();
+    this.executeSearchOrFilter();
     this.updateStatus(`Применена настройка отбора: "${target.name}"`);
   },
 
@@ -2721,7 +2964,7 @@ const UniversalJournal = {
     this.activeFilters = [];
     this.activePresetName = "";
     this.saveActiveFiltersToStorage();
-    this.applyFiltersAndSearch();
+    this.executeSearchOrFilter();
     this.updateFilterButtonsState();
     this.updateStatus("Отбор отключен");
   },
@@ -2792,7 +3035,7 @@ const UniversalJournal = {
 
     this.activePresetName = "";
     this.saveActiveFiltersToStorage();
-    this.applyFiltersAndSearch();
+    this.executeSearchOrFilter();
     this.updateFilterButtonsState();
     const activeCount = this.activeFilters.filter(c => c.enabled !== false).length;
     this.updateStatus(`Применен отбор: [${fieldLabel}] ${op === "Не заполнено" ? "(Не заполнено)" : '= "' + targetVal + '"'} (${activeCount} активных условий)`);
@@ -2828,7 +3071,7 @@ const UniversalJournal = {
     this.activeFilters.splice(existingIdx, 1);
     this.activePresetName = "";
     this.saveActiveFiltersToStorage();
-    this.applyFiltersAndSearch();
+    this.executeSearchOrFilter();
     this.updateFilterButtonsState();
 
     const remCount = this.activeFilters.filter(c => c.enabled !== false).length;
@@ -3036,7 +3279,8 @@ const UniversalJournal = {
       // Smart matcher for an individual nom entry
       const matchSingleNom = (entry, query, comp) => {
         if (!entry || !query) return false;
-        const q = query.toLowerCase().trim();
+        const qRaw = query.toLowerCase().trim();
+        const q = qRaw.replace(/^\[[^\]]+\]\s*/, "").trim();
         const qClean = q.replace(/^0+/, "");
         const segments = entry.toLowerCase().split("|").map(s => s.trim());
 
@@ -3045,17 +3289,18 @@ const UniversalJournal = {
           for (const seg of segments) {
             if (!seg) continue;
             const segClean = seg.replace(/^0+/, "");
-            if (seg === q || (qClean && segClean === qClean)) return true;
+            if (seg === q || (qClean && segClean === qClean) || seg === qRaw) return true;
+            if (seg.length > 5 && q.length > 5 && (seg.includes(q) || q.includes(seg))) return true;
           }
-          return entry === q || (qClean && entry.replace(/^0+/, "") === qClean);
+          return entry === q || (qClean && entry.replace(/^0+/, "") === qClean) || (entry.length > 5 && q.length > 5 && entry.includes(q));
         } else {
           // Contains match: substring in code, artikul, or name
           for (const seg of segments) {
             if (!seg) continue;
             const segClean = seg.replace(/^0+/, "");
-            if (seg.includes(q) || (qClean && segClean.includes(qClean))) return true;
+            if (seg.includes(q) || (qClean && segClean.includes(qClean)) || (qRaw && seg.includes(qRaw))) return true;
           }
-          return entry.includes(q) || (qClean && entry.includes(qClean));
+          return entry.includes(q) || (qClean && entry.includes(qClean)) || (qRaw && entry.includes(qRaw));
         }
       };
 
@@ -3100,38 +3345,50 @@ const UniversalJournal = {
     }
 
     // 3. List operators: ONLY semicolon separated (items may contain commas like 13,6 гр)
-    if (op === "В группе из списка") {
+    if (op === "В группе из списка" || op === "В списке") {
       if (!targetVal) return true;
       const parts = String(targetVal).split(";").map(s => s.trim().toLowerCase()).filter(Boolean);
       const strVal = String(itemVal).trim().toLowerCase();
+      const codeVal = String(item[key + "_code"] || "").trim().toLowerCase();
       const isCodeField = (key === "number" || key === "deal" || key === "obrabotka_number" || key === "kontragent_code");
       const strClean = isCodeField ? strVal.replace(/^[a-zа-яё_]*0+/, "") : "";
       return parts.some(p => {
-        const cleanP = p.replace(/^\[[^\]]+\]\s*/, "").trim();
+        let cleanP = p.replace(/^\[[^\]]+\]\s*/, "").trim();
+        let namePart = cleanP;
+        let codePart = "";
+        if (cleanP.includes(" - ")) {
+          const sub = cleanP.split(" - ");
+          namePart = sub[0].trim();
+          codePart = sub[sub.length - 1].trim();
+        }
         const pClean = isCodeField ? cleanP.replace(/^[a-zа-яё_]*0+/, "") : "";
-        return strVal === p || strVal === cleanP || strVal.includes(cleanP) || (isCodeField && strClean && pClean && strClean === pClean);
-      });
-    }
-    if (op === "В списке") {
-      if (!targetVal) return true;
-      const parts = String(targetVal).split(";").map(s => s.trim().toLowerCase()).filter(Boolean);
-      const strVal = String(itemVal).trim().toLowerCase();
-      const isCodeField = (key === "number" || key === "deal" || key === "obrabotka_number" || key === "kontragent_code");
-      const strClean = isCodeField ? strVal.replace(/^[a-zа-яё_]*0+/, "") : "";
-      return parts.some(p => {
-        const cleanP = p.replace(/^\[[^\]]+\]\s*/, "").trim();
-        const pClean = isCodeField ? cleanP.replace(/^[a-zа-яё_]*0+/, "") : "";
-        return strVal === p || strVal === cleanP || (isCodeField && strClean && pClean && strClean === pClean);
+        if (strVal === cleanP || strVal.includes(cleanP) || cleanP.includes(strVal)) return true;
+        if (namePart && (strVal === namePart || strVal.includes(namePart) || namePart.includes(strVal))) return true;
+        if (codePart && (codeVal === codePart || strVal.includes(codePart) || codeVal.includes(codePart))) return true;
+        if (isCodeField && strClean && pClean && strClean === pClean) return true;
+        return false;
       });
     }
     if (op === "Не в списке") {
       if (!targetVal) return true;
       const parts = String(targetVal).split(";").map(s => s.trim().toLowerCase()).filter(Boolean);
       const strVal = String(itemVal).trim().toLowerCase();
-      return !parts.some(p => {
-        const cleanP = p.replace(/^\[[^\]]+\]\s*/, "").trim();
-        return strVal === p || strVal === cleanP;
+      const codeVal = String(item[key + "_code"] || "").trim().toLowerCase();
+      const anyMatch = parts.some(p => {
+        let cleanP = p.replace(/^\[[^\]]+\]\s*/, "").trim();
+        let namePart = cleanP;
+        let codePart = "";
+        if (cleanP.includes(" - ")) {
+          const sub = cleanP.split(" - ");
+          namePart = sub[0].trim();
+          codePart = sub[sub.length - 1].trim();
+        }
+        if (strVal === cleanP || strVal.includes(cleanP) || cleanP.includes(strVal)) return true;
+        if (namePart && (strVal === namePart || strVal.includes(namePart) || namePart.includes(strVal))) return true;
+        if (codePart && (codeVal === codePart || strVal.includes(codePart) || codeVal.includes(codePart))) return true;
+        return false;
       });
+      return !anyMatch;
     }
 
     // 4. Date comparisons (exact precision down to HH:MM:SS)
@@ -3553,7 +3810,29 @@ const UniversalJournal = {
       this.activeSearchColKey = null;
     }
     this.updateHeaderSearchHighlights();
-    this.applyFiltersAndSearch();
+    this.updateSearchIcon(q);
+
+    // Debounced direct server fetch to pull all matches directly from 1C
+    if (this._searchDebounceTimer) clearTimeout(this._searchDebounceTimer);
+    this._searchDebounceTimer = setTimeout(() => {
+      this.executeSearchOrFilter();
+    }, 350);
+  },
+
+  executeSearchOrFilter: function() {
+    if (this._searchDebounceTimer) {
+      clearTimeout(this._searchDebounceTimer);
+      this._searchDebounceTimer = null;
+    }
+    const inp = document.getElementById("ujSearchInput");
+    const q = inp ? inp.value.trim() : "";
+    const activeCrits = (this.activeFilters || []).filter(c => c && c.enabled !== false);
+
+    if (q || activeCrits.length > 0) {
+      this.loadDocuments({ search: q, filters: activeCrits });
+    } else {
+      this.loadDocuments({ search: "", filters: [] });
+    }
   },
 
   updateSearchIcon: function(q) {
@@ -3610,7 +3889,7 @@ const UniversalJournal = {
     this.activeSearchColKey = null;
     this.updateHeaderSearchHighlights();
     this.updateSearchIcon("");
-    this.applyFiltersAndSearch();
+    this.executeSearchOrFilter();
     this.updateStatus("Поиск отменен (Ctrl+Q)");
   },
 
@@ -3678,7 +3957,8 @@ const UniversalJournal = {
 
   updateStatus: function(text) {
     const el = document.getElementById("ujStatusLeft");
-    if (el) el.textContent = text;
+    if (!el) return;
+    el.textContent = text;
   },
 
   escapeHtml: function(str) {
@@ -3770,18 +4050,403 @@ const UniversalJournal = {
     }
     this.updateStatus(`Открыто новое окно: ${docName} (${this._winCounter})`);
     return newId;
+  },
+
+  // ==========================================
+  // Diagnostics & Debug Modal (🩺 Отладчик / Диагностика)
+  // ==========================================
+  lastDiagnostics: null,
+
+  openDebugDiagnosticsModal: function() {
+    const overlay = document.getElementById("ujDiagnosticsModalOverlay");
+    if (!overlay) {
+      console.warn("Diagnostics modal element not found in DOM");
+      return;
+    }
+    overlay.style.display = "flex";
+    this.renderDebugDiagnosticsContent();
+  },
+
+  closeDebugDiagnosticsModal: function() {
+    const overlay = document.getElementById("ujDiagnosticsModalOverlay");
+    if (overlay) overlay.style.display = "none";
+  },
+
+  renderDebugDiagnosticsContent: function() {
+    const body = document.getElementById("ujDiagnosticsBody");
+    const badge = document.getElementById("diagHeaderBadge");
+    if (!body) return;
+
+    const searchInp = document.getElementById("ujSearchInput");
+    const querySearch = searchInp ? searchInp.value.trim() : "";
+    const activeCrits = (this.activeFilters || []).filter(c => c && c.enabled !== false);
+
+    const diag = this.lastDiagnostics || {
+      timestamp: new Date().toLocaleTimeString(),
+      docType: this.activeDocType,
+      docTitle: this.docTitle || this.activeDocType,
+      period: {
+        startDate: this.startDateStr || "(Весь период)",
+        endDate: this.endDateStr || "(Весь период)"
+      },
+      search: querySearch,
+      filters: JSON.parse(JSON.stringify(activeCrits || [])),
+      responseSuccess: true,
+      rawCount: (this.items || []).length,
+      filteredCount: (this.filteredItems || []).length,
+      serverDebug: null,
+      error: null
+    };
+
+    const isError = Boolean(diag.error);
+    const isEmpty = (diag.filteredCount === 0);
+
+    // Update Header Badge
+    if (badge) {
+      if (isError) {
+        badge.textContent = "❌ Ошибка 1С / Сервера";
+        badge.style.background = "#ffebee";
+        badge.style.color = "#c62828";
+        badge.style.border = "1px solid #ef9a9a";
+      } else if (isEmpty) {
+        badge.textContent = "⚠️ 0 документов (Результат пустой)";
+        badge.style.background = "#fff3e0";
+        badge.style.color = "#e65100";
+        badge.style.border = "1px solid #ffb74d";
+      } else {
+        badge.textContent = `✅ Найдено: ${diag.filteredCount} документов`;
+        badge.style.background = "#e8f5e9";
+        badge.style.color = "#2e7d32";
+        badge.style.border = "1px solid #a5d6a7";
+      }
+    }
+
+    let html = "";
+
+    // 1. Alert Summary Box
+    if (isError) {
+      html += `
+        <div style="background: #ffebee; border: 1px solid #ef5350; border-radius: 4px; padding: 10px; color: #b71c1c;">
+          <div style="font-weight: bold; font-size: 12px; display: flex; align-items: center; gap: 6px; margin-bottom: 4px;">
+            <span>❌</span><span>Произошла ошибка при выполнении запроса в 1C</span>
+          </div>
+          <div style="font-family: Consolas, monospace; font-size: 11px; background: #ffffff; padding: 6px; border: 1px solid #ffcdd2; border-radius: 3px; word-break: break-all;">
+            ${this.escapeHtml(diag.error)}
+          </div>
+        </div>
+      `;
+    } else if (isEmpty) {
+      html += `
+        <div style="background: #fff8e1; border: 1px solid #ffd54f; border-radius: 4px; padding: 10px; color: #795548;">
+          <div style="font-weight: bold; font-size: 12px; color: #b26a00; display: flex; align-items: center; gap: 6px; margin-bottom: 4px;">
+            <span>⚠️</span><span>Поиск завершился без результатов (0 документов)</span>
+          </div>
+          <div style="font-size: 11px; line-height: 1.5; color: #333;">
+            1C sorğunu uğurla emal etdi, lakin təyin edilmiş filtrlərə və ya perioda uyğun heç bir sənəd tapılmadı.
+            Aşağıdakı <strong>Səbəb Analizi</strong> bölməsində nəticənin niyə boş gəldiyinə baxa bilərsiniz.
+          </div>
+        </div>
+      `;
+    } else {
+      html += `
+        <div style="background: #e8f5e9; border: 1px solid #81c784; border-radius: 4px; padding: 8px 10px; color: #1b5e20;">
+          <div style="font-weight: bold; font-size: 11px; display: flex; align-items: center; gap: 6px;">
+            <span>✅</span><span>Условия отбора успешно применены: найдено ${diag.filteredCount} документов.</span>
+          </div>
+        </div>
+      `;
+    }
+
+    // 2. Concrete Empty-Result Diagnostic Analysis
+    if (isEmpty && !isError) {
+      let reasons = [];
+
+      // Check Contractor Filter
+      const kontrCrit = (diag.filters || []).find(f => f.fieldKey === "kontragent" || f.fieldKey === "kontragent_code");
+      if (kontrCrit && kontrCrit.value) {
+        const valStr = String(kontrCrit.value).trim();
+        const toks = valStr.split(";").map(t => t.trim()).filter(Boolean);
+        if (toks.length > 1) {
+          reasons.push(`
+            <li style="margin-bottom: 6px;">
+              <strong>Отбор по нескольким контрагентам (${toks.length} шт.):</strong><br>
+              Göstərilən mağazalar: <code style="background: #eef; padding: 1px 4px; border-radius: 2px;">${this.escapeHtml(valStr)}</code><br>
+              <span style="color: #555;">Sistem hər bir mağazanı ayrı-ayrılıqda həm adı, həm də kodu ilə <strong>OR / ИЛИ</strong> məntiqi ilə axtarır. Nəticənin 0 olma ehtimalları:</span>
+              <ul style="margin: 4px 0 4px 18px; color: #444;">
+                <li>Seçilmiş periodda (<strong>${diag.period?.startDate} — ${diag.period?.endDate}</strong>) bu kontragentlərə aid heç bir sənəd yoxdur.</li>
+                <li>Jurnalın başlığında periodu dəyişin (məsələn: daha geniş interval və ya bütün ili seçin).</li>
+                <li>Kontragent kodunun 1C bazasındakı kodla (məsələn, <code>0550</code>, <code>C000021068</code>) uyğunluğunu yoxlayın.</li>
+              </ul>
+            </li>
+          `);
+        } else {
+          reasons.push(`
+            <li style="margin-bottom: 6px;">
+              <strong>Отбор по контрагенту:</strong> <code>${this.escapeHtml(valStr)}</code>.<br>
+              Cari periodda (<strong>${diag.period?.startDate} — ${diag.period?.endDate}</strong>) bu müştəriyə aid heç bir qaimə/sənəd yoxdur.
+            </li>
+          `);
+        }
+      }
+
+      // Check Nomenclature Filter
+      const nomCrit = (diag.filters || []).find(f => f.fieldKey === "nomenclature");
+      if (nomCrit && nomCrit.value) {
+        reasons.push(`
+          <li style="margin-bottom: 6px;">
+            <strong>Отбор по номенклатуре:</strong> <code>${this.escapeHtml(nomCrit.value)}</code>.<br>
+            Cari sənədlərin tərkibində bu adda və ya kodda mal yoxdur.
+          </li>
+        `);
+      }
+
+      // Check Status / WMS Filter
+      const statCrit = (diag.filters || []).find(f => f.fieldKey === "vms_status" || f.fieldKey === "status" || f.fieldKey === "posted");
+      if (statCrit && statCrit.value) {
+        reasons.push(`
+          <li style="margin-bottom: 6px;">
+            <strong>Məhdudiyyət:</strong> [${statCrit.fieldLabel || statCrit.fieldKey}] = <code>${this.escapeHtml(statCrit.value)}</code>.<br>
+            Sənədlər ola bilər, lakin bu statusa uyğun gəlmir (məsələn, WMS təsdiqi yoxdur və ya keçirilməyib).
+          </li>
+        `);
+      }
+
+      // Check Quick Search
+      if (diag.search) {
+        reasons.push(`
+          <li style="margin-bottom: 6px;">
+            <strong>Быстрый поиск:</strong> «<code>${this.escapeHtml(diag.search)}</code>».<br>
+            Heç bir sütunda bu mətn tapılmadı.
+          </li>
+        `);
+      }
+
+      if (reasons.length === 0) {
+        reasons.push(`
+          <li style="margin-bottom: 6px;">
+            <strong>Период дат:</strong> с <strong>${diag.period?.startDate}</strong> по <strong>${diag.period?.endDate}</strong>.<br>
+            Göstərilən periodda «${diag.docTitle}» sənədi mövcud deyil.
+          </li>
+        `);
+      }
+
+      html += `
+        <div style="background: #fafafa; border: 1px solid #dcdcdc; border-radius: 4px; padding: 10px;">
+          <div style="font-weight: bold; font-size: 11px; color: #b71c1c; margin-bottom: 6px; display: flex; align-items: center; gap: 4px;">
+            <span>🔍</span><span>Niyə nəticə boşdur? (Səbəblərin analizi)</span>
+          </div>
+          <ol style="margin: 0; padding-left: 20px; font-size: 11px; line-height: 1.5;">
+            ${reasons.join("")}
+          </ol>
+        </div>
+      `;
+    }
+
+    // 3. Request Parameters Summary
+    html += `
+      <div style="background: #fdfdfd; border: 1px solid #dcdcdc; border-radius: 4px; padding: 8px 10px;">
+        <div style="font-weight: bold; font-size: 11px; color: #003366; margin-bottom: 6px; border-bottom: 1px solid #eee; padding-bottom: 3px;">
+          📊 Сводка текущего запроса
+        </div>
+        <table style="width: 100%; border-collapse: collapse; font-size: 11px;">
+          <tr>
+            <td style="padding: 2px 4px; color: #666; width: 160px;">Журнал / Документ:</td>
+            <td style="padding: 2px 4px; font-weight: bold;">${this.escapeHtml(diag.docTitle)} <span style="color: #888; font-weight: normal;">(${this.escapeHtml(diag.docType)})</span></td>
+          </tr>
+          <tr>
+            <td style="padding: 2px 4px; color: #666;">Период выборки:</td>
+            <td style="padding: 2px 4px; font-weight: bold; color: #002060;">${this.escapeHtml(diag.period?.startDate || "—")} — ${this.escapeHtml(diag.period?.endDate || "—")}</td>
+          </tr>
+          <tr>
+            <td style="padding: 2px 4px; color: #666;">Быстрый поиск (Шапка):</td>
+            <td style="padding: 2px 4px;">${diag.search ? `<code style="background: #fffae6; padding: 1px 4px;">${this.escapeHtml(diag.search)}</code>` : '<span style="color: #999;">(не задан)</span>'}</td>
+          </tr>
+          <tr>
+            <td style="padding: 2px 4px; color: #666;">Активных условий отбора:</td>
+            <td style="padding: 2px 4px; font-weight: bold;">${diag.filters ? diag.filters.length : 0}</td>
+          </tr>
+          <tr>
+            <td style="padding: 2px 4px; color: #666;">Получено строк из 1C:</td>
+            <td style="padding: 2px 4px; font-weight: bold;">${diag.rawCount !== undefined ? diag.rawCount : '—'}</td>
+          </tr>
+          <tr>
+            <td style="padding: 2px 4px; color: #666;">Отображается в таблице:</td>
+            <td style="padding: 2px 4px; font-weight: bold; color: ${diag.filteredCount === 0 ? '#b71c1c' : '#2e7d32'};">${diag.filteredCount !== undefined ? diag.filteredCount : '—'}</td>
+          </tr>
+          <tr>
+            <td style="padding: 2px 4px; color: #666;">Время фиксации:</td>
+            <td style="padding: 2px 4px; color: #888;">${this.escapeHtml(diag.timestamp || "")}</td>
+          </tr>
+        </table>
+      </div>
+    `;
+
+    // 4. Active Filter Conditions Table
+    if (diag.filters && diag.filters.length > 0) {
+      let critRows = "";
+      diag.filters.forEach((f, idx) => {
+        critRows += `
+          <tr style="border-bottom: 1px solid #e8e8e8; height: 22px;">
+            <td style="padding: 2px 6px; text-align: center; color: #888;">${idx + 1}</td>
+            <td style="padding: 2px 6px; font-weight: bold; color: #003366;">${this.escapeHtml(f.fieldLabel || f.fieldKey)}</td>
+            <td style="padding: 2px 6px; color: #555;">${this.escapeHtml(f.operator || "Равно")}</td>
+            <td style="padding: 2px 6px;"><code style="background: #f0f0f0; padding: 1px 4px; border-radius: 2px;">${this.escapeHtml(f.value || "")}</code></td>
+          </tr>
+        `;
+      });
+
+      html += `
+        <div style="background: #ffffff; border: 1px solid #dcdcdc; border-radius: 4px; padding: 8px 10px;">
+          <div style="font-weight: bold; font-size: 11px; color: #003366; margin-bottom: 6px; border-bottom: 1px solid #eee; padding-bottom: 3px;">
+            🎯 Активные условия отбора (${diag.filters.length})
+          </div>
+          <table style="width: 100%; border-collapse: collapse; font-size: 11px;">
+            <thead>
+              <tr style="background: #f2f0e6; border-bottom: 1px solid #ccc; text-align: left; height: 20px;">
+                <th style="padding: 2px 6px; width: 30px; text-align: center;">№</th>
+                <th style="padding: 2px 6px; width: 160px;">Поле отбора</th>
+                <th style="padding: 2px 6px; width: 140px;">Вид сравнения</th>
+                <th style="padding: 2px 6px;">Значение</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${critRows}
+            </tbody>
+          </table>
+        </div>
+      `;
+    }
+
+    // 5. Technical 1C Query & Debug Info
+    if (diag.serverDebug) {
+      const sD = diag.serverDebug;
+      let paramsRows = "";
+      if (sD.parameters && typeof sD.parameters === "object") {
+        for (const [k, v] of Object.entries(sD.parameters)) {
+          paramsRows += `
+            <tr style="border-bottom: 1px solid #e0e0e0; font-family: Consolas, monospace; font-size: 10px;">
+              <td style="padding: 2px 6px; color: #0055ea; font-weight: bold;">&${this.escapeHtml(k)}</td>
+              <td style="padding: 2px 6px; color: #222;">${this.escapeHtml(String(v))}</td>
+            </tr>
+          `;
+        }
+      }
+
+      html += `
+        <div style="background: #f7f9fa; border: 1px solid #cfd8dc; border-radius: 4px; padding: 8px 10px;">
+          <div style="font-weight: bold; font-size: 11px; color: #37474f; margin-bottom: 6px; display: flex; align-items: center; justify-content: space-between;">
+            <span>⚙️ Технические данные 1C: Запрос и параметры</span>
+            <span style="font-size: 10px; color: #78909c;">(Исполнено в COM-сессии)</span>
+          </div>
+
+          <div style="margin-bottom: 6px;">
+            <div style="font-size: 10px; font-weight: bold; color: #607d8b; margin-bottom: 2px;">Условие WHERE (ГДЕ):</div>
+            <pre style="margin: 0; padding: 6px; background: #263238; color: #eceff1; border-radius: 3px; font-size: 10px; font-family: Consolas, monospace; max-height: 120px; overflow-y: auto; white-space: pre-wrap; word-break: break-all;">${this.escapeHtml(sD.where_sql || "(Без дополнительных условий ГДЕ)")}</pre>
+          </div>
+
+          ${paramsRows ? `
+            <div>
+              <div style="font-size: 10px; font-weight: bold; color: #607d8b; margin-bottom: 2px;">Переданные параметры:</div>
+              <table style="width: 100%; border-collapse: collapse; background: #fff; border: 1px solid #cfd8dc;">
+                <tbody>
+                  ${paramsRows}
+                </tbody>
+              </table>
+            </div>
+          ` : ''}
+        </div>
+      `;
+    }
+
+    body.innerHTML = html;
+  },
+
+  copyDiagnosticsToClipboard: function() {
+    const diag = this.lastDiagnostics || {
+      timestamp: new Date().toLocaleTimeString(),
+      docType: this.activeDocType,
+      docTitle: this.docTitle,
+      period: { startDate: this.startDateStr, endDate: this.endDateStr },
+      search: "",
+      filters: (this.activeFilters || []).filter(c => c && c.enabled !== false),
+      filteredCount: (this.filteredItems || []).length,
+      rawCount: (this.items || []).length,
+      serverDebug: null,
+      error: null
+    };
+
+    const filtersText = (diag.filters && diag.filters.length > 0)
+      ? diag.filters.map((f, i) => `  ${i + 1}. [${f.fieldLabel || f.fieldKey}] ${f.operator || "Равно"} = "${f.value || ""}"`).join("\n")
+      : "  (Нет активных фильтров)";
+
+    let sqlText = "(N/A)";
+    let paramsText = "(N/A)";
+    if (diag.serverDebug) {
+      sqlText = diag.serverDebug.where_sql || "(нет)";
+      paramsText = JSON.stringify(diag.serverDebug.parameters || {}, null, 2);
+    }
+
+    const report = [
+      "==================================================",
+      " 1С:ПРЕДПРИЯТИЕ — ОТЧЕТ ДИАГНОСТИКИ И ОТБОРА",
+      "==================================================",
+      `Время отчета:      ${diag.timestamp || new Date().toLocaleTimeString()}`,
+      `Журнал / Документ: ${diag.docTitle || this.docTitle} (${diag.docType || this.activeDocType})`,
+      `Интервал дат:      ${diag.period?.startDate || "—"} по ${diag.period?.endDate || "—"}`,
+      `Быстрый поиск:     ${diag.search ? `"${diag.search}"` : "(пусто)"}`,
+      `Строк найдено:     ${diag.filteredCount !== undefined ? diag.filteredCount : 0} (из 1C получено: ${diag.rawCount !== undefined ? diag.rawCount : 0})`,
+      `Статус:            ${diag.error ? `ОШИБКА: ${diag.error}` : (diag.filteredCount === 0 ? "ПУСТОЙ РЕЗУЛЬТАТ (0 документов)" : "УСПЕШНО")}`,
+      "",
+      "--- УСЛОВИЯ ОТБОРА ---",
+      filtersText,
+      "",
+      "--- ТЕХНИЧЕСКИЙ SQL 1C ---",
+      `WHERE (ГДЕ):\n${sqlText}`,
+      "",
+      `Параметры запроса:\n${paramsText}`,
+      "",
+      "=================================================="
+    ].join("\n");
+
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(report).then(() => {
+        this.updateStatus("📋 Диагностический отчет скопирован в буфер обмена!");
+        alert("📋 Диагностический отчет скопирован в буфер обмена!\nВы можете отправить его для быстрой проверки.");
+      }).catch(() => {
+        this.promptFallbackCopy(report);
+      });
+    } else {
+      this.promptFallbackCopy(report);
+    }
+  },
+
+  promptFallbackCopy: function(text) {
+    const ta = document.createElement("textarea");
+    ta.value = text;
+    document.body.appendChild(ta);
+    ta.select();
+    try {
+      document.execCommand("copy");
+      this.updateStatus("📋 Диагностический отчет скопирован!");
+      alert("📋 Диагностический отчет скопирован в буфер обмена!");
+    } catch (e) {
+      prompt("Скопируйте текст отчета вручную (Ctrl+C):", text);
+    }
+    ta.remove();
   }
 };
 
 window.UniversalJournal = UniversalJournal;
 window.openUniversalJournalWindow = function(docType) {
   const ujWin = document.getElementById("universalJournalWindow");
-  if (ujWin && ujWin.style.display !== "none" && !ujWin.classList.contains("minimized")) {
+  const winObj = window.MdiManager?.windows?.["universalJournalWindow"];
+  if ((winObj && winObj.isOpen) || (ujWin && ujWin.dataset && ujWin.dataset.opened === "true")) {
     if (window.UniversalJournal && typeof UniversalJournal.openNewWindow === "function") {
       UniversalJournal.openNewWindow(docType);
       return;
     }
   }
+  if (ujWin) ujWin.dataset.opened = "true";
   UniversalJournal.open(docType);
 };
 

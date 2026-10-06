@@ -805,6 +805,7 @@ def handle_get_portfolio_catalog_items(conn, payload, key, resp_q):
         Т.ВидНоменклатуры.Наименование КАК ItemType,
         Т.БазоваяЕдиницаИзмерения.Наименование КАК BaseUnit,
         Т.Производитель.Наименование КАК Manufacturer,
+        Т.Комментарий КАК Comment,
         ЕСТЬNULL(Ш.Barcode, "") КАК Barcode
         {price_select_sql}
     ИЗ
@@ -851,6 +852,7 @@ def handle_get_portfolio_catalog_items(conn, payload, key, resp_q):
                 Т.ВидНоменклатуры.Наименование КАК ItemType,
                 Т.БазоваяЕдиницаИзмерения.Наименование КАК BaseUnit,
                 Т.Производитель.Наименование КАК Manufacturer,
+                Т.Комментарий КАК Comment,
                 ЕСТЬNULL(Ш.Barcode, "") КАК Barcode
                 {price_select_sql}
             ИЗ
@@ -889,10 +891,11 @@ def handle_get_portfolio_catalog_items(conn, payload, key, resp_q):
         item_type = str(res.ItemType or "").strip()
         unit = str(res.BaseUnit or "").strip()
         manuf = str(res.Manufacturer or "").strip()
+        comment = str(getattr(res, "Comment", "") or "").strip()
         bc = str(res.Barcode or "").strip()
 
         if search_txt:
-            match_src = f"{name} {code} {artikul} {cv_code} {bc} {folder} {group} {root_port} {manuf}".lower()
+            match_src = f"{name} {code} {artikul} {cv_code} {bc} {folder} {group} {root_port} {manuf} {comment}".lower()
             if search_txt not in match_src:
                 continue
 
@@ -913,7 +916,8 @@ def handle_get_portfolio_catalog_items(conn, payload, key, resp_q):
             "unit": unit,
             "price": row_prices.get(selected_price_types[0], 0.0) if selected_price_types else 0.0,
             "prices": row_prices,
-            "manufacturer": manuf
+            "manufacturer": manuf,
+            "comment": comment
         })
 
     resp_q.put((True, {

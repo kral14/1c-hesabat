@@ -114,6 +114,12 @@
         <span id="pcAnalysisActiveDot" style="display: none; width: 7px; height: 7px; background: #e6a23c; border-radius: 50%; margin-left: 2px;"></span>
       </button>
 
+      <!-- Column Settings Button (Настройка колонок / формы) -->
+      <button class="btn-1c" id="pcBtnColSettings" onclick="PortfolioCatalog.openColumnSettingsModal()" title="Настройка колонок таблицы (видимость, порядок, ширина)" style="height: 24px; display: inline-flex; align-items: center; gap: 4px; padding: 0 8px; font-size: 11px;">
+        <span>⚙️</span>
+        <span>Колонки...</span>
+      </button>
+
       <!-- Selection Filter Buttons -->
       <button class="btn-1c" id="pcBtnFilterSelected" onclick="PortfolioCatalog.toggleSelectedOnly()" title="Yalnız qeyd olunmuş (seçilmiş) malları göstər" style="height: 24px; display: inline-flex; align-items: center; gap: 4px; padding: 0 8px; font-size: 11px;">
         <span>☑️ Только выбранные</span>
@@ -276,6 +282,7 @@
           <select id="pcFindModalColumn" class="select-1c" style="width: 100%; height: 24px; font-size: 11px;" onchange="PortfolioCatalog.onFindModalInput()">
             <option value="all">(Во всех колонках)</option>
             <option value="name">Наименование (Malın adı)</option>
+            <option value="comment">Комментарий (Qeyd)</option>
             <option value="artikul">Артикул</option>
             <option value="code">Код</option>
             <option value="barcode">Штрихкод</option>

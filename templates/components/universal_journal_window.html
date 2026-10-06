@@ -63,12 +63,6 @@
         <span style="font-size: 13px;">🔄</span>
       </button>
 
-      <!-- Новое окно журнала (Eyni jurnaldan istənilən sayda açmaq) -->
-      <button type="button" class="btn-1c" onclick="UniversalJournal.openNewWindow()" title="Открыть еще одно окно журнала (Новое окно)" style="height: 24px; padding: 0 6px; display: inline-flex; align-items: center; gap: 4px; cursor: pointer; background: #ffffff;">
-        <span style="font-size: 12px;">📑</span>
-        <span style="font-size: 11px; font-weight: 500;">Новое окно</span>
-      </button>
-
       <div class="mdi-tool-sep" style="height: 18px; width: 1px; background: #b0af9f; margin: 0 3px;"></div>
 
       <!-- 8. 1C Filter System (4 Core Filter Actions from 1C 8.3) -->
@@ -145,7 +139,7 @@
         <input type="text" id="ujSearchInput" class="input-1c uj-search-input" placeholder="Быстрый поиск (Ctrl+F)..." 
                style="width: 100%; height: 23px; padding: 2px 26px 2px 8px; font-size: 11px; border: 1px solid #7f9db9; border-radius: 2px; background: #ffffff; box-sizing: border-box;" 
                oninput="UniversalJournal.onSearchInput()"
-               onkeydown="if(event.key==='Escape' || ((event.ctrlKey||event.metaKey) && event.key.toLowerCase()==='q')){ event.preventDefault(); UniversalJournal.clearSearch(); this.blur(); }">
+               onkeydown="if(event.key==='Enter'){ event.preventDefault(); UniversalJournal.executeSearchOrFilter(); } else if(event.key==='Escape' || ((event.ctrlKey||event.metaKey) && event.key.toLowerCase()==='q')){ event.preventDefault(); UniversalJournal.clearSearch(); this.blur(); }">
         <button type="button" id="ujSearchActionBtn" onclick="UniversalJournal.onSearchActionClick()" 
                 title="Быстрый поиск по списку (Ctrl+F). Для отмены поиска: Ctrl+Q"
                 style="position: absolute; right: 3px; top: 50%; transform: translateY(-50%); width: 20px; height: 19px; border: none; background: transparent; cursor: pointer; display: flex; align-items: center; justify-content: center; padding: 0; outline: none; border-radius: 2px;">
@@ -187,6 +181,17 @@
         </tbody>
       </table>
 
+    </div>
+
+    <!-- Bottom Chunk Loading Indicator (Kompakt dalğavari diaqram) -->
+    <div id="ujBottomLoadingIndicator" class="uj-bottom-loader" style="display: none;" title="1С: Фоновая загрузка...">
+      <div class="uj-wave-bars">
+        <span class="uj-bar"></span>
+        <span class="uj-bar"></span>
+        <span class="uj-bar"></span>
+        <span class="uj-bar"></span>
+        <span class="uj-bar"></span>
+      </div>
     </div>
 
     <!-- Bottom 1C Status Bar -->

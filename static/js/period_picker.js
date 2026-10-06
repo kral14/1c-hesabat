@@ -500,6 +500,14 @@ const PeriodPicker = {
 
   enforceDateInputRestrictions: function(input) {
     if (!input || input._c1DateRestricted) return;
+    // Təhlükəsizlik: Yalnız və yalnız TARİX xanalarına tətbiq olunmalıdır!
+    if (input.dataset && input.dataset.fieldKey && input.dataset.fieldKey !== "date") return;
+    const isExplicitDate = input.classList.contains("uj-filter-from") || 
+                           input.classList.contains("uj-filter-to") || 
+                           input.classList.contains("uj-filter-date") || 
+                           input.id === "ppStartDateInput" || 
+                           input.id === "ppEndDateInput";
+    if (!isExplicitDate) return;
     input._c1DateRestricted = true;
 
     input.addEventListener("keydown", (e) => {
@@ -546,6 +554,13 @@ const PeriodPicker = {
    */
   attachSegmentSelection: function(input) {
     if (!input || input._c1SegmentBound) return;
+    if (input.dataset && input.dataset.fieldKey && input.dataset.fieldKey !== "date") return;
+    const isExplicitDate = input.classList.contains("uj-filter-from") || 
+                           input.classList.contains("uj-filter-to") || 
+                           input.classList.contains("uj-filter-date") || 
+                           input.id === "ppStartDateInput" || 
+                           input.id === "ppEndDateInput";
+    if (!isExplicitDate) return;
     input._c1SegmentBound = true;
     this.enforceDateInputRestrictions(input);
 

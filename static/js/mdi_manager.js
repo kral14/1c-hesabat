@@ -248,6 +248,9 @@ const MdiManager = {
   init() {
     console.log("[MDI INIT] Starting MDI Manager with unified window registry...");
     this.bindGlobalEvents();
+    if (window.SnapLayoutHelper) {
+      window.SnapLayoutHelper.init();
+    }
 
     // 1. Primary Report Window (starts hidden so only Dashboard is shown initially)
     const primaryWin = document.getElementById("mdiWindow-1");
@@ -1051,18 +1054,20 @@ const MdiManager = {
 
   openOrRestoreReportWindow() {
     const primaryWin = this.windows["mdiWindow-1"];
-    // Əgər artıq açıq pəncərə varsa, birbaşa ikincisini (yeni nüsxəsini) açırıq
-    if (primaryWin && primaryWin.isOpen && !primaryWin.isMinimized && primaryWin.element && primaryWin.element.style.display !== "none") {
-      this.createNewReportWindow();
-      return;
+    // Əgər əsas hesabat pəncərəsi artıq açılıbsa, Dashboard-dan basanda mütləq ikincisini / yeni nüsxəsini açırıq
+    if (primaryWin && primaryWin.isOpen) {
+      return this.createNewReportWindow();
     }
     if (primaryWin) {
+      primaryWin.isOpen = true;
       primaryWin.isMinimized = false;
       primaryWin.element.classList.remove("minimized");
       primaryWin.element.style.display = "flex";
+      this.createTaskbarTab(primaryWin);
       this.activateWindow("mdiWindow-1");
+      return "mdiWindow-1";
     } else {
-      this.createNewReportWindow();
+      return this.createNewReportWindow();
     }
   },
 
@@ -1115,14 +1120,8 @@ const MdiManager = {
 
     const clone = masterWin.cloneNode(true);
     clone.id = newId;
-    clone.classList.remove("active", "maximized", "minimized");
-
-    // Clear unique ID collisions in cloned tree
-    const suffix = `_${this.windowCounter}`;
-    clone.querySelectorAll("[id]").forEach(el => {
-      // Don't rename inputs that global handlers specifically target, or append suffix
-      el.id = `${el.id}${suffix}`;
-    });
+    clone.classList.remove("active", "maximized", "minimized", "snapped");
+    clone.style.display = "flex";
 
     const offset = (Object.keys(this.windows).length) * 30;
     clone.style.top = `${25 + (offset % 180)}px`;
@@ -1133,11 +1132,8 @@ const MdiManager = {
     workspace.appendChild(clone);
 
     const winTitle = `Товары на складах (${this.windowCounter})`;
-    this.registerWindow(newId, {
-      title: winTitle,
-      icon: "📦",
-      element: clone
-    });
+    const titleEl = clone.querySelector(".mdi-win-title-text, #reportWindowTitle");
+    if (titleEl) titleEl.textContent = winTitle;
 
     // Wire up child window buttons
     const btnMin = clone.querySelector(".mdi-win-btn-min");
@@ -1147,16 +1143,29 @@ const MdiManager = {
     if (btnMax) btnMax.onclick = () => this.toggleMaximize(newId);
 
     const btnClose = clone.querySelector(".mdi-win-btn-close");
-    if (btnClose) btnClose.onclick = () => this.closeWindow(newId);
+    if (btnClose) btnClose.onclick = () => { this.closeWindow(newId); clone.remove(); };
+
+    const header = clone.querySelector(".mdi-window-header");
+    if (header) {
+      header.removeAttribute("ondblclick");
+      header.ondblclick = (e) => {
+        if (e.target.closest(".mdi-win-btn, .window-btn-close")) return;
+        this.toggleMaximize(newId);
+      };
+    }
+
+    clone.setAttribute("onmousedown", `MdiManager.activateWindow('${newId}')`);
+
+    this.registerWindow(newId, {
+      title: winTitle,
+      icon: "📦",
+      element: clone,
+      closeFn: () => {
+        clone.remove();
+      }
+    });
 
     this.activateWindow(newId);
-
-    // If preset provided, apply it, else generate default
-    setTimeout(() => {
-      if (typeof onActionFormirovat === "function") {
-        onActionFormirovat();
-      }
-    }, 200);
 
     return newId;
   },
@@ -2001,6 +2010,299 @@ const MdiManager = {
     }, true);
   }
 };
+
+/* ========================================================
+   WINDOWS 11 SNAP LAYOUTS HELPER CONTROLLER
+   ======================================================== */
+const SnapLayoutHelper = {
+  currentTargetWinId: null,
+  hideTimer: null,
+  showTimer: null,
+  activeBtnEl: null,
+
+  init() {
+    const popover = document.getElementById("mdiSnapLayoutPopover");
+    if (!popover) return;
+
+    // Popover hover management
+    popover.addEventListener("mouseenter", () => {
+      this.cancelHide();
+    });
+
+    popover.addEventListener("mouseleave", () => {
+      this.scheduleHide(220);
+    });
+
+    // Delegate hover for maximize buttons globally
+    document.addEventListener("mouseover", (e) => {
+      const maxBtn = e.target.closest(".mdi-win-btn-max");
+      if (!maxBtn) return;
+      const winEl = maxBtn.closest(".mdi-window");
+      if (!winEl || !winEl.id) return;
+      this.onMaxButtonHover(winEl.id, maxBtn);
+    });
+
+    document.addEventListener("mouseout", (e) => {
+      const maxBtn = e.target.closest(".mdi-win-btn-max");
+      if (!maxBtn) return;
+      this.scheduleHide(260);
+    });
+
+    // Zone click delegation inside popover
+    popover.addEventListener("click", (e) => {
+      const zone = e.target.closest(".snap-zone");
+      if (!zone) return;
+      const card = zone.closest(".snap-card");
+      if (!card) return;
+      const layoutType = card.dataset.layout;
+      const zoneIdx = parseInt(zone.dataset.zone, 10) || 0;
+      this.applySnap(layoutType, zoneIdx);
+    });
+
+    // Close when clicking outside
+    document.addEventListener("mousedown", (e) => {
+      if (!popover.contains(e.target) && !e.target.closest(".mdi-win-btn-max")) {
+        this.hide();
+      }
+    });
+
+    // Close on Escape
+    document.addEventListener("keydown", (e) => {
+      if (e.key === "Escape" || e.code === "Escape") {
+        this.hide();
+      }
+    });
+  },
+
+  onMaxButtonHover(winId, btnEl) {
+    this.cancelHide();
+    this.currentTargetWinId = winId;
+    this.activeBtnEl = btnEl;
+    if (this.showTimer) clearTimeout(this.showTimer);
+    this.showTimer = setTimeout(() => {
+      this.show(winId, btnEl);
+    }, 110);
+  },
+
+  show(winId, btnEl) {
+    const popover = document.getElementById("mdiSnapLayoutPopover");
+    if (!popover) return;
+    this.currentTargetWinId = winId;
+    this.activeBtnEl = btnEl;
+
+    const rect = btnEl.getBoundingClientRect();
+    const popW = 290;
+    let left = rect.right - popW;
+    let top = rect.bottom + 4;
+
+    // Boundary checks
+    if (left < 10) left = 10;
+    if (top + 280 > window.innerHeight) {
+      top = rect.top - 280;
+    }
+
+    popover.style.top = `${top}px`;
+    popover.style.left = `${left}px`;
+    popover.style.display = "flex";
+
+    // Set icon inside zones matching current window
+    const winObj = MdiManager.windows[winId];
+    const icon = winObj ? winObj.icon : "🪟";
+    popover.querySelectorAll(".snap-zone-icon").forEach(el => {
+      el.textContent = icon;
+    });
+  },
+
+  hide() {
+    if (this.showTimer) clearTimeout(this.showTimer);
+    const popover = document.getElementById("mdiSnapLayoutPopover");
+    if (popover) {
+      popover.style.display = "none";
+    }
+    this.activeBtnEl = null;
+  },
+
+  scheduleHide(delay = 200) {
+    if (this.showTimer) clearTimeout(this.showTimer);
+    if (this.hideTimer) clearTimeout(this.hideTimer);
+    this.hideTimer = setTimeout(() => {
+      this.hide();
+    }, delay);
+  },
+
+  cancelHide() {
+    if (this.hideTimer) {
+      clearTimeout(this.hideTimer);
+      this.hideTimer = null;
+    }
+  },
+
+  applyRect(winObj, top, left, width, height) {
+    if (!winObj || !winObj.element) return;
+    winObj.element.classList.remove("minimized", "maximized");
+    winObj.element.classList.add("snapped");
+    winObj.element.style.display = "flex";
+    winObj.isMinimized = false;
+    winObj.isMaximized = false;
+    winObj.isOpen = true;
+    winObj.element.style.top = top;
+    winObj.element.style.left = left;
+    winObj.element.style.width = width;
+    winObj.element.style.height = height;
+
+    const maxBtn = winObj.element.querySelector(".mdi-win-btn-max");
+    if (maxBtn) {
+      maxBtn.textContent = "□";
+      maxBtn.title = "Böyüt (Tam ekran)";
+    }
+    if (winObj.tabElement) {
+      winObj.tabElement.style.display = "inline-flex";
+      winObj.tabElement.classList.remove("minimized");
+    }
+  },
+
+  applySnap(layoutType, zoneIdx) {
+    const targetId = this.currentTargetWinId || MdiManager.activeWindowId;
+    this.hide();
+    if (!targetId || !MdiManager.windows[targetId]) return;
+
+    const targetWin = MdiManager.windows[targetId];
+
+    // Digər aktiv və açıq olan pəncərələri tapırıq (z-index üzrə ən son istifadə olunanlar önə gəlir)
+    const otherWins = Object.values(MdiManager.windows)
+      .filter(w => w.id !== targetId && w.isOpen && !w.isModal && !w.isDialog && w.element)
+      .sort((a, b) => {
+        const za = parseInt(a.element.style.zIndex) || 0;
+        const zb = parseInt(b.element.style.zIndex) || 0;
+        return zb - za;
+      });
+
+    // Dashboard aktivdirsə, pəncərə rejiminə keçirik
+    MdiManager._dashboardActive = false;
+    const homeBtn = document.getElementById("mdiTaskbarHomeBtn");
+    if (homeBtn) homeBtn.classList.remove("active");
+
+    switch(layoutType) {
+      case "split_50_50":
+        if (zoneIdx === 0) {
+          // Sol 50%
+          this.applyRect(targetWin, "0px", "0px", "50%", "100%");
+          if (otherWins[0]) this.applyRect(otherWins[0], "0px", "50%", "50%", "100%");
+        } else {
+          // Sağ 50%
+          this.applyRect(targetWin, "0px", "50%", "50%", "100%");
+          if (otherWins[0]) this.applyRect(otherWins[0], "0px", "0px", "50%", "100%");
+        }
+        break;
+
+      case "split_67_33":
+        if (zoneIdx === 0) {
+          // Sol geniş 66.6%
+          this.applyRect(targetWin, "0px", "0px", "66.6%", "100%");
+          if (otherWins[0]) this.applyRect(otherWins[0], "0px", "66.6%", "33.4%", "50%");
+          if (otherWins[1]) this.applyRect(otherWins[1], "50%", "66.6%", "33.4%", "50%");
+        } else if (zoneIdx === 1) {
+          // Sağ-üst (33% x 50%)
+          this.applyRect(targetWin, "0px", "66.6%", "33.4%", "50%");
+          if (otherWins[0]) this.applyRect(otherWins[0], "0px", "0px", "66.6%", "100%");
+          if (otherWins[1]) this.applyRect(otherWins[1], "50%", "66.6%", "33.4%", "50%");
+        } else {
+          // Sağ-alt (33% x 50%)
+          this.applyRect(targetWin, "50%", "66.6%", "33.4%", "50%");
+          if (otherWins[0]) this.applyRect(otherWins[0], "0px", "0px", "66.6%", "100%");
+          if (otherWins[1]) this.applyRect(otherWins[1], "0px", "66.6%", "33.4%", "50%");
+        }
+        break;
+
+      case "cols_3":
+        if (zoneIdx === 0) {
+          this.applyRect(targetWin, "0px", "0px", "33.3%", "100%");
+          if (otherWins[0]) this.applyRect(otherWins[0], "0px", "33.3%", "33.4%", "100%");
+          if (otherWins[1]) this.applyRect(otherWins[1], "0px", "66.7%", "33.3%", "100%");
+        } else if (zoneIdx === 1) {
+          this.applyRect(targetWin, "0px", "33.3%", "33.4%", "100%");
+          if (otherWins[0]) this.applyRect(otherWins[0], "0px", "0px", "33.3%", "100%");
+          if (otherWins[1]) this.applyRect(otherWins[1], "0px", "66.7%", "33.3%", "100%");
+        } else {
+          this.applyRect(targetWin, "0px", "66.7%", "33.3%", "100%");
+          if (otherWins[0]) this.applyRect(otherWins[0], "0px", "0px", "33.3%", "100%");
+          if (otherWins[1]) this.applyRect(otherWins[1], "0px", "33.3%", "33.4%", "100%");
+        }
+        break;
+
+      case "split_35_65":
+        if (zoneIdx === 0) {
+          this.applyRect(targetWin, "0px", "0px", "35%", "100%");
+          if (otherWins[0]) this.applyRect(otherWins[0], "0px", "35%", "65%", "100%");
+        } else {
+          this.applyRect(targetWin, "0px", "35%", "65%", "100%");
+          if (otherWins[0]) this.applyRect(otherWins[0], "0px", "0px", "35%", "100%");
+        }
+        break;
+
+      case "split_horiz":
+        if (zoneIdx === 0) {
+          this.applyRect(targetWin, "0px", "0px", "100%", "50%");
+          if (otherWins[0]) this.applyRect(otherWins[0], "50%", "0px", "100%", "50%");
+        } else {
+          this.applyRect(targetWin, "50%", "0px", "100%", "50%");
+          if (otherWins[0]) this.applyRect(otherWins[0], "0px", "0px", "100%", "50%");
+        }
+        break;
+
+      case "quad_2x2":
+        const quads = [
+          { top: "0px", left: "0px", width: "50%", height: "50%" },
+          { top: "0px", left: "50%", width: "50%", height: "50%" },
+          { top: "50%", left: "0px", width: "50%", height: "50%" },
+          { top: "50%", left: "50%", width: "50%", height: "50%" }
+        ];
+        const selectedQuad = quads[zoneIdx] || quads[0];
+        this.applyRect(targetWin, selectedQuad.top, selectedQuad.left, selectedQuad.width, selectedQuad.height);
+
+        const remQuads = quads.filter((_, i) => i !== zoneIdx);
+        for (let i = 0; i < otherWins.length && i < remQuads.length; i++) {
+          this.applyRect(otherWins[i], remQuads[i].top, remQuads[i].left, remQuads[i].width, remQuads[i].height);
+        }
+        break;
+    }
+
+    MdiManager.activateWindow(targetId);
+    MdiManager.saveOpenWindowsSession();
+  },
+
+  quickAction(action) {
+    this.hide();
+    switch(action) {
+      case "side_by_side":
+        this.applySnap("split_50_50", 0);
+        break;
+      case "cascade":
+        MdiManager.cascadeWindows();
+        break;
+      case "grid":
+        this.applySnap("quad_2x2", 0);
+        break;
+      case "restore":
+        const list = Object.values(MdiManager.windows).filter(w => !w.isMinimized && w.isOpen && w.element);
+        list.forEach((w, idx) => {
+          w.element.classList.remove("snapped", "maximized");
+          w.isMaximized = false;
+          const offset = idx * 28;
+          w.element.style.top = `${20 + offset}px`;
+          w.element.style.left = `${20 + offset}px`;
+          w.element.style.width = "calc(100% - 60px)";
+          w.element.style.height = "calc(100% - 60px)";
+          const maxBtn = w.element.querySelector(".mdi-win-btn-max");
+          if (maxBtn) maxBtn.textContent = "□";
+        });
+        if (list.length > 0) MdiManager.activateWindow(list[list.length - 1].id);
+        break;
+    }
+  }
+};
+window.SnapLayoutHelper = SnapLayoutHelper;
+
 
 /* Menu Toggle Helpers */
 function toggleMdiMenu(e, menuId) {

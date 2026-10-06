@@ -32,6 +32,19 @@ const ValueListModal = {
     }
   },
 
+  cleanNomText(val) {
+    if (!val) return "";
+    return String(val)
+      .replace(/\s*\([əa]d\)/gi, "")
+      .replace(/\s*_\s*оригинал/gi, "")
+      .replace(/\s*\(\s*\d+\s*шт\.?\s*\)/gi, "")
+      .replace(/\s+\d+\s*шт\.?\b/gi, "")
+      .replace(/\s+\d+\/\d+(\/\d+)?\b/g, "")
+      .replace(/\s+\d+([.,]\d+)?\s*(гр|г|kg|кг|ml|мл|l|л)\b/gi, "")
+      .replace(/\s{2,}/g, " ")
+      .trim() || val;
+  },
+
   open(options = {}) {
     this.targetInput = options.targetInput || null;
     this.catalog = options.catalog || "Номенклатура";
@@ -284,8 +297,8 @@ const ValueListModal = {
                onkeydown="ValueListModal.handleInputKeydown(event, ${idx})"
                onblur="ValueListModal.handleInputBlur(${idx})">
       ` : `
-        <span class="value-item-text" style="display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 11px; ${!itemObj.value ? 'color: #999; font-style: italic;' : 'color: #111111;'}">
-          ${itemObj.value ? escapeHtml(itemObj.value) : (itemObj.comp === 'contains' ? '(tərkibində axtarılacaq sözü yazın)' : '(dəqiq ad daxil edin və ya [...] basın)')}
+        <span class="value-item-text" title="${escapeHtml(itemObj.value || '')}" style="display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 11px; ${!itemObj.value ? 'color: #999; font-style: italic;' : 'color: #111111;'}">
+          ${itemObj.value ? escapeHtml(isNom ? (this.cleanNomText(itemObj.value) || itemObj.value) : itemObj.value) : (itemObj.comp === 'contains' ? '(tərkibində axtarılacaq sözü yazın)' : '(dəqiq ad daxil edin və ya [...] basın)')}
         </span>
       `;
 
@@ -923,11 +936,15 @@ const ValueListModal = {
     // Filter out completely blank lines
     const validItems = this.items.filter(it => it.value && it.value.trim().length > 0);
 
+    const isNom = (this.catalog === "Номенклатура");
     const parts = validItems.map(it => {
+      let cleanVal = (isNom && it.value) ? this.cleanNomText(it.value) : it.value;
+      const code = (it.code || "").trim();
+      let itemDisplay = cleanVal || code || it.value;
       if (it.comp === "contains") {
-        return `Содержит: ${it.value}`;
+        return `Содержит: ${itemDisplay}`;
       }
-      return it.value;
+      return itemDisplay;
     });
 
     let displayStr = parts.join("; ");
@@ -941,7 +958,6 @@ const ValueListModal = {
         matchAll: this.matchAll,
         items: validItems
       });
-      this.targetInput.dispatchEvent(new Event("input", { bubbles: true }));
       this.targetInput.dispatchEvent(new Event("change", { bubbles: true }));
       if (typeof hideAllAutocomplete === "function") hideAllAutocomplete();
     }

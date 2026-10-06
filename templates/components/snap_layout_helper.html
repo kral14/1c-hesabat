@@ -1,0 +1,118 @@
+<!-- ========================================================
+     WINDOWS 11 SNAP LAYOUTS HELPER
+     snap_layout_helper.html
+     ======================================================== -->
+
+<div id="mdiSnapLayoutPopover" class="snap-layout-popover" onmousedown="event.stopPropagation()">
+  <!-- Header -->
+  <div class="snap-layout-header">
+    <div class="snap-layout-header-title">
+      <span>🪟</span>
+      <span>Расположение окон (Snap Layouts)</span>
+    </div>
+    <span style="font-size: 10px; color: #64748b; font-weight: normal;">Seç və kliklə</span>
+  </div>
+
+  <!-- 6 Layout Cards Grid (Matching Windows 11 Snap Assist) -->
+  <div class="snap-layout-grid">
+    
+    <!-- 1. 50% / 50% (Yan-yana 2 bərabər pəncərə) -->
+    <div class="snap-card" data-layout="split_50_50" title="Yan-yana 2 pəncərə (50% / 50%)">
+      <div class="snap-zone" style="flex: 1; height: 100%;" data-zone="0" title="Sol yarı (50%)">
+        <span class="snap-zone-icon">◧</span>
+      </div>
+      <div class="snap-zone" style="flex: 1; height: 100%;" data-zone="1" title="Sağ yarı (50%)">
+        <span class="snap-zone-icon">◨</span>
+      </div>
+    </div>
+
+    <!-- 2. 67% / 33% (Sol geniş 2/3, sağda 2 kiçik pəncərə) -->
+    <div class="snap-card" data-layout="split_67_33" title="Sol geniş (67%), Sağda 2 kiçik pəncərə (33%)">
+      <div class="snap-zone" style="flex: 1.8; height: 100%;" data-zone="0" title="Sol geniş (67%)">
+        <span class="snap-zone-icon">◧</span>
+      </div>
+      <div style="flex: 1; height: 100%; display: flex; flex-direction: column; gap: 3px;">
+        <div class="snap-zone" style="flex: 1; width: 100%;" data-zone="1" title="Sağ-Üst (33% x 50%)">
+          <span class="snap-zone-icon">◳</span>
+        </div>
+        <div class="snap-zone" style="flex: 1; width: 100%;" data-zone="2" title="Sağ-Alt (33% x 50%)">
+          <span class="snap-zone-icon">◲</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- 3. 33% / 33% / 33% (3 sütun yanaşı) -->
+    <div class="snap-card" data-layout="cols_3" title="3 sütun yanaşı (33% / 33% / 33%)">
+      <div class="snap-zone" style="flex: 1; height: 100%;" data-zone="0" title="Sol sütun">
+        <span class="snap-zone-icon">▍</span>
+      </div>
+      <div class="snap-zone" style="flex: 1; height: 100%;" data-zone="1" title="Orta sütun">
+        <span class="snap-zone-icon">▍</span>
+      </div>
+      <div class="snap-zone" style="flex: 1; height: 100%;" data-zone="2" title="Sağ sütun">
+        <span class="snap-zone-icon">▍</span>
+      </div>
+    </div>
+
+    <!-- 4. 35% / 65% (Sol dar, sağ geniş) -->
+    <div class="snap-card" data-layout="split_35_65" title="Sol dar (35%), Sağ geniş (65%)">
+      <div class="snap-zone" style="flex: 1; height: 100%;" data-zone="0" title="Sol dar (35%)">
+        <span class="snap-zone-icon">◧</span>
+      </div>
+      <div class="snap-zone" style="flex: 1.8; height: 100%;" data-zone="1" title="Sağ geniş (65%)">
+        <span class="snap-zone-icon">◨</span>
+      </div>
+    </div>
+
+    <!-- 5. 50% / 50% Üst və Alt (Horizontal split) -->
+    <div class="snap-card" data-layout="split_horiz" style="flex-direction: column;" title="Üst və Alt (50% / 50%)">
+      <div class="snap-zone" style="width: 100%; flex: 1;" data-zone="0" title="Üst yarı (50%)">
+        <span class="snap-zone-icon">⬒</span>
+      </div>
+      <div class="snap-zone" style="width: 100%; flex: 1;" data-zone="1" title="Alt yarı (50%)">
+        <span class="snap-zone-icon">⬓</span>
+      </div>
+    </div>
+
+    <!-- 6. 4 Bərabər Kvadrat (2x2 grid / Dörd pəncərə) -->
+    <div class="snap-card" data-layout="quad_2x2" style="flex-direction: column;" title="Dörd pəncərə (2x2 tor)">
+      <div style="flex: 1; width: 100%; display: flex; gap: 3px;">
+        <div class="snap-zone" style="flex: 1; height: 100%;" data-zone="0" title="Sol-Üst (50% x 50%)">
+          <span class="snap-zone-icon">◰</span>
+        </div>
+        <div class="snap-zone" style="flex: 1; height: 100%;" data-zone="1" title="Sağ-Üst (50% x 50%)">
+          <span class="snap-zone-icon">◳</span>
+        </div>
+      </div>
+      <div style="flex: 1; width: 100%; display: flex; gap: 3px;">
+        <div class="snap-zone" style="flex: 1; height: 100%;" data-zone="2" title="Sol-Alt (50% x 50%)">
+          <span class="snap-zone-icon">◱</span>
+        </div>
+        <div class="snap-zone" style="flex: 1; height: 100%;" data-zone="3" title="Sağ-Alt (50% x 50%)">
+          <span class="snap-zone-icon">◲</span>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Bottom Toolbar: Quick Actions -->
+  <div class="snap-toolbar">
+    <button type="button" class="snap-tool-btn" onclick="SnapLayoutHelper.quickAction('side_by_side')" title="Bütün açıq pəncərələri yan-yana düz">
+      <span>↔️</span>
+      <span>Yan-yana</span>
+    </button>
+    <button type="button" class="snap-tool-btn" onclick="SnapLayoutHelper.quickAction('cascade')" title="Pəncərələri kaskad şəklində düz">
+      <span>📑</span>
+      <span>Kaskad</span>
+    </button>
+    <button type="button" class="snap-tool-btn" onclick="SnapLayoutHelper.quickAction('grid')" title="Pəncərələri dördlü tor şəklində düz">
+      <span>▦</span>
+      <span>Tor (2x2)</span>
+    </button>
+    <button type="button" class="snap-tool-btn" onclick="SnapLayoutHelper.quickAction('restore')" title="Əvvəlki ölçülərə qaytar">
+      <span>🔄</span>
+      <span>Bərpa</span>
+    </button>
+  </div>
+</div>

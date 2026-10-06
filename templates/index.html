@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>1С:Предприятие 8.3</title>
   
-  <link rel="stylesheet" href="/static/css/1c_base.css?v=4.8">
+  <link rel="stylesheet" href="/static/css/1c_base.css?v=5.0">
   <link rel="stylesheet" href="/static/css/1c_toolbar.css?v=4.2">
   <link rel="stylesheet" href="/static/css/1c_settings.css?v=4.0">
   <link rel="stylesheet" href="/static/css/1c_sheet.css?v=4.0">
@@ -13,7 +13,7 @@
   <link rel="stylesheet" href="/static/css/1c_value_list.css?v=4.0">
   <link rel="stylesheet" href="/static/css/1c_presets.css?v=4.0">
   <link rel="stylesheet" href="/static/css/1c_calendar.css?v=4.3">
-  <link rel="stylesheet" href="/static/css/1c_mdi.css?v=4.2">
+  <link rel="stylesheet" href="/static/css/1c_mdi.css?v=5.0">
 </head>
 <body>
 
@@ -142,6 +142,11 @@
             <span class="mdi-dropdown-entry-icon">🔄</span>
             <span>Сменить базу данных / пользователя...</span>
           </div>
+          <div class="mdi-dropdown-sep"></div>
+          <div class="mdi-dropdown-entry" onclick="UniversalJournal.openDebugDiagnosticsModal()">
+            <span class="mdi-dropdown-entry-icon">🩺</span>
+            <span>Диагностика отбора (почему пусто?)</span>
+          </div>
         </div>
       </div>
 
@@ -166,6 +171,17 @@
             <span>О программе</span>
           </div>
         </div>
+      </div>
+
+      <!-- 🩺 Диагностика / Debug Button -->
+      <div style="margin-left: auto; display: flex; align-items: center; padding-right: 8px;">
+        <button type="button" class="btn-1c" id="btnTopDiagnostics" onclick="UniversalJournal.openDebugDiagnosticsModal()" 
+                title="Диагностика отбора и журнала (почему поиск пустой?)" 
+                style="height: 20px; font-size: 11px; font-weight: bold; padding: 0 8px; display: inline-flex; align-items: center; gap: 4px; background: #fffbe6; border: 1px solid #d4b106; color: #874d00; cursor: pointer; border-radius: 2px;">
+          <span style="font-size: 12px;">🩺</span>
+          <span>Диагностика</span>
+          <span id="ujDebugBadge" style="display: none; background: #d32f2f; color: #fff; border-radius: 8px; padding: 0 4px; font-size: 9px; line-height: 12px;">!</span>
+        </button>
       </div>
     </div>
 
@@ -198,7 +214,7 @@
 
         <div class="mdi-dashboard-grid-simple">
           <!-- 1. Товары на складах -->
-          <div class="mdi-dash-tile" onclick="MdiManager.openOrRestoreReportWindow()" title="Открыть отчет 'Товары на складах'">
+          <div class="mdi-dash-tile" onclick="openReportDirect()" title="Открыть отчет 'Товары на складах'">
             <div class="mdi-dash-tile-icon">📦</div>
             <div class="mdi-dash-tile-content">
               <div class="mdi-dash-tile-title">Товары на складах</div>
@@ -304,6 +320,9 @@
       <!-- 11b. Universal Document Journal Filter MDI Window (Настройка списка - Отбор) -->
       {% include "components/universal_journal_filter_window.html" %}
 
+      <!-- 11c. Universal Document Journal Diagnostics & Debug Modal (Диагностика отбора) -->
+      {% include "components/diagnostics_modal.html" %}
+
       <!-- 12. Period Picker Modal (Выберите период) -->
       {% include "components/period_picker_modal.html" %}
 
@@ -315,6 +334,9 @@
 
       <!-- 15. Sales Document Editor Window (Реализация товаров и услуг) -->
       {% include "components/sales_doc_editor_window.html" %}
+
+      <!-- 16. Windows 11 Snap Layouts Helper Popover -->
+      {% include "components/snap_layout_helper.html" %}
 
     </div>
 
@@ -334,24 +356,25 @@
   </div>
 
   <!-- 1C Modular JavaScript Subsystems -->
-  <script src="/static/js/mdi_manager.js?v=6.1"></script>
+  <script src="/static/js/mdi_manager.js?v=7.0"></script>
   <script src="/static/js/session.js?v=4.1"></script>
-  <script src="/static/js/catalog_selector.js?v=4.6"></script>
-  <script src="/static/js/value_list_modal.js?v=4.6"></script>
+  <script src="/static/js/catalog_selector.js?v=5.0"></script>
+  <script src="/static/js/value_list_modal.js?v=4.8"></script>
   <script src="/static/js/operation_type_modal.js?v=4.1"></script>
   <script src="/static/js/field_selector.js?v=4.0"></script>
   <script src="/static/js/calendar_picker.js?v=4.4"></script>
   <script src="/static/js/settings_modal.js?v=4.2"></script>
   <script src="/static/js/settings_presets.js?v=4.2"></script>
   <script src="/static/js/report_engine.js?v=4.0"></script>
-  <script src="/static/js/portfolio_catalog.js?v=4.9"></script>
-  <script src="/static/js/period_picker.js?v=3.1"></script>
-  <script src="/static/js/universal_journal.js?v=6.1"></script>
+  <script src="/static/js/c1_column_settings.js?v=1.0"></script>
+  <script src="/static/js/portfolio_catalog.js?v=5.1"></script>
+  <script src="/static/js/period_picker.js?v=3.2"></script>
+  <script src="/static/js/universal_journal.js?v=7.7"></script>
   <script src="/static/js/nomenclature_card.js?v=1.0"></script>
   <script src="/static/js/price_doc_editor.js?v=3.8"></script>
   <script src="/static/js/sales_doc_editor.js?v=2.4"></script>
   <script src="/static/js/c1_table_selection.js?v=3.0"></script>
-  <script src="/static/js/app.js?v=4.1"></script>
+  <script src="/static/js/app.js?v=5.0"></script>
 
 </body>
 </html>

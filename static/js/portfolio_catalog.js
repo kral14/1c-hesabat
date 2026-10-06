@@ -26,12 +26,73 @@ const PortfolioCatalog = {
   currentSortCol: null,
   currentSortAsc: true,
   cache: {}, // Instant memory cache: key -> items array
+  storageKey: "pc_column_settings_v2",
+  columns: null,
+
+  getDefaultColumns: function() {
+    return [
+      { key: "code", label: "Код", visible: true, width: 85, autoWidth: false, align: "center", font: "monospace", sortable: true },
+      { key: "artikul", label: "Артикул", visible: true, width: 95, autoWidth: false, align: "left", sortable: true },
+      { key: "cv", label: "СВ код", visible: true, width: 85, autoWidth: false, align: "center", font: "monospace", sortable: true },
+      { key: "barcode", label: "Штрихкод", visible: true, width: 110, autoWidth: false, align: "center", font: "monospace", sortable: true },
+      { key: "name", label: "Наименование", visible: true, width: 250, autoWidth: true, align: "left", sortable: true },
+      { key: "comment", label: "Комментарий", visible: true, width: 140, autoWidth: false, align: "left", sortable: true },
+      { key: "folder", label: "Папка (Родитель)", visible: true, width: 140, autoWidth: false, align: "left", sortable: true },
+      { key: "group", label: "Ном. группа", visible: true, width: 130, autoWidth: false, align: "left", sortable: true },
+      { key: "portfolio", label: "Портфель", visible: true, width: 120, autoWidth: false, align: "left", sortable: true },
+      { key: "unit", label: "Ед. изм.", visible: true, width: 65, autoWidth: false, align: "center", sortable: false },
+      { key: "prices", label: "Цена", visible: true, width: 85, autoWidth: false, align: "right", sortable: true },
+      { key: "type", label: "Вид", visible: true, width: 110, autoWidth: false, align: "left", sortable: true },
+      { key: "manufacturer", label: "Производитель", visible: true, width: 130, autoWidth: false, align: "left", sortable: true }
+    ];
+  },
+
+  loadColumnsConfig: function() {
+    if (window.OneCColumnSettings) {
+      this.columns = OneCColumnSettings.load(this.storageKey, this.getDefaultColumns());
+    } else {
+      this.columns = this.getDefaultColumns();
+    }
+  },
+
+  saveColumnsConfig: function() {
+    if (window.OneCColumnSettings && this.columns) {
+      OneCColumnSettings.save(this.storageKey, this.columns);
+    }
+  },
+
+  openColumnSettingsModal: function() {
+    if (!this.columns) this.loadColumnsConfig();
+    if (!window.OneCColumnSettings) {
+      alert("Компонент настройки колонок не загружен.");
+      return;
+    }
+
+    OneCColumnSettings.open({
+      title: "Товары по портфелям (Реестр номенклатуры)",
+      columns: this.columns,
+      defaultColumns: this.getDefaultColumns(),
+      storageKey: this.storageKey,
+      onApply: (newCols) => {
+        this.columns = newCols;
+        this.saveColumnsConfig();
+        this.renderTable();
+        this.updateStatus("Настройки колонок применены");
+      },
+      onReset: (defCols) => {
+        this.columns = JSON.parse(JSON.stringify(defCols));
+        this.renderTable();
+        this.updateStatus("Настройки колонок сброшены к стандартным");
+      }
+    });
+  },
 
   open: function() {
     console.log("[PORTFOLIO CATALOG] Opening window...");
     const win = document.getElementById("portfolioCatalogWindow");
     if (!win) return;
 
+    this.loadColumnsConfig();
     this.loadAnalysisSettings();
 
     // Center nicely in workspace
@@ -753,7 +814,7 @@ const PortfolioCatalog = {
         } else if (itm.price !== undefined) {
           priceText = Number(itm.price || 0).toFixed(2);
         }
-        const src = `${itm.name} ${itm.code} ${itm.artikul} ${itm.cv} ${itm.barcode} ${itm.folder} ${itm.group} ${itm.portfolio} ${itm.manufacturer} ${priceText}`.toLowerCase();
+        const src = `${itm.name} ${itm.comment || ''} ${itm.code} ${itm.artikul} ${itm.cv} ${itm.barcode} ${itm.folder} ${itm.group} ${itm.portfolio} ${itm.manufacturer} ${priceText}`.toLowerCase();
         if (!src.includes(q)) return false;
       }
 
@@ -993,6 +1054,7 @@ const PortfolioCatalog = {
           "Папка (Родитель)": "folder",
           "Ном. группа": "group",
           "Портфель": "portfolio",
+          "Комментарий": "comment",
           "Цена": "prices"
         };
         const matchedVal = colMap[this.activeColumn] || (this.activeColumn.startsWith("Цена") ? "prices" : "all");
@@ -1051,6 +1113,7 @@ const PortfolioCatalog = {
       if (!q) return true;
 
       if (col === "name") return (itm.name || "").toLowerCase().includes(q);
+      if (col === "comment") return (itm.comment || "").toLowerCase().includes(q);
       if (col === "artikul") return (itm.artikul || "").toLowerCase().includes(q);
       if (col === "code") return (itm.code || "").toLowerCase().includes(q);
       if (col === "barcode") return (itm.barcode || "").toLowerCase().includes(q);
@@ -1075,7 +1138,7 @@ const PortfolioCatalog = {
       } else if (itm.price !== undefined) {
         priceText = Number(itm.price || 0).toFixed(2);
       }
-      const src = `${itm.name} ${itm.code} ${itm.artikul} ${itm.cv} ${itm.barcode} ${itm.folder} ${itm.group} ${itm.portfolio} ${itm.manufacturer} ${priceText}`.toLowerCase();
+      const src = `${itm.name} ${itm.comment || ''} ${itm.code} ${itm.artikul} ${itm.cv} ${itm.barcode} ${itm.folder} ${itm.group} ${itm.portfolio} ${itm.manufacturer} ${priceText}`.toLowerCase();
       return src.includes(q);
     });
 
@@ -1165,46 +1228,54 @@ const PortfolioCatalog = {
     const headRow = document.getElementById("pcTableHeadRow");
     if (!headRow) return;
 
+    if (!this.columns) this.loadColumnsConfig();
+
     const pts = this.activePriceTypes || this.selectedPriceTypes || [];
     const isAnalysis = Boolean(this.priceAnalysis.enabled);
     const basePt = this.priceAnalysis.basePriceType;
 
-    let priceHeadersHtml = "";
-    if (pts.length > 0) {
-      pts.forEach(pt => {
-        let tag = "";
-        let thBg = "";
-        let thColor = "";
-
-        if (isAnalysis && pt === basePt) {
-          tag = " <span style='font-size:9px; background:#0055ea; color:#fff; padding:1px 4px; border-radius:2px; vertical-align:middle;'>База</span>";
-          thBg = "background: #d8e6f3;";
-          thColor = "color: #002060;";
-        }
-
-        priceHeadersHtml += `<th style="min-width: 85px; padding: 4px 6px; border: 1px solid #b0af9f; text-align: right; cursor: pointer; white-space: nowrap; ${thBg} ${thColor}" onclick="PortfolioCatalog.onHeaderClick(event, 'price_${escapeHtml(pt)}', 'Цена (${escapeHtml(pt)})')">Цена (${escapeHtml(pt)})${tag} ⬍</th>`;
-      });
-    }
-
-    headRow.innerHTML = `
+    let colsHtml = `
       <th style="width: 32px; padding: 4px 2px; border: 1px solid #b0af9f; text-align: center;">
         <input type="checkbox" id="pcMasterRowCheckbox" onchange="PortfolioCatalog.toggleSelectAllVisible(this.checked)" title="Выбрать все / Снять выбор" style="cursor: pointer;">
       </th>
       <th style="width: 35px; padding: 4px 6px; border: 1px solid #b0af9f; text-align: center;">№</th>
-      <th style="width: 85px; padding: 4px 6px; border: 1px solid #b0af9f; text-align: left; cursor: pointer;" onclick="PortfolioCatalog.onHeaderClick(event, 'code', 'Код')">Код ⬍</th>
-      <th style="width: 95px; padding: 4px 6px; border: 1px solid #b0af9f; text-align: left; cursor: pointer;" onclick="PortfolioCatalog.onHeaderClick(event, 'artikul', 'Артикул')">Артикул ⬍</th>
-      <th style="width: 85px; padding: 4px 6px; border: 1px solid #b0af9f; text-align: left; cursor: pointer;" onclick="PortfolioCatalog.onHeaderClick(event, 'cv', 'СВ код')">СВ код ⬍</th>
-      <th style="width: 110px; padding: 4px 6px; border: 1px solid #b0af9f; text-align: left; cursor: pointer;" onclick="PortfolioCatalog.onHeaderClick(event, 'barcode', 'Штрихкод')">Штрихкод ⬍</th>
-      <th style="min-width: 250px; padding: 4px 6px; border: 1px solid #b0af9f; text-align: left; cursor: pointer;" onclick="PortfolioCatalog.onHeaderClick(event, 'name', 'Наименование')">Наименование ⬍</th>
-      <th style="width: 140px; padding: 4px 6px; border: 1px solid #b0af9f; text-align: left; cursor: pointer;" onclick="PortfolioCatalog.onHeaderClick(event, 'folder', 'Папка (Родитель)')">Папка (Родитель) ⬍</th>
-      <th style="width: 130px; padding: 4px 6px; border: 1px solid #b0af9f; text-align: left; cursor: pointer;" onclick="PortfolioCatalog.onHeaderClick(event, 'group', 'Ном. группа')">Ном. группа ⬍</th>
-      <th style="width: 120px; padding: 4px 6px; border: 1px solid #b0af9f; text-align: left; cursor: pointer;" onclick="PortfolioCatalog.onHeaderClick(event, 'portfolio', 'Портфель')">Портфель ⬍</th>
-      <th style="width: 65px; padding: 4px 6px; border: 1px solid #b0af9f; text-align: center;">Ед. изм.</th>
-      ${priceHeadersHtml}
-      <th style="width: 110px; padding: 4px 6px; border: 1px solid #b0af9f; text-align: left;" onclick="PortfolioCatalog.onHeaderClick(event, 'type', 'Вид')">Вид</th>
-      <th style="width: 130px; padding: 4px 6px; border: 1px solid #b0af9f; text-align: left;" onclick="PortfolioCatalog.onHeaderClick(event, 'manufacturer', 'Производитель')">Производитель</th>
     `;
 
+    const visibleCols = (this.columns || this.getDefaultColumns()).filter(c => c.visible !== false);
+
+    visibleCols.forEach(col => {
+      if (col.key === "prices") {
+        if (pts.length > 0) {
+          pts.forEach(pt => {
+            let tag = "";
+            let thBg = "";
+            let thColor = "";
+
+            if (isAnalysis && pt === basePt) {
+              tag = " <span style='font-size:9px; background:#0055ea; color:#fff; padding:1px 4px; border-radius:2px; vertical-align:middle;'>База</span>";
+              thBg = "background: #d8e6f3;";
+              thColor = "color: #002060;";
+            }
+
+            const wStyle = col.autoWidth ? "" : `width: ${col.width || 85}px;`;
+            colsHtml += `<th style="${wStyle} min-width: 80px; padding: 4px 6px; border: 1px solid #b0af9f; text-align: right; cursor: pointer; white-space: nowrap; ${thBg} ${thColor}" onclick="PortfolioCatalog.onHeaderClick(event, 'price_${escapeHtml(pt)}', 'Цена (${escapeHtml(pt)})')">Цена (${escapeHtml(pt)})${tag} ⬍</th>`;
+          });
+        } else {
+          const wStyle = col.autoWidth ? "" : `width: ${col.width || 85}px;`;
+          colsHtml += `<th style="${wStyle} padding: 4px 6px; border: 1px solid #b0af9f; text-align: right; cursor: pointer; white-space: nowrap;" onclick="PortfolioCatalog.onHeaderClick(event, 'price', '${escapeHtml(col.label || 'Цена')}')">${escapeHtml(col.label || 'Цена')} ⬍</th>`;
+        }
+      } else {
+        const wStyle = col.autoWidth ? (col.width ? `min-width: ${col.width}px;` : '') : `width: ${col.width || 100}px;`;
+        const alignStyle = `text-align: ${col.align || 'left'};`;
+        const sortAttr = col.sortable !== false ? `cursor: pointer;` : '';
+        const clickAttr = col.sortable !== false ? `onclick="PortfolioCatalog.onHeaderClick(event, '${col.key}', '${escapeHtml(col.label)}')"` : '';
+        const sortIcon = col.sortable !== false ? ' ⬍' : '';
+
+        colsHtml += `<th style="${wStyle} padding: 4px 6px; border: 1px solid #b0af9f; ${alignStyle} ${sortAttr} white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" ${clickAttr}>${escapeHtml(col.label || col.key)}${sortIcon}</th>`;
+      }
+    });
+
+    headRow.innerHTML = colsHtml;
     this.updateMasterCheckboxState();
   },
 
@@ -1214,6 +1285,9 @@ const PortfolioCatalog = {
 
     const tbody = document.getElementById("pcTableBody");
     if (!tbody) return;
+
+    if (!this.columns) this.loadColumnsConfig();
+    const visibleCols = (this.columns || this.getDefaultColumns()).filter(c => c.visible !== false);
 
     const list = this.filteredItems;
     const pts = this.activePriceTypes || this.selectedPriceTypes || [];
@@ -1237,65 +1311,87 @@ const PortfolioCatalog = {
         }
       }
 
-      // Render columns for each selected price type
-      let priceTds = "";
-      if (pts.length > 0) {
-        pts.forEach(pt => {
-          let val = 0;
-          if (itm.prices && itm.prices[pt] !== undefined) {
-            val = Number(itm.prices[pt]) || 0;
-          } else if (pt === pts[0] && itm.price !== undefined) {
-            val = Number(itm.price) || 0;
-          }
-          const priceStr = val > 0 ? val.toLocaleString("ru-RU", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : "-";
+      let rowTds = `
+        <td style="padding: 2px 2px; border: 1px solid #d4d0c8; text-align: center;" onclick="event.stopPropagation()">
+          <input type="checkbox" class="pc-row-chk" data-code="${escapeHtml(itm.code)}" ${isSelected ? 'checked' : ''} onchange="PortfolioCatalog.toggleItemSelection('${escapeHtml(itm.code)}', this.checked)">
+        </td>
+        <td style="padding: 3px 5px; border: 1px solid #d4d0c8; text-align: center; color: #777; user-select: text; -webkit-user-select: text;">${i + 1}</td>
+      `;
 
-          let cellBg = "";
-          let cellBorder = "1px solid #d4d0c8";
-          let cellColor = "#000080";
-          let cellTitle = "";
-
-          if (isAnalysis) {
-            if (pt === basePt) {
-              // Base benchmark column: subtle neutral light blue
-              cellBg = "#eef4fa";
-              cellColor = "#002060";
-              cellTitle = `Базовая цена (${basePt}): ${priceStr}`;
-            } else {
-              const diff = val - baseVal;
-              if (Math.abs(diff) > 0.0001) {
-                // Different price than base -> HIGHLIGHT IN AUTHENTIC SOFT YELLOW!
-                cellBg = "#fff3cd";
-                cellBorder = "1px solid #ffeeba";
-                cellColor = "#856404";
-                const diffSign = diff > 0 ? `+${diff.toFixed(2)}` : diff.toFixed(2);
-                cellTitle = `Разница с базой (${basePt}): ${diffSign} AZN (База: ${baseVal.toFixed(2)}, Текущая: ${val.toFixed(2)})`;
+      visibleCols.forEach(col => {
+        if (col.key === "prices") {
+          if (pts.length > 0) {
+            pts.forEach(pt => {
+              let val = 0;
+              if (itm.prices && itm.prices[pt] !== undefined) {
+                val = Number(itm.prices[pt]) || 0;
+              } else if (pt === pts[0] && itm.price !== undefined) {
+                val = Number(itm.price) || 0;
               }
-            }
-          }
+              const priceStr = val > 0 ? val.toLocaleString("ru-RU", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : "-";
 
-          const styleAttr = `padding: 3px 5px; border: ${cellBorder}; text-align: right; font-weight: bold; color: ${cellColor}; white-space: nowrap; cursor: pointer; user-select: text; -webkit-user-select: text; ${cellBg ? `background: ${cellBg};` : ''}`;
-          priceTds += `<td data-col-key="Цена (${escapeHtml(pt)})" style="${styleAttr}" ${cellTitle ? `title="${escapeHtml(cellTitle)}"` : ''}>${priceStr}</td>`;
-        });
-      }
+              let cellBg = "";
+              let cellBorder = "1px solid #d4d0c8";
+              let cellColor = "#000080";
+              let cellTitle = "";
+
+              if (isAnalysis) {
+                if (pt === basePt) {
+                  cellBg = "#eef4fa";
+                  cellColor = "#002060";
+                  cellTitle = `Базовая цена (${basePt}): ${priceStr}`;
+                } else {
+                  const diff = val - baseVal;
+                  if (Math.abs(diff) > 0.0001) {
+                    cellBg = "#fff3cd";
+                    cellBorder = "1px solid #ffeeba";
+                    cellColor = "#856404";
+                    const diffSign = diff > 0 ? `+${diff.toFixed(2)}` : diff.toFixed(2);
+                    cellTitle = `Разница с базой (${basePt}): ${diffSign} AZN (База: ${baseVal.toFixed(2)}, Текущая: ${val.toFixed(2)})`;
+                  }
+                }
+              }
+
+              const styleAttr = `padding: 3px 5px; border: ${cellBorder}; text-align: right; font-weight: bold; color: ${cellColor}; white-space: nowrap; cursor: pointer; user-select: text; -webkit-user-select: text; ${cellBg ? `background: ${cellBg};` : ''}`;
+              rowTds += `<td data-col-key="Цена (${escapeHtml(pt)})" style="${styleAttr}" ${cellTitle ? `title="${escapeHtml(cellTitle)}"` : ''}>${priceStr}</td>`;
+            });
+          } else {
+            const val = Number(itm.price || 0);
+            const priceStr = val > 0 ? val.toLocaleString("ru-RU", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : "-";
+            rowTds += `<td data-col-key="${escapeHtml(col.label || 'Цена')}" style="padding: 3px 5px; border: 1px solid #d4d0c8; text-align: right; font-weight: bold; color: #000080; white-space: nowrap; cursor: pointer; user-select: text;">${priceStr}</td>`;
+          }
+        } else if (col.key === "code") {
+          rowTds += `<td data-col-key="${escapeHtml(col.label)}" style="padding: 3px 5px; border: 1px solid #d4d0c8; text-align: center; font-family: Consolas, monospace; font-weight: bold; color: #003366; cursor: pointer; user-select: text; -webkit-user-select: text;">${escapeHtml(itm.code)}</td>`;
+        } else if (col.key === "artikul") {
+          rowTds += `<td data-col-key="${escapeHtml(col.label)}" style="padding: 3px 5px; border: 1px solid #d4d0c8; cursor: pointer; user-select: text; -webkit-user-select: text;">${escapeHtml(itm.artikul)}</td>`;
+        } else if (col.key === "cv") {
+          rowTds += `<td data-col-key="${escapeHtml(col.label)}" style="padding: 3px 5px; border: 1px solid #d4d0c8; text-align: center; font-family: Consolas, monospace; color: #2e7d32; font-weight: bold; cursor: pointer; user-select: text; -webkit-user-select: text;">${escapeHtml(itm.cv)}</td>`;
+        } else if (col.key === "barcode") {
+          rowTds += `<td data-col-key="${escapeHtml(col.label)}" style="padding: 3px 5px; border: 1px solid #d4d0c8; text-align: center; font-family: Consolas, monospace; color: #555; cursor: pointer; user-select: text; -webkit-user-select: text;">${escapeHtml(itm.barcode)}</td>`;
+        } else if (col.key === "name") {
+          rowTds += `<td data-col-key="${escapeHtml(col.label)}" style="padding: 3px 6px; border: 1px solid #d4d0c8; font-weight: 500; color: #111; cursor: pointer; user-select: text; -webkit-user-select: text;">${escapeHtml(itm.name)}</td>`;
+        } else if (col.key === "comment") {
+          rowTds += `<td data-col-key="${escapeHtml(col.label)}" style="padding: 3px 5px; border: 1px solid #d4d0c8; color: #444; cursor: pointer; user-select: text; -webkit-user-select: text; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 250px;" title="${escapeHtml(itm.comment || '')}">${escapeHtml(itm.comment || '')}</td>`;
+        } else if (col.key === "folder") {
+          rowTds += `<td data-col-key="${escapeHtml(col.label)}" style="padding: 3px 5px; border: 1px solid #d4d0c8; color: #444; cursor: pointer; user-select: text; -webkit-user-select: text;">${escapeHtml(itm.folder)}</td>`;
+        } else if (col.key === "group") {
+          rowTds += `<td data-col-key="${escapeHtml(col.label)}" style="padding: 3px 5px; border: 1px solid #d4d0c8; color: #004080; font-weight: 500; cursor: pointer; user-select: text; -webkit-user-select: text;">${escapeHtml(itm.group)}</td>`;
+        } else if (col.key === "portfolio") {
+          rowTds += `<td data-col-key="${escapeHtml(col.label)}" style="padding: 3px 5px; border: 1px solid #d4d0c8; color: #6a1b9a; font-weight: bold; cursor: pointer; user-select: text; -webkit-user-select: text;">${escapeHtml(itm.portfolio)}</td>`;
+        } else if (col.key === "unit") {
+          rowTds += `<td data-col-key="${escapeHtml(col.label)}" style="padding: 3px 5px; border: 1px solid #d4d0c8; text-align: center; cursor: pointer; user-select: text; -webkit-user-select: text;">${escapeHtml(itm.unit)}</td>`;
+        } else if (col.key === "type") {
+          rowTds += `<td data-col-key="${escapeHtml(col.label)}" style="padding: 3px 5px; border: 1px solid #d4d0c8; color: #555; cursor: pointer; user-select: text; -webkit-user-select: text;">${escapeHtml(itm.type)}</td>`;
+        } else if (col.key === "manufacturer") {
+          rowTds += `<td data-col-key="${escapeHtml(col.label)}" style="padding: 3px 5px; border: 1px solid #d4d0c8; color: #333; cursor: pointer; user-select: text; -webkit-user-select: text;">${escapeHtml(itm.manufacturer)}</td>`;
+        } else {
+          rowTds += `<td data-col-key="${escapeHtml(col.label)}" style="padding: 3px 5px; border: 1px solid #d4d0c8; cursor: pointer; user-select: text; -webkit-user-select: text;">${escapeHtml(itm[col.key] || '')}</td>`;
+        }
+      });
 
       html += `
         <tr id="pcRow_${escapeHtml(itm.code)}" data-orig-bg="${defaultBg}" style="background: ${rowBg}; border-bottom: 1px solid #e0dfd5;" onmouseover="if(!PortfolioCatalog.selectedCodes.has('${escapeHtml(itm.code)}')) this.style.background='#fffae8'" onmouseout="if(!PortfolioCatalog.selectedCodes.has('${escapeHtml(itm.code)}')) this.style.background='${defaultBg}'">
-          <td style="padding: 2px 2px; border: 1px solid #d4d0c8; text-align: center;" onclick="event.stopPropagation()">
-            <input type="checkbox" class="pc-row-chk" data-code="${escapeHtml(itm.code)}" ${isSelected ? 'checked' : ''} onchange="PortfolioCatalog.toggleItemSelection('${escapeHtml(itm.code)}', this.checked)">
-          </td>
-          <td style="padding: 3px 5px; border: 1px solid #d4d0c8; text-align: center; color: #777; user-select: text; -webkit-user-select: text;">${i + 1}</td>
-          <td data-col-key="Код" style="padding: 3px 5px; border: 1px solid #d4d0c8; text-align: center; font-family: Consolas, monospace; font-weight: bold; color: #003366; cursor: pointer; user-select: text; -webkit-user-select: text;">${escapeHtml(itm.code)}</td>
-          <td data-col-key="Артикул" style="padding: 3px 5px; border: 1px solid #d4d0c8; cursor: pointer; user-select: text; -webkit-user-select: text;">${escapeHtml(itm.artikul)}</td>
-          <td data-col-key="СВ код" style="padding: 3px 5px; border: 1px solid #d4d0c8; text-align: center; font-family: Consolas, monospace; color: #2e7d32; font-weight: bold; cursor: pointer; user-select: text; -webkit-user-select: text;">${escapeHtml(itm.cv)}</td>
-          <td data-col-key="Штрихкод" style="padding: 3px 5px; border: 1px solid #d4d0c8; text-align: center; font-family: Consolas, monospace; color: #555; cursor: pointer; user-select: text; -webkit-user-select: text;">${escapeHtml(itm.barcode)}</td>
-          <td data-col-key="Наименование" style="padding: 3px 6px; border: 1px solid #d4d0c8; font-weight: 500; color: #111; cursor: pointer; user-select: text; -webkit-user-select: text;">${escapeHtml(itm.name)}</td>
-          <td data-col-key="Папка" style="padding: 3px 5px; border: 1px solid #d4d0c8; color: #444; cursor: pointer; user-select: text; -webkit-user-select: text;">${escapeHtml(itm.folder)}</td>
-          <td data-col-key="Ном. группа" style="padding: 3px 5px; border: 1px solid #d4d0c8; color: #004080; font-weight: 500; cursor: pointer; user-select: text; -webkit-user-select: text;">${escapeHtml(itm.group)}</td>
-          <td data-col-key="Портфель" style="padding: 3px 5px; border: 1px solid #d4d0c8; color: #6a1b9a; font-weight: bold; cursor: pointer; user-select: text; -webkit-user-select: text;">${escapeHtml(itm.portfolio)}</td>
-          <td data-col-key="Ед. изм." style="padding: 3px 5px; border: 1px solid #d4d0c8; text-align: center; cursor: pointer; user-select: text; -webkit-user-select: text;">${escapeHtml(itm.unit)}</td>
-          ${priceTds}
-          <td data-col-key="Вид" style="padding: 3px 5px; border: 1px solid #d4d0c8; color: #555; cursor: pointer; user-select: text; -webkit-user-select: text;">${escapeHtml(itm.type)}</td>
-          <td data-col-key="Производитель" style="padding: 3px 5px; border: 1px solid #d4d0c8; color: #333; cursor: pointer; user-select: text; -webkit-user-select: text;">${escapeHtml(itm.manufacturer)}</td>
+          ${rowTds}
         </tr>
       `;
     }
@@ -1433,12 +1529,14 @@ document.addEventListener("click", function(e) {
 // Global helper for opening
 function openPortfolioReportWindow() {
   const existingWin = document.getElementById("portfolioCatalogWindow");
-  if (existingWin && existingWin.style.display !== "none" && !existingWin.classList.contains("minimized")) {
+  const winObj = window.MdiManager?.windows?.["portfolioCatalogWindow"];
+  if ((winObj && winObj.isOpen) || (existingWin && existingWin.dataset && existingWin.dataset.opened === "true")) {
     if (window.MdiManager && typeof MdiManager.createDuplicatePortfolioWindow === "function") {
       MdiManager.createDuplicatePortfolioWindow();
       return;
     }
   }
+  if (existingWin) existingWin.dataset.opened = "true";
   PortfolioCatalog.open();
 }
 

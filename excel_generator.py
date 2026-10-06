@@ -554,6 +554,7 @@ def generate_portfolio_catalog_excel(items, filters, output_path):
     else:
         headers.append(("Цена", 12, align_right))
     headers.append(("Производитель", 18, align_left))
+    headers.append(("Комментарий", 25, align_left))
 
     header_row = 5
     ws.row_dimensions[header_row].height = 24
@@ -611,6 +612,7 @@ def generate_portfolio_catalog_excel(items, filters, output_path):
         else:
             row_vals.append((float(itm.get("price") or 0), align_right, font_price, "#,##0.00", None))
         row_vals.append((itm.get("manufacturer") or "", align_left, font_td, None, None))
+        row_vals.append((itm.get("comment") or "", align_left, font_td, None, None))
 
         for col_idx, item_tuple in enumerate(row_vals, start=2):
             val = item_tuple[0]

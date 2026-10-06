@@ -24,7 +24,8 @@ def documents_list_endpoint():
             "offset": res.get("offset", 0),
             "limit": res.get("limit", 0),
             "last_date": res.get("last_date", ""),
-            "last_number": res.get("last_number", "")
+            "last_number": res.get("last_number", ""),
+            "debug_info": res.get("debug_info")
         })
     except Exception as e:
         print_server_error("/api/documents/list", e, data)
