@@ -1073,7 +1073,43 @@ def handle_get_nomenclature_stock(conn, payload, key, resp_q):
 
 
 
+def handle_catalog_card(conn, payload, key, resp_q):
+    catalog = str(payload.get("catalog") or "")
+    allowed = {"Контрагенты", "Склады", "ДоговорыКонтрагентов", "ТипыЦенНоменклатуры",
+               "Пользователи", "Портфели", "Водители", "Номенклатура"}
+    if catalog not in allowed:
+        raise ValueError("Справочник не поддерживается")
+    code = str(payload.get("code") or "").strip()
+    name = str(payload.get("name") or "").strip()
+    if not code and not name:
+        raise ValueError("Выберите элемент справочника")
+    query = conn.NewObject("Запрос")
+    query.SetParameter("Value", code or name)
+    field = "Код" if code else "Наименование"
+    query.Text = f"ВЫБРАТЬ ПЕРВЫЕ 2 Т.Ссылка КАК Ref ИЗ Справочник.{catalog} КАК Т ГДЕ Т.{field} = &Value"
+    rows = query.Execute().Choose()
+    if not rows.Next():
+        raise ValueError("Элемент не найден. Выберите его кнопкой «…»")
+    reference = rows.Ref
+    if rows.Next():
+        raise ValueError("Найдено несколько элементов. Выберите нужный кнопкой «…»")
+    obj = reference.GetObject()
+    fields = [{"label": "Код", "value": str(obj.Код)}, {"label": "Наименование", "value": str(obj.Наименование)}]
+    metadata = getattr(conn.Метаданные.Справочники, catalog)
+    for attribute in metadata.Реквизиты:
+        attribute_name = str(attribute.Имя)
+        if any(token in attribute_name.lower() for token in ("парол", "password", "token", "секрет")):
+            continue
+        try:
+            value = getattr(obj, attribute_name)
+            fields.append({"label": str(attribute.Синоним or attribute_name), "value": "" if value is None else str(conn.String(value))})
+        except Exception:
+            continue
+    resp_q.put((True, {"code": str(obj.Код), "name": str(obj.Наименование), "fields": fields}))
+
+
 CATALOG_HANDLERS = {
+    "catalog_card": handle_catalog_card,
     "get_users": handle_get_users,
     "get_portfolios": handle_get_portfolios,
     "get_agents": handle_get_agents,

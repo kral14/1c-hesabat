@@ -14,6 +14,8 @@ const UniversalJournal = {
   selectedRow: null,
   currentSortCol: "date",
   currentSortAsc: false, // Descending by default
+  searchMatchMode: "contains",
+  _columnSelectedForFind: false,
 
   // ==========================================
   // Smart Background Prefetch & Memory Cache Engine
@@ -121,12 +123,14 @@ const UniversalJournal = {
 
     const win = document.getElementById("universalJournalWindow");
     if (!win) return;
+    this._paused = false;
 
     if (window.MdiManager) {
       MdiManager.activateWindow("universalJournalWindow", {
         title: this.docTitle || "Реализация товаров и услуг",
         icon: "🗂️",
         closeFn: () => {
+          this.pauseLoading();
           this.clearPrefetchCache();
         }
       });
@@ -136,10 +140,11 @@ const UniversalJournal = {
       win.classList.add("active");
     }
 
-    this.loadDocuments();
+    this.executeSearchOrFilter();
   },
 
   close: function() {
+    this.pauseLoading();
     this.clearPrefetchCache();
     if (this._bgTimer) {
       clearTimeout(this._bgTimer);
@@ -160,11 +165,18 @@ const UniversalJournal = {
     if (!sel) return;
     this.activeDocType = sel.value;
     this.selectedRow = null;
+    this.items = [];
+    this.filteredItems = [];
+    this._listReady = false;
+    this._listKey = null;
+    this.columns = [];
+    const tbody = document.getElementById("ujTableBody");
+    if (tbody) tbody.innerHTML = "";
     this.loadActiveFiltersFromStorage();
     this.activePresetName = "";
     this.updateActiveFilterBadgeUI();
     this.updateEditButtonState();
-    this.loadDocuments();
+    this.loadDocuments({ force: true });
   },
 
   openPeriodPicker: function() {
@@ -277,7 +289,7 @@ const UniversalJournal = {
     return isNaN(parsed) ? null : parsed;
   },
 
-  initialChunkLimit: 1500,
+  initialChunkLimit: 2000,
   backgroundChunkLimit: 2000,
   currentLoadSessionId: 0,
   isLoadingBackground: false,
@@ -287,6 +299,89 @@ const UniversalJournal = {
   _bgTimer: null,
   _searchDebounceTimer: null,
   isServerFiltered: false,
+  listCache: new Map(),
+  _listKey: null,
+  _listReady: false,
+  _listAbortController: null,
+  _paused: false,
+  _loadAllRemaining: false,
+  _nextChunkRequested: false,
+
+  setFullLoadCursor: function(loading) {
+    document.documentElement?.classList.toggle("uj-loading-all", loading);
+  },
+
+  requestMoreDocuments: function(loadAll = false) {
+    if (!this.isJournalActive() || !this.hasMoreDocs) return;
+    if (loadAll) {
+      this.loadDocuments({ all: true, force: true });
+      return;
+    }
+    this._paused = false;
+    if (!this._listAbortController || this._listAbortController.signal.aborted) this._listAbortController = new AbortController();
+    if (this.isLoadingBackground) return;
+    this._nextChunkRequested = true;
+    this.scheduleBackgroundChunk(this.currentLoadSessionId);
+  },
+
+  getListKey: function(search = "", filters = []) {
+    const creds = window.SessionManager ? SessionManager.getCredentials() : {};
+    return JSON.stringify([creds.server, creds.ref, creds.user, this.activeDocType,
+      this.startDateStr, this.endDateStr, search, filters,
+      search ? (this.activeSearchColKey || this.selectedColKey || "") : "",
+      search ? this.searchMatchMode : ""]);
+  },
+
+  saveListCache: function() {
+    if (!this._listKey || !this._listReady) return;
+    this.listCache.delete(this._listKey);
+    this.listCache.set(this._listKey, {
+      items: this.items.slice(), columns: this.defaultColumns, title: this.docTitle,
+      scrollTop: document.getElementById("ujTableWrapper")?.scrollTop || 0,
+      hasMore: this.hasMoreDocs, lastDate: this.lastDocDate, lastNumber: this.lastDocNumber,
+      serverFiltered: this.isServerFiltered
+    });
+    // Bound memory use while keeping recently opened sections available.
+    while (this.listCache.size > 12) this.listCache.delete(this.listCache.keys().next().value);
+  },
+
+  pauseLoading: function() {
+    this._loadAllRemaining = this._nextChunkRequested = false;
+    this.setFullLoadCursor(false);
+    this.saveListCache();
+    this.currentLoadSessionId++;
+    if (this._listAbortController) this._listAbortController.abort();
+    if (this._bgTimer) clearTimeout(this._bgTimer);
+    if (this._searchDebounceTimer) clearTimeout(this._searchDebounceTimer);
+    this._bgTimer = this._searchDebounceTimer = null;
+    this.isLoadingBackground = false;
+    this._paused = true;
+    this.updateBottomLoadingState(false);
+    const loading = document.getElementById("ujLoadingState");
+    if (loading) loading.style.display = "none";
+  },
+
+  isJournalActive: function() {
+    const win = document.getElementById("universalJournalWindow");
+    return Boolean(win && win.style.display !== "none" &&
+      (!window.MdiManager || MdiManager.activeWindowId === "universalJournalWindow"));
+  },
+
+  onWindowActivityChange: function(id) {
+    if (id !== "universalJournalWindow") {
+      this.pauseLoading();
+    } else if (this._paused) {
+      this._paused = false;
+      const query = this._listQuery || { search: "", filters: [] };
+      if (this._listReady && this._listKey === this.getListKey(query.search, query.filters)) {
+        // Reactivation happens on mousedown: do not replace the clicked cell before click fires.
+        this._listAbortController = new AbortController();
+        if (this.hasMoreDocs) this.scheduleBackgroundChunk(this.currentLoadSessionId);
+      } else {
+        this.executeSearchOrFilter();
+      }
+    }
+  },
 
   updateBottomLoadingState: function(isLoading) {
     const indicator = document.getElementById("ujBottomLoadingIndicator");
@@ -300,6 +395,15 @@ const UniversalJournal = {
   },
 
   loadDocuments: function(options = {}) {
+    this._loadAllRemaining = Boolean(options.all);
+    this._nextChunkRequested = false;
+    this.setFullLoadCursor(Boolean(options.all));
+    this.loadSortPreference();
+    this.saveListCache();
+    if (!this.isJournalActive()) return;
+    this._paused = false;
+    if (this._listAbortController) this._listAbortController.abort();
+    this._listAbortController = new AbortController();
     this.clearPrefetchCache();
     if (this._bgTimer) {
       clearTimeout(this._bgTimer);
@@ -314,20 +418,56 @@ const UniversalJournal = {
     this.updateBottomLoadingState(false);
 
     const searchInp = document.getElementById("ujSearchInput");
-    const querySearch = (options.search !== undefined) ? options.search : (searchInp ? searchInp.value.trim() : "");
+    const querySearch = (options.search !== undefined) ? options.search : "";
     const queryFilters = (options.filters !== undefined) ? options.filters : (this.activeFilters || []);
     const activeCrits = (queryFilters || []).filter(c => c && c.enabled !== false);
 
     const isFilteredQuery = Boolean(querySearch || activeCrits.length > 0);
+    this._listQuery = { search: querySearch, filters: activeCrits,
+      search_field: this.activeSearchColKey || this.selectedColKey || "",
+      search_mode: this.searchMatchMode,
+      include_nomenclatures: activeCrits.some(c => c.fieldKey === "nomenclature") || Boolean(options.include_nomenclatures) };
     this.isServerFiltered = isFilteredQuery;
+    const nextKey = this.getListKey(querySearch, activeCrits);
+    const keepTableVisible = options.force && this._listKey === nextKey && this.items.length > 0;
+    this._listKey = nextKey;
+    const requestKey = this._listKey;
+    this._listReady = false;
+    if (options.force) this.listCache.delete(this._listKey);
+    const cachedList = this.listCache.get(this._listKey);
+    if (cachedList && !(activeCrits.length > 0 && cachedList.hasMore)) {
+      this.items = cachedList.items.slice();
+      this.selectedRow = null;
+      this.docTitle = cachedList.title;
+      this.loadColumnsConfig(cachedList.columns);
+      this.hasMoreDocs = cachedList.hasMore;
+      this.lastDocDate = cachedList.lastDate;
+      this.lastDocNumber = cachedList.lastNumber;
+      this._listReady = true;
+      const title = document.getElementById("ujWindowTitle");
+      if (title) title.textContent = `Журнал документов: ${this.docTitle}`;
+      const loading = document.getElementById("ujLoadingState");
+      if (loading) loading.style.display = "none";
+      const wrapper = document.getElementById("ujTableWrapper");
+      if (wrapper) wrapper.scrollTop = 0;
+      this.applyFiltersAndSearch();
+      if (wrapper && cachedList.scrollTop) {
+        wrapper.scrollTop = cachedList.scrollTop;
+        this.updateVirtualRows();
+      }
+      if (this.hasMoreDocs) this.scheduleBackgroundChunk(sessionId);
+      return;
+    }
 
     const loadingEl = document.getElementById("ujLoadingState");
     const emptyEl = document.getElementById("ujEmptyState");
 
-    if (loadingEl) loadingEl.style.display = "flex";
+    if (loadingEl) loadingEl.style.display = !options.all && (keepTableVisible || options.background) ? "none" : "flex";
     if (emptyEl) emptyEl.style.display = "none";
 
-    if (isFilteredQuery) {
+    if (options.all) {
+      this.updateStatus("Загрузка всех документов выбранного периода...");
+    } else if (isFilteredQuery) {
       this.updateStatus(querySearch ? `1C: Прямой поиск: "${querySearch}"...` : `1C: Прямой отбор (${activeCrits.length} условий)...`);
     } else {
       this.updateStatus("Загрузка списка документов из 1C...");
@@ -341,21 +481,52 @@ const UniversalJournal = {
       date_from: this.formatDateForBackend(this.startDateStr, false),
       date_to: this.formatDateForBackend(this.endDateStr, true),
       search: querySearch,
+      search_field: this._listQuery.search_field,
+      search_mode: this._listQuery.search_mode,
       filters: activeCrits,
       include_nomenclatures: hasNomFilter || Boolean(options.include_nomenclatures),
-      limit: isFilteredQuery ? 5000 : this.initialChunkLimit,
+      limit: options.all ? 0 : this.initialChunkLimit,
       offset: 0
     };
 
     fetch("/api/documents/list", {
       method: "POST",
+      signal: this._listAbortController.signal,
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload)
     })
     .then(res => res.json())
-    .then(data => {
+    .then(async data => {
+      if (sessionId !== this.currentLoadSessionId || requestKey !== this.getListKey(querySearch, activeCrits)) return;
+      // Filters must publish one complete result, never successive partial lists.
+      if (activeCrits.length > 0 && data.success && data.has_more) {
+        const collected = [...(data.items || [])];
+        let page = data;
+        while (page.has_more) {
+          if (sessionId !== this.currentLoadSessionId || requestKey !== this.getListKey(querySearch, activeCrits)) return;
+          const response = await fetch("/api/documents/list", {
+            method: "POST", signal: this._listAbortController.signal,
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ ...payload, limit: this.backgroundChunkLimit,
+              offset: collected.length, last_date: "", last_number: "" })
+          });
+          page = await response.json();
+          if (sessionId !== this.currentLoadSessionId) return;
+          if (!page.success) throw new Error(page.error || "Не удалось загрузить полный отбор");
+          if (page.has_more && !(page.items || []).length) throw new Error("Пустая страница при загрузке отбора");
+          collected.push(...(page.items || []));
+          this.updateStatus(`Подготовка полного отбора: ${collected.length} документов...`);
+        }
+        data = { ...data, items: collected, has_more: false,
+          last_date: page.last_date, last_number: page.last_number };
+      }
       if (sessionId !== this.currentLoadSessionId) return;
+      if (requestKey !== this.getListKey(querySearch, activeCrits)) return;
       if (loadingEl) loadingEl.style.display = "none";
+      if (options.all) {
+        this._loadAllRemaining = false;
+        this.setFullLoadCursor(false);
+      }
 
       if (!data.success) {
         this.lastDiagnostics = {
@@ -404,6 +575,7 @@ const UniversalJournal = {
         });
       }
       this.items = rawItems;
+      this._listReady = true;
       this.filteredItems = rawItems;
       this.lastDocDate = data.last_date || null;
       this.lastDocNumber = data.last_number || null;
@@ -432,7 +604,8 @@ const UniversalJournal = {
 
       // When search or filter is active: verify with client-side filter and display full result
       if (isFilteredQuery) {
-        this.hasMoreDocs = false;
+        this.hasMoreDocs = Boolean(data.has_more);
+        this.saveListCache();
         this.updateBottomLoadingState(false);
         this.applyFiltersAndSearch();
         this.lastDiagnostics.filteredCount = this.filteredItems.length;
@@ -449,10 +622,15 @@ const UniversalJournal = {
           }
         }
 
-        this.updateStatus(`Найдено: ${this.filteredItems.length} документов`);
-        this.updateCountBadge(`Всего: ${this.filteredItems.length}`);
+        this.updateStatus(`Найдено: ${this.filteredItems.length} документов${this.hasMoreDocs ? " (загрузка остальных результатов...)" : ""}`);
+        this.updateCountBadge(`${this.hasMoreDocs ? "Загружено" : "Всего"}: ${this.filteredItems.length}`);
         this.updateActiveFilterBadgeUI();
         this.updateFilterButtonsState();
+        if (this.hasMoreDocs) this.scheduleBackgroundChunk(sessionId);
+        if (options.all) {
+          const wrapper = document.getElementById("ujTableWrapper");
+          if (wrapper) { wrapper.scrollTop = wrapper.scrollHeight; this.updateVirtualRows(); }
+        }
         return;
       }
 
@@ -460,23 +638,30 @@ const UniversalJournal = {
       if (badge) badge.style.display = "none";
 
       this.hasMoreDocs = Boolean(data.has_more);
+      this.saveListCache();
 
       // Check and apply startup default filter or active session filter
       this.checkAndApplyStartupFilter();
 
       // Schedule background chunk loading if more documents exist
       if (this.hasMoreDocs) {
-        this.updateStatus(`Загружено ${this.items.length} документов (фоновое докачивание...)`);
-        this.updateBottomLoadingState(true);
+        this.updateStatus(`Загружено ${this.items.length} документов. Продолжение при прокрутке.`);
+        this.updateBottomLoadingState(false);
         this.scheduleBackgroundChunk(sessionId);
       } else {
         this.updateBottomLoadingState(false);
         this.updateStatus(`Загружено ${this.items.length} документов`);
       }
+      if (options.all) {
+        const wrapper = document.getElementById("ujTableWrapper");
+        if (wrapper) { wrapper.scrollTop = wrapper.scrollHeight; this.updateVirtualRows(); }
+      }
     })
     .catch(err => {
       if (sessionId !== this.currentLoadSessionId) return;
       if (loadingEl) loadingEl.style.display = "none";
+      this._loadAllRemaining = false;
+      this.setFullLoadCursor(false);
       this.updateBottomLoadingState(false);
       console.error("Error loading documents:", err);
       this.updateStatus("Ошибка сети при загрузке документов");
@@ -509,8 +694,9 @@ const UniversalJournal = {
 
   scheduleBackgroundChunk: function(sessionId) {
     if (sessionId !== this.currentLoadSessionId) return;
-    if (this.isServerFiltered) return;
+    if (!this.isJournalActive()) return;
     if (!this.hasMoreDocs) return;
+    if (!this._loadAllRemaining && !this._nextChunkRequested) return;
 
     if (this._bgTimer) clearTimeout(this._bgTimer);
     this._bgTimer = setTimeout(() => {
@@ -520,12 +706,13 @@ const UniversalJournal = {
 
   fetchNextChunk: function(sessionId) {
     if (sessionId !== this.currentLoadSessionId) return;
-    if (this.isServerFiltered) return; // Do not trickle in background if searching or filtered
+    if (!this.isJournalActive()) return;
     if (!this.hasMoreDocs) {
       this.updateBottomLoadingState(false);
       return;
     }
     if (this.isLoadingBackground) return;
+    this._nextChunkRequested = false;
 
     this.isLoadingBackground = true;
     this.updateBottomLoadingState(true);
@@ -536,24 +723,33 @@ const UniversalJournal = {
       doc_type: this.activeDocType,
       date_from: this.formatDateForBackend(this.startDateStr, false),
       date_to: this.formatDateForBackend(this.endDateStr, true),
-      last_date: this.lastDocDate || "",
-      last_number: this.lastDocNumber || "",
-      search: "",
+      last_date: this.isServerFiltered ? "" : (this.lastDocDate || ""),
+      last_number: this.isServerFiltered ? "" : (this.lastDocNumber || ""),
+      search: this._listQuery?.search || "",
+      search_field: this._listQuery?.search_field || "",
+      search_mode: this._listQuery?.search_mode || "contains",
+      filters: this._listQuery?.filters || [],
+      include_nomenclatures: Boolean(this._listQuery?.include_nomenclatures),
       limit: this.backgroundChunkLimit,
       offset: this.items.length
     };
+    const requestKey = this.getListKey(payload.search, payload.filters);
 
     fetch("/api/documents/list", {
       method: "POST",
+      signal: this._listAbortController.signal,
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload)
     })
     .then(res => res.json())
     .then(data => {
-      this.isLoadingBackground = false;
       if (sessionId !== this.currentLoadSessionId) return;
+      if (requestKey !== this.getListKey(payload.search, payload.filters)) return;
+      this.isLoadingBackground = false;
 
       if (!data.success) {
+        this._loadAllRemaining = false;
+        this.setFullLoadCursor(false);
         console.warn("[UNIVERSAL JOURNAL] Background chunk fetch error:", data.error);
         this.updateBottomLoadingState(false);
         return;
@@ -605,17 +801,23 @@ const UniversalJournal = {
       this.hasMoreDocs = Boolean(data.has_more);
       this.lastDocDate = data.last_date || null;
       this.lastDocNumber = data.last_number || null;
+      this.saveListCache();
 
       if (this.hasMoreDocs) {
-        this.updateStatus(`Фоновая загрузка: получено ${this.items.length} документов...`);
-        this.updateBottomLoadingState(true);
+        this.updateStatus(this._loadAllRemaining ? `Загрузка всех документов: ${this.items.length}...` : `Загружено ${this.items.length} документов. Продолжение при прокрутке.`);
+        this.updateBottomLoadingState(this._loadAllRemaining);
         this.scheduleBackgroundChunk(sessionId);
       } else {
+        this._loadAllRemaining = false;
+        this.setFullLoadCursor(false);
         this.updateBottomLoadingState(false);
         this.updateStatus(`Все документы загружены (${this.items.length} документов)`);
       }
     })
     .catch(err => {
+      if (sessionId !== this.currentLoadSessionId) return;
+      this._loadAllRemaining = false;
+      this.setFullLoadCursor(false);
       this.isLoadingBackground = false;
       this.updateBottomLoadingState(false);
       console.warn("[UNIVERSAL JOURNAL] Background chunk network error:", err);
@@ -728,6 +930,18 @@ const UniversalJournal = {
     const wrapper = document.getElementById("ujTableWrapper");
     if (!wrapper || wrapper._hasVirtualScroll) return;
     wrapper._hasVirtualScroll = true;
+    let draggingScrollbar = false;
+    let scrollbarReleasedAt = 0;
+    let lastScrollTop = wrapper.scrollTop;
+    wrapper.addEventListener("pointerdown", event => {
+      const rect = wrapper.getBoundingClientRect();
+      const scrollbarWidth = Math.max(12, wrapper.offsetWidth - wrapper.clientWidth);
+      draggingScrollbar = event.clientX >= rect.right - scrollbarWidth;
+    });
+    document.addEventListener("pointerup", () => {
+      if (draggingScrollbar) scrollbarReleasedAt = performance.now();
+      draggingScrollbar = false;
+    });
 
     let ticking = false;
     wrapper.addEventListener("scroll", () => {
@@ -737,12 +951,10 @@ const UniversalJournal = {
 
           // Infinite scroll on scrollbar pull near bottom
           const scrollBottom = wrapper.scrollHeight - wrapper.scrollTop - wrapper.clientHeight;
-          if (scrollBottom < 600 && this.hasMoreDocs && !this.isLoadingBackground) {
-            if (this._bgTimer) {
-              clearTimeout(this._bgTimer);
-              this._bgTimer = null;
-            }
-            this.fetchNextChunk(this.currentLoadSessionId);
+          const movingDown = wrapper.scrollTop > lastScrollTop;
+          lastScrollTop = wrapper.scrollTop;
+          if (movingDown && scrollBottom < Math.max(600, wrapper.clientHeight * 2) && this.hasMoreDocs) {
+            this.requestMoreDocuments((draggingScrollbar || performance.now() - scrollbarReleasedAt < 200) && scrollBottom <= 8);
           }
 
           ticking = false;
@@ -763,8 +975,10 @@ const UniversalJournal = {
       return;
     }
 
-    const scrollTop = wrapper.scrollTop;
     const clientHeight = wrapper.clientHeight || 500;
+    const maxScrollTop = Math.max(0, totalCount * this.rowHeight - clientHeight);
+    if (wrapper.scrollTop > maxScrollTop) wrapper.scrollTop = maxScrollTop;
+    const scrollTop = wrapper.scrollTop;
     const buffer = 15;
 
     let startIdx = Math.max(0, Math.floor(scrollTop / this.rowHeight) - buffer);
@@ -804,8 +1018,8 @@ const UniversalJournal = {
     if (!visibleCols) visibleCols = this.getVisibleColumns();
     const isSelected = this.selectedRow && this.selectedRow.number === row.number;
     const defaultBg = (i % 2 === 1) ? "#f7f6f0" : "#ffffff";
-    const rowBg = isSelected ? "#316ac5" : defaultBg;
-    const textColor = isSelected ? "#ffffff" : "#111111";
+    const rowBg = isSelected ? "#dceaf7" : defaultBg;
+    const textColor = "#111111";
 
     let statusIconHtml = "";
     if (row.deleted) {
@@ -820,12 +1034,14 @@ const UniversalJournal = {
     for (let c = 0; c < visibleCols.length; c++) {
       const col = visibleCols[c];
       const key = col.key;
+      const activeCell = isSelected && key === this.selectedColKey;
+      const selectionStyle = activeCell ? "background:#316ac5;color:#ffffff;" : (isSelected ? "background:#dceaf7;color:#111111;" : "");
       let val = row[key];
 
       const wStyle = col.autoWidth ? "" : `width: ${col.width}px; min-width: ${col.width}px; max-width: ${col.width}px;`;
 
       if (key === "status") {
-        cells.push(`<td data-col-key="status" style="width: 30px; min-width: 30px; max-width: 30px; padding: 2px; text-align: center; border: 1px solid #d4d0c8; user-select: text;" onclick="UniversalJournal.selectCell(${i}, 'status', this, event)">${statusIconHtml}</td>`);
+        cells.push(`<td class="${activeCell ? 'c1-cell-active' : ''}" data-col-key="status" style="${selectionStyle}width: 30px; min-width: 30px; max-width: 30px; padding: 2px; text-align: center; border: 1px solid #d4d0c8; user-select: text;" onclick="UniversalJournal.selectCell(${i}, 'status', this, event)">${statusIconHtml}</td>`);
         continue;
       }
 
@@ -839,7 +1055,17 @@ const UniversalJournal = {
 
       const align = col.align || "left";
       const cellText = (val !== undefined && val !== null) ? String(val) : "";
-      cells.push(`<td data-col-key="${key}" style="${wStyle} padding: 2px 6px; text-align: ${align}; border: 1px solid #d4d0c8; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; user-select: text;" onclick="UniversalJournal.selectCell(${i}, '${key}', this, event)">${this.escapeHtml(cellText)}</td>`);
+
+      let cellCustomStyle = "";
+      let cellInnerHtml = this.escapeHtml(cellText);
+
+      // Duplicate Pogruzka Route Highlight (Qırmızı xəbərdarlıq)
+      if (key === "pogruzka_marshrut" && row.pogruzka_duplicate) {
+        if (!isSelected) cellCustomStyle = "background: #fee2e2; color: #b91c1c; font-weight: bold;";
+        cellInnerHtml = `<span title="ВНИМАНИЕ: Накладная найдена в ${row.pogruzka_count || 2} документах погрузки (Дубликат!)" style="display: inline-flex; align-items: center; gap: 4px;"><span>🚨</span><span>${this.escapeHtml(cellText || 'Рейс')}</span><span style="background: #dc2626; color: #fff; border-radius: 8px; padding: 0 4px; font-size: 9px; font-weight: bold; line-height: 12px;">${row.pogruzka_count || 2}</span></span>`;
+      }
+
+      cells.push(`<td class="${activeCell ? 'c1-cell-active' : ''}" data-col-key="${key}" style="${wStyle} ${cellCustomStyle} ${selectionStyle} padding: 2px 6px; text-align: ${align}; border: 1px solid #d4d0c8; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; user-select: text;" onclick="UniversalJournal.selectCell(${i}, '${key}', this, event)">${cellInnerHtml}</td>`);
     }
 
     return `<tr class="uj-row" data-row-idx="${i}" style="background: ${rowBg}; color: ${textColor}; height: 21px; cursor: pointer; user-select: text;" onclick="UniversalJournal.selectRow(${i})" ondblclick="UniversalJournal.editSelectedDocument()">${cells.join("")}</tr>`;
@@ -1310,6 +1536,7 @@ const UniversalJournal = {
     "Не в списке",
     "В группе из списка",
     "Содержит",
+    "Начинается с",
     "Не содержит",
     "Заполнено",
     "Не заполнено"
@@ -1336,6 +1563,15 @@ const UniversalJournal = {
         { key: "contract_price_type", label: "Тип цен", type: "text" },
         { key: "pogruzka_marshrut", label: "Пагрузка маршрут", type: "text" },
         { key: "pogruzka_voditel", label: "Пагрузка водитель", type: "text" }
+      );
+    }
+
+    const isPogruzka = (this.activeDocType === "ПогрузкиМашин" || this.activeDocType === "ПогрузкаМашин");
+    if (isPogruzka) {
+      fields.push(
+        { key: "marshrut", label: "Маршрут", type: "text" },
+        { key: "voditel", label: "Водитель", type: "text" },
+        { key: "realization_count", label: "Кол-во накладных", type: "number" }
       );
     }
 
@@ -3023,20 +3259,7 @@ const UniversalJournal = {
       enabled: true
     };
 
-    if (!Array.isArray(this.activeFilters)) this.activeFilters = [];
-
-    // Filter stacking: if filter on this field already exists, update it, otherwise add to stack
-    const existingIdx = this.activeFilters.findIndex(c => c.fieldKey === fieldKey);
-    if (existingIdx >= 0) {
-      this.activeFilters[existingIdx] = newCrit;
-    } else {
-      this.activeFilters.push(newCrit);
-    }
-
-    this.activePresetName = "";
-    this.saveActiveFiltersToStorage();
-    this.executeSearchOrFilter();
-    this.updateFilterButtonsState();
+    this.commitColumnFilter(newCrit);
     const activeCount = this.activeFilters.filter(c => c.enabled !== false).length;
     this.updateStatus(`Применен отбор: [${fieldLabel}] ${op === "Не заполнено" ? "(Не заполнено)" : '= "' + targetVal + '"'} (${activeCount} активных условий)`);
   },
@@ -3168,18 +3391,23 @@ const UniversalJournal = {
 
     // 2. Evaluate quick search string
     if (q) {
-      const colKey = this.activeSearchColKey || this.selectedColKey;
+      const colKey = this.activeSearchColKey;
       if (colKey && colKey !== "status") {
         result = result.filter(row => {
           let val = row[colKey];
           if (val === undefined || val === null || String(val).trim() === "") {
-            return Object.values(row).some(v => String(v).toLowerCase().includes(q));
+            return false;
           }
-          return String(val).toLowerCase().includes(q);
+          return this.matchesSearchText(val, q);
         });
       } else {
         result = result.filter(row => {
-          return Object.values(row).some(v => String(v).toLowerCase().includes(q));
+          return this.getVisibleColumns().filter(c => c.key !== "status").some(c => {
+            let value = row[c.key];
+            if (c.key === "amount" && typeof value === "number") value = value.toLocaleString("ru-RU", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+            if (c.key === "date" && value) value = this.formatDateTime(value);
+            return this.matchesSearchText(value, q);
+          });
         });
       }
     }
@@ -3497,6 +3725,8 @@ const UniversalJournal = {
       }
       case "Содержит":
         return sItem.includes(sTarget);
+      case "Начинается с":
+        return sItem.startsWith(sTarget);
       case "Не содержит":
         return !sItem.includes(sTarget);
       case "Больше":
@@ -3515,18 +3745,11 @@ const UniversalJournal = {
   selectedColKey: "number",
 
   selectCell: function(idx, colKey, targetTd, event) {
+    this._columnSelectedForFind = colKey !== "status";
     if (event) event.stopPropagation();
-    const prevCol = this.selectedColKey;
     this.selectRow(idx, colKey, targetTd);
 
-    // If search is currently active and user clicks a different column, switch search to that column
-    const inp = document.getElementById("ujSearchInput");
-    const q = inp ? inp.value.trim() : "";
-    if (q && colKey && colKey !== "status" && colKey !== prevCol) {
-      this.activeSearchColKey = colKey;
-      this.updateHeaderSearchHighlights();
-      this.applyFiltersAndSearch();
-    }
+    // Cell selection must not change the search column chosen in the Find dialog.
   },
 
   selectRow: function(idx, colKey, targetTd) {
@@ -3587,6 +3810,20 @@ const UniversalJournal = {
     btn.style.opacity = this.selectedRow ? "1" : "0.5";
   },
 
+  openAuditHistoryForSelected: function() {
+    if (!this.selectedRow) {
+      if (window.AuditJournal) {
+        AuditJournal.open(this.activeDocType);
+      }
+      return;
+    }
+    const docType = this.activeDocType;
+    const docNum = this.selectedRow.number;
+    if (window.AuditJournal) {
+      AuditJournal.openForDocument(docType, docNum);
+    }
+  },
+
   editSelectedDocument: function() {
     if (!this.selectedRow) return;
 
@@ -3603,6 +3840,12 @@ const UniversalJournal = {
     if (docType === "РеализацияТоваровУслуг" && window.SalesDocEditor) {
       SalesDocEditor.open(docNum, docDate);
       this.updateStatus(`Открыт документ реализации № ${docNum}`);
+      return;
+    }
+
+    if (docType === "ПогрузкиМашин" && window.PogruzkaDocEditor) {
+      PogruzkaDocEditor.open(docNum, docDate);
+      this.updateStatus(`Открыт документ погрузки машины № ${docNum}`);
       return;
     }
 
@@ -3743,16 +3986,9 @@ const UniversalJournal = {
 
   onHeaderClick: function(colKey) {
     if (colKey === "status") return;
+    this._columnSelectedForFind = true;
     this.selectedColKey = colKey;
-    const inp = document.getElementById("ujSearchInput");
-    const q = inp ? inp.value.trim() : "";
-    if (q) {
-      this.activeSearchColKey = colKey;
-      this.updateHeaderSearchHighlights();
-      this.applyFiltersAndSearch();
-    } else {
-      this.sortBy(colKey);
-    }
+    this.sortBy(colKey);
   },
 
   updateHeaderSearchHighlights: function() {
@@ -3793,8 +4029,8 @@ const UniversalJournal = {
         searchInp.placeholder = `Поиск в [${colName}]... (Ctrl+Q: отмена)`;
         searchInp.title = `Поиск по колонке "${colName}" (Ctrl+F). Для отмены поиска: Ctrl+Q`;
       } else {
-        searchInp.placeholder = "Быстрый поиск (Ctrl+F)...";
-        searchInp.title = "Быстрый поиск по списку (Ctrl+F). Для отмены: Ctrl+Q";
+        searchInp.placeholder = "Найти по всем колонкам...";
+        searchInp.title = "Поиск по всем колонкам загруженного списка. Для отмены: Ctrl+Q";
       }
     }
   },
@@ -3802,21 +4038,12 @@ const UniversalJournal = {
   onSearchInput: function() {
     const inp = document.getElementById("ujSearchInput");
     const q = inp ? inp.value.trim() : "";
-    if (q) {
-      if (!this.activeSearchColKey) {
-        this.activeSearchColKey = this.selectedColKey || "number";
-      }
-    } else {
-      this.activeSearchColKey = null;
-    }
+    this.activeSearchColKey = null;
+    this.searchMatchMode = "contains";
     this.updateHeaderSearchHighlights();
     this.updateSearchIcon(q);
 
-    // Debounced direct server fetch to pull all matches directly from 1C
-    if (this._searchDebounceTimer) clearTimeout(this._searchDebounceTimer);
-    this._searchDebounceTimer = setTimeout(() => {
-      this.executeSearchOrFilter();
-    }, 350);
+    if (this._listReady) this.applyFiltersAndSearch();
   },
 
   executeSearchOrFilter: function() {
@@ -3824,15 +4051,42 @@ const UniversalJournal = {
       clearTimeout(this._searchDebounceTimer);
       this._searchDebounceTimer = null;
     }
-    const inp = document.getElementById("ujSearchInput");
-    const q = inp ? inp.value.trim() : "";
     const activeCrits = (this.activeFilters || []).filter(c => c && c.enabled !== false);
 
-    if (q || activeCrits.length > 0) {
-      this.loadDocuments({ search: q, filters: activeCrits });
-    } else {
+    this.saveListCache();
+    const baseKey = this.getListKey();
+    const base = this.listCache.get(baseKey);
+    const needsDetails = activeCrits.some(c => c.fieldKey === "nomenclature");
+    if (base && (activeCrits.length === 0 || (!base.hasMore && !needsDetails))) {
       this.loadDocuments({ search: "", filters: [] });
+      return;
     }
+
+    this.loadDocuments({ search: "", filters: activeCrits });
+  },
+
+  showLoadedSearchPreview: function() {
+    if (!this.isJournalActive()) return false;
+    const crits = (this.activeFilters || []).filter(c => c && c.enabled !== false);
+    if (crits.some(c => c.fieldKey === "nomenclature")) return false;
+    this.saveListCache();
+    const key = this.getListKey();
+    const base = this.listCache.get(key);
+    if (!base) return false;
+    if (crits.length > 0 && base.hasMore) return false;
+    // Stop the previous query before showing a preview of the loaded base list.
+    this.pauseLoading();
+    this._paused = false;
+    this._listKey = key;
+    this._listReady = true;
+    this.isServerFiltered = false;
+    this.items = base.items.slice();
+    this.hasMoreDocs = base.hasMore;
+    this.lastDocDate = base.lastDate;
+    this.lastDocNumber = base.lastNumber;
+    this.applyFiltersAndSearch();
+    if (base.hasMore) this.updateStatus(`Загруженная часть: ${this.filteredItems.length} совпадений. Поиск по всей базе...`);
+    return true;
   },
 
   updateSearchIcon: function(q) {
@@ -3866,21 +4120,128 @@ const UniversalJournal = {
       this.clearSearch();
       inp.focus();
     } else {
-      this.openFindModal();
+      inp.focus();
     }
   },
 
-  openFindModal: function() {
-    this.activeSearchColKey = this.selectedColKey || "number";
-    const inp = document.getElementById("ujSearchInput");
-    if (inp) {
-      inp.focus();
-      inp.select();
+  matchesSearchText: function(value, query) {
+    const text = String(value ?? "").trim().toLowerCase();
+    const term = String(query).trim().toLowerCase();
+    if (this.searchMatchMode === "exact") return text === term;
+    if (this.searchMatchMode === "starts") return text.startsWith(term);
+    return text.includes(term);
+  },
+
+  openFindModal: function(initialText) {
+    const modal = document.getElementById("ujFindModal");
+    if (!modal) return;
+    const select = document.getElementById("ujFindColumn");
+    select.innerHTML = this.getAvailableFields().map(c =>
+      `<option value="${this.escapeHtml(c.key)}">${this.escapeHtml(c.label)}</option>`).join("");
+    const field = this.selectedColKey === "status" ? (this.selectedRow?.deleted ? "deleted" : "posted") : (this.selectedColKey || "number");
+    select.value = field;
+    const input = document.getElementById("ujFindText");
+    const existing = (this.activeFilters || []).find(c => c.fieldKey === field);
+    const cellValue = this.selectedRow?.[field];
+    input.value = initialText !== undefined ? initialText : (cellValue !== undefined && cellValue !== null ? String(cellValue) : (existing?.value || ""));
+    this._findItem = null;
+    this.updateFindReferenceButtons();
+    const mode = existing ? ({ "Равно": "exact", "Начинается с": "starts", "Содержит": "contains" }[existing.comparison] || "exact") : "exact";
+    modal.querySelectorAll('input[name="ujFindMatch"]').forEach(r => { r.checked = r.value === mode; });
+    modal.style.display = "flex";
+    input.focus();
+    if (initialText === undefined) input.select();
+  },
+
+  closeFindModal: function() {
+    const modal = document.getElementById("ujFindModal");
+    if (modal) modal.style.display = "none";
+  },
+
+  submitFindModal: function() {
+    const field = document.getElementById("ujFindColumn").value;
+    const value = document.getElementById("ujFindText").value.trim();
+    const mode = document.querySelector('input[name="ujFindMatch"]:checked')?.value || "exact";
+    const definition = this.getAvailableFields().find(f => f.key === field);
+    const operator = definition?.type && definition.type !== "text" ? "Равно" : ({ exact: "Равно", starts: "Начинается с", contains: "Содержит" })[mode];
+    const criterion = { fieldKey: field, fieldLabel: definition?.label || field,
+      comparison: operator, operator, value, enabled: true };
+    this.selectedColKey = field;
+    this.closeFindModal();
+    this.commitColumnFilter(criterion);
+  },
+
+  commitColumnFilter: function(criterion) {
+    if (!Array.isArray(this.activeFilters)) this.activeFilters = [];
+    const index = this.activeFilters.findIndex(c => c.fieldKey === criterion.fieldKey);
+    if (index >= 0) this.activeFilters[index] = criterion;
+    else this.activeFilters.push(criterion);
+    this.activePresetName = "";
+    this.saveActiveFiltersToStorage();
+    this.updateActiveFilterBadgeUI();
+    this.updateFilterButtonsState();
+    this.executeSearchOrFilter();
+  },
+
+  findCatalogForColumn: function(key) {
+    return { kontragent: "Контрагенты", kontragent_code: "Контрагенты", warehouse: "Склады",
+      contract: "ДоговорыКонтрагентов", contract_price_type: "ТипыЦенНоменклатуры",
+      responsible: "Пользователи", portfolio: "Портфели", pogruzka_voditel: "Водители",
+      nomenclature: "Номенклатура" }[key];
+  },
+
+  updateFindReferenceButtons: function() {
+    const supported = Boolean(this.findCatalogForColumn(document.getElementById("ujFindColumn")?.value));
+    for (const id of ["ujFindChoose", "ujFindInspect"]) {
+      const button = document.getElementById(id);
+      if (button) button.disabled = !supported;
     }
-    this.updateHeaderSearchHighlights();
-    const colDef = this.columns.find(c => c.key === this.activeSearchColKey);
-    const colName = colDef ? colDef.label : this.activeSearchColKey;
-    this.updateStatus(`Режим поиска по колонке: [${colName}]. Наберите текст или нажмите Ctrl+Q для отмены.`);
+  },
+
+  chooseFindValue: function() {
+    const field = document.getElementById("ujFindColumn").value;
+    const catalog = this.findCatalogForColumn(field);
+    if (!catalog) { this.updateStatus("Для этой колонки справочник отсутствует"); return; }
+    const text = document.getElementById("ujFindText").value;
+    this.closeFindModal();
+    CatalogSelector.open({ catalog, search: text, multiSelect: false, onSelect: item => {
+      if (!item) return;
+      const value = field.endsWith("_code") ? item.code : item.name;
+      this.selectedColKey = field;
+      this.openFindModal(value || "");
+      this._findItem = { catalog, code: item.code, name: item.name, value };
+    }});
+  },
+
+  showFindValueInfo: async function() {
+    const field = document.getElementById("ujFindColumn").value;
+    const catalog = this.findCatalogForColumn(field);
+    const text = document.getElementById("ujFindText").value.trim();
+    if (!catalog || !text) return;
+    const selected = this._findItem;
+    let code = selected && selected.catalog === catalog && selected.value === text ? selected.code : "";
+    if (!code && field === "kontragent_code") code = text;
+    if (!code && field === "kontragent" && this.selectedRow && String(this.selectedRow.kontragent).trim() === text) code = this.selectedRow.kontragent_code || "";
+    let modal = document.getElementById("ujFindInfo");
+    if (!modal) { modal = document.createElement("div"); modal.id = "ujFindInfo"; document.body.appendChild(modal); }
+    modal.style.cssText = "position:fixed;inset:0;z-index:2147483001;background:#0002;display:flex;align-items:center;justify-content:center";
+    modal.innerHTML = '<section style="background:#fffbef;padding:15px;width:600px;max-height:75vh;overflow:auto"><button style="float:right" onclick="document.getElementById(\'ujFindInfo\').style.display=\'none\'">✕</button><h3>Информация</h3><div id="ujFindInfoBody">Загрузка...</div></section>';
+    try {
+      const response = await fetch("/api/catalog_card", { method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ...SessionManager.getCredentials(), catalog, code, name: text }) });
+      const data = await response.json();
+      if (!data.success) throw new Error(data.error || "Не удалось прочитать информацию");
+      document.getElementById("ujFindInfoBody").innerHTML = `<strong>${this.escapeHtml(data.item.name)}</strong><table>${data.item.fields.map(f => `<tr><td style="padding:4px">${this.escapeHtml(f.label)}</td><td style="padding:4px">${this.escapeHtml(f.value)}</td></tr>`).join("")}</table>`;
+    } catch (error) { document.getElementById("ujFindInfoBody").textContent = error.message; }
+  },
+
+  loadSortPreference: function() {
+    if (typeof localStorage === "undefined") return;
+    try {
+      const saved = JSON.parse(localStorage.getItem("uj_sort_" + this.activeDocType) || "null");
+      this.currentSortCol = saved?.column || "date";
+      this.currentSortAsc = saved ? saved.ascending === true : false;
+    } catch (_) { this.currentSortCol = "date"; this.currentSortAsc = false; }
   },
 
   clearSearch: function() {
@@ -3899,7 +4260,13 @@ const UniversalJournal = {
   },
 
   refresh: function() {
-    this.loadDocuments();
+    this.saveListCache();
+    const scope = JSON.stringify(JSON.parse(this.getListKey()).slice(0, 6));
+    for (const key of this.listCache.keys()) {
+      if (JSON.stringify(JSON.parse(key).slice(0, 6)) === scope) this.listCache.delete(key);
+    }
+    this._listReady = false;
+    this.loadDocuments({ force: true });
   },
 
   sortBy: function(colKey) {
@@ -3910,6 +4277,7 @@ const UniversalJournal = {
       this.currentSortCol = colKey;
       this.currentSortAsc = true;
     }
+    try { localStorage.setItem("uj_sort_" + this.activeDocType, JSON.stringify({ column: this.currentSortCol, ascending: this.currentSortAsc })); } catch (_) {}
     this.applySort();
     this.renderTable();
   },
@@ -4454,6 +4822,31 @@ window.openUniversalJournalWindow = function(docType) {
 document.addEventListener("keydown", function(e) {
   const ujWin = document.getElementById("universalJournalWindow");
   if (!ujWin || ujWin.style.display === "none") return;
+  const findModal = document.getElementById("ujFindModal");
+  const findInfo = document.getElementById("ujFindInfo");
+  if (findInfo && findInfo.style.display !== "none") {
+    if (e.key === "Escape") { e.preventDefault(); e.stopImmediatePropagation(); findInfo.style.display = "none"; }
+    return;
+  }
+  if (findModal && findModal.style.display !== "none") {
+    if (e.key === "Escape") { e.preventDefault(); e.stopImmediatePropagation(); UniversalJournal.closeFindModal(); }
+    return;
+  }
+  if (!UniversalJournal.isJournalActive()) return;
+  const isEditing = e.target.closest && e.target.closest('input,textarea,select,[contenteditable="true"]');
+  if (!isEditing && e.key === "End") {
+    e.preventDefault();
+    e.stopPropagation();
+    UniversalJournal.requestMoreDocuments(true);
+    const wrapper = document.getElementById("ujTableWrapper");
+    if (wrapper) wrapper.scrollTop = wrapper.scrollHeight;
+    return;
+  }
+  if (!isEditing && !e.ctrlKey && !e.metaKey && !e.altKey && e.key.length === 1 && !e.isComposing && (UniversalJournal.selectedRow || UniversalJournal._columnSelectedForFind)) {
+    e.preventDefault();
+    UniversalJournal.openFindModal(e.key);
+    return;
+  }
 
   // Ctrl + Q: Cancel / Clear search and reset column search highlight
   if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "q") {
@@ -4490,6 +4883,15 @@ document.addEventListener("keydown", function(e) {
       UniversalJournal.filterByCurrentValue();
     }
   }
+}, true);
+
+document.addEventListener("copy", function(e) {
+  if (!UniversalJournal.isJournalActive() || !UniversalJournal.selectedRow) return;
+  if (["ujFindModal", "ujFindInfo"].some(id => { const modal = document.getElementById(id); return modal && modal.style.display !== "none"; })) return;
+  if (e.target.closest && e.target.closest('input,textarea,[contenteditable="true"]')) return;
+  if (window.getSelection()?.toString()) return;
+  const cell = document.querySelector('#ujTableBody .c1-cell-active');
+  if (cell && e.clipboardData) { e.clipboardData.setData("text/plain", cell.innerText.trim()); e.preventDefault(); }
 });
 
 // DOM yükləndikdə ilkin inisializasiya və mövcud sahələrin render edilməsi

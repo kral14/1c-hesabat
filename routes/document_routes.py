@@ -36,16 +36,28 @@ def document_details_endpoint():
     data = request.json or {}
     try:
         res = one_c.execute("get_document_details", data)
-        return jsonify({
-            "success": True,
-            "doc_type": res.get("doc_type"),
-            "header": res.get("header", {}),
-            "lines": res.get("lines", []),
-            "total_lines": res.get("total_lines", 0)
-        })
+        resp_data = {"success": True}
+        if isinstance(res, dict):
+            resp_data.update(res)
+        return jsonify(resp_data)
     except Exception as e:
         print_server_error("/api/documents/details", e, data)
         return jsonify({"success": False, "error": str(e)})
+
+@document_bp.route("/api/documents/find_pogruzka", methods=["POST"])
+def find_pogruzka_endpoint():
+    data = request.json or {}
+    try:
+        res = one_c.execute("find_pogruzka", data)
+        return jsonify({
+            "success": True,
+            "items": res.get("items", []),
+            "total": res.get("total", 0)
+        })
+    except Exception as e:
+        print_server_error("/api/documents/find_pogruzka", e, data)
+        return jsonify({"success": False, "error": str(e)})
+
 
 @document_bp.route("/api/documents/price_doc", methods=["POST"])
 def get_price_doc_endpoint():
@@ -264,3 +276,30 @@ def parse_excel_file_endpoint():
     except Exception as e:
         print_server_error("/api/documents/parse_excel_file", e, {})
         return jsonify({"success": False, "error": str(e)})
+
+@document_bp.route("/api/audit/list", methods=["POST"])
+def audit_list_endpoint():
+    data = request.json or {}
+    try:
+        res = one_c.execute("get_audit_list", data)
+        resp_data = {"success": True}
+        if isinstance(res, dict):
+            resp_data.update(res)
+        return jsonify(resp_data)
+    except Exception as e:
+        print_server_error("/api/audit/list", e, data)
+        return jsonify({"success": False, "error": str(e)})
+
+@document_bp.route("/api/audit/details", methods=["POST"])
+def audit_details_endpoint():
+    data = request.json or {}
+    try:
+        res = one_c.execute("get_audit_diff", data)
+        resp_data = {"success": True}
+        if isinstance(res, dict):
+            resp_data.update(res)
+        return jsonify(resp_data)
+    except Exception as e:
+        print_server_error("/api/audit/details", e, data)
+        return jsonify({"success": False, "error": str(e)})
+

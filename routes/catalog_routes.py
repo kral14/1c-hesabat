@@ -7,6 +7,14 @@ from services.onec_service import one_c
 
 catalog_bp = Blueprint("catalog_bp", __name__)
 
+@catalog_bp.route("/api/catalog_card", methods=["POST"])
+def catalog_card_endpoint():
+    data = request.json or {}
+    try:
+        return jsonify({"success": True, "item": one_c.execute("catalog_card", data)})
+    except Exception as error:
+        return jsonify({"success": False, "error": str(error)})
+
 @catalog_bp.route("/api/users", methods=["POST"])
 def get_users():
     data = request.json or {}

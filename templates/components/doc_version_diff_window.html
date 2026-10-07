@@ -1,0 +1,183 @@
+<!-- ========================================================
+     1C:ENTERPRISE - DOCUMENT VERSION DIFF & AUDIT DETAIL WINDOW
+     templates/components/doc_version_diff_window.html
+     ======================================================== -->
+
+<div class="mdi-window" id="docVersionDiffWindow" style="display: none; top: 35px; left: 55px; width: calc(100% - 110px); height: calc(100% - 70px); min-width: 900px; min-height: 520px; z-index: 130;" onmousedown="MdiManager.activateWindow('docVersionDiffWindow')">
+  
+  <!-- Window Header -->
+  <div class="mdi-window-header" ondblclick="MdiManager.toggleMaximize('docVersionDiffWindow')">
+    <div class="mdi-win-title-left">
+      <span class="mdi-win-icon">🔎</span>
+      <span class="mdi-win-title-text" id="dvdWindowTitle">История изменений документа</span>
+      <span id="dvdStatusBadge" style="background: #2e7d32; color: #fff; padding: 1px 6px; border-radius: 2px; font-size: 10px; font-weight: bold; margin-left: 8px;">✔ ПРОВЕДЕН</span>
+    </div>
+    <div class="mdi-win-controls">
+      <button class="mdi-win-btn mdi-win-btn-min" title="Свернуть" onclick="MdiManager.minimizeWindow('docVersionDiffWindow')" onmousedown="event.stopPropagation()">_</button>
+      <button class="mdi-win-btn mdi-win-btn-max" title="Развернуть / Восстановить" onclick="MdiManager.toggleMaximize('docVersionDiffWindow')" onmousedown="event.stopPropagation()">□</button>
+      <button class="mdi-win-btn mdi-win-btn-close" title="Закрыть" onclick="AuditJournal.closeDiff()" onmousedown="event.stopPropagation()">✕</button>
+    </div>
+  </div>
+
+  <!-- Window Body -->
+  <div class="mdi-window-body" style="background-color: #f0eee3; display: flex; flex-direction: column; height: 100%; overflow: hidden; font-family: Tahoma, 'MS Sans Serif', Arial, sans-serif; font-size: 11px;">
+    
+    <!-- Top Action Bar -->
+    <div style="padding: 5px 10px; background: #e0dfd5; border-bottom: 1px solid #c0beaf; display: flex; align-items: center; justify-content: space-between; gap: 8px;">
+      <div style="display: flex; align-items: center; gap: 8px;">
+        <span style="font-weight: bold; font-size: 12px; color: #002060;" id="dvdDocHeading">Документ № ...</span>
+        <span style="color: #666;" id="dvdDocSubheading">от ...</span>
+      </div>
+
+      <div style="display: flex; align-items: center; gap: 6px;">
+        <button type="button" class="btn-1c" onclick="AuditJournal.openDocFromDiff()" title="Открыть карточку этого документа" style="height: 23px; padding: 0 10px; font-weight: bold; border: 1px solid #7f9db9; background: #fff; cursor: pointer; display: inline-flex; align-items: center; gap: 4px;">
+          <span>📋</span>
+          <span>Открыть документ</span>
+        </button>
+
+        <button type="button" class="btn-1c" onclick="AuditJournal.printDiffHistory()" title="Распечатать историю изменений" style="height: 23px; padding: 0 8px; border: 1px solid #7f9db9; background: #fff; cursor: pointer; display: inline-flex; align-items: center; gap: 4px;">
+          <span>🖨</span>
+          <span>Печать истории</span>
+        </button>
+
+        <button type="button" class="btn-1c" onclick="AuditJournal.closeDiff()" title="Закрыть окно" style="height: 23px; padding: 0 8px; border: 1px solid #7f9db9; background: #fff; cursor: pointer;">
+          <span>Закрыть</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Main Content: Left Versions Tree + Right Comparison View -->
+    <div style="flex: 1; display: flex; overflow: hidden; background: #fff;">
+      
+      <!-- Left Panel: Version History Timeline -->
+      <div style="width: 280px; border-right: 1px solid #c0beaf; background: #f7f6f0; display: flex; flex-direction: column; overflow: hidden;">
+        <div style="padding: 6px 8px; background: #e3dec9; border-bottom: 1px solid #b0af9f; font-weight: bold; color: #333; display: flex; justify-content: space-between; align-items: center;">
+          <span>Хронология версий</span>
+          <span id="dvdVersionCountBadge" style="font-size: 10px; background: #002060; color: #fff; padding: 1px 5px; border-radius: 8px;">0</span>
+        </div>
+
+        <!-- Versions List -->
+        <div id="dvdVersionList" style="flex: 1; overflow-y: auto; padding: 4px;">
+          <!-- Dynamically populated version items -->
+        </div>
+
+        <!-- Event Log Section below versions -->
+        <div style="border-top: 1px solid #c0beaf; background: #eee; padding: 4px 8px; font-weight: bold; font-size: 10px; color: #555;">
+          <span>События утверждения (1С)</span>
+        </div>
+        <div id="dvdEventLogList" style="height: 140px; overflow-y: auto; background: #fff; padding: 4px; font-size: 10px;">
+          <!-- Dynamically populated event log entries -->
+        </div>
+      </div>
+
+      <!-- Right Panel: Diff Details (Tabs & Tables) -->
+      <div style="flex: 1; display: flex; flex-direction: column; overflow: hidden; background: #fff;">
+        
+        <!-- Tab Bar -->
+        <div style="background: #e0dfd5; border-bottom: 1px solid #999; display: flex; align-items: flex-end; padding: 4px 8px 0 8px; gap: 2px;">
+          <button type="button" class="dvd-tab-btn active" id="dvdTabDiffBtn" onclick="AuditJournal.switchDiffTab('diff')" style="padding: 4px 14px; border: 1px solid #7f9db9; border-bottom: none; background: #ffffff; font-weight: bold; font-size: 11px; cursor: pointer; border-top-left-radius: 3px; border-top-right-radius: 3px; display: inline-flex; align-items: center; gap: 5px;">
+            <span>📊 Изменения реквизитов и сумм</span>
+            <span id="dvdFieldDiffBadge" style="background: #2e7d32; color: #fff; border-radius: 8px; padding: 0 5px; font-size: 10px; font-weight: normal;">0</span>
+          </button>
+
+          <button type="button" class="dvd-tab-btn" id="dvdTabItemsBtn" onclick="AuditJournal.switchDiffTab('items')" style="padding: 4px 14px; border: 1px solid #b0af9f; border-bottom: none; background: #dcd9cc; font-size: 11px; cursor: pointer; border-top-left-radius: 3px; border-top-right-radius: 3px; display: inline-flex; align-items: center; gap: 5px; color: #444;">
+            <span>📦 Изменения в товарах / строках</span>
+            <span id="dvdItemsDiffBadge" style="background: #e65100; color: #fff; border-radius: 8px; padding: 0 5px; font-size: 10px; font-weight: normal;">0</span>
+          </button>
+
+          <button type="button" class="dvd-tab-btn" id="dvdTabRawBtn" onclick="AuditJournal.switchDiffTab('raw')" style="padding: 4px 14px; border: 1px solid #b0af9f; border-bottom: none; background: #dcd9cc; font-size: 11px; cursor: pointer; border-top-left-radius: 3px; border-top-right-radius: 3px; display: inline-flex; align-items: center; gap: 5px; color: #444;">
+            <span>📋 Полный снимок версии</span>
+          </button>
+        </div>
+
+        <!-- Tab 1: Field Diffs Table -->
+        <div id="dvdTabDiff" style="flex: 1; overflow: auto; padding: 10px; display: flex; flex-direction: column; gap: 10px;">
+          
+          <!-- Summary card for selected version -->
+          <div style="background: #fbfaf5; border: 1px solid #d4d0c8; padding: 8px 12px; display: flex; align-items: center; justify-content: space-between; border-radius: 3px;">
+            <div>
+              <span style="font-weight: bold; color: #002060; font-size: 12px;" id="dvdSelectedVersionTitle">Версия 1</span>
+              <span style="color: #666; margin-left: 8px;" id="dvdSelectedVersionDate">—</span>
+            </div>
+            <div>
+              <span style="color: #444;">Автор изменения:</span>
+              <span style="font-weight: bold; color: #111; margin-left: 4px;" id="dvdSelectedVersionAuthor">—</span>
+            </div>
+          </div>
+
+          <!-- Fields Diff Table -->
+          <table style="width: 100%; border-collapse: collapse; font-size: 11px; border: 1px solid #b0af9f;">
+            <thead style="background: #e3dec9;">
+              <tr style="height: 22px;">
+                <th style="width: 200px; border: 1px solid #b0af9f; text-align: left; padding: 0 8px;">Реквизит документа</th>
+                <th style="border: 1px solid #b0af9f; text-align: left; padding: 0 8px;">Предыдущее значение</th>
+                <th style="border: 1px solid #b0af9f; text-align: left; padding: 0 8px;">Новое значение</th>
+                <th style="width: 120px; border: 1px solid #b0af9f; text-align: right; padding: 0 8px;">Разница</th>
+              </tr>
+            </thead>
+            <tbody id="dvdFieldDiffTableBody">
+              <!-- Dynamically populated field diffs -->
+            </tbody>
+          </table>
+
+          <div id="dvdNoFieldDiffNotice" style="display: none; padding: 25px; text-align: center; color: #888; font-style: italic;">
+            В реквизитах шапки изменений не зафиксировано
+          </div>
+        </div>
+
+        <!-- Tab 2: Line Items Diff Table -->
+        <div id="dvdTabItems" style="flex: 1; overflow: auto; padding: 10px; display: none; flex-direction: column; gap: 8px;">
+          
+          <div style="display: flex; gap: 12px; font-weight: bold; margin-bottom: 4px;">
+            <span style="color: #2e7d32;" id="dvdAddedItemsCount">+0 добавлено</span>
+            <span style="color: #c62828;" id="dvdRemovedItemsCount">-0 удалено</span>
+            <span style="color: #d8a020;" id="dvdModifiedItemsCount">~0 изменено</span>
+          </div>
+
+          <!-- Items Diff Table -->
+          <table style="width: 100%; border-collapse: collapse; font-size: 11px; border: 1px solid #b0af9f;">
+            <thead style="background: #e3dec9;">
+              <tr style="height: 22px;">
+                <th style="width: 30px; border: 1px solid #b0af9f; text-align: center;">Тип</th>
+                <th style="width: 110px; border: 1px solid #b0af9f; text-align: left; padding: 0 6px;">Код / Артикул</th>
+                <th style="border: 1px solid #b0af9f; text-align: left; padding: 0 6px;">Номенклатура (Товар)</th>
+                <th style="width: 120px; border: 1px solid #b0af9f; text-align: right; padding: 0 6px;">Количество</th>
+                <th style="width: 110px; border: 1px solid #b0af9f; text-align: right; padding: 0 6px;">Цена</th>
+                <th style="width: 120px; border: 1px solid #b0af9f; text-align: right; padding: 0 6px;">Сумма</th>
+              </tr>
+            </thead>
+            <tbody id="dvdItemsDiffTableBody">
+              <!-- Dynamically populated items diff -->
+            </tbody>
+          </table>
+
+          <div id="dvdNoItemsDiffNotice" style="display: none; padding: 30px; text-align: center; color: #888; font-style: italic;">
+            В табличной части товаров изменений нет
+          </div>
+        </div>
+
+        <!-- Tab 3: Raw Snapshot of Selected Version -->
+        <div id="dvdTabRaw" style="flex: 1; overflow: auto; padding: 10px; display: none;">
+          <table style="width: 100%; border-collapse: collapse; font-size: 11px; border: 1px solid #b0af9f;">
+            <thead style="background: #e3dec9;">
+              <tr style="height: 22px;">
+                <th style="width: 32px; border: 1px solid #b0af9f; text-align: center;">№</th>
+                <th style="width: 110px; border: 1px solid #b0af9f; text-align: left; padding: 0 6px;">Код</th>
+                <th style="border: 1px solid #b0af9f; text-align: left; padding: 0 6px;">Номенклатура</th>
+                <th style="width: 90px; border: 1px solid #b0af9f; text-align: right; padding: 0 6px;">Кол-во</th>
+                <th style="width: 100px; border: 1px solid #b0af9f; text-align: right; padding: 0 6px;">Цена</th>
+                <th style="width: 110px; border: 1px solid #b0af9f; text-align: right; padding: 0 6px;">Сумма</th>
+              </tr>
+            </thead>
+            <tbody id="dvdRawTableBody">
+              <!-- Dynamically populated raw snapshot rows -->
+            </tbody>
+          </table>
+        </div>
+
+      </div>
+
+    </div>
+
+  </div>
+</div>

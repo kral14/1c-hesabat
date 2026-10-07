@@ -72,6 +72,11 @@ const MdiManager = {
       const openWins = [];
       Object.values(this.windows).forEach(w => {
         if (w.isOpen && !w.isMinimized && w.element && w.element.style.display !== "none") {
+          // Never persist document editor windows or modal diffs across page reloads
+          if (["pogruzkaDocEditorWindow", "salesDocEditorWindow", "priceDocEditorWindow", "docVersionDiffWindow", "nomenclatureCardWindow"].includes(w.id)) {
+            return;
+          }
+
           let docNum = null;
           let docDate = null;
           if (w.id === "priceDocEditorWindow") {
@@ -118,8 +123,18 @@ const MdiManager = {
     try {
       const raw = localStorage.getItem("1c_mdi_session_windows");
       if (!raw) return;
-      const list = JSON.parse(raw);
+      let list = JSON.parse(raw);
       if (!Array.isArray(list) || !list.length) return;
+
+      // Filter out any editor or modal windows so they NEVER pop up on reload
+      list = list.filter(item => {
+        return !["pogruzkaDocEditorWindow", "salesDocEditorWindow", "priceDocEditorWindow", "docVersionDiffWindow", "nomenclatureCardWindow"].includes(item.id);
+      });
+      try {
+        localStorage.setItem("1c_mdi_session_windows", JSON.stringify(list));
+      } catch(e) {}
+
+      if (!list.length) return;
 
       console.log(`[MDI SESSION RESTORE] Restoring ${list.length} open windows after page reload:`, list);
 
@@ -667,6 +682,7 @@ const MdiManager = {
 
     this._previouslyActiveWinId = this.activeWindowId;
     this._dashboardActive = true;
+    if (typeof UniversalJournal !== "undefined") UniversalJournal.pauseLoading();
 
     // Bütün açıq pəncərələri qatlayırıq / gizlədirik ki, Dashboard tam və tək görünsün!
     Object.values(this.windows).forEach(w => {
@@ -791,6 +807,7 @@ const MdiManager = {
         winObj.element.style.display = "flex";
         winObj.element.style.zIndex = this.topZIndex;
       }
+      if (typeof UniversalJournal !== "undefined") UniversalJournal.onWindowActivityChange(id);
 
       // 2. Deactivate other windows visually
       Object.values(this.windows).forEach(w => {
@@ -927,6 +944,7 @@ const MdiManager = {
   },
 
   minimizeWindow(id) {
+    if (id === "universalJournalWindow" && typeof UniversalJournal !== "undefined") UniversalJournal.pauseLoading();
     const winObj = this.windows[id];
     if (!winObj) return;
 
@@ -980,6 +998,7 @@ const MdiManager = {
   },
 
   closeWindow(id) {
+    if (id === "universalJournalWindow" && typeof UniversalJournal !== "undefined") UniversalJournal.pauseLoading();
     console.log(`[MDI CLOSE] Request to close window/modal #${id}`);
     const winObj = this.windows[id];
     if (!winObj) {
@@ -1737,7 +1756,7 @@ const MdiManager = {
     // Topmost: Universal Journal Window ("Журнал документов")
     if (topWin.id === "universalJournalWindow") {
       if (typeof UniversalJournal !== "undefined" && UniversalJournal.loadDocuments) {
-        UniversalJournal.loadDocuments();
+        UniversalJournal.refresh();
         return true;
       }
     }

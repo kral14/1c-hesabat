@@ -86,6 +86,10 @@
             <span class="mdi-dropdown-entry-icon">🗂️</span>
             <span style="font-weight: bold; color: #002060;">Журнал документов</span>
           </div>
+          <div class="mdi-dropdown-entry" onclick="AuditJournal.open()">
+            <span class="mdi-dropdown-entry-icon">🕒</span>
+            <span style="font-weight: bold; color: #b78103;">Журнал изменений (Аудит)</span>
+          </div>
           <div class="mdi-dropdown-sep"></div>
           <div class="mdi-dropdown-entry" onclick="openCatalogDirect('Номенклатура')">
             <span class="mdi-dropdown-entry-icon">📦</span>
@@ -212,51 +216,88 @@
           </div>
         </div>
 
-        <div class="mdi-dashboard-grid-simple">
-          <!-- 1. Товары на складах -->
-          <div class="mdi-dash-tile" onclick="openReportDirect()" title="Открыть отчет 'Товары на складах'">
-            <div class="mdi-dash-tile-icon">📦</div>
-            <div class="mdi-dash-tile-content">
-              <div class="mdi-dash-tile-title">Товары на складах</div>
-              <div class="mdi-dash-tile-subtitle">Отчет</div>
+        <div class="mdi-dashboard-sections" style="display: flex; flex-direction: column; gap: 16px; width: 100%; max-width: 480px; margin-bottom: 24px;">
+          
+          <!-- 1. AYRICA BÖLMƏ: SƏNƏDLƏRİN AUDİTİ VƏ DƏYİŞİKLİK TARİXÇƏSİ -->
+          <div style="background: rgba(255, 255, 255, 0.09); border: 1px solid rgba(255, 215, 100, 0.4); border-radius: 6px; padding: 12px 14px; box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);">
+            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
+              <span style="font-size: 11px; font-weight: bold; color: #ffe680; text-transform: uppercase; letter-spacing: 0.6px; display: flex; align-items: center; gap: 5px;">
+                <span>🛡️</span>
+                <span>Аудит и Контроль изменений</span>
+              </span>
+              <span style="background: #e65100; color: #ffffff; font-size: 9px; font-weight: bold; padding: 2px 6px; border-radius: 3px;">1C АУДИТ</span>
+            </div>
+
+            <!-- Dedicated Audit Card -->
+            <div class="mdi-dash-tile" onclick="AuditJournal.open()" title="Открыть 'Журнал изменений и версий документов (Аудит)'"
+                 style="background: linear-gradient(135deg, #ffffff 0%, #fffbe6 100%); border: 2px solid #d4a017; box-shadow: 0 4px 12px rgba(0,0,0,0.2); cursor: pointer; padding: 12px 16px; display: flex; align-items: center; gap: 14px; border-radius: 4px;">
+              <div class="mdi-dash-tile-icon" style="font-size: 28px; background: #fff2cc; border: 1px solid #ffd966; width: 44px; height: 44px; border-radius: 6px; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">🕒</div>
+              <div class="mdi-dash-tile-content" style="flex: 1;">
+                <div style="display: flex; align-items: center; justify-content: space-between;">
+                  <div class="mdi-dash-tile-title" style="color: #8c5b00; font-size: 13px; font-weight: bold;">Журнал изменений (Аудит)</div>
+                  <span style="font-size: 11px; font-weight: bold; color: #8c5b00; background: #ffe499; padding: 2px 8px; border-radius: 3px; border: 1px solid #d4a017;">Открыть ➔</span>
+                </div>
+                <div class="mdi-dash-tile-subtitle" style="color: #635028; font-size: 11px; margin-top: 3px; line-height: 1.35;">
+                  История всех правок, кто изменил, сравнение сумм и товаров, кто провел / отменил проведение
+                </div>
+              </div>
             </div>
           </div>
 
-          <!-- 2. Номенклатура -->
-          <div class="mdi-dash-tile" onclick="openCatalogDirect('Номенклатура')" title="Открыть справочник 'Номенклатура'">
-            <div class="mdi-dash-tile-icon">📋</div>
-            <div class="mdi-dash-tile-content">
-              <div class="mdi-dash-tile-title">Номенклатура</div>
-              <div class="mdi-dash-tile-subtitle">Справочник</div>
+          <!-- 2. ƏSAS BÖLMƏ: SƏNƏDLƏR, HESABATLAR VƏ SORAQÇALAR -->
+          <div>
+            <div style="font-size: 11px; font-weight: bold; color: #d1dde9; text-transform: uppercase; letter-spacing: 0.6px; margin-bottom: 8px;">
+              📁 Документы, Отчеты и Справочники
+            </div>
+            
+            <div class="mdi-dashboard-grid-simple" style="margin-bottom: 0;">
+              <!-- 1. Журнал документов -->
+              <div class="mdi-dash-tile" onclick="openUniversalJournalWindow()" title="Открыть 'Журнал документов' (Реализация, Цены, Заказы...)">
+                <div class="mdi-dash-tile-icon">🗂️</div>
+                <div class="mdi-dash-tile-content">
+                  <div class="mdi-dash-tile-title" style="color: #002060;">Журнал документов</div>
+                  <div class="mdi-dash-tile-subtitle">Все виды документов 1С (Реализация, Погрузка, Цены...)</div>
+                </div>
+              </div>
+
+              <!-- 2. Товары на складах -->
+              <div class="mdi-dash-tile" onclick="openReportDirect()" title="Открыть отчет 'Товары на складах'">
+                <div class="mdi-dash-tile-icon">📦</div>
+                <div class="mdi-dash-tile-content">
+                  <div class="mdi-dash-tile-title">Товары на складах</div>
+                  <div class="mdi-dash-tile-subtitle">Отчет (Ведомость)</div>
+                </div>
+              </div>
+
+              <!-- 3. Товары по портфелям -->
+              <div class="mdi-dash-tile" onclick="openPortfolioReportWindow()" title="Открыть реестр 'Товары по портфелям'">
+                <div class="mdi-dash-tile-icon">📋</div>
+                <div class="mdi-dash-tile-content">
+                  <div class="mdi-dash-tile-title">Товары по портфелям</div>
+                  <div class="mdi-dash-tile-subtitle">Реестр / Справочник</div>
+                </div>
+              </div>
+
+              <!-- 4. Номенклатура -->
+              <div class="mdi-dash-tile" onclick="openCatalogDirect('Номенклатура')" title="Открыть справочник 'Номенклатура'">
+                <div class="mdi-dash-tile-icon">🏷️</div>
+                <div class="mdi-dash-tile-content">
+                  <div class="mdi-dash-tile-title">Номенклатура</div>
+                  <div class="mdi-dash-tile-subtitle">Справочник номенклатуры</div>
+                </div>
+              </div>
+
+              <!-- 5. Склады -->
+              <div class="mdi-dash-tile" onclick="openCatalogDirect('Склады')" title="Открыть справочник 'Склады'">
+                <div class="mdi-dash-tile-icon">🏢</div>
+                <div class="mdi-dash-tile-content">
+                  <div class="mdi-dash-tile-title">Склады</div>
+                  <div class="mdi-dash-tile-subtitle">Справочник складов</div>
+                </div>
+              </div>
             </div>
           </div>
 
-          <!-- 3. Склады -->
-          <div class="mdi-dash-tile" onclick="openCatalogDirect('Склады')" title="Открыть справочник 'Склады'">
-            <div class="mdi-dash-tile-icon">🏢</div>
-            <div class="mdi-dash-tile-content">
-              <div class="mdi-dash-tile-title">Склады</div>
-              <div class="mdi-dash-tile-subtitle">Справочник</div>
-            </div>
-          </div>
-
-          <!-- 4. Товары по портфелям -->
-          <div class="mdi-dash-tile" onclick="openPortfolioReportWindow()" title="Открыть реестр 'Товары по портфелям'">
-            <div class="mdi-dash-tile-icon">📋</div>
-            <div class="mdi-dash-tile-content">
-              <div class="mdi-dash-tile-title">Товары по портфелям</div>
-              <div class="mdi-dash-tile-subtitle">Реестр / Справочник</div>
-            </div>
-          </div>
-
-          <!-- 5. Журнал документов -->
-          <div class="mdi-dash-tile" onclick="openUniversalJournalWindow()" title="Открыть 'Журнал документов' (Реализация, Цены, Заказы...)">
-            <div class="mdi-dash-tile-icon">🗂️</div>
-            <div class="mdi-dash-tile-content">
-              <div class="mdi-dash-tile-title" style="color: #002060;">Журнал документов</div>
-              <div class="mdi-dash-tile-subtitle">Все виды документов 1С</div>
-            </div>
-          </div>
         </div>
 
         <div class="mdi-dashboard-footer">
@@ -335,8 +376,17 @@
       <!-- 15. Sales Document Editor Window (Реализация товаров и услуг) -->
       {% include "components/sales_doc_editor_window.html" %}
 
+      <!-- 15b. Loading Machine Document Editor Window (Погрузки машин) -->
+      {% include "components/pogruzka_doc_editor_window.html" %}
+
       <!-- 16. Windows 11 Snap Layouts Helper Popover -->
       {% include "components/snap_layout_helper.html" %}
+
+      <!-- 17. Document Audit & Change History Journal Window -->
+      {% include "components/audit_journal_window.html" %}
+
+      <!-- 18. Document Version Diff & Audit Detail Window -->
+      {% include "components/doc_version_diff_window.html" %}
 
     </div>
 
@@ -356,7 +406,7 @@
   </div>
 
   <!-- 1C Modular JavaScript Subsystems -->
-  <script src="/static/js/mdi_manager.js?v=7.0"></script>
+  <script src="/static/js/mdi_manager.js?v=7.1"></script>
   <script src="/static/js/session.js?v=4.1"></script>
   <script src="/static/js/catalog_selector.js?v=5.0"></script>
   <script src="/static/js/value_list_modal.js?v=4.8"></script>
@@ -369,12 +419,17 @@
   <script src="/static/js/c1_column_settings.js?v=1.0"></script>
   <script src="/static/js/portfolio_catalog.js?v=5.1"></script>
   <script src="/static/js/period_picker.js?v=3.2"></script>
-  <script src="/static/js/universal_journal.js?v=7.7"></script>
+  <script src="/static/js/universal_journal.js?v=8.1"></script>
+  {% if request.args.get('journal_perf') == '1' %}
+  <script src="/static/js/journal_perf.js"></script>
+  {% endif %}
   <script src="/static/js/nomenclature_card.js?v=1.0"></script>
   <script src="/static/js/price_doc_editor.js?v=3.8"></script>
-  <script src="/static/js/sales_doc_editor.js?v=2.4"></script>
+  <script src="/static/js/sales_doc_editor.js?v=2.5"></script>
+  <script src="/static/js/pogruzka_doc_editor.js?v=1.2"></script>
+  <script src="/static/js/audit_journal.js?v=1.1"></script>
   <script src="/static/js/c1_table_selection.js?v=3.0"></script>
-  <script src="/static/js/app.js?v=5.0"></script>
+  <script src="/static/js/app.js?v=5.1"></script>
 
 </body>
 </html>

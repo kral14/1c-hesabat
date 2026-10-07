@@ -96,6 +96,16 @@ tr.pde-row-selected > td {
   color: #111111 !important;
 }
 
+/* Journal active cell must outrank the selected row's background rule. */
+html.uj-loading-all, html.uj-loading-all * {
+  cursor: wait !important;
+}
+
+#ujTableBody tr > td.c1-cell-active {
+  background-color: #316ac5 !important;
+  color: #ffffff !important;
+}
+
 /* Active Selected Cell: Solid 1C Blue with Crisp White Text */
 td.c1-cell-active,
 td.uj-cell-active,

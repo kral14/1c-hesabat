@@ -1,0 +1,251 @@
+<!-- ========================================================
+     1C:ENTERPRISE - LOADING MACHINE DOCUMENT EDITOR WINDOW (Погрузки машин)
+     templates/components/pogruzka_doc_editor_window.html
+     ======================================================== -->
+
+<div class="mdi-window" id="pogruzkaDocEditorWindow" style="display: none; top: 15px; left: 25px; width: calc(100% - 50px); height: calc(100% - 30px); min-width: 950px; min-height: 520px; z-index: 126;" onmousedown="MdiManager.activateWindow('pogruzkaDocEditorWindow')">
+  
+  <!-- Window Header -->
+  <div class="mdi-window-header" ondblclick="MdiManager.toggleMaximize('pogruzkaDocEditorWindow')">
+    <div class="mdi-win-title-left">
+      <span class="mdi-win-icon">🚚</span>
+      <span class="mdi-win-title-text" id="pdeWindowTitle">Погрузка машины</span>
+      <span id="pdeStatusBadge" style="background: #2e7d32; color: #fff; padding: 1px 6px; border-radius: 2px; font-size: 10px; font-weight: bold; margin-left: 6px;">✔ ПРОВЕДЕН</span>
+    </div>
+    <div class="mdi-win-controls">
+      <button class="mdi-win-btn mdi-win-btn-min" title="Свернуть" onclick="MdiManager.minimizeWindow('pogruzkaDocEditorWindow')" onmousedown="event.stopPropagation()">_</button>
+      <button class="mdi-win-btn mdi-win-btn-max" title="Развернуть / Восстановить" onclick="MdiManager.toggleMaximize('pogruzkaDocEditorWindow')" onmousedown="event.stopPropagation()">□</button>
+      <button class="mdi-win-btn mdi-win-btn-close" title="Закрыть" onclick="PogruzkaDocEditor.close()" onmousedown="event.stopPropagation()">✕</button>
+    </div>
+  </div>
+
+  <!-- Window Body -->
+  <div class="mdi-window-body" style="background-color: #f0eee3; display: flex; flex-direction: column; height: 100%; overflow: hidden; font-family: Tahoma, 'MS Sans Serif', Arial, sans-serif; font-size: 11px;">
+    
+    <!-- Top Document Header Information (Exact 1C Layout) -->
+    <div style="padding: 6px 12px; background: #f0eee3; border-bottom: 1px solid #c0beaf; display: flex; flex-direction: column; gap: 5px;">
+      
+      <!-- Top Row 1: Identification & Core Metadata + Top Action Buttons -->
+      <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px;">
+        
+        <!-- Left Group 1: Номер, Организация, Маршрут -->
+        <div style="display: flex; align-items: center; gap: 12px; flex: 1;">
+          <!-- Номер -->
+          <div style="display: flex; align-items: center; gap: 4px;">
+            <span style="color: #222; font-weight: 500; min-width: 48px; text-align: right;">Номер:</span>
+            <input type="text" id="pdeDocNumber" style="width: 125px; height: 21px; border: 1px solid #7f9db9; padding: 0 5px; font-weight: bold; background: #fff;" readonly>
+          </div>
+
+          <!-- Организация -->
+          <div style="display: flex; align-items: center; gap: 4px; flex: 1; max-width: 280px;">
+            <span style="color: #222; font-weight: 500; min-width: 78px; text-align: right;">Организация:</span>
+            <input type="text" id="pdeDocOrg" style="flex: 1; height: 21px; border: 1px solid #7f9db9; padding: 0 5px; background: #fff;" readonly value="Aztrade MMC">
+          </div>
+
+          <!-- Маршрут -->
+          <div style="display: flex; align-items: center; gap: 4px; flex: 1; max-width: 250px;">
+            <span style="color: #222; font-weight: 500; min-width: 60px; text-align: right;">Маршрут:</span>
+            <input type="text" id="pdeDocMarshrut" style="flex: 1; height: 21px; border: 1px solid #7f9db9; padding: 0 5px; font-weight: bold; color: #002060; background: #fff;" readonly>
+          </div>
+        </div>
+
+        <!-- Top Right Action Buttons -->
+        <div style="display: flex; align-items: center; gap: 6px; flex-shrink: 0;">
+          <!-- 💾 Провести и закрыть -->
+          <button type="button" class="btn-1c btn-1c-primary" onclick="PogruzkaDocEditor.saveAndPost()" title="Провести документ в базе 1С и закрыть окно" style="height: 23px; padding: 0 10px; font-weight: bold; background: linear-gradient(to bottom, #ffea88, #d8a020); border: 1px solid #7c6817; color: #000; cursor: pointer; display: inline-flex; align-items: center; gap: 4px;">
+            <span>💾</span>
+            <span>Провести и закрыть</span>
+          </button>
+
+          <!-- ✔ Провести -->
+          <button type="button" class="btn-1c" onclick="PogruzkaDocEditor.postDocument()" title="Провести документ" style="height: 23px; padding: 0 8px; border: 1px solid #7f9db9; background: #e0dfd5; cursor: pointer; display: inline-flex; align-items: center; gap: 4px;">
+            <span style="color: #2e7d32; font-weight: bold;">✔</span>
+            <span>Провести</span>
+          </button>
+
+          <!-- 🖨 Печать -->
+          <button type="button" class="btn-1c" onclick="PogruzkaDocEditor.printRouteSheet()" title="Печать маршрутного листа погрузки" style="height: 23px; padding: 0 8px; border: 1px solid #7f9db9; background: #e0dfd5; cursor: pointer; display: inline-flex; align-items: center; gap: 4px; font-weight: bold; color: #002060;">
+            <span>🖨</span>
+            <span>Маршрутный лист</span>
+          </button>
+
+          <!-- 🔄 Обновить -->
+          <button type="button" class="btn-1c" onclick="PogruzkaDocEditor.refresh()" title="Обновить данные документа" style="height: 23px; padding: 0 8px; border: 1px solid #7f9db9; background: #e0dfd5; cursor: pointer; display: inline-flex; align-items: center; gap: 4px;">
+            <span>🔄</span>
+            <span>Обновить</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Row 2 (Alt-alta with Row 1): Дата (от), Склад, Водитель -->
+      <div style="display: flex; align-items: center; gap: 12px;">
+        <!-- от (Дата) - directly below Номер -->
+        <div style="display: flex; align-items: center; gap: 4px;">
+          <span style="color: #222; font-weight: 500; min-width: 48px; text-align: right;">от:</span>
+          <input type="text" id="pdeDocDate" style="width: 125px; height: 21px; border: 1px solid #7f9db9; padding: 0 5px; background: #fff;" readonly>
+        </div>
+
+        <!-- Склад - directly below Организация -->
+        <div style="display: flex; align-items: center; gap: 4px; flex: 1; max-width: 280px;">
+          <span style="color: #222; font-weight: 500; min-width: 78px; text-align: right;">Склад:</span>
+          <input type="text" id="pdeDocWarehouse" style="flex: 1; height: 21px; border: 1px solid #7f9db9; padding: 0 5px; background: #fff;" readonly>
+        </div>
+
+        <!-- Водитель - directly below Маршрут -->
+        <div style="display: flex; align-items: center; gap: 4px; flex: 1.5; max-width: 450px;">
+          <span style="color: #222; font-weight: 500; min-width: 60px; text-align: right;">Водитель:</span>
+          <div style="flex: 1; display: flex; align-items: stretch; border: 1px solid #7f9db9; background: #fff; height: 21px;">
+            <input type="text" id="pdeDocVoditel" readonly style="flex: 1; border: none; padding: 0 5px; font-size: 11px; font-weight: bold; color: #111; background: transparent; outline: none; text-overflow: ellipsis; white-space: nowrap; overflow: hidden;">
+            <button type="button" class="btn-1c" title="Просмотреть карточку водителя..." style="border: none; border-left: 1px solid #7f9db9; background: #e0dfd5; width: 22px; cursor: pointer; font-size: 11px;">🔍</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Row 3: Ответственный & Комментарий -->
+      <div style="display: flex; align-items: center; gap: 12px;">
+        <div style="display: flex; align-items: center; gap: 4px;">
+          <span style="color: #222; font-weight: 500; min-width: 48px; text-align: right;">Отв.:</span>
+          <input type="text" id="pdeDocResponsible" style="width: 125px; height: 21px; border: 1px solid #7f9db9; padding: 0 5px; background: #fff;" readonly>
+        </div>
+
+        <div style="display: flex; align-items: center; gap: 4px; flex: 1;">
+          <span style="color: #222; font-weight: 500; min-width: 78px; text-align: right;">Комментарий:</span>
+          <input type="text" id="pdeDocComment" style="flex: 1; height: 21px; border: 1px solid #7f9db9; padding: 0 5px; background: #fff;" placeholder="Комментарий к погрузке...">
+        </div>
+      </div>
+    </div>
+
+    <!-- 1C Document Tab Navigation -->
+    <div style="background: #e5e2cf; border-bottom: 1px solid #b0af9f; display: flex; align-items: center; padding: 4px 10px 0 10px; gap: 2px;">
+      <button type="button" class="btn-1c-tab active" id="pdeTabRealizationsBtn" onclick="PogruzkaDocEditor.switchTab('realizations')" style="border-top-left-radius: 3px; border-top-right-radius: 3px; border: 1px solid #b0af9f; border-bottom: none; background: #ffffff; padding: 4px 12px; font-weight: bold; cursor: pointer; color: #000; position: relative; bottom: -1px; z-index: 2;">
+        <span>📋 Список реализаций</span>
+        <span id="pdeRealizTabCountBadge" style="background: #002060; color: #fff; border-radius: 8px; padding: 0 5px; font-size: 10px; margin-left: 4px;">0</span>
+      </button>
+
+      <button type="button" class="btn-1c-tab" id="pdeTabExtraBtn" onclick="PogruzkaDocEditor.switchTab('extra')" style="border-top-left-radius: 3px; border-top-right-radius: 3px; border: 1px solid #b0af9f; border-bottom: 1px solid #b0af9f; background: #e5e2cf; padding: 4px 12px; cursor: pointer; color: #444; position: relative; bottom: -1px;">
+        <span>ℹ️ Дополнительно</span>
+      </button>
+    </div>
+
+    <!-- Tab 1: Realizations Table Content -->
+    <div id="pdeTabRealizations" style="flex: 1; display: flex; flex-direction: column; overflow: hidden; background: #ffffff;">
+      
+      <!-- Table Actions Toolbar -->
+      <div style="padding: 4px 8px; background: #f0eee3; border-bottom: 1px solid #d4d0c8; display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap;">
+        <div style="display: flex; align-items: center; gap: 4px;">
+          <button type="button" class="btn-1c" onclick="PogruzkaDocEditor.openSelectedRealization()" id="pdeBtnOpenRealiz" title="Открыть выбранную накладную (Enter / двойной клик)" style="height: 22px; padding: 0 8px; font-weight: bold; color: #002060; display: inline-flex; align-items: center; gap: 4px; cursor: pointer;">
+            <span>🔍</span>
+            <span>Открыть реализацию</span>
+          </button>
+
+          <button type="button" class="btn-1c" onclick="PogruzkaDocEditor.addRealizationRow()" title="Добавить накладную в погрузку" style="height: 22px; padding: 0 8px; display: inline-flex; align-items: center; gap: 4px; cursor: pointer;">
+            <span style="color: #2e7d32; font-weight: bold;">➕</span>
+            <span>Добавить</span>
+          </button>
+
+          <button type="button" class="btn-1c" onclick="PogruzkaDocEditor.deleteSelectedRealization()" id="pdeBtnDeleteRealiz" title="Удалить накладную из погрузки" style="height: 22px; padding: 0 8px; display: inline-flex; align-items: center; gap: 4px; cursor: pointer;">
+            <span style="color: #c62828; font-weight: bold;">✕</span>
+            <span>Удалить</span>
+          </button>
+
+          <div style="width: 1px; height: 16px; background: #c0beaf; margin: 0 4px;"></div>
+
+          <button type="button" class="btn-1c" onclick="PogruzkaDocEditor.moveRowUp()" title="Переместить вверх" style="height: 22px; padding: 0 6px;">▲</button>
+          <button type="button" class="btn-1c" onclick="PogruzkaDocEditor.moveRowDown()" title="Переместить вниз" style="height: 22px; padding: 0 6px;">▼</button>
+        </div>
+
+        <!-- Quick filter in realizations -->
+        <div style="display: flex; align-items: center; gap: 4px;">
+          <span style="color: #555; font-size: 11px;">Поиск в накладных:</span>
+          <div style="display: flex; align-items: center; border: 1px solid #7f9db9; background: #fff; height: 21px; padding: 0 4px;">
+            <span style="font-size: 11px; margin-right: 4px; color: #777;">🔍</span>
+            <input type="text" id="pdeRealizSearchInput" oninput="PogruzkaDocEditor.onSearchInput(this.value)" placeholder="Номер, клиент, портфель, агент..." style="border: none; outline: none; font-size: 11px; width: 190px;">
+          </div>
+        </div>
+      </div>
+
+      <!-- Realizations Table Wrapper -->
+      <div id="pdeTableWrapper" style="flex: 1; overflow: auto; background: #ffffff; position: relative;">
+        <table id="pdeRealizTable" style="width: 100%; border-collapse: collapse; font-size: 11px; font-family: Tahoma, Arial, sans-serif;">
+          <thead style="position: sticky; top: 0; z-index: 10; background: #e3dec9;">
+            <tr style="height: 22px; border-bottom: 2px solid #5a5a5a;">
+              <th style="width: 35px; border: 1px solid #b0af9f; text-align: center;">№</th>
+              <th style="width: 32px; border: 1px solid #b0af9f; text-align: center;"></th>
+              <th style="width: 125px; border: 1px solid #b0af9f; text-align: left; padding: 0 6px;">Номер накладной</th>
+              <th style="width: 135px; border: 1px solid #b0af9f; text-align: left; padding: 0 6px;">Дата накладной</th>
+              <th style="border: 1px solid #b0af9f; text-align: left; padding: 0 6px;">Контрагент (Клиент)</th>
+              <th style="width: 115px; border: 1px solid #b0af9f; text-align: right; padding: 0 6px;">Сумма (AZN)</th>
+              <th style="width: 140px; border: 1px solid #b0af9f; text-align: left; padding: 0 6px;">Склад</th>
+              <th style="width: 115px; border: 1px solid #b0af9f; text-align: left; padding: 0 6px;">Сделка / Заказ</th>
+              <th style="width: 135px; border: 1px solid #b0af9f; text-align: left; padding: 0 6px;">Портфель</th>
+              <th style="width: 140px; border: 1px solid #b0af9f; text-align: left; padding: 0 6px;">Агент</th>
+              <th style="width: 150px; border: 1px solid #b0af9f; text-align: left; padding: 0 6px;">Комментарий</th>
+            </tr>
+          </thead>
+          <tbody id="pdeRealizTableBody">
+            <!-- Dynamic rows injected here -->
+          </tbody>
+        </table>
+
+        <!-- Empty state message -->
+        <div id="pdeRealizEmptyState" style="display: none; padding: 40px 20px; text-align: center; color: #777;">
+          <div style="font-size: 24px; margin-bottom: 8px;">📦</div>
+          <div style="font-weight: bold; font-size: 12px;">В данной погрузке нет накладных</div>
+          <div style="font-size: 11px; color: #999; margin-top: 4px;">Нажмите кнопку «Добавить», чтобы включить накладные в рейс.</div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Tab 2: Extra Information -->
+    <div id="pdeTabExtra" style="flex: 1; display: none; padding: 15px; background: #ffffff; overflow: auto;">
+      <div style="max-width: 600px; display: flex; flex-direction: column; gap: 12px; font-size: 11px;">
+        <div style="font-weight: bold; font-size: 12px; color: #002060; border-bottom: 1px solid #eee; padding-bottom: 4px;">
+          Служебные реквизиты документа
+        </div>
+
+        <div style="display: grid; grid-template-columns: 140px 1fr; gap: 8px; align-items: center;">
+          <span style="color: #555;">Вид документа:</span>
+          <span style="font-weight: bold;">Документ.ПогрузкиМашин</span>
+
+          <span style="color: #555;">Табличная часть:</span>
+          <span>СписокРеализаций</span>
+
+          <span style="color: #555;">Статус проведения:</span>
+          <span id="pdeExtraPostedText" style="font-weight: bold; color: #2e7d32;">Проведен</span>
+
+          <span style="color: #555;">Пометка удаления:</span>
+          <span id="pdeExtraDeletedText">Нет</span>
+
+          <span style="color: #555;">Идентификатор 1С:</span>
+          <span id="pdeExtraRefKey" style="font-family: Consolas, monospace; color: #666;">-</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Bottom Status & Totals Summary Footer (1C Standard) -->
+    <div style="padding: 4px 12px; background: #e5e2cf; border-top: 1px solid #b0af9f; display: flex; align-items: center; justify-content: space-between; font-size: 11px;">
+      <div style="display: flex; align-items: center; gap: 10px;" id="pdeFooterStatus">
+        <span>Готово</span>
+      </div>
+
+      <div style="display: flex; align-items: center; gap: 16px;">
+        <div>
+          <span style="color: #555;">Всего накладных:</span>
+          <strong id="pdeTotalCountText" style="color: #000; margin-left: 4px;">0</strong>
+        </div>
+
+        <div style="padding-left: 8px; border-left: 1px solid #b0af9f;">
+          <span style="color: #555;">Общая сумма:</span>
+          <strong id="pdeTotalSumText" style="color: #002060; font-size: 12px; margin-left: 4px;">0.00 AZN</strong>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Resize handles for MDI Window -->
+  <div class="mdi-resizer mdi-resizer-r"></div>
+  <div class="mdi-resizer mdi-resizer-b"></div>
+  <div class="mdi-resizer mdi-resizer-br"></div>
+</div>

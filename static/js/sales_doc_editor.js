@@ -175,6 +175,10 @@ const SalesDocEditor = {
       this.renderHeaderInWin(win, this.header, docNumber);
       this.renderTableInWin(win, this.filteredItems);
       this.recalculateTotalsInWin(win, this.filteredItems);
+
+      this.pogruzki = res.pogruzki || [];
+      this.renderPogruzkaTabInWin(win, this.pogruzki);
+      this.switchTab("tovary");
     })
     .catch(err => {
       this.showLoadingInWin(win, false);
@@ -914,6 +918,183 @@ const SalesDocEditor = {
       .replace(/>/g, "&gt;")
       .replace(/"/g, "&quot;")
       .replace(/'/g, "&#039;");
+  },
+
+  // ==========================================
+  // Pogruzka Mashiny Tab & Duplicate Detection Engine
+  // ==========================================
+  activeTab: "tovary",
+  pogruzki: [],
+
+  getActiveWin: function() {
+    if (this.currentDocNumber) {
+      const winId = `salesDocEditorWindow_${String(this.currentDocNumber).replace(/[^a-zA-Z0-9_-]/g, "_")}`;
+      const win = document.getElementById(winId);
+      if (win) return win;
+    }
+    return document.getElementById("salesDocEditorWindow");
+  },
+
+  switchTab: function(tabName) {
+    this.activeTab = tabName;
+    const win = this.getActiveWin();
+    if (!win) return;
+
+    const tabBtns = {
+      tovary: win.querySelector("#sdeTabBtnTovary"),
+      uslugi: win.querySelector("#sdeTabBtnUslugi"),
+      dop: win.querySelector("#sdeTabBtnDop"),
+      pogruzka: win.querySelector("#sdeTabBtnPogruzka")
+    };
+
+    Object.keys(tabBtns).forEach(k => {
+      const btn = tabBtns[k];
+      if (!btn) return;
+      if (k === tabName) {
+        btn.classList.add("active");
+        btn.style.background = "#f0eee3";
+        btn.style.borderBottom = "1px solid #f0eee3";
+        btn.style.color = "#002060";
+        btn.style.fontWeight = "bold";
+      } else {
+        btn.classList.remove("active");
+        btn.style.background = "#dedbc7";
+        btn.style.borderBottom = "1px solid #b0af9f";
+        btn.style.color = "#555";
+        btn.style.fontWeight = "normal";
+      }
+    });
+
+    const goodsWrap = win.querySelector("#sdeTableWrapper");
+    const pogruzkaWrap = win.querySelector("#sdePogruzkaWrapper");
+    const goodsToolbar = win.querySelector("#sdeTableWrapper")?.previousElementSibling;
+
+    if (tabName === "pogruzka") {
+      if (goodsWrap) goodsWrap.style.display = "none";
+      if (goodsToolbar) goodsToolbar.style.display = "none";
+      if (pogruzkaWrap) pogruzkaWrap.style.display = "block";
+      this.renderPogruzkaTabInWin(win, this.pogruzki || []);
+    } else {
+      if (goodsWrap) goodsWrap.style.display = "block";
+      if (goodsToolbar) goodsToolbar.style.display = "flex";
+      if (pogruzkaWrap) pogruzkaWrap.style.display = "none";
+    }
+  },
+
+  renderPogruzkaTabInWin: function(win, pogruzki) {
+    if (!win) win = this.getActiveWin();
+    if (!win) return;
+
+    const list = pogruzki || this.pogruzki || [];
+    const count = list.length;
+    const isDuplicate = (count > 1);
+
+    // 1. Badge on Tab
+    const badge = win.querySelector("#sdePogruzkaBadge");
+    if (badge) {
+      badge.textContent = String(count);
+      badge.style.display = count > 0 ? "inline-block" : "none";
+      if (isDuplicate) {
+        badge.style.background = "#dc2626";
+        badge.title = `ВНИМАНИЕ: Найдено ${count} погрузок (Дубликат!)`;
+      } else {
+        badge.style.background = "#2563eb";
+        badge.title = "Погрузка машины: 1 документ";
+      }
+    }
+
+    // 2. Alert boxes
+    const dupAlert = win.querySelector("#sdePogruzkaDuplicateAlert");
+    const normInfo = win.querySelector("#sdePogruzkaNormalInfo");
+    const emptyInfo = win.querySelector("#sdePogruzkaEmptyInfo");
+    const summaryCount = win.querySelector("#sdePogruzkaSummaryCount");
+
+    if (summaryCount) {
+      summaryCount.textContent = `Всего документов погрузки: ${count}` + (isDuplicate ? ` ⚠️ (ДУБЛИКАТ: ${count} рейса!)` : "");
+      summaryCount.style.color = isDuplicate ? "#b91c1c" : "#002060";
+    }
+
+    if (dupAlert) dupAlert.style.display = isDuplicate ? "block" : "none";
+    if (normInfo) normInfo.style.display = (count === 1) ? "flex" : "none";
+    if (emptyInfo) emptyInfo.style.display = (count === 0) ? "block" : "none";
+
+    // 3. Render Table
+    const tbody = win.querySelector("#sdePogruzkaTableBody");
+    if (!tbody) return;
+
+    if (count === 0) {
+      tbody.innerHTML = `<tr><td colspan="7" style="padding: 30px; text-align: center; color: #888; font-style: italic;">Данная реализация еще не включена ни в один документ «Погрузка машины».</td></tr>`;
+      return;
+    }
+
+    let html = "";
+    list.forEach((p, idx) => {
+      const marshrutVal = p.marshrut || "(без маршрута)";
+      // If duplicate (count > 1): RED cell highlighting!
+      const marshrutStyle = isDuplicate
+        ? "background: #fee2e2; color: #b91c1c; font-weight: bold; border: 2px solid #ef4444; padding: 2px 8px;"
+        : "padding: 2px 8px; color: #002060; font-weight: 500;";
+
+      const bg = isDuplicate ? "#fff5f5" : (idx % 2 === 1 ? "#f9f8f2" : "#ffffff");
+      const statLabel = p.deleted ? "❌ Помечен на удаление" : (p.posted ? "✔ Проведен" : "📄 Не проведен");
+      const statColor = p.deleted ? "#dc2626" : (p.posted ? "#15803d" : "#c2410c");
+
+      html += `
+        <tr style="background: ${bg}; height: 26px; border-bottom: 1px solid #d4d0c8;">
+          <td style="text-align: center; border: 1px solid #d4d0c8; color: #555;">${idx + 1}</td>
+          <td style="padding: 2px 6px; border: 1px solid #d4d0c8; font-weight: bold; color: #004080; cursor: pointer; text-decoration: underline;" title="Открыть документ погрузки..." onclick="if(window.PogruzkaDocEditor) PogruzkaDocEditor.open('${this.escapeHtml(p.number || '')}', '${this.escapeHtml(p.date || '')}')">
+            🚚 Погрузка № ${this.escapeHtml(p.number || "—")}
+          </td>
+          <td style="padding: 2px 6px; border: 1px solid #d4d0c8; color: #333;">
+            ${this.escapeHtml(p.date || "—")}
+          </td>
+          <td style="border: 1px solid #d4d0c8; ${marshrutStyle}">
+            ${isDuplicate ? `<span style="margin-right: 4px;">🚨</span>` : ''}${this.escapeHtml(marshrutVal)}
+          </td>
+          <td style="padding: 2px 6px; border: 1px solid #d4d0c8; color: #111;">
+            ${this.escapeHtml(p.voditel || "—")}
+          </td>
+          <td style="padding: 2px 6px; border: 1px solid #d4d0c8; color: #333;">
+            ${this.escapeHtml(p.car || "—")}
+          </td>
+          <td style="text-align: center; border: 1px solid #d4d0c8; font-weight: bold; color: ${statColor}; font-size: 10px;">
+            ${statLabel}
+          </td>
+        </tr>
+      `;
+    });
+
+    tbody.innerHTML = html;
+  },
+
+  reloadPogruzkaData: function() {
+    const win = this.getActiveWin();
+    const docNum = this.currentDocNumber;
+    if (!docNum) return;
+
+    this.showLoadingInWin(win, true);
+    const creds = window.SessionManager ? SessionManager.getCredentials() : {};
+    fetch("/api/documents/details", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        ...creds,
+        doc_type: "РеализацияТоваровУслуг",
+        number: docNum
+      })
+    })
+    .then(r => r.json())
+    .then(res => {
+      this.showLoadingInWin(win, false);
+      if (res.success) {
+        this.pogruzki = res.pogruzki || [];
+        this.renderPogruzkaTabInWin(win, this.pogruzki);
+      }
+    })
+    .catch(e => {
+      this.showLoadingInWin(win, false);
+      console.error(e);
+    });
   }
 };
 

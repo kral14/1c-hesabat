@@ -4,6 +4,12 @@
    ======================================================== */
 
 document.addEventListener("DOMContentLoaded", async () => {
+  // Ensure document editor and detail modals NEVER pop up on clean startup or page reload
+  ["pogruzkaDocEditorWindow", "salesDocEditorWindow", "priceDocEditorWindow", "docVersionDiffWindow"].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.style.display = "none";
+  });
+
   // 1. Initialize Subsystems safely (MdiManager MUST be first for window registry)
   try { MdiManager.init(); } catch (e) { console.error("MdiManager init error:", e); }
   try { SessionManager.init(); } catch (e) { console.error("SessionManager init error:", e); }

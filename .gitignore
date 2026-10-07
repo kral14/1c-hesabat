@@ -86,6 +86,9 @@ data/*.db
 # --- Logs & Run Artifacts ---
 *.log
 logs/
+tests/*.log
+tests/*.jpg
+tests/*.json
 
 # --- OS Specific Files ---
 .DS_Store
