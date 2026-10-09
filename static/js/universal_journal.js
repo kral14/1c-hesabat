@@ -1470,33 +1470,10 @@ const _UniversalJournalTarget = {
     const textColor = "#111111";
 
     let statusIconHtml = "";
-    if (row.deleted) {
-      statusIconHtml = `<span title="Помечен на удаление" style="display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;">
-        <svg width="14" height="15" viewBox="0 0 14 15" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <path d="M2 1.5C2 1.22386 2.22386 1 2.5 1H9L12 4V13.5C12 13.7761 11.7761 14 11.5 14H2.5C2.22386 14 2 13.7761 2 13.5V1.5Z" fill="#FFFFFF" stroke="#7A8A9E" stroke-width="1"/>
-          <path d="M9 1V4H12" fill="#E8EEF5" stroke="#7A8A9E" stroke-width="1"/>
-          <path d="M3.5 4.5L10.5 11.5M10.5 4.5L3.5 11.5" stroke="#D32F2F" stroke-width="2" stroke-linecap="round"/>
-        </svg>
-      </span>`;
-    } else if (row.posted) {
-      statusIconHtml = `<span title="Проведен" style="display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;">
-        <svg width="14" height="15" viewBox="0 0 14 15" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <path d="M2 1.5C2 1.22386 2.22386 1 2.5 1H9L12 4V13.5C12 13.7761 11.7761 14 11.5 14H2.5C2.22386 14 2 13.7761 2 13.5V1.5Z" fill="#FFFFFF" stroke="#7A8A9E" stroke-width="1"/>
-          <path d="M9 1V4H12" fill="#E8EEF5" stroke="#7A8A9E" stroke-width="1"/>
-          <line x1="4" y1="5.5" x2="7.5" y2="5.5" stroke="#C0D0E0" stroke-width="1"/>
-          <path d="M1.5 9.5L4.5 12.5L12.5 3.5" stroke="#2E7D32" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
-        </svg>
-      </span>`;
+    if (window.OneCIcons && typeof OneCIcons.docStatus === "function") {
+      statusIconHtml = OneCIcons.docStatus(row);
     } else {
-      statusIconHtml = `<span title="Не проведен (Черновик)" style="display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;">
-        <svg width="14" height="15" viewBox="0 0 14 15" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <path d="M2 1.5C2 1.22386 2.22386 1 2.5 1H9L12 4V13.5C12 13.7761 11.7761 14 11.5 14H2.5C2.22386 14 2 13.7761 2 13.5V1.5Z" fill="#FFFFFF" stroke="#7A8A9E" stroke-width="1"/>
-          <path d="M9 1V4H12" fill="#E8EEF5" stroke="#7A8A9E" stroke-width="1"/>
-          <line x1="4" y1="6" x2="10" y2="6" stroke="#B0C0D0" stroke-width="1"/>
-          <line x1="4" y1="8.5" x2="10" y2="8.5" stroke="#B0C0D0" stroke-width="1"/>
-          <line x1="4" y1="11" x2="8" y2="11" stroke="#B0C0D0" stroke-width="1"/>
-        </svg>
-      </span>`;
+      statusIconHtml = row.posted ? "✔" : (row.deleted ? "✕" : "📄");
     }
 
     const cells = [];
