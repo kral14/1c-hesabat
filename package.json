@@ -3,10 +3,40 @@
   "version": "1.0.0",
   "description": "1C:Enterprise Universal Report Desktop App",
   "main": "main_electron.js",
+  "author": "Nesib",
   "scripts": {
-    "start": "electron ."
+    "start": "electron .",
+    "build:server": "python build_server.py",
+    "pack": "electron-builder --dir",
+    "dist": "electron-builder --win portable"
+  },
+  "build": {
+    "appId": "com.onec.reporter",
+    "productName": "1C_Hesabat",
+    "directories": {
+      "output": "dist_app"
+    },
+    "win": {
+      "target": [
+        "dir",
+        "portable"
+      ]
+    },
+    "extraResources": [
+      {
+        "from": "server_dist/1c_server",
+        "to": "server_bin"
+      }
+    ],
+    "files": [
+      "main_electron.js",
+      "preload.js",
+      "static/**/*",
+      "templates/**/*"
+    ]
   },
   "devDependencies": {
-    "electron": "^44.5.1"
+    "electron": "^44.5.1",
+    "electron-builder": "^26.15.3"
   }
 }

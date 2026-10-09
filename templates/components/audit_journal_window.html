@@ -1,137 +1,694 @@
 <!-- ========================================================
-     1C:ENTERPRISE - DOCUMENT AUDIT & CHANGE HISTORY JOURNAL WINDOW
+     1C:ENTERPRISE - ADVANCED DOCUMENT AUDIT & CHANGE HISTORY JOURNAL
      templates/components/audit_journal_window.html
+     Full-Width Main Document Journal + Modal Audit Protocol Window
      ======================================================== -->
 
-<div class="mdi-window" id="auditJournalWindow" style="display: none; top: 20px; left: 35px; width: calc(100% - 70px); height: calc(100% - 40px); min-width: 980px; min-height: 520px; z-index: 124;" onmousedown="MdiManager.activateWindow('auditJournalWindow')">
+<style>
+  /* Badges */
+  .badge { padding: 2px 7px; border-radius: 3px; font-size: 10px; font-weight: bold; display: inline-block; }
+  .badge-green { background: #e8f5e9; color: #2e7d32; border: 1px solid #a5d6a7; }
+  .badge-orange { background: #fff3e0; color: #e65100; border: 1px solid #ffcc80; }
+  .badge-red { background: #ffebee; color: #c62828; border: 1px solid #ef9a9a; }
+  .badge-blue { background: #e3f2fd; color: #002060; border: 1px solid #90caf9; }
+  .badge-gray { background: #f5f5f5; color: #666; border: 1px solid #ddd; }
+
+  /* Red highlight styling for modified parts */
+  .changed-cell {
+    background: #ffebee !important; color: #b71c1c !important; font-weight: bold !important;
+    border: 1px solid #e53935 !important; position: relative; cursor: help;
+    transition: background 0.15s, box-shadow 0.15s;
+  }
+  .changed-cell:hover {
+    background: #ffcdd2 !important;
+    box-shadow: 0 0 8px rgba(229, 57, 53, 0.45);
+  }
+  .changed-badge {
+    background: #d32f2f; color: #fff; font-size: 9px; padding: 2px 5px; border-radius: 2px; margin-left: 6px; font-weight: bold;
+    display: inline-block; vertical-align: middle;
+  }
+  .changed-row {
+    background: #fff8f8 !important;
+  }
+  .row-added {
+    background: #f1f8e9 !important;
+  }
+  .row-removed {
+    background: #fff5f5 !important;
+  }
+  .row-replaced {
+    background: #fffde7 !important;
+  }
+
+  /* Document Form Layout (1C Classic Document View) */
+  .doc-full-form {
+    background: #faf8f2;
+    border: 1px solid #c8c3b0;
+    border-radius: 4px;
+    padding: 12px 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .doc-form-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px 16px;
+  }
+  .form-field {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+  }
+  .form-field-label {
+    font-size: 11px;
+    font-weight: 600;
+    color: #444;
+  }
+  .form-field-input {
+    background: #fff;
+    border: 1px solid #7f9db9;
+    padding: 4px 8px;
+    font-size: 11px;
+    border-radius: 2px;
+    min-height: 25px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    transition: all 0.15s;
+  }
+
+  /* Floating Popover Modal for previous value on hover */
+  .diff-popover {
+    position: fixed;
+    z-index: 99999;
+    background: #ffffff;
+    border: 2px solid #b71c1c;
+    box-shadow: 0 10px 30px rgba(183, 28, 28, 0.35);
+    border-radius: 5px;
+    padding: 10px 14px;
+    font-size: 11px;
+    color: #222;
+    pointer-events: none;
+    display: none;
+    min-width: 270px;
+    max-width: 400px;
+  }
+  .diff-popover-title {
+    font-weight: bold;
+    color: #b71c1c;
+    font-size: 12px;
+    margin-bottom: 6px;
+    padding-bottom: 4px;
+    border-bottom: 1px solid #ffcdd2;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .diff-popover-content {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .diff-popover-line {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+  .diff-popover-lbl {
+    font-size: 10px;
+    color: #666;
+    font-weight: 600;
+  }
+  .diff-popover-val-old {
+    font-size: 11px;
+    color: #555;
+    text-decoration: line-through;
+    background: #f1f1f1;
+    border: 1px solid #ddd;
+    padding: 3px 7px;
+    border-radius: 3px;
+    display: inline-block;
+  }
+  .diff-popover-val-new {
+    font-size: 12px;
+    font-weight: bold;
+    color: #b71c1c;
+    background: #ffebee;
+    border: 1px solid #ffcdd2;
+    padding: 3px 7px;
+    border-radius: 3px;
+    display: inline-block;
+  }
+  .diff-popover-note {
+    margin-top: 4px;
+    font-size: 11px;
+    color: #002060;
+    background: #eef3fb;
+    padding: 4px 8px;
+    border-radius: 3px;
+    border-left: 3px solid #002060;
+    line-height: 1.4;
+  }
+
+  /* MODAL WINDOW 1: AUDİT PROTOKOLU PƏNCƏRƏSİ */
+  .audit-modal-backdrop {
+    position: absolute; inset: 0; background: rgba(0, 0, 0, 0.45); z-index: 200;
+    display: none; align-items: center; justify-content: center; padding: 15px;
+    transition: background 0.15s ease;
+  }
+  .audit-modal {
+    width: 1120px; max-width: 98vw; height: 690px; max-height: 96vh; background: #ece9d8;
+    border: 2px solid #002060; box-shadow: 0 14px 40px rgba(0,0,0,0.4); border-radius: 4px;
+    display: flex; flex-direction: column; overflow: hidden;
+  }
+  .modal-win-header {
+    background: linear-gradient(to right, #002060, #2a5298); color: #fff; height: 28px; padding: 0 10px;
+    display: flex; align-items: center; justify-content: space-between; font-size: 12px; font-weight: bold;
+    user-select: none;
+  }
+
+  /* Maximized / Minimized for Audit Modal */
+  .audit-modal-backdrop.maximized {
+    padding: 0 !important;
+  }
+  .audit-modal.maximized {
+    width: 100% !important;
+    height: 100% !important;
+    max-width: 100% !important;
+    max-height: 100% !important;
+    border-radius: 0 !important;
+    border: none !important;
+  }
+  .audit-modal-backdrop.minimized {
+    background: transparent !important;
+    pointer-events: none !important;
+    align-items: flex-end !important;
+    justify-content: flex-end !important;
+    padding: 6px 16px !important;
+  }
+  .audit-modal.minimized {
+    width: 380px !important;
+    height: 28px !important;
+    min-height: 28px !important;
+    max-height: 28px !important;
+    overflow: hidden !important;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.4) !important;
+    pointer-events: auto !important;
+    border: 1px solid #002060 !important;
+    cursor: pointer;
+  }
+  .audit-modal.minimized > :not(.modal-win-header) {
+    display: none !important;
+  }
+
+  /* MODAL WINDOW 2: SƏNƏDİN VERSİYA SNAPSHOT FORMASI */
+  .doc-view-modal-backdrop {
+    position: fixed; inset: 0; background: rgba(0, 0, 0, 0.55); z-index: 500;
+    display: none; align-items: center; justify-content: center; padding: 20px;
+    transition: background 0.15s ease;
+  }
+  .doc-view-modal {
+    width: 1060px; max-width: 96vw; height: 650px; max-height: 94vh; background: #ece9d8;
+    border: 2px solid #002060; box-shadow: 0 16px 45px rgba(0,0,0,0.5); border-radius: 4px;
+    display: flex; flex-direction: column; overflow: hidden;
+  }
+  .doc-view-win-header {
+    background: linear-gradient(to right, #002060, #1e3c72); color: #fff; height: 28px; padding: 0 10px;
+    display: flex; align-items: center; justify-content: space-between; font-size: 12px; font-weight: bold;
+    user-select: none;
+  }
+  .doc-view-modal-backdrop.maximized {
+    padding: 0 !important;
+  }
+  .doc-view-modal.maximized {
+    width: 100% !important;
+    height: 100% !important;
+    max-width: 100% !important;
+    max-height: 100% !important;
+    border-radius: 0 !important;
+    border: none !important;
+  }
+  .doc-view-modal-backdrop.minimized {
+    background: transparent !important;
+    pointer-events: none !important;
+    align-items: flex-end !important;
+    justify-content: flex-end !important;
+    padding: 6px 410px !important;
+  }
+  .doc-view-modal.minimized {
+    width: 380px !important;
+    height: 28px !important;
+    min-height: 28px !important;
+    max-height: 28px !important;
+    overflow: hidden !important;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.4) !important;
+    pointer-events: auto !important;
+    border: 1px solid #002060 !important;
+    cursor: pointer;
+  }
+  .doc-view-modal.minimized > :not(.doc-view-win-header) {
+    display: none !important;
+  }
+
+  /* Control buttons inside modal headers */
+  .modal-win-header .mdi-win-controls,
+  .doc-view-win-header .mdi-win-controls {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+  }
+  .modal-win-header .mdi-win-btn,
+  .doc-view-win-header .mdi-win-btn {
+    background: #ece9d8;
+    border: 1px solid #ffffff;
+    color: #000;
+    width: 18px;
+    height: 16px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    border-radius: 2px;
+    font-size: 10px;
+    font-weight: bold;
+    padding: 0;
+    line-height: 1;
+  }
+  .modal-win-header .mdi-win-btn:hover,
+  .doc-view-win-header .mdi-win-btn:hover {
+    background: #ffffff;
+  }
+  .modal-win-header .mdi-win-btn-close,
+  .doc-view-win-header .mdi-win-btn-close {
+    background: #d13030;
+    color: #ffffff;
+  }
+  .modal-win-header .mdi-win-btn-close:hover,
+  .doc-view-win-header .mdi-win-btn-close:hover {
+    background: #e81123;
+  }
+
+  .v-btn {
+    padding: 4px 12px; font-size: 11px; font-weight: 600; border-radius: 3px; cursor: pointer; border: 1px solid #b0af9f;
+    background: #fff; color: #222; display: inline-flex; align-items: center; gap: 6px; transition: all 0.15s;
+  }
+  .v-btn:hover { background: #eef3fb; }
+  .v-btn.active {
+    background: #002060; color: #fff; border-color: #002060; box-shadow: 0 2px 4px rgba(0,32,96,0.25);
+  }
+
+  /* Tabs Bar Buttons */
+  .aj-tab-btn {
+    padding: 6px 16px;
+    background: #dcd7c4;
+    border: 1px solid #b0af9f;
+    border-bottom: none;
+    cursor: pointer;
+    font-size: 11px;
+    border-top-left-radius: 4px;
+    border-top-right-radius: 4px;
+    font-weight: 500;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    transition: all 0.15s;
+    color: #444;
+  }
+  .aj-tab-btn.active {
+    background: #ffffff !important;
+    font-weight: bold !important;
+    color: #002060 !important;
+    border-color: #7f9db9 !important;
+    border-bottom: 1px solid #ffffff !important;
+    margin-bottom: -1px;
+  }
+</style>
+
+<div class="mdi-window" id="auditJournalWindow" style="display: none; top: 15px; left: 25px; width: calc(100% - 50px); height: calc(100% - 30px); min-width: 1020px; min-height: 560px; z-index: 124;" onmousedown="MdiManager.activateWindow('auditJournalWindow')">
   
   <!-- Window Header -->
   <div class="mdi-window-header" ondblclick="MdiManager.toggleMaximize('auditJournalWindow')">
     <div class="mdi-win-title-left">
       <span class="mdi-win-icon">🕒</span>
-      <span class="mdi-win-title-text" id="ajWindowTitle">Журнал изменений и версий документов (Аудит)</span>
+      <span class="mdi-win-title-text" id="ajWindowTitle">Sənəd Dəyişiklikləri və Audit Jurnalı (Tarixçə, İstifadəçilər və Fərqlər)</span>
     </div>
     <div class="mdi-win-controls">
-      <button class="mdi-win-btn mdi-win-btn-min" title="Свернуть" onclick="MdiManager.minimizeWindow('auditJournalWindow')" onmousedown="event.stopPropagation()">_</button>
-      <button class="mdi-win-btn mdi-win-btn-max" title="Развернуть / Восстановить" onclick="MdiManager.toggleMaximize('auditJournalWindow')" onmousedown="event.stopPropagation()">□</button>
-      <button class="mdi-win-btn mdi-win-btn-close" title="Закрыть" onclick="AuditJournal.close()" onmousedown="event.stopPropagation()">✕</button>
+      <button class="mdi-win-btn mdi-win-btn-min" title="Bük" onclick="MdiManager.minimizeWindow('auditJournalWindow')" onmousedown="event.stopPropagation()">_</button>
+      <button class="mdi-win-btn mdi-win-btn-max" title="Böyüt / Əvvəlki ölçü" onclick="MdiManager.toggleMaximize('auditJournalWindow')" onmousedown="event.stopPropagation()">□</button>
+      <button class="mdi-win-btn mdi-win-btn-close" title="Bağla" onclick="event.stopPropagation(); AuditJournal.close()" onmousedown="event.stopPropagation()">✕</button>
     </div>
   </div>
 
   <!-- Window Body -->
-  <div class="mdi-window-body" style="background-color: #f0eee3; display: flex; flex-direction: column; height: 100%; overflow: hidden; font-family: Tahoma, 'MS Sans Serif', Arial, sans-serif; font-size: 11px;">
+  <div class="mdi-window-body" style="background-color: #ece9d8; display: flex; flex-direction: column; height: 100%; overflow: hidden; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Tahoma, Arial, sans-serif; font-size: 11px; position: relative;">
     
-    <!-- Top Toolbar Controls -->
-    <div class="uj-top-bar" style="padding: 4px 8px; background: #e0dfd5; border-bottom: 1px solid #c0beaf; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 6px;">
+    <!-- Top Filter & Control Toolbar -->
+    <div class="uj-top-bar" style="padding: 6px 10px; background: #e3dec9; border-bottom: 1px solid #b5b19e; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px;">
       
-      <!-- Left Controls: Doc Type Selector, Period, Action Buttons -->
+      <!-- Left Filters -->
       <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
         
         <!-- Document Type Selector -->
         <div style="display: flex; align-items: center; gap: 4px;">
-          <span style="font-weight: 500; color: #222;">Документ:</span>
-          <select id="ajDocTypeSelect" onchange="AuditJournal.onDocTypeChange()" style="height: 23px; font-size: 11px; font-weight: bold; background: #fff; border: 1px solid #7f9db9; padding: 0 4px; cursor: pointer;">
-            <option value="">Все документы (Реализации, Погрузки, Возвраты)</option>
-            <option value="РеализацияТоваровУслуг" selected>Реализация товаров и услуг</option>
-            <option value="ПогрузкиМашин">Погрузка машин</option>
-            <option value="ВозвратТоваровОтПокупателя">Возврат товаров от покупателя</option>
+          <span style="font-weight: 600; color: #222;">Sənəd növü:</span>
+          <select id="ajDocTypeSelect" onchange="AuditJournal.onDocTypeChange()" style="height: 24px; font-size: 11px; font-weight: 600; background: #fff; border: 1px solid #7f9db9; padding: 0 6px; border-radius: 2px; cursor: pointer;">
+            <option value="">Hamısı (Bütün sənəd növləri)</option>
+            <option value="РеализацияТоваровУслуг" selected>🚚 Satış (Реализация товаров и услуг)</option>
+            <option value="ВозвратТоваровОтПокупателя">↩️ Qaytarma (Возврат товаров от покупателя)</option>
+            <option value="ПогрузкиМашин">📦 Yükləmə (Погрузка машин)</option>
+            <option value="УстановкаЦенНоменклатуры">🏷️ Qiymət təyini (Установка цен)</option>
           </select>
         </div>
 
         <div style="width: 1px; height: 18px; background: #b0af9f; margin: 0 2px;"></div>
 
-        <!-- Period Picker Button -->
-        <button type="button" class="btn-1c" onclick="AuditJournal.openPeriodPicker()" title="Выбрать период журнала изменений" style="height: 23px; padding: 0 8px; display: inline-flex; align-items: center; gap: 4px; border: 1px solid #7f9db9; background: #fdfdfd; cursor: pointer;">
+        <!-- Period Picker -->
+        <button type="button" class="btn-1c" onclick="AuditJournal.openPeriodPicker()" title="Dövrü seçin" style="height: 24px; padding: 0 8px; display: inline-flex; align-items: center; gap: 4px; border: 1px solid #7f9db9; background: #ffffff; cursor: pointer; border-radius: 2px;">
           <span>📅</span>
-          <span id="ajPeriodLabel" style="font-weight: bold; color: #002060;">(Весь период)</span>
+          <span id="ajPeriodLabel" style="font-weight: bold; color: #002060;">(Bütün dövr)</span>
         </button>
 
-        <!-- Quick Period Preset: Сегодня / За 7 дней -->
-        <button type="button" class="btn-1c" onclick="AuditJournal.setQuickPeriod('today')" title="Показать изменения за сегодня" style="height: 23px; padding: 0 6px;">Сегодня</button>
-        <button type="button" class="btn-1c" onclick="AuditJournal.setQuickPeriod('week')" title="Показать изменения за последние 7 дней" style="height: 23px; padding: 0 6px;">7 дней</button>
-        <button type="button" class="btn-1c" onclick="AuditJournal.setQuickPeriod('month')" title="Показать изменения за текущий месяц" style="height: 23px; padding: 0 6px;">Месяц</button>
+        <button type="button" class="btn-1c" onclick="AuditJournal.setQuickPeriod('today')" title="Bugünkü sənədlər" style="height: 24px; padding: 0 7px; border-radius: 2px;">Bu gün</button>
+        <button type="button" class="btn-1c" onclick="AuditJournal.setQuickPeriod('week')" title="Son 7 gün" style="height: 24px; padding: 0 7px; border-radius: 2px;">7 gün</button>
+        <button type="button" class="btn-1c" onclick="AuditJournal.setQuickPeriod('month')" title="Bu ay" style="height: 24px; padding: 0 7px; border-radius: 2px;">Bu ay</button>
+        <button type="button" class="btn-1c" onclick="AuditJournal.setQuickPeriod('all')" title="Bütün dövr" style="height: 24px; padding: 0 7px; border-radius: 2px;">Hamısı</button>
 
         <div style="width: 1px; height: 18px; background: #b0af9f; margin: 0 2px;"></div>
 
-        <!-- Action: Open Diff / Version History -->
-        <button type="button" class="btn-1c btn-1c-primary" onclick="AuditJournal.openSelectedDiff()" title="Показать подробную историю всех версий и изменений документа" style="height: 23px; padding: 0 10px; font-weight: bold; background: linear-gradient(to bottom, #ffea88, #d8a020); border: 1px solid #7c6817; color: #000; cursor: pointer; display: inline-flex; align-items: center; gap: 4px;">
-          <span>🔍</span>
-          <span>История изменений</span>
-        </button>
-
-        <!-- Action: Open Actual Document Window -->
-        <button type="button" class="btn-1c" onclick="AuditJournal.openSelectedDoc()" title="Открыть карточку самого документа" style="height: 23px; padding: 0 8px; border: 1px solid #7f9db9; background: #fdfdfd; cursor: pointer; display: inline-flex; align-items: center; gap: 4px;">
-          <span>📋</span>
-          <span>Открыть документ</span>
-        </button>
+        <!-- Version Filter Filter -->
+        <div style="display: flex; align-items: center; gap: 4px;">
+          <span style="color: #444;">Filtr:</span>
+          <select id="ajFilterModeSelect" onchange="AuditJournal.applyFilterAndSort()" style="height: 24px; font-size: 11px; background: #fff; border: 1px solid #7f9db9; padding: 0 4px; border-radius: 2px; cursor: pointer;">
+            <option value="all">Bütün sənədlər</option>
+            <option value="modified_only">Yalnız dəyişdirilənlər (>1 versiya)</option>
+            <option value="posted_only">Yalnız təsdiqlənənlər (✔ Provodka)</option>
+            <option value="draft_only">Yalnız qaralamalar (📄)</option>
+          </select>
+        </div>
 
         <!-- Refresh Button -->
-        <button type="button" class="btn-1c" onclick="AuditJournal.loadDocuments()" title="Обновить список изменений (F5)" style="height: 23px; padding: 0 8px; border: 1px solid #7f9db9; background: #fdfdfd; cursor: pointer; display: inline-flex; align-items: center; gap: 4px;">
+        <button type="button" class="btn-1c" onclick="AuditJournal.loadDocuments()" title="Siyahını yenilə (F5)" style="height: 24px; padding: 0 9px; border: 1px solid #7f9db9; background: #ffffff; cursor: pointer; border-radius: 2px; display: inline-flex; align-items: center; gap: 4px;">
           <span>🔄</span>
-          <span>Обновить</span>
+          <span style="font-weight: 600;">Yenilə</span>
         </button>
+
       </div>
 
-      <!-- Right Controls: Quick Search -->
+      <!-- Right Search Box -->
       <div style="display: flex; align-items: center; gap: 6px;">
-        <span style="color: #444; font-size: 11px;">Поиск:</span>
-        <div style="display: flex; align-items: center; border: 1px solid #7f9db9; background: #fff; height: 21px; padding: 0 4px;">
-          <span style="font-size: 11px; margin-right: 4px; color: #777;">🔍</span>
-          <input type="text" id="ajSearchInput" oninput="AuditJournal.onSearchInput(this.value)" placeholder="Номер, клиент, автор..." style="border: none; outline: none; font-size: 11px; width: 175px;">
+        <span style="color: #333; font-weight: 500;">Axtarış:</span>
+        <div style="display: flex; align-items: center; border: 1px solid #7f9db9; background: #fff; height: 24px; padding: 0 6px; border-radius: 2px; width: 220px;">
+          <span style="font-size: 11px; margin-right: 4px; color: #888;">🔍</span>
+          <input type="text" id="ajSearchInput" oninput="AuditJournal.onSearchInput(this.value)" placeholder="№, müştəri, məsul şəxs..." style="border: none; outline: none; font-size: 11px; width: 100%; background: transparent;">
+          <span id="ajClearSearchBtn" onclick="AuditJournal.clearSearch()" style="display: none; cursor: pointer; color: #888; font-weight: bold; margin-left: 4px;" title="Təmizlə">✕</span>
         </div>
       </div>
+
     </div>
 
-    <!-- Table Container -->
-    <div id="ajTableWrapper" style="flex: 1; overflow: auto; background: #ffffff; position: relative;">
-      <table id="ajTable" style="width: 100%; border-collapse: collapse; font-size: 11px; font-family: Tahoma, Arial, sans-serif;">
-        <thead style="position: sticky; top: 0; z-index: 10; background: #e3dec9;">
-          <tr style="height: 22px; border-bottom: 2px solid #5a5a5a;">
-            <th style="width: 32px; border: 1px solid #b0af9f; text-align: center;">№</th>
-            <th style="width: 30px; border: 1px solid #b0af9f; text-align: center;"></th>
-            <th style="width: 135px; border: 1px solid #b0af9f; text-align: left; padding: 0 6px; cursor: pointer;" onclick="AuditJournal.sortBy('last_date')">Дата изменения ▾</th>
-            <th style="width: 165px; border: 1px solid #b0af9f; text-align: left; padding: 0 6px; cursor: pointer;" onclick="AuditJournal.sortBy('doc_type_title')">Вид документа</th>
-            <th style="width: 120px; border: 1px solid #b0af9f; text-align: left; padding: 0 6px; cursor: pointer;" onclick="AuditJournal.sortBy('number')">Номер</th>
-            <th style="width: 130px; border: 1px solid #b0af9f; text-align: left; padding: 0 6px; cursor: pointer;" onclick="AuditJournal.sortBy('date')">Дата документа</th>
-            <th style="border: 1px solid #b0af9f; text-align: left; padding: 0 6px; cursor: pointer;" onclick="AuditJournal.sortBy('kontragent')">Контрагент / Клиент</th>
-            <th style="width: 115px; border: 1px solid #b0af9f; text-align: right; padding: 0 6px; cursor: pointer;" onclick="AuditJournal.sortBy('amount')">Сумма (AZN)</th>
-            <th style="width: 140px; border: 1px solid #b0af9f; text-align: left; padding: 0 6px; cursor: pointer;" onclick="AuditJournal.sortBy('last_author')">Кто изменил (Автор)</th>
-            <th style="width: 120px; border: 1px solid #b0af9f; text-align: center; padding: 0 6px;">Операция</th>
-            <th style="width: 70px; border: 1px solid #b0af9f; text-align: center; padding: 0 6px;">Версий</th>
-          </tr>
-        </thead>
-        <tbody id="ajTableBody">
-          <!-- Dynamic Rows Injected by AuditJournal.render() -->
-        </tbody>
-      </table>
-
-      <!-- Empty State -->
-      <div id="ajEmptyState" style="display: none; padding: 60px 20px; text-align: center; color: #777;">
-        <div style="font-size: 28px; margin-bottom: 8px;">📂</div>
-        <div style="font-weight: bold; font-size: 13px;">В выбранном периоде изменений документов не найдено</div>
-        <div style="font-size: 11px; color: #999; margin-top: 4px;">Попробуйте расширить интервал дат или очистить фильтр поиска.</div>
-      </div>
-
-      <!-- Loading State Overlay -->
-      <div id="ajLoadingState" style="display: none; position: absolute; inset: 0; background: rgba(255, 255, 255, 0.7); z-index: 20; justify-content: center; align-items: center;">
-        <div style="display: flex; align-items: center; gap: 8px; background: #fff; padding: 10px 18px; border: 1px solid #7f9db9; box-shadow: 0 2px 8px rgba(0,0,0,0.15);">
-          <span>⏳</span>
-          <span style="font-weight: bold; color: #002060;">Загрузка истории изменений из 1С...</span>
+    <!-- ========================================================
+         MAIN FULL-WIDTH DOCUMENT TABLE (NO SPLIT!)
+         ======================================================== -->
+    <div style="flex: 1; display: flex; flex-direction: column; overflow: hidden; background: #fff;">
+      
+      <!-- Table Header Bar -->
+      <div style="padding: 5px 10px; background: #f0ede1; border-bottom: 1px solid #c0beaf; display: flex; align-items: center; justify-content: space-between; font-size: 11px;">
+        <div style="font-weight: bold; color: #002060; display: flex; align-items: center; gap: 6px;">
+          <span>📋 Sənədlər Siyahısı</span>
+          <span id="ajListCountBadge" style="background: #002060; color: #fff; padding: 1px 7px; border-radius: 10px; font-size: 10px; font-weight: normal;">0</span>
+        </div>
+        <div style="color: #555; font-size: 11px;">
+          <span>💡 Sənədin üzərinə ikiqat klik edərək və ya <b>"Audit Aç"</b> düyməsinə basaraq audit protokolunu pəncərə kimi açın</span>
         </div>
       </div>
+
+      <!-- Full-Width Table Container -->
+      <div id="ajTableWrapper" style="flex: 1; overflow: auto; position: relative;">
+        <table id="ajTable" style="width: 100%; border-collapse: collapse; font-size: 11px; font-family: Tahoma, Arial, sans-serif;">
+          <thead style="position: sticky; top: 0; z-index: 10; background: #e3dec9; box-shadow: 0 1px 2px rgba(0,0,0,0.06);">
+            <tr style="height: 25px; border-bottom: 2px solid #777;">
+              <th style="width: 32px; border: 1px solid #b0af9f; text-align: center;">№</th>
+              <th style="width: 32px; border: 1px solid #b0af9f; text-align: center;" title="Vəziyyət">St.</th>
+              <th style="width: 130px; border: 1px solid #b0af9f; text-align: left; padding: 0 8px; cursor: pointer;" onclick="AuditJournal.sortBy('number')">Sənəd № ▾</th>
+              <th style="width: 135px; border: 1px solid #b0af9f; text-align: left; padding: 0 8px; cursor: pointer;" onclick="AuditJournal.sortBy('date')">Sənəd Tarixi</th>
+              <th style="width: 155px; border: 1px solid #b0af9f; text-align: left; padding: 0 8px; cursor: pointer;" onclick="AuditJournal.sortBy('last_author')">👤 Kim dəyişib</th>
+              <th style="border: 1px solid #b0af9f; text-align: left; padding: 0 8px; cursor: pointer;" onclick="AuditJournal.sortBy('kontragent')">Müştəri / Tərəf-müqabili</th>
+              <th style="width: 115px; border: 1px solid #b0af9f; text-align: right; padding: 0 8px; cursor: pointer;" onclick="AuditJournal.sortBy('amount')">Məbləğ (AZN)</th>
+              <th style="width: 105px; border: 1px solid #b0af9f; text-align: center; padding: 0 4px;" title="Son əməliyyat">Son Əməliyyat</th>
+              <th style="width: 85px; border: 1px solid #b0af9f; text-align: center; padding: 0 4px; cursor: pointer;" onclick="AuditJournal.sortBy('version_count')" title="Versiya sayı">Versiyalar</th>
+              <th style="width: 105px; border: 1px solid #b0af9f; text-align: center; padding: 0 4px;">Audit Aç</th>
+            </tr>
+          </thead>
+          <tbody id="ajTableBody">
+            <!-- Dynamically populated full-width rows -->
+          </tbody>
+        </table>
+
+        <!-- Empty State -->
+        <div id="ajEmptyState" style="display: none; padding: 60px 20px; text-align: center; color: #777;">
+          <div style="font-size: 32px; margin-bottom: 8px;">📂</div>
+          <div style="font-weight: bold; font-size: 13px; color: #333;">Seçilmiş dövrdə və filtrlərdə sənəd tapılmadı</div>
+          <div style="font-size: 11px; color: #888; margin-top: 4px;">Dövr intervalını genişləndirin və ya axtarış filterini təmizləyin.</div>
+        </div>
+
+        <!-- Loading State Overlay -->
+        <div id="ajLoadingState" style="display: none; position: absolute; inset: 0; background: rgba(255, 255, 255, 0.75); z-index: 20; justify-content: center; align-items: center;">
+          <div style="display: flex; align-items: center; gap: 8px; background: #fff; padding: 12px 20px; border: 1px solid #7f9db9; box-shadow: 0 3px 12px rgba(0,0,0,0.15); border-radius: 4px;">
+            <span style="font-size: 16px;">⏳</span>
+            <span style="font-weight: bold; color: #002060;">1C Audit məlumatları yüklənir...</span>
+          </div>
+        </div>
+      </div>
+
     </div>
 
     <!-- Bottom Status Bar -->
-    <div style="height: 23px; background: #e0dfd5; border-top: 1px solid #c0beaf; display: flex; align-items: center; justify-content: space-between; padding: 0 8px; font-size: 11px; color: #333;">
-      <div style="display: flex; align-items: center; gap: 12px;">
-        <span id="ajStatusText">Готово</span>
+    <div style="height: 24px; background: #e3dec9; border-top: 1px solid #b5b19e; display: flex; align-items: center; justify-content: space-between; padding: 0 10px; font-size: 11px; color: #333;">
+      <div style="display: flex; align-items: center; gap: 14px;">
+        <span id="ajStatusText" style="font-weight: 500;">Hazırdır</span>
         <span style="color: #999;">|</span>
-        <span id="ajCountBadge" style="font-weight: bold; color: #002060;">Всего документов: 0</span>
+        <span id="ajCountBadge" style="font-weight: bold; color: #002060;">Ümumi sənədlər: 0</span>
       </div>
       <div>
-        <span style="color: #555;">Двойной клик на строке: подробная история и сравнение</span>
+        <span style="color: #555;">1C:Müəssisə Audit və Dəyişiklik İzləmə Sistemi</span>
+      </div>
+    </div>
+
+    <!-- ========================================================
+         MODAL WINDOW 1: AÇILAN AUDİT PROTOKOLU PƏNCƏRƏSİ
+         (SƏNƏDƏ BASANDA PƏNCƏRƏ OLARAQ AÇILIR!)
+         ======================================================== -->
+    <div class="audit-modal-backdrop" id="auditModalBackdrop">
+      <div class="audit-modal">
+        
+        <!-- Modal Window Header -->
+        <div class="modal-win-header" ondblclick="AuditJournal.toggleMaximizeAuditModal()" onclick="AuditJournal.onModalHeaderClick(event, 'audit')" title="İkiqat kliklə böyüt / bərpa et" style="cursor: pointer;">
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <span class="mdi-win-icon" style="font-size: 13px;">📑</span>
+            <span id="mWinTitle">Sənəd Audit Protokolu</span>
+          </div>
+          <div class="mdi-win-controls">
+            <button class="mdi-win-btn mdi-win-btn-min" title="Kiçilt / Bük" onclick="AuditJournal.toggleMinimizeAuditModal()" onmousedown="event.stopPropagation()">_</button>
+            <button class="mdi-win-btn mdi-win-btn-max" id="ajModalMaxBtn" title="Böyüt / Bərpa et" onclick="AuditJournal.toggleMaximizeAuditModal()" onmousedown="event.stopPropagation()">□</button>
+            <button class="mdi-win-btn mdi-win-btn-close" title="Bağla" onclick="event.stopPropagation(); AuditJournal.closeAuditModal()" onmousedown="event.stopPropagation()">✕</button>
+          </div>
+        </div>
+
+        <!-- Top Header Card -->
+        <div style="background: #fdfcee; border-bottom: 1px solid #d4ceb0; padding: 10px 14px; display: flex; justify-content: space-between; align-items: center; gap: 12px;">
+          <div style="display: flex; flex-direction: column; gap: 4px;">
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <strong style="font-size: 13px; color: #002060;" id="mDocHeading">Sənəd № ...</strong>
+              <span class="badge badge-green" id="mDocStatusBadge">TƏSDİQLƏNİB</span>
+              <span class="badge badge-orange" id="mDocEventsBadge">0 Hadisə</span>
+            </div>
+            <div style="color: #444; font-size: 11px; display: flex; gap: 16px; margin-top: 2px;">
+              <span>Sənəd Tarixi: <strong id="mDocDate">—</strong></span>
+              <span>Müştəri: <strong id="mDocKontr">—</strong></span>
+              <span>Anbar: <strong id="mDocWh">—</strong></span>
+              <span>Müqavilə: <strong id="mDocContract">—</strong></span>
+            </div>
+          </div>
+
+          <div style="display: flex; align-items: center; gap: 14px;">
+            <div style="text-align: right;">
+              <div style="font-size: 10px; color: #666;">Cari Yekun Məbləğ:</div>
+              <strong style="font-size: 17px; color: #002060;" id="mDocAmount">0.00 AZN</strong>
+            </div>
+
+            <!-- Action Buttons -->
+            <div style="display: flex; flex-direction: column; gap: 4px;">
+              <button class="btn-1c btn-1c-primary" style="height: 24px; padding: 0 10px; font-weight: 600; cursor: pointer;" onclick="AuditJournal.openSelectedDocEditor()">
+                <span>Sənədi Redaktorda Aç</span>
+              </button>
+              <button class="btn-1c" style="height: 22px; padding: 0 8px; cursor: pointer;" onclick="AuditJournal.printCurrentAudit()">
+                <span>Protokolu Çap Et</span>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- 2 ƏSAS TAB: 1. Tarixə Görə Hərəkətlər Siyahısı | 2. Versiyalar Siyahısı -->
+        <div style="background: #e3dec9; border-bottom: 1px solid #b5b19e; display: flex; padding: 6px 12px 0; gap: 6px;">
+          
+          <div class="aj-tab-btn active" id="ajTabTimelineBtn" onclick="AuditJournal.switchTab('timeline')">
+            <span>🕒 1. Tarixə Görə Hərəkətlər Siyahısı (Ardıcıl Xronologiya)</span>
+            <span id="ajTimelineBadgeCount" class="badge badge-blue" style="font-size: 9px; padding: 1px 5px;">0</span>
+          </div>
+
+          <div class="aj-tab-btn" id="ajTabVersionsBtn" onclick="AuditJournal.switchTab('versions')">
+            <span>📑 2. Sənədin Versiyalar Siyahısı (Sətirlər)</span>
+            <span id="ajVersionsBadgeCount" class="badge badge-orange" style="font-size: 9px; padding: 1px 5px;">0</span>
+          </div>
+
+        </div>
+
+        <!-- ========================================================
+             TAB 1 CONTENT: TARİX VƏ SAATA GÖRƏ ARDICIL HADİSƏLƏR
+             ======================================================== -->
+        <div id="ajTabContentTimeline" style="flex: 1; overflow-y: auto; padding: 12px; display: flex; flex-direction: column; gap: 8px; background: #fff;">
+          
+          <div style="background: #fdfcee; border: 1px solid #e0dbba; padding: 8px 12px; border-radius: 4px; display: flex; justify-content: space-between; align-items: center;">
+            <div>
+              <strong style="color: #002060; font-size: 12px;">Sənədin Tarixə Görə Ardıcıl Hərəkət Jurnalı (Tam Xronologiya):</strong>
+              <div style="font-size: 11px; color: #666; margin-top: 2px;">
+                Sənəd yarandığı andan bu günə qədər baş verən hər bir əməliyyat tarix və vaxt ardıcıllığı ilə aşağıdadır:
+              </div>
+            </div>
+            <span class="badge badge-green" id="ajTimelineBannerCount" style="font-size: 10px; padding: 3px 8px;">0 Hadisə</span>
+          </div>
+
+          <div style="border: 1px solid #b0af9f; border-radius: 3px; overflow: auto; flex: 1;">
+            <table style="width: 100%; border-collapse: collapse; font-size: 11px; background: #fff;">
+              <thead style="position: sticky; top: 0; background: #e3dec9; z-index: 5;">
+                <tr style="height: 26px;">
+                  <th style="width: 32px; text-align: center; border: 1px solid #b0af9f;">№</th>
+                  <th style="width: 145px; text-align: left; padding: 0 6px; border: 1px solid #b0af9f;">Dəqiq Tarix və Saat</th>
+                  <th style="width: 155px; text-align: left; padding: 0 6px; border: 1px solid #b0af9f;">Əməliyyatı Edən Şəxs</th>
+                  <th style="width: 180px; text-align: left; padding: 0 6px; border: 1px solid #b0af9f;">Görülən Hərəkət / Əməliyyat</th>
+                  <th style="width: 140px; text-align: left; padding: 0 6px; border: 1px solid #b0af9f;">Sənədin Vəziyyəti</th>
+                  <th style="text-align: left; padding: 0 6px; border: 1px solid #b0af9f;">Nəticə və Dəqiq İzah</th>
+                </tr>
+              </thead>
+              <tbody id="ajTimelineTableBody">
+                <!-- Populated by JS -->
+              </tbody>
+            </table>
+          </div>
+
+        </div>
+
+        <!-- ========================================================
+             TAB 2 CONTENT: SƏNƏDİN VERSİYALAR SİYAHISI (SƏTİRLƏR)
+             ======================================================== -->
+        <div id="ajTabContentVersions" style="display: none; flex: 1; overflow-y: auto; padding: 12px; flex-direction: column; gap: 8px; background: #fff;">
+          
+          <div style="background: #fdfcee; border: 1px solid #e0dbba; padding: 8px 12px; border-radius: 4px; display: flex; justify-content: space-between; align-items: center;">
+            <div>
+              <strong style="color: #002060; font-size: 12px;">Sənədin Bütün Versiyaları (Sətirlər Şəklində):</strong>
+              <div style="font-size: 11px; color: #666; margin-top: 2px;">
+                Hər bir versiya üzrə sənədin tam görünüşünü və dəyişilən qırmızı sahələrini açmaq üçün sətrə klik edin və ya <b>"Sənədi Aç"</b> düyməsinə basın:
+              </div>
+            </div>
+            <span class="badge badge-green" id="ajVersionsBannerCount" style="font-size: 10px; padding: 3px 8px;">0 Versiya</span>
+          </div>
+
+          <div style="border: 1px solid #b0af9f; border-radius: 3px; overflow: auto; flex: 1;">
+            <table style="width: 100%; border-collapse: collapse; font-size: 11px; background: #fff;">
+              <thead style="position: sticky; top: 0; background: #e3dec9; z-index: 5;">
+                <tr style="height: 26px;">
+                  <th style="width: 55px; text-align: center; border: 1px solid #b0af9f;">Versiya</th>
+                  <th style="width: 140px; text-align: left; padding: 0 6px; border: 1px solid #b0af9f;">Dəyişilmə Tarixi</th>
+                  <th style="width: 150px; text-align: left; padding: 0 6px; border: 1px solid #b0af9f;">Redaktə Edən Şəxs</th>
+                  <th style="width: 140px; text-align: left; padding: 0 6px; border: 1px solid #b0af9f;">Əməliyyat Növü</th>
+                  <th style="text-align: left; padding: 0 6px; border: 1px solid #b0af9f;">Dəyişdirilən Rekvizitlər / Sahələr</th>
+                  <th style="width: 100px; text-align: right; padding: 0 6px; border: 1px solid #b0af9f;">Məbləğ (AZN)</th>
+                  <th style="width: 100px; text-align: center; border: 1px solid #b0af9f;">Vəziyyət</th>
+                  <th style="width: 100px; text-align: center; border: 1px solid #b0af9f;">Sənəd Pəncərəsi</th>
+                </tr>
+              </thead>
+              <tbody id="ajVersionsTableBody">
+                <!-- Populated by JS -->
+              </tbody>
+            </table>
+          </div>
+
+        </div>
+
+        <!-- Modal Footer -->
+        <div style="background: #e3dec9; border-top: 1px solid #b5b19e; padding: 6px 12px; display: flex; justify-content: space-between; align-items: center; font-size: 11px;">
+          <span style="color: #444;">1C:Müəssisə Audit Jurnalı — Sənədin bütün həyat dövrü dəqiq saniyəsinə qədər qeyd olunub</span>
+          <button class="btn-1c btn-1c-primary" style="height: 24px; padding: 0 12px; font-weight: 600;" onclick="event.stopPropagation(); AuditJournal.closeAuditModal()" onmousedown="event.stopPropagation()">Bağla</button>
+        </div>
+
       </div>
     </div>
 
   </div>
+
+  <!-- ========================================================
+       FLOATING POPOVER MODAL FOR PREVIOUS VALUES ON HOVER
+       ======================================================== -->
+  <div id="diffPopover" class="diff-popover">
+    <div class="diff-popover-title">
+      <span id="diffPopTitle">Dəyişiklik Fərqi</span>
+      <span style="font-size: 9px; background: #b71c1c; color: #fff; padding: 1px 5px; border-radius: 2px;">FƏRQ</span>
+    </div>
+    <div class="diff-popover-content">
+      <div class="diff-popover-line">
+        <span class="diff-popover-lbl" id="diffPopOldLbl">v1 (Əvvəlki Dəyər):</span>
+        <div class="diff-popover-val-old" id="diffPopOld">-</div>
+      </div>
+      <div class="diff-popover-line">
+        <span class="diff-popover-lbl" id="diffPopNewLbl">v2 (Dəyişdirilmiş Cari Dəyər):</span>
+        <div class="diff-popover-val-new" id="diffPopNew">-</div>
+      </div>
+      <div class="diff-popover-note" id="diffPopNote">-</div>
+    </div>
+  </div>
+
+  <!-- ========================================================
+       MODAL WINDOW 2: SƏNƏDİN VERSİYA PƏNCƏRƏSİ (SNAPSHOT FORMASI)
+       ======================================================== -->
+  <div class="doc-view-modal-backdrop" id="docViewModalBackdrop" style="display: none;">
+    <div class="doc-view-modal">
+      
+      <!-- Modal Titlebar -->
+      <div class="doc-view-win-header" ondblclick="AuditJournal.toggleMaximizeDocViewModal()" onclick="AuditJournal.onModalHeaderClick(event, 'doc')" title="İkiqat kliklə böyüt / bərpa et" style="cursor: pointer;">
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <span class="mdi-win-icon" style="font-size: 13px;">🔎</span>
+          <span id="docWinHeaderTitle">Sənəd Versiya Snapshot Pəncərəsi</span>
+        </div>
+        <div class="mdi-win-controls">
+          <button class="mdi-win-btn mdi-win-btn-min" title="Kiçilt / Bük" onclick="AuditJournal.toggleMinimizeDocViewModal()" onmousedown="event.stopPropagation()">_</button>
+          <button class="mdi-win-btn mdi-win-btn-max" id="docViewMaxBtn" title="Böyüt / Bərpa et" onclick="AuditJournal.toggleMaximizeDocViewModal()" onmousedown="event.stopPropagation()">□</button>
+          <button class="mdi-win-btn mdi-win-btn-close" title="Bağla" onclick="event.stopPropagation(); AuditJournal.closeDocViewModal()" onmousedown="event.stopPropagation()">✕</button>
+        </div>
+      </div>
+
+      <!-- Window Toolbar / Version Switcher -->
+      <div style="background: #f4f0e2; border-bottom: 1px solid #b5b19e; padding: 5px 12px; display: flex; align-items: center; justify-content: space-between; gap: 8px;">
+        <div style="display: flex; align-items: center; gap: 8px;" id="docWinVersionButtons">
+          <!-- Populated by JS -->
+        </div>
+        <div style="font-size: 11px; color: #444;" id="docWinVersionMeta">
+          <!-- Populated by JS -->
+        </div>
+      </div>
+
+      <!-- Window Body (Header fields + Goods Grid) -->
+      <div style="flex: 1; overflow-y: auto; padding: 12px; background: #fff; display: flex; flex-direction: column; gap: 10px;" id="docWinBodyContent">
+        <!-- Populated by JS -->
+      </div>
+
+      <!-- Window Footer -->
+      <div style="background: #e3dec9; border-top: 1px solid #b5b19e; padding: 6px 12px; display: flex; justify-content: space-between; align-items: center; font-size: 11px;">
+        <span style="color: #555;">Qırmızı xanaların üzərinə siçanı gətirərək əvvəlki dəyərə baxa bilərsiniz</span>
+        <button class="btn-1c btn-1c-primary" style="height: 24px; padding: 0 12px; font-weight: 600;" onclick="event.stopPropagation(); AuditJournal.closeDocViewModal()" onmousedown="event.stopPropagation()">Pəncərəni Bağla</button>
+      </div>
+
+    </div>
+  </div>
+
 </div>

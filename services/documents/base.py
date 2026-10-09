@@ -88,6 +88,9 @@ def build_filter_conditions(filters, q_doc, where_parts, debug_params, field_map
         "deleted": "Т.ПометкаУдаления",
         "kontragent": "Т.Контрагент.Наименование",
         "kontragent_code": "Т.Контрагент.Код",
+        "golovnoy_kontragent": "Т.Контрагент.ГоловнойКонтрагент.Наименование",
+        "golovnoy_kontragent_code": "Т.Контрагент.ГоловнойКонтрагент.Код",
+        "agent": "Т.ДоговорКонтрагента.Агент.Наименование",
         "amount": "Т.СуммаДокумента",
         "warehouse": "Т.Склад.Наименование",
         "responsible": "Т.Ответственный.Наименование",
@@ -130,15 +133,34 @@ def build_filter_conditions(filters, q_doc, where_parts, debug_params, field_map
                 continue
             val_str = str(f_val).strip()
 
-            if f_op == "Равно":
-                q_doc.SetParameter(param_key, val_str)
-                debug_params[param_key] = val_str
-                nom_cond = f"(ТТ.Номенклатура.Наименование = &{param_key} ИЛИ ТТ.Номенклатура.Код = &{param_key} ИЛИ ТТ.Номенклатура.Наименование ПОДОБНО &{param_key})"
+            clean_search_val = val_str.strip()
+            if clean_search_val.endswith("..."):
+                clean_search_val = clean_search_val[:-3].strip()
+
+            c_part = ""
+            n_part = ""
+            m_code = re.match(r"^\[([^\]]+)\]\s*(.*)$", clean_search_val)
+            if m_code:
+                c_part = m_code.group(1).strip()
+                n_part = m_code.group(2).strip()
+
+            if f_op in ["Равно", "Содержит"]:
+                if c_part and n_part:
+                    q_doc.SetParameter(param_key, f"%{n_part}%")
+                    p_code_key = f"{param_key}_code"
+                    q_doc.SetParameter(p_code_key, f"%{c_part}%")
+                    debug_params[param_key] = f"%{n_part}%"
+                    debug_params[p_code_key] = f"%{c_part}%"
+                    nom_cond = f"(ТТ.Номенклатура.Наименование ПОДОБНО &{param_key} ИЛИ ТТ.Номенклатура.Код ПОДОБНО &{p_code_key} ИЛИ ТТ.Номенклатура.Артикул ПОДОБНО &{param_key})"
+                else:
+                    q_doc.SetParameter(param_key, f"%{clean_search_val}%")
+                    debug_params[param_key] = f"%{clean_search_val}%"
+                    nom_cond = f"(ТТ.Номенклатура.Наименование ПОДОБНО &{param_key} ИЛИ ТТ.Номенклатура.Код ПОДОБНО &{param_key} ИЛИ ТТ.Номенклатура.Артикул ПОДОБНО &{param_key})"
                 where_parts.append(f"Т.Ссылка В (ВЫБРАТЬ РАЗЛИЧНЫЕ {link_field} ИЗ {subquery_from} ГДЕ {nom_cond})")
             elif f_op == "Не равно":
-                q_doc.SetParameter(param_key, val_str)
-                debug_params[param_key] = val_str
-                nom_cond = f"(ТТ.Номенклатура.Наименование = &{param_key} ИЛИ ТТ.Номенклатура.Код = &{param_key})"
+                q_doc.SetParameter(param_key, f"%{clean_search_val}%")
+                debug_params[param_key] = f"%{clean_search_val}%"
+                nom_cond = f"(ТТ.Номенклатура.Наименование ПОДОБНО &{param_key} ИЛИ ТТ.Номенклатура.Код ПОДОБНО &{param_key})"
                 where_parts.append(f"НЕ (Т.Ссылка В (ВЫБРАТЬ РАЗЛИЧНЫЕ {link_field} ИЗ {subquery_from} ГДЕ {nom_cond}))")
             elif f_op == "Не содержит":
                 q_doc.SetParameter(param_key, f"%{val_str}%")

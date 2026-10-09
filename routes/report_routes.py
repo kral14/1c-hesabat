@@ -4,6 +4,7 @@ import json
 import datetime
 from flask import Blueprint, request, jsonify, send_file
 from services.common import (
+    APP_DIR,
     SCRATCH_DIR,
     EXCEL_OUTPUT,
     UNIVERSAL_EXCEL,
@@ -51,7 +52,7 @@ def download_universal_excel():
 @report_bp.route("/api/universal_report", methods=["POST"])
 def universal_report_endpoint():
     data = request.json or {}
-    cache_path = os.path.join(SCRATCH_DIR, "last_successful_report.json")
+    cache_path = os.path.join(APP_DIR, "data", "last_successful_report.json")
     try:
         filters_cnt = len(data.get("filters", []))
         print(f"📊 [1C HESABAT SORĞUSU] /api/universal_report | Dövr: {data.get('start_date')} - {data.get('end_date')} | Süzgəclər: {filters_cnt} ədəd", flush=True)

@@ -24,7 +24,17 @@ from routes.report_routes import report_bp
 from routes.catalog_routes import catalog_bp
 from routes.document_routes import document_bp
 
-app = Flask(__name__)
+import os
+
+if getattr(sys, 'frozen', False):
+    base_res = getattr(sys, '_MEIPASS', os.path.dirname(sys.executable))
+    app = Flask(
+        __name__,
+        template_folder=os.path.join(base_res, 'templates'),
+        static_folder=os.path.join(base_res, 'static')
+    )
+else:
+    app = Flask(__name__)
 app.config['TEMPLATES_AUTO_RELOAD'] = True
 app.config['SEND_FILE_MAX_AGE_DEFAULT'] = 0
 

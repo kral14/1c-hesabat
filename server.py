@@ -12,7 +12,15 @@ import time
 import subprocess
 import threading
 
-app_dir = os.path.dirname(os.path.abspath(__file__))
+try:
+    import win32timezone  # noqa: F401 - Required by 1C COM datetime parsing
+except ImportError:
+    pass
+
+if getattr(sys, 'frozen', False):
+    app_dir = os.path.dirname(sys.executable)
+else:
+    app_dir = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, app_dir)
 
 import database

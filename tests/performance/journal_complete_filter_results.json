@@ -1,0 +1,16 @@
+{
+  "database": "Test1C / Aztrade_test3",
+  "criterion": {"fieldKey": "kontragent", "comparison": "Равно", "value": "TEST 12B"},
+  "complete_result_rows": 2,
+  "all_rendered_rows_match_criterion": true,
+  "complete_result_paint_opportunity_ms": 403,
+  "clear_filter_paint_opportunity_ms": 36.7,
+  "fixes": [
+    "Server now accepts fieldKey/comparison as well as field/operator.",
+    "Unknown server filter fields cause an explicit error instead of silently returning unfiltered documents.",
+    "Incomplete base lists no longer produce partial filter previews.",
+    "Server filter pages are collected before one render; only complete filter results are reusable from cache."
+  ],
+  "multi_page_regression": "Two mocked pages publish no intermediate result and render exactly once after the last page.",
+  "scope": "One real customer equality filter plus mocked multi-page coverage; timing is a sample, not a guarantee for all filter types."
+}

@@ -13,16 +13,24 @@ const PogruzkaDocEditor = {
   activeTab: "realizations",
 
   init: function() {
+    const win = document.getElementById("pogruzkaDocEditorWindow");
+    if (win) {
+      win.style.display = "none";
+      win.classList.add("minimized");
+      win.classList.remove("active");
+    }
+
     if (window.MdiManager) {
       MdiManager.registerWindow("pogruzkaDocEditorWindow", {
         title: "Погрузка машины",
         icon: "🚚",
+        isDefault: true,
+        startHidden: true,
         closeFn: () => this.close()
       });
     }
 
     // Keyboard navigation inside table
-    const win = document.getElementById("pogruzkaDocEditorWindow");
     if (win && !win._hasDocKeyNav) {
       win._hasDocKeyNav = true;
       win.addEventListener("keydown", (e) => {

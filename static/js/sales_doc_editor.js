@@ -12,13 +12,37 @@ const SalesDocEditor = {
   selectedRowIdx: null,
   activeTab: "tovary",
 
-  open: function(docNumber, docDate) {
+  getActiveWin: function() {
+    if (window.MdiManager && window.MdiManager.activeWindowId) {
+      const activeEl = document.getElementById(window.MdiManager.activeWindowId);
+      if (activeEl && (activeEl.id.startsWith("docEditorWindow_") || activeEl.id === "salesDocEditorWindow")) {
+        return activeEl;
+      }
+    }
+    const openWins = Array.from(document.querySelectorAll(".mdi-window[id^='docEditorWindow_'], #salesDocEditorWindow"))
+      .filter(w => w.style.display !== "none");
+    if (openWins.length > 0) {
+      openWins.sort((a, b) => (parseInt(b.style.zIndex || 0) - parseInt(a.style.zIndex || 0)));
+      return openWins[0];
+    }
+    return document.getElementById("salesDocEditorWindow");
+  },
+
+  open: function(docNumber, docDate, docType) {
     if (!docNumber) return;
     this.currentDocNumber = docNumber;
     this.currentDocDate = docDate || "";
+    this.currentDocType = docType || "РеализацияТоваровУслуг";
 
-    const safeNum = String(docNumber).replace(/[^a-zA-Z0-9_-]/g, "_");
-    const winId = `salesDocEditorWindow_${safeNum}`;
+    let typeKey = "sales";
+    if (this.currentDocType === "ВозвратТоваровОтПокупателя") typeKey = "vozvrat";
+    else if (this.currentDocType === "ЗаказПокупателя") typeKey = "zakaz";
+    else if (this.currentDocType === "РеализацияТоваровУслуг") typeKey = "realiz";
+    else typeKey = String(this.currentDocType).replace(/[^a-zA-Z0-9_-]/g, "");
+
+    const cleanNum = String(docNumber).replace("С", "C").replace("с", "c").trim();
+    const safeNum = cleanNum.replace(/[^a-zA-Z0-9_-]/g, "_");
+    const winId = `docEditorWindow_${typeKey}_${safeNum}`;
     let win = document.getElementById(winId);
 
     if (!win) {
@@ -31,13 +55,17 @@ const SalesDocEditor = {
       // Hər yeni sənəd üçün unikal müstəqil pəncərə klonlayırıq
       win = baseWin.cloneNode(true);
       win.id = winId;
+      win.dataset.docType = this.currentDocType;
+      win.dataset.docNumber = docNumber;
       win.style.display = "flex";
       
       // Pilləli offset (cascade) veririk ki, pəncərələr bir-birinin üstünü tam örtməsin
-      const existingDocs = document.querySelectorAll(".mdi-window[id^='salesDocEditorWindow_']").length;
+      const existingDocs = document.querySelectorAll(".mdi-window[id^='docEditorWindow_']").length;
       const offset = (existingDocs * 24) % 150;
       win.style.top = `${25 + offset}px`;
       win.style.left = `${35 + offset}px`;
+      const curTopZ = (window.MdiManager ? window.MdiManager.topZIndex + 10 : 200);
+      win.style.zIndex = curTopZ;
       document.getElementById("mdiWorkspace").appendChild(win);
 
       win.setAttribute("onmousedown", `MdiManager.activateWindow('${winId}')`);
@@ -52,8 +80,8 @@ const SalesDocEditor = {
         };
       }
 
-      // Daxili bağlama düymələri
-      const closeBtns = win.querySelectorAll(".mdi-win-btn-close");
+      // Daxili bağlama düymələri (həm başlıq X, həm də alt 'Закрыть' düyməsi)
+      const closeBtns = win.querySelectorAll(".mdi-win-btn-close, button[onclick*='SalesDocEditor.close']");
       closeBtns.forEach(b => {
         b.removeAttribute("onclick");
         b.onclick = (e) => {
@@ -77,13 +105,28 @@ const SalesDocEditor = {
           MdiManager.minimizeWindow(winId);
         };
       });
+    } else {
+      win.style.display = "flex";
+      win.classList.remove("minimized");
+      win.classList.add("active");
+    }
+
+    let mdiPrefix = "Реализация";
+    let docIcon = "📋";
+
+    if (this.currentDocType === "ВозвратТоваровОтПокупателя") {
+      mdiPrefix = "Возврат";
+      docIcon = "↩️";
+    } else if (this.currentDocType === "ЗаказПокупателя") {
+      mdiPrefix = "Заказ";
+      docIcon = "🛒";
     }
 
     // MDI Manager-də aktivləşdiririk
     if (window.MdiManager) {
       MdiManager.activateWindow(winId, {
-        title: `Реализация: № ${docNumber}`,
-        icon: "📋",
+        title: `${mdiPrefix}: № ${docNumber}`,
+        icon: docIcon,
         closeFn: () => SalesDocEditor.closeInstance(winId)
       });
     } else {
@@ -92,13 +135,21 @@ const SalesDocEditor = {
       win.classList.add("active");
     }
 
+    // Əgər aktivləşdirildikdən sonra da z-index jurnaldan aşağı qalıbsa, ən önə çəkirik
+    if (window.MdiManager && win) {
+      win.style.zIndex = Math.max(parseInt(win.style.zIndex || 0), window.MdiManager.topZIndex);
+    }
+
     this.showLoadingInWin(win, true);
-    this.fetchDocumentDataForWin(win, docNumber);
+    this.fetchDocumentDataForWin(win, docNumber, this.currentDocType);
   },
 
   closeInstance: function(winId) {
     if (window.MdiManager) {
       MdiManager.closeWindow(winId);
+      if (window.MdiManager.windows && window.MdiManager.windows[winId]) {
+        delete window.MdiManager.windows[winId];
+      }
     }
     const win = document.getElementById(winId);
     if (win) {
@@ -111,7 +162,18 @@ const SalesDocEditor = {
   },
 
   close: function() {
-    this.closeInstance(`salesDocEditorWindow_${String(this.currentDocNumber).replace(/[^a-zA-Z0-9_-]/g, "_")}`);
+    const win = this.getActiveWin();
+    if (win && win.id && win.id !== "salesDocEditorWindow") {
+      this.closeInstance(win.id);
+      return;
+    }
+    let typeKey = "sales";
+    if (this.currentDocType === "ВозвратТоваровОтПокупателя") typeKey = "vozvrat";
+    else if (this.currentDocType === "ЗаказПокупателя") typeKey = "zakaz";
+    else if (this.currentDocType === "РеализацияТоваровУслуг") typeKey = "realiz";
+    const cleanNum = String(this.currentDocNumber || "").replace("С", "C").replace("с", "c").trim();
+    const safeNum = cleanNum.replace(/[^a-zA-Z0-9_-]/g, "_");
+    this.closeInstance(`docEditorWindow_${typeKey}_${safeNum}`);
   },
 
   showLoadingInWin: function(win, show) {
@@ -120,17 +182,18 @@ const SalesDocEditor = {
   },
 
   fetchDocumentData: function(docNumber) {
-    this.fetchDocumentDataForWin(document.getElementById("salesDocEditorWindow"), docNumber);
+    this.fetchDocumentDataForWin(document.getElementById("salesDocEditorWindow"), docNumber, this.currentDocType);
   },
 
-  fetchDocumentDataForWin: function(win, docNumber) {
+  fetchDocumentDataForWin: function(win, docNumber, docType) {
+    const dType = docType || (win ? win.dataset.docType : null) || this.currentDocType || "РеализацияТоваровУслуг";
     const creds = window.SessionManager ? SessionManager.getCredentials() : {};
     fetch("/api/documents/details", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         ...creds,
-        doc_type: "РеализацияТоваровУслуг",
+        doc_type: dType,
         number: docNumber
       })
     })
@@ -161,10 +224,14 @@ const SalesDocEditor = {
           unit: String(it.unit || "əd").trim(),
           coefficient: Number(it.coefficient || 1.0),
           price: pr,
+          discount_auto: Number(it.discount_auto != null ? it.discount_auto : 0),
+          discount_manual: Number(it.discount_manual != null ? it.discount_manual : (it.discount_percent || 0)),
           sum: sm,
           vat_rate: String(it.vat_rate || (vatSm > 0 ? "18%" : "Без НДС")).trim(),
           vat_sum: vatSm,
           total: tot,
+          account_bu: String(it.account_bu || "—").trim(),
+          income_account_bu: String(it.income_account_bu || "—").trim(),
           price_type: String(it.price_type || "").trim()
         };
       });
@@ -172,12 +239,20 @@ const SalesDocEditor = {
       this.filteredItems = [...this.items];
       this.selectedRowIdx = this.filteredItems.length > 0 ? 0 : null;
 
-      this.renderHeaderInWin(win, this.header, docNumber);
+      this.renderHeaderInWin(win, this.header, docNumber, dType);
       this.renderTableInWin(win, this.filteredItems);
       this.recalculateTotalsInWin(win, this.filteredItems);
 
+      // Pogruzka tab is only relevant for Realizatsiya
+      const pogruzkaBtn = win.querySelector("#sdeTabBtnPogruzka, [id^='sdeTabBtnPogruzka']");
+      if (pogruzkaBtn) {
+        pogruzkaBtn.style.display = (dType === "РеализацияТоваровУслуг") ? "inline-flex" : "none";
+      }
+
       this.pogruzki = res.pogruzki || [];
-      this.renderPogruzkaTabInWin(win, this.pogruzki);
+      if (dType === "РеализацияТоваровУслуг") {
+        this.renderPogruzkaTabInWin(win, this.pogruzki);
+      }
       this.switchTab("tovary");
     })
     .catch(err => {
@@ -187,15 +262,30 @@ const SalesDocEditor = {
     });
   },
 
-  renderHeaderInWin: function(win, header, docNumber) {
+  renderHeaderInWin: function(win, header, docNumber, docType) {
     if (!win) return;
     const h = header || this.header;
     const docNum = h.number || docNumber || this.currentDocNumber || "";
     const docDt = h.date || this.currentDocDate || "";
+    const dType = docType || (win ? win.dataset.docType : null) || this.currentDocType || "РеализацияТоваровУслуг";
+
+    let titlePrefix = "Реализация товаров и услуг";
+    let docIcon = "📋";
+    if (dType === "ВозвратТоваровОтПокупателя") {
+      titlePrefix = "Возврат товаров от покупателя";
+      docIcon = "↩️";
+    } else if (dType === "ЗаказПокупателя") {
+      titlePrefix = "Заказ покупателя";
+      docIcon = "🛒";
+    }
 
     const titleEl = win.querySelector("#sdeWindowTitle, .mdi-win-title-text");
     if (titleEl) {
-      titleEl.textContent = `Реализация товаров и услуг: № ${docNum} от ${docDt}`;
+      titleEl.textContent = `${titlePrefix}: № ${docNum} от ${docDt}`;
+    }
+    const iconEl = win.querySelector(".mdi-win-icon");
+    if (iconEl) {
+      iconEl.textContent = docIcon;
     }
 
     const badgeEl = win.querySelector("#sdeStatusBadge, [id^='sdeStatusBadge']");
@@ -217,25 +307,27 @@ const SalesDocEditor = {
     setVal("sdeDocNumber", docNum);
     setVal("sdeDocDate", docDt);
     setVal("sdeDocOrg", h.organization || "Aztrade MMC");
-    setVal("sdeDocKontragent", h.kontragent || "TEST 12B");
-    setVal("sdeDocContract", h.contract || "Договор поставки");
-    setVal("sdeDocWarehouse", h.warehouse || "Основной склад");
-    setVal("sdeDocPriceType", h.price_type || "Оптовая");
+    setVal("sdeDocKontragent", h.kontragent || "");
+    setVal("sdeDocContract", h.contract || "");
+    setVal("sdeDocWarehouse", h.warehouse || "");
+    setVal("sdeDocPriceType", h.price_type || "");
     setVal("sdeDocCurrency", h.currency || "AZN");
     setVal("sdeDocComment", h.comment || "");
 
     const respEl = win.querySelector("#sdeDocResponsible, [id^='sdeDocResponsible']");
-    if (respEl) respEl.textContent = h.responsible || "Emin";
+    if (respEl) respEl.textContent = h.responsible || "-";
   },
 
   renderTableInWin: function(win, items) {
+    if (!win) win = this.getActiveWin() || document.getElementById("salesDocEditorWindow");
     if (!win) return;
     const tbody = win.querySelector("#sdeTableBody, [id^='sdeTableBody']");
     if (!tbody) return;
 
     const list = items || this.filteredItems || [];
     if (!list.length) {
-      tbody.innerHTML = `<tr><td colspan="12" style="padding: 30px; text-align: center; color: #888; font-style: italic;">Накладная не содержит строк товаров</td></tr>`;
+      tbody.innerHTML = `<tr><td colspan="16" style="padding: 30px; text-align: center; color: #888; font-style: italic;">Накладная не содержит строк товаров</td></tr>`;
+      this.recalculateTotalsInWin(win, list);
       return;
     }
 
@@ -254,37 +346,94 @@ const SalesDocEditor = {
           <td style="text-align: center; border: 1px solid #d4d0c8; padding: 1px 4px;">${this.escapeHtml(it.unit)}</td>
           <td style="text-align: right; border: 1px solid #d4d0c8; padding: 1px 4px;">${Number(it.coefficient || 1).toFixed(2)}</td>
           <td style="text-align: right; border: 1px solid #d4d0c8; padding: 1px 4px;">${Number(it.price || 0).toFixed(2)}</td>
+          <td style="text-align: right; border: 1px solid #d4d0c8; padding: 1px 4px; color: ${Number(it.discount_auto || 0) > 0 ? '#002060; font-weight: bold;' : '#777;'}">${Number(it.discount_auto || 0).toFixed(2)}%</td>
+          <td style="text-align: right; border: 1px solid #d4d0c8; padding: 1px 4px; color: ${Number(it.discount_manual || 0) > 0 ? '#002060; font-weight: bold;' : '#777;'}">${Number(it.discount_manual || 0).toFixed(2)}%</td>
           <td style="text-align: right; border: 1px solid #d4d0c8; padding: 1px 4px; font-weight: bold;">${Number(it.sum || 0).toFixed(2)}</td>
           <td style="text-align: center; border: 1px solid #d4d0c8; padding: 1px 4px;">${this.escapeHtml(it.vat_rate)}</td>
           <td style="text-align: right; border: 1px solid #d4d0c8; padding: 1px 4px;">${Number(it.vat_sum || 0).toFixed(2)}</td>
           <td style="text-align: right; border: 1px solid #d4d0c8; padding: 1px 4px; font-weight: bold; color: #002060;">${Number(it.total || 0).toFixed(2)}</td>
+          <td style="text-align: center; border: 1px solid #d4d0c8; padding: 1px 4px; font-weight: 500; color: #002060;">${this.escapeHtml(it.account_bu || '—')}</td>
+          <td style="text-align: center; border: 1px solid #d4d0c8; padding: 1px 4px; font-weight: 500; color: #002060;">${this.escapeHtml(it.income_account_bu || '—')}</td>
         </tr>
       `;
     });
     tbody.innerHTML = html;
+    this.recalculateTotalsInWin(win, list);
   },
 
   recalculateTotalsInWin: function(win, items) {
+    if (!win) win = this.getActiveWin() || document.getElementById("salesDocEditorWindow");
     if (!win) return;
-    const list = items || this.filteredItems || [];
-    let totQty = 0, totSum = 0, totVat = 0, totGrand = 0;
+    const list = items || this.filteredItems || this.items || [];
+
+    let totQty = 0;
+    let totBase = 0;       // İlkin məbləğ (Endirimsiz: qiymət * say)
+    let totDiscount = 0;   // Endirim məbləği
+    let totNet = 0;        // Məbləğ (Сумма без НДС / sətir məbləği)
+    let totVat = 0;        // ƏDV məbləği
+    let totGrand = 0;      // Yekun / Son Məbləğ (Всего)
+
     list.forEach(it => {
-      totQty += (Number(it.quantity) || 0);
-      totSum += (Number(it.sum) || 0);
-      totVat += (Number(it.vat_sum) || 0);
-      totGrand += (Number(it.total) || 0);
+      const q = Number(it.quantity || 0);
+      const p = Number(it.price || 0);
+      const lineBase = Number((q * p).toFixed(2));
+      const lineSum = Number((it.sum != null ? it.sum : lineBase).toFixed(2));
+
+      const dAuto = Number(it.discount_auto || 0);
+      const dMan = Number(it.discount_manual || 0);
+      const dPercent = dAuto + dMan;
+
+      let lineDisc = 0;
+      if (lineBase > lineSum) {
+        lineDisc = Number((lineBase - lineSum).toFixed(2));
+      } else if (dPercent > 0) {
+        lineDisc = Number((lineBase * (dPercent / 100)).toFixed(2));
+      }
+
+      const vatSm = Number((it.vat_sum != null ? it.vat_sum : 0).toFixed(2));
+      const totSm = Number((it.total != null ? it.total : lineSum).toFixed(2));
+
+      totQty += q;
+      totBase += (lineBase > lineSum ? lineBase : (lineSum + lineDisc));
+      totDiscount += lineDisc;
+      totNet += lineSum;
+      totVat += vatSm;
+      totGrand += totSm;
     });
 
     const setTxt = (id, val) => {
-      const el = win.querySelector(`#${id}, [id^='${id}']`);
+      const el = win ? win.querySelector(`#${id}, [id^='${id}']`) : document.getElementById(id);
       if (el) el.textContent = val;
+      const globalEl = document.getElementById(id);
+      if (globalEl && globalEl !== el) globalEl.textContent = val;
     };
 
-    setTxt("sdeFooterQty", totQty.toLocaleString("ru-RU"));
-    setTxt("sdeFooterSum", totSum.toFixed(2) + " AZN");
-    setTxt("sdeFooterVat", totVat.toFixed(2) + " AZN");
-    setTxt("sdeFooterTotal", totGrand.toFixed(2) + " AZN");
+    // 1C standard: Əgər sənəddə ƏDV daxildirsə (Всего == Сумма), "Сумма без НДС" = Всего - НДС
+    const netWithoutVat = (Math.abs(totGrand - totNet) < 0.05 && totVat > 0)
+      ? Math.max(0, totGrand - totVat)
+      : totNet;
+
+    const baseStr = `${totBase.toFixed(2)} AZN`;
+    const discStr = `${totDiscount > 0 ? '-' : ''}${totDiscount.toFixed(2)} AZN`;
+    const netStr = `${netWithoutVat.toFixed(2)} AZN`;
+    const vatStr = `${totVat.toFixed(2)} AZN`;
+    const grandStr = `${totGrand.toFixed(2)} AZN`;
+    const rowsBadgeStr = `Строк: ${list.length}`;
+
+    // Update the 1C Summary Panel in Footer
+    setTxt("sdeTotalSumBase", baseStr);
+    setTxt("sdeTotalDiscount", discStr);
+    setTxt("sdeTotalSumNet", netStr);
+    setTxt("sdeTotalSumVat", vatStr);
+    setTxt("sdeTotalSumGross", grandStr);
+
+    // Update row count badges and fallbacks
+    setTxt("sdeRowCountBadge", rowsBadgeStr);
     setTxt("sdeStatusRowCount", `${list.length} строк`);
+    setTxt("sdeFooterQty", totQty.toLocaleString("ru-RU"));
+    setTxt("sdeFooterSum", netStr);
+    setTxt("sdeFooterVat", vatStr);
+    setTxt("sdeFooterTotal", grandStr);
   },
 
   renderHeader: function() {
@@ -328,7 +477,9 @@ const SalesDocEditor = {
   },
 
   renderTable: function() {
-    const tbody = document.getElementById("sdeTableBody");
+    const win = this.getActiveWin() || document.getElementById("salesDocEditorWindow");
+    if (!win) return;
+    const tbody = win.querySelector("#sdeTableBody, [id^='sdeTableBody']");
     if (!tbody) return;
 
     if (!this.filteredItems.length) {
@@ -403,6 +554,16 @@ const SalesDocEditor = {
                    style="width: 100%; height: 19px; text-align: right; border: 1px solid transparent; background: transparent; font-family: Tahoma, sans-serif; font-size: 11px; font-weight: bold; outline: none; padding: 0 2px; box-sizing: border-box;">
           </td>
 
+          <!-- % Скидки (Авто) -->
+          <td data-col="discount_auto" style="text-align: right; border: 1px solid #d4d0c8; padding: 2px 4px; color: ${Number(it.discount_auto || 0) > 0 ? '#002060; font-weight: bold;' : '#777;'}; user-select: text;" onclick="SalesDocEditor.selectCell(${idx}, 'discount_auto', this, event)">
+            ${Number(it.discount_auto || 0).toFixed(2)}%
+          </td>
+
+          <!-- % Скидки (Ручн) -->
+          <td data-col="discount_manual" style="text-align: right; border: 1px solid #d4d0c8; padding: 2px 4px; color: ${Number(it.discount_manual || 0) > 0 ? '#002060; font-weight: bold;' : '#777;'}; user-select: text;" onclick="SalesDocEditor.selectCell(${idx}, 'discount_manual', this, event)">
+            ${Number(it.discount_manual || 0).toFixed(2)}%
+          </td>
+
           <!-- Сумма -->
           <td data-col="sum" style="text-align: right; border: 1px solid #d4d0c8; padding: 2px 6px; font-weight: bold; color: #111; user-select: text;" onclick="SalesDocEditor.selectCell(${idx}, 'sum', this, event)">
             ${Number(it.sum).toFixed(2)}
@@ -420,12 +581,23 @@ const SalesDocEditor = {
           <td data-col="total" style="text-align: right; border: 1px solid #d4d0c8; padding: 2px 6px; font-weight: bold; color: #002060; user-select: text;" onclick="SalesDocEditor.selectCell(${idx}, 'total', this, event)">
             ${Number(it.total).toFixed(2)}
           </td>
+
+          <!-- Счет БУ -->
+          <td data-col="account_bu" style="text-align: center; border: 1px solid #d4d0c8; padding: 2px 4px; font-weight: 500; color: #002060; user-select: text;" onclick="SalesDocEditor.selectCell(${idx}, 'account_bu', this, event)">
+            ${this.escapeHtml(it.account_bu || '—')}
+          </td>
+
+          <!-- Счет доходов -->
+          <td data-col="income_account_bu" style="text-align: center; border: 1px solid #d4d0c8; padding: 2px 4px; font-weight: 500; color: #002060; user-select: text;" onclick="SalesDocEditor.selectCell(${idx}, 'income_account_bu', this, event)">
+            ${this.escapeHtml(it.income_account_bu || '—')}
+          </td>
         </tr>
       `;
     });
 
     tbody.innerHTML = html;
     this.updateRowCount();
+    this.recalculateTotals();
   },
 
   selectedColKey: "name",
@@ -435,7 +607,8 @@ const SalesDocEditor = {
     this.selectedRowIdx = rowIdx;
     if (colKey) this.selectedColKey = colKey;
 
-    const tbody = document.getElementById("sdeTableBody");
+    const win = this.getActiveWin() || document.getElementById("salesDocEditorWindow");
+    const tbody = win ? win.querySelector("#sdeTableBody, [id^='sdeTableBody']") : document.getElementById("sdeTableBody");
     if (!tbody) return;
     const rows = tbody.querySelectorAll("tr");
     rows.forEach((r, i) => {
@@ -504,12 +677,15 @@ const SalesDocEditor = {
     if (!it) return;
     const val = parseFloat(String(rawVal).replace(",", ".")) || 0;
     it.quantity = val;
-    it.sum = Number((it.quantity * it.price).toFixed(2));
+    const base = Number((it.quantity * it.price).toFixed(2));
+    const discPct = Number(it.discount_auto || 0) + Number(it.discount_manual || 0);
+    const discAmount = discPct > 0 ? Number((base * (discPct / 100)).toFixed(2)) : 0;
+    it.sum = Number((base - discAmount).toFixed(2));
     it.vat_sum = (it.vat_rate === "Без НДС") ? 0.0 : Number((it.sum * 0.18).toFixed(2));
     it.total = Number((it.sum + it.vat_sum).toFixed(2));
 
-    this.renderTable();
-    this.recalculateTotals();
+    const win = this.getActiveWin();
+    this.renderTableInWin(win, this.filteredItems);
   },
 
   onPriceChange: function(idx, rawVal) {
@@ -517,12 +693,15 @@ const SalesDocEditor = {
     if (!it) return;
     const val = parseFloat(String(rawVal).replace(",", ".")) || 0;
     it.price = val;
-    it.sum = Number((it.quantity * it.price).toFixed(2));
+    const base = Number((it.quantity * it.price).toFixed(2));
+    const discPct = Number(it.discount_auto || 0) + Number(it.discount_manual || 0);
+    const discAmount = discPct > 0 ? Number((base * (discPct / 100)).toFixed(2)) : 0;
+    it.sum = Number((base - discAmount).toFixed(2));
     it.vat_sum = (it.vat_rate === "Без НДС") ? 0.0 : Number((it.sum * 0.18).toFixed(2));
     it.total = Number((it.sum + it.vat_sum).toFixed(2));
 
-    this.renderTable();
-    this.recalculateTotals();
+    const win = this.getActiveWin();
+    this.renderTableInWin(win, this.filteredItems);
   },
 
   onNameChange: function(idx, val) {
@@ -531,35 +710,21 @@ const SalesDocEditor = {
   },
 
   recalculateTotals: function() {
-    let totNet = 0.0;
-    let totVat = 0.0;
-    let totGross = 0.0;
-
-    this.items.forEach(it => {
-      totNet += Number(it.sum || 0);
-      totVat += Number(it.vat_sum || 0);
-      totGross += Number(it.total || (it.sum + it.vat_sum));
-    });
-
-    const netEl = document.getElementById("sdeTotalSumNet");
-    if (netEl) netEl.textContent = `${totNet.toFixed(2)} AZN`;
-
-    const vatEl = document.getElementById("sdeTotalSumVat");
-    if (vatEl) vatEl.textContent = `${totVat.toFixed(2)} AZN`;
-
-    const grossEl = document.getElementById("sdeTotalSumGross");
-    if (grossEl) grossEl.textContent = `${totGross.toFixed(2)} AZN`;
+    const win = this.getActiveWin() || document.getElementById("salesDocEditorWindow");
+    this.recalculateTotalsInWin(win, this.filteredItems || this.items);
   },
 
   updateRowCount: function() {
-    const badge = document.getElementById("sdeRowCountBadge");
+    const win = this.getActiveWin() || document.getElementById("salesDocEditorWindow");
+    const badge = win ? win.querySelector("#sdeRowCountBadge, [id^='sdeRowCountBadge']") : document.getElementById("sdeRowCountBadge");
     if (badge) {
-      badge.textContent = `Строк: ${this.filteredItems.length} (Всего: ${this.items.length})`;
+      badge.textContent = `Строк: ${this.filteredItems.length}`;
     }
   },
 
   addRow: function() {
-    const searchInp = document.getElementById("sdeTableSearchInp");
+    const win = this.getActiveWin();
+    const searchInp = win ? win.querySelector("#sdeTableSearchInp, [id^='sdeTableSearchInp']") : document.getElementById("sdeTableSearchInp");
     if (searchInp && searchInp.value.trim()) {
       searchInp.value = "";
     }
@@ -573,10 +738,14 @@ const SalesDocEditor = {
       unit: "əd",
       coefficient: 1.0,
       price: 0.0,
+      discount_auto: 0.0,
+      discount_manual: 0.0,
       sum: 0.0,
       vat_rate: "18%",
       vat_sum: 0.0,
       total: 0.0,
+      account_bu: "41.01",
+      income_account_bu: "46.01",
       price_type: ""
     };
 
@@ -584,12 +753,11 @@ const SalesDocEditor = {
     this.filteredItems = [...this.items];
     this.selectedRowIdx = this.filteredItems.length - 1;
 
-    this.renderTable();
-    this.recalculateTotals();
+    this.renderTableInWin(win, this.filteredItems);
 
     // Scroll to bottom
     setTimeout(() => {
-      const wrapper = document.getElementById("sdeTableWrapper");
+      const wrapper = win ? win.querySelector("#sdeTableWrapper, [id^='sdeTableWrapper']") : document.getElementById("sdeTableWrapper");
       if (wrapper) wrapper.scrollTop = wrapper.scrollHeight;
     }, 50);
   },
@@ -602,16 +770,28 @@ const SalesDocEditor = {
     this.items = this.items.filter(x => x !== itm);
     this.items.forEach((x, i) => x.line_num = i + 1);
 
-    this.filterTableRows();
+    const win = this.getActiveWin();
+    const inp = win ? win.querySelector("#sdeTableSearchInp, [id^='sdeTableSearchInp']") : document.getElementById("sdeTableSearchInp");
+    const q = inp ? inp.value.trim().toLowerCase() : "";
+    if (!q) {
+      this.filteredItems = [...this.items];
+    } else {
+      this.filteredItems = this.items.filter(it => {
+        return (it.name && it.name.toLowerCase().includes(q)) ||
+               (it.code && it.code.toLowerCase().includes(q)) ||
+               (it.artikul && it.artikul.toLowerCase().includes(q));
+      });
+    }
+
     if (this.selectedRowIdx >= this.filteredItems.length) {
       this.selectedRowIdx = this.filteredItems.length - 1;
     }
-    this.renderTable();
-    this.recalculateTotals();
+    this.renderTableInWin(win, this.filteredItems);
   },
 
   filterTableRows: function() {
-    const inp = document.getElementById("sdeTableSearchInp");
+    const win = this.getActiveWin() || document.getElementById("salesDocEditorWindow");
+    const inp = win ? win.querySelector("#sdeTableSearchInp, [id^='sdeTableSearchInp']") : document.getElementById("sdeTableSearchInp");
     const q = inp ? inp.value.trim().toLowerCase() : "";
 
     if (!q) {
@@ -623,7 +803,7 @@ const SalesDocEditor = {
                (it.artikul && it.artikul.toLowerCase().includes(q));
       });
     }
-    this.renderTable();
+    this.renderTableInWin(win, this.filteredItems);
   },
 
   // Lupa (🔍): Opens the INSIDE of that specific nomenclature item (Карточка номенклатуры / Элемент)
@@ -927,9 +1107,24 @@ const SalesDocEditor = {
   pogruzki: [],
 
   getActiveWin: function() {
+    if (window.MdiManager && MdiManager.activeWindowId) {
+      const activeEl = document.getElementById(MdiManager.activeWindowId);
+      if (activeEl && (activeEl.id.startsWith("docEditorWindow_") || activeEl.id.startsWith("salesDocEditorWindow_"))) {
+        return activeEl;
+      }
+    }
     if (this.currentDocNumber) {
-      const winId = `salesDocEditorWindow_${String(this.currentDocNumber).replace(/[^a-zA-Z0-9_-]/g, "_")}`;
-      const win = document.getElementById(winId);
+      let typeKey = "sales";
+      if (this.currentDocType === "ВозвратТоваровОтПокупателя") typeKey = "vozvrat";
+      else if (this.currentDocType === "ЗаказПокупателя") typeKey = "zakaz";
+      else if (this.currentDocType === "РеализацияТоваровУслуг") typeKey = "realiz";
+      const cleanNum = String(this.currentDocNumber).replace("С", "C").replace("с", "c").trim();
+      const safeNum = cleanNum.replace(/[^a-zA-Z0-9_-]/g, "_");
+      const safeDocType = String(this.currentDocType || "sales").replace(/[^a-zA-Z0-9_-]/g, "_");
+      const rawSafeNum = String(this.currentDocNumber).replace(/[^a-zA-Z0-9_-]/g, "_");
+      const win = document.getElementById(`docEditorWindow_${typeKey}_${safeNum}`)
+               || document.getElementById(`docEditorWindow_${safeDocType}_${rawSafeNum}`)
+               || document.getElementById(`salesDocEditorWindow_${safeNum}`);
       if (win) return win;
     }
     return document.getElementById("salesDocEditorWindow");

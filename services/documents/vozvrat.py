@@ -20,6 +20,8 @@ def get_vozvrat_list(conn, payload):
         {"key": "date", "label": "Дата", "width": 145, "align": "left"},
         {"key": "number", "label": "Номер", "width": 115, "align": "left"},
         {"key": "kontragent", "label": "Контрагент", "width": 240, "align": "left"},
+        {"key": "golovnoy_kontragent", "label": "Головной контрагент", "width": 180, "align": "left"},
+        {"key": "agent", "label": "Агент", "width": 140, "align": "left"},
         {"key": "amount", "label": "Сумма", "width": 110, "align": "right"},
         {"key": "warehouse", "label": "Склад", "width": 160, "align": "left"},
         {"key": "deal", "label": "Сделка / Заказ", "width": 130, "align": "left"},
@@ -55,12 +57,20 @@ def get_vozvrat_list(conn, payload):
     if search_str:
         q_doc.SetParameter("SearchVal", f"%{search_str}%")
         debug_params["SearchVal"] = f"%{search_str}%"
+        wh_search = f" ИЛИ {wh_attr}.Наименование ПОДОБНО &SearchVal" if wh_attr else ""
         s_cond = (
             "(Т.Номер ПОДОБНО &SearchVal "
             "ИЛИ Т.Контрагент.Наименование ПОДОБНО &SearchVal "
             "ИЛИ Т.Комментарий ПОДОБНО &SearchVal "
             "ИЛИ Т.ДоговорКонтрагента.Наименование ПОДОБНО &SearchVal"
-            + (f" ИЛИ ПРЕДСТАВЛЕНИЕ({wh_attr}) ПОДОБНО &SearchVal)" if wh_attr else ")")
+            + wh_search +
+            " ИЛИ Т.Ссылка В ("
+            "     ВЫБРАТЬ РАЗЛИЧНЫЕ ТТ_Поиск.Ссылка "
+            "     ИЗ Документ.ВозвратТоваровОтПокупателя.Товары КАК ТТ_Поиск "
+            "     ГДЕ ТТ_Поиск.Номенклатура.Наименование ПОДОБНО &SearchVal "
+            "        ИЛИ ТТ_Поиск.Номенклатура.Код ПОДОБНО &SearchVal "
+            "        ИЛИ ТТ_Поиск.Номенклатура.Артикул ПОДОБНО &SearchVal"
+            " ))"
         )
         where_parts.append(s_cond)
 
@@ -68,10 +78,13 @@ def get_vozvrat_list(conn, payload):
         "__doc_table": "Документ.ВозвратТоваровОтПокупателя",
         "comment": "Т.Комментарий",
         "kontragent": "Т.Контрагент.Наименование",
-        "warehouse": f"ПРЕДСТАВЛЕНИЕ({wh_attr})" if wh_attr else "",
+        "golovnoy_kontragent": "Т.Контрагент.ГоловнойКонтрагент.Наименование",
+        "golovnoy_kontragent_code": "Т.Контрагент.ГоловнойКонтрагент.Код",
+        "agent": "Т.ДоговорКонтрагента.Агент.Наименование",
+        "warehouse": f"{wh_attr}.Наименование" if wh_attr else "",
         "deal": "Т.Сделка.Номер",
         "contract": "Т.ДоговорКонтрагента.Наименование",
-        "responsible": "ПРЕДСТАВЛЕНИЕ(Т.Ответственный)"
+        "responsible": "Т.Ответственный.Наименование"
     }
     narrow_search_to_column(payload, where_parts, field_map, q_doc)
     build_filter_conditions(filters, q_doc, where_parts, debug_params, field_map)
@@ -99,6 +112,8 @@ def get_vozvrat_list(conn, payload):
         Т.Проведен КАК Posted,
         Т.ПометкаУдаления КАК DeletionMark,
         Т.Контрагент.Наименование КАК Kontragent,
+        Т.Контрагент.ГоловнойКонтрагент.Наименование КАК GolovnoyKontragent,
+        Т.ДоговорКонтрагента.Агент.Наименование КАК Agent,
         Т.СуммаДокумента КАК Amount,
         {wh_sql_field}
         Т.Сделка.Номер КАК Deal,
@@ -115,6 +130,8 @@ def get_vozvrat_list(conn, payload):
 
     res_doc = q_doc.Execute().Choose()
     items = []
+    doc_refs = []
+    doc_ref_map = {}
     skipped = 0
 
     while res_doc.Next():
@@ -122,7 +139,10 @@ def get_vozvrat_list(conn, payload):
             skipped += 1
             continue
 
+        d_ref = res_doc.Ref
         d_num = str(res_doc.Number or "").strip()
+        doc_refs.append(d_ref)
+
         row_data = {
             "ref_key": d_num,
             "number": d_num,
@@ -130,17 +150,65 @@ def get_vozvrat_list(conn, payload):
             "posted": bool(res_doc.Posted),
             "deleted": bool(res_doc.DeletionMark),
             "kontragent": str(res_doc.Kontragent or "").strip(),
+            "golovnoy_kontragent": str(res_doc.GolovnoyKontragent or "").strip(),
+            "agent": str(res_doc.Agent or "").strip(),
             "amount": float(res_doc.Amount or 0),
             "warehouse": str(res_doc.Warehouse or "").strip(),
             "deal": str(res_doc.Deal or "").strip(),
             "contract": str(res_doc.Contract or "").strip(),
             "responsible": str(res_doc.Responsible or "").strip(),
-            "comment": str(res_doc.Comment or "").strip()
+            "comment": str(res_doc.Comment or "").strip(),
+            "nomenclatures": [],
+            "nom_keys": [],
+            "nomenclature": ""
         }
         items.append(row_data)
+        doc_ref_map[d_num] = row_data
 
         if limit_count and limit_count > 0 and len(items) >= limit_count:
             break
+
+    if doc_refs:
+        try:
+            arr_refs = conn.NewObject("Массив")
+            for r in doc_refs:
+                arr_refs.Add(r)
+            qp = conn.NewObject("Запрос")
+            qp.SetParameter("DocRefs", arr_refs)
+            qp.Text = """
+            ВЫБРАТЬ
+                ТТ.Ссылка.Номер КАК DocNumber,
+                ТТ.Номенклатура.Наименование КАК NomName,
+                ТТ.Номенклатура.Код КАК NomCode,
+                ТТ.Номенклатура.Артикул КАК NomArtikul
+            ИЗ
+                Документ.ВозвратТоваровОтПокупателя.Товары КАК ТТ
+            ГДЕ
+                ТТ.Ссылка В (&DocRefs)
+            """
+            rp = qp.Execute().Choose()
+            while rp.Next():
+                d_num = str(rp.DocNumber or "").strip()
+                target_row = doc_ref_map.get(d_num)
+                if not target_row:
+                    alt_num = d_num.replace("C", "С") if "C" in d_num else d_num.replace("С", "C")
+                    target_row = doc_ref_map.get(alt_num)
+                if target_row:
+                    nom_name = str(rp.NomName or "").strip()
+                    nom_code = str(rp.NomCode or "").strip()
+                    nom_art = str(rp.NomArtikul or "").strip()
+                    if nom_name and nom_name not in target_row["nomenclatures"]:
+                        target_row["nomenclatures"].append(nom_name)
+                    code_clean = nom_code.lstrip("0")
+                    key_str = f"{nom_code}|{code_clean}|{nom_art}|{nom_name}".lower()
+                    if key_str not in target_row["nom_keys"]:
+                        target_row["nom_keys"].append(key_str)
+
+            for item in items:
+                if item["nomenclatures"]:
+                    item["nomenclature"] = ", ".join(item["nomenclatures"][:5])
+        except Exception as e:
+            print(f"[VOZVRAT NOMENCLATURE BATCH ERROR] {e}")
 
     return {
         "items": items,
@@ -161,8 +229,15 @@ def get_vozvrat_list(conn, payload):
 
 def get_vozvrat_details(conn, payload):
     doc_number = payload.get("number", "").strip()
+    clean_num = doc_number.replace("С", "C").replace("с", "c")
+    alt_num = clean_num.replace("C", "С")
 
     q_det = conn.NewObject("Запрос")
+    q_det.SetParameter("DocNum", clean_num)
+    q_det.SetParameter("AltDocNum", alt_num)
+    q_det.SetParameter("DocNumLike", f"%{clean_num}%")
+    q_det.SetParameter("AltDocNumLike", f"%{alt_num}%")
+
     q_det.Text = """
     ВЫБРАТЬ ПЕРВЫЕ 1
         Т.Ссылка КАК Ref
@@ -170,16 +245,22 @@ def get_vozvrat_details(conn, payload):
         Документ.ВозвратТоваровОтПокупателя КАК Т
     ГДЕ
         Т.Номер = &DocNum
+        ИЛИ Т.Номер = &AltDocNum
         ИЛИ Т.Номер ПОДОБНО &DocNumLike
+        ИЛИ Т.Номер ПОДОБНО &AltDocNumLike
     """
-    q_det.SetParameter("DocNum", doc_number)
-    q_det.SetParameter("DocNumLike", f"%{doc_number}%")
     res_det = q_det.Execute().Choose()
     if not res_det.Next():
         raise ValueError(f"Возврат товаров №{doc_number} tapılmadı")
 
     v_ref = res_det.Ref
     doc_obj = v_ref.ПолучитьОбъект()
+
+    wh_obj = getattr(doc_obj, "СкладОрдер", None) or getattr(doc_obj, "Склад", None)
+    wh_name = str(getattr(wh_obj, "Наименование", "") or "").strip() if wh_obj else ""
+
+    pt_obj = getattr(doc_obj, "ТипЦен", None)
+    pt_name = str(getattr(pt_obj, "Наименование", "") or "").strip() if pt_obj else ""
 
     header_data = {
         "number": str(doc_obj.Номер).strip(),
@@ -189,12 +270,17 @@ def get_vozvrat_details(conn, payload):
         "organization": str(getattr(doc_obj.Организация, "Наименование", "") or "").strip() if getattr(doc_obj, "Организация", None) else "",
         "kontragent": str(getattr(doc_obj.Контрагент, "Наименование", "") or "").strip() if getattr(doc_obj, "Контрагент", None) else "",
         "contract": str(getattr(doc_obj.ДоговорКонтрагента, "Наименование", "") or "").strip() if getattr(doc_obj, "ДоговорКонтрагента", None) else "",
-        "warehouse": str(getattr(doc_obj.СкладОрдер, "Наименование", "") or "").strip() if getattr(doc_obj, "СкладОрдер", None) else "",
+        "warehouse": wh_name,
+        "price_type": pt_name,
         "amount": float(getattr(doc_obj, "СуммаДокумента", 0) or 0),
         "currency": str(getattr(doc_obj.ВалютаДокумента, "Наименование", "") or "").strip() if getattr(doc_obj, "ВалютаДокумента", None) else "AZN",
         "responsible": str(getattr(doc_obj.Ответственный, "Наименование", "") or "").strip() if getattr(doc_obj, "Ответственный", None) else "",
         "comment": str(getattr(doc_obj, "Комментарий", "") or "").strip(),
-        "deal": str(getattr(getattr(doc_obj, "Сделка", None), "Номер", "") or "").strip() if getattr(doc_obj, "Сделка", None) else ""
+        "deal": str(getattr(getattr(doc_obj, "Сделка", None), "Номер", "") or "").strip() if getattr(doc_obj, "Сделка", None) else "",
+        "bu_record": bool(getattr(doc_obj, "ОтражатьВБухгалтерскомУчете", False)),
+        "nu_record": bool(getattr(doc_obj, "ОтражатьВНалоговомУчете", False)),
+        "account_settlement": str(getattr(getattr(doc_obj, "СчетУчетаРасчетовСКонтрагентом", None), "Код", "") or "").strip(),
+        "account_advance": str(getattr(getattr(doc_obj, "СчетУчетаРасчетовПоАвансам", None), "Код", "") or "").strip()
     }
 
     tovary = []
@@ -202,6 +288,26 @@ def get_vozvrat_details(conn, payload):
         for idx, row in enumerate(doc_obj.Товары):
             nom_obj = row.Номенклатура if hasattr(row, "Номенклатура") else None
             ed_obj = row.ЕдиницаИзмерения if hasattr(row, "ЕдиницаИзмерения") else None
+            d_auto = float(getattr(row, "ПроцентАвтоматическихСкидок", 0) or 0)
+            d_manual = float(getattr(row, "ПроцентСкидкиНаценки", 0) or 0)
+            raw_vat = getattr(row, "СтавкаНДС", None)
+            vat_rate_str = ""
+            if raw_vat is not None:
+                try:
+                    vat_rate_str = str(conn.String(raw_vat)).strip()
+                except Exception:
+                    vat_rate_str = str(getattr(raw_vat, "Наименование", "") or "").strip()
+            if "18_118" in vat_rate_str or "18/118" in vat_rate_str: vat_rate_str = "18/118"
+            elif "18" in vat_rate_str: vat_rate_str = "18%"
+            elif "Без" in vat_rate_str: vat_rate_str = "ƏDV-siz"
+            elif not vat_rate_str: vat_rate_str = "0%"
+
+            acc_bu = str(getattr(getattr(row, "СчетУчетаБУ", None), "Код", "") or "").strip()
+            acc_inc = str(getattr(getattr(row, "СчетДоходовБУ", None), "Код", "") or "").strip()
+            acc_exp = str(getattr(getattr(row, "СчетРасходовБУ", None), "Код", "") or "").strip()
+            row_wh = str(getattr(getattr(row, "Склад", None), "Наименование", "") or "").strip()
+            row_series = str(getattr(getattr(row, "СерияНоменклатуры", None), "Наименование", "") or "").strip()
+
             tovary.append({
                 "line_number": int(getattr(row, "НомерСтроки", idx + 1)),
                 "nomenklatura": str(getattr(nom_obj, "Наименование", "") or "").strip() if nom_obj else "",
@@ -212,10 +318,17 @@ def get_vozvrat_details(conn, payload):
                 "coefficient": float(getattr(row, "Коэффициент", 1) or 1),
                 "price": float(getattr(row, "Цена", 0) or 0),
                 "amount": float(getattr(row, "Сумма", 0) or 0),
-                "discount_percent": float(getattr(row, "ПроцентСкидкиНаценки", 0) or 0),
-                "vat_rate": str(getattr(getattr(row, "СтавкаНДС", None), "Наименование", "") or ""),
+                "discount_auto": d_auto,
+                "discount_manual": d_manual,
+                "discount_percent": d_auto + d_manual,
+                "vat_rate": vat_rate_str,
                 "vat_amount": float(getattr(row, "СуммаНДС", 0) or 0),
-                "total_amount": float(getattr(row, "Сумма", 0) or 0)
+                "total_amount": float(getattr(row, "Сумма", 0) or 0),
+                "account_bu": acc_bu,
+                "income_account_bu": acc_inc,
+                "expense_account_bu": acc_exp,
+                "warehouse": row_wh,
+                "series": row_series
             })
 
     lines = []
@@ -233,7 +346,14 @@ def get_vozvrat_details(conn, payload):
             "vat_rate": t["vat_rate"],
             "vat_sum": t["vat_amount"],
             "total": t["total_amount"],
-            "discount_percent": t["discount_percent"]
+            "discount_auto": t["discount_auto"],
+            "discount_manual": t["discount_manual"],
+            "discount_percent": t["discount_percent"],
+            "account_bu": t["account_bu"],
+            "income_account_bu": t["income_account_bu"],
+            "expense_account_bu": t["expense_account_bu"],
+            "warehouse": t["warehouse"],
+            "series": t["series"]
         })
 
     return {

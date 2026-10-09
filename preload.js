@@ -3,7 +3,8 @@ const { contextBridge, ipcRenderer } = require('electron');
 const api = {
   minimize: () => ipcRenderer.send('window-minimize'),
   maximize: () => ipcRenderer.send('window-maximize'),
-  close: () => ipcRenderer.send('window-close')
+  close: () => ipcRenderer.send('window-close'),
+  onRefresh: (callback) => ipcRenderer.on('window-hotkey-refresh', callback)
 };
 
 try {

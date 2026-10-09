@@ -40,6 +40,9 @@ htmlcov/
 
 # --- Node.js & Electron ---
 node_modules/
+dist_app/
+server_dist/
+*.spec
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
@@ -62,6 +65,7 @@ epf_cache/
 skd_tovary_na_skladakh.xml
 
 # Local Exported Excel Files & Dumps
+exports/
 *.xlsx
 *.xls
 *.csv
@@ -81,7 +85,6 @@ data/*.db
 *.sqlite3
 *.db-journal
 *.sqlite3-journal
-!data/offline_1c_data.db
 
 # --- Logs & Run Artifacts ---
 *.log

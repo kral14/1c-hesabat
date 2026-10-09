@@ -1,0 +1,29 @@
+{
+  "server": "Test1C",
+  "ref": "Aztrade_test3",
+  "read_only": true,
+  "period": [
+    "2026-09-01 00:00:00",
+    "2026-09-30 23:59:59"
+  ],
+  "pages": [
+    {
+      "page": 1,
+      "rows": 0,
+      "seconds": 0.4055
+    }
+  ],
+  "connection_seconds": 8.6018,
+  "complete": true,
+  "total_rows": 0,
+  "duplicate_rows_across_pages": 0,
+  "full_load_query_seconds": 0.4055,
+  "refresh_seconds": [
+    0.0175,
+    0.0167
+  ],
+  "row_fields": [
+    "number",
+    "date"
+  ]
+}

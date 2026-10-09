@@ -1,5 +1,35 @@
 const { app, BrowserWindow, Menu, ipcMain } = require('electron');
 const path = require('path');
+const fs = require('fs');
+const child_process = require('child_process');
+
+let serverProc = null;
+
+function ensureServerRunning() {
+  if (app.isPackaged) {
+    const serverExe = path.join(process.resourcesPath, 'server_bin', '1c_server.exe');
+    if (fs.existsSync(serverExe)) {
+      console.log('[Electron] Packaged 1C server işə salınır:', serverExe);
+      serverProc = child_process.spawn(serverExe, [], {
+        cwd: path.dirname(serverExe),
+        windowsHide: true,
+        stdio: 'ignore'
+      });
+      serverProc.on('error', (err) => {
+        console.error('[Electron] Server xətası:', err);
+      });
+    }
+  }
+}
+
+function stopServer() {
+  if (serverProc) {
+    try {
+      child_process.execSync(`taskkill /F /T /PID ${serverProc.pid}`);
+    } catch (e) {}
+    serverProc = null;
+  }
+}
 
 function createWindow() {
   const win = new BrowserWindow({
@@ -53,16 +83,28 @@ function createWindow() {
     console.log(`[Renderer] ${msg} (${src ? path.basename(src) : 'inline'}:${line || ''})`);
   });
 
-  // Enable F5, Ctrl+R (Reload) and F12 / Ctrl+Shift+I (DevTools toggle)
+  // Enable F5 (Window Refresh), Ctrl+R (Reload) and F12 / Ctrl+Shift+I (DevTools toggle)
   win.webContents.on('before-input-event', (event, input) => {
     if (input.type === 'keyDown') {
-      if (input.key === 'F5' || ((input.control || input.meta) && input.key.toLowerCase() === 'r')) {
+      // F5: Tell web page to refresh active window in place, and PREVENT Chromium from reloading the whole app!
+      if (input.key === 'F5' || input.code === 'F5') {
+        event.preventDefault();
+        win.webContents.send('window-hotkey-refresh');
+        return;
+      }
+
+      // Ctrl+R: Full application reload (praqrami yenilemek Ctrl+R olmalidir)
+      if ((input.control || input.meta) && input.key.toLowerCase() === 'r') {
         win.reload();
         event.preventDefault();
+        return;
       }
+
+      // F12 / Ctrl+Shift+I: DevTools
       if (input.key === 'F12' || ((input.control || input.meta) && input.shift && input.key.toLowerCase() === 'i')) {
         win.webContents.toggleDevTools();
         event.preventDefault();
+        return;
       }
     }
   });
@@ -101,21 +143,42 @@ function createWindow() {
       win.loadURL('http://127.0.0.1:5050');
     }, 1200);
   });
+
+  return win;
 }
 
-app.whenReady().then(() => {
-  createWindow();
+const gotTheLock = app.requestSingleInstanceLock();
+if (!gotTheLock) {
+  app.quit();
+} else {
+  let mainWin = null;
 
-  app.on('activate', () => {
-    if (BrowserWindow.getAllWindows().length === 0) {
-      createWindow();
+  app.on('second-instance', () => {
+    if (mainWin) {
+      if (mainWin.isMinimized()) mainWin.restore();
+      mainWin.focus();
     }
   });
-});
 
-app.on('window-all-closed', () => {
-  if (process.platform !== 'darwin') {
-    app.quit();
-    process.exit(0);
-  }
-});
+  app.whenReady().then(() => {
+    ensureServerRunning();
+    mainWin = createWindow();
+
+    app.on('activate', () => {
+      if (BrowserWindow.getAllWindows().length === 0) {
+        mainWin = createWindow();
+      }
+    });
+  });
+
+  app.on('window-all-closed', () => {
+    stopServer();
+    if (process.platform !== 'darwin') {
+      app.quit();
+    }
+  });
+
+  app.on('will-quit', () => {
+    stopServer();
+  });
+}

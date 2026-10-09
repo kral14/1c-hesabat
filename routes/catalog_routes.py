@@ -7,6 +7,37 @@ from services.onec_service import one_c
 
 catalog_bp = Blueprint("catalog_bp", __name__)
 
+def _password_request_allowed(data):
+    if request.headers.get('Origin') not in (None, request.host_url.rstrip('/')):
+        return False
+    return (str(data.get('server', '')).casefold(), str(data.get('ref', '')).casefold()) == ('test1c', 'aztrade_test3') and not data.get('force_offline')
+
+
+@catalog_bp.route('/api/users/accounts', methods=['POST'])
+def user_accounts_endpoint():
+    data = request.json or {}
+    if not _password_request_allowed(data):
+        return jsonify(success=False, error='Доступно только для Test1C / Aztrade_test3'), 403
+    try:
+        return jsonify(success=True, **one_c.execute('user_accounts', data, retry=0))
+    except Exception as error:
+        print(f'[USER ACCOUNTS] {type(error).__name__}: {error}', flush=True)
+        return jsonify(success=False, error=str(error)), 400
+
+
+@catalog_bp.route('/api/users/change_password', methods=['POST'])
+def change_user_password_endpoint():
+    data = request.json or {}
+    if not _password_request_allowed(data):
+        return jsonify(success=False, error='Доступно только для Test1C / Aztrade_test3'), 403
+    if not data.get('new_password') or data.get('new_password') != data.get('confirm_password'):
+        return jsonify(success=False, error='Введите два одинаковых непустых пароля'), 400
+    try:
+        return jsonify(success=True, **one_c.execute('change_user_password', data, retry=0))
+    except Exception as error:
+        print(f'[CHANGE PASSWORD] {type(error).__name__}: {error}', flush=True)
+        return jsonify(success=False, error=str(error)), 400
+
 @catalog_bp.route("/api/catalog_card", methods=["POST"])
 def catalog_card_endpoint():
     data = request.json or {}

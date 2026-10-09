@@ -12,6 +12,7 @@
       <span class="mdi-win-title-text" id="ujWindowTitle">Реализация товаров и услуг</span>
     </div>
     <div class="mdi-win-controls">
+      <button class="mdi-win-btn mdi-win-btn-new" title="Открыть еще одно такое окно (Eyni pəncərədən yenisini aç)" onclick="UniversalJournal.duplicateWindow()" onmousedown="event.stopPropagation()">➕</button>
       <button class="mdi-win-btn mdi-win-btn-min" title="Qatla" onclick="MdiManager.minimizeWindow('universalJournalWindow')" onmousedown="event.stopPropagation()">_</button>
       <button class="mdi-win-btn mdi-win-btn-max" title="Böyüt / Bərpa et" onclick="MdiManager.toggleMaximize('universalJournalWindow')" onmousedown="event.stopPropagation()">□</button>
       <button class="mdi-win-btn mdi-win-btn-close" title="Bağla" onclick="UniversalJournal.close()" onmousedown="event.stopPropagation()">✕</button>
@@ -63,6 +64,11 @@
       <!-- Refresh Button (F5) - Icon Only right next to Edit -->
       <button type="button" class="btn-1c" onclick="UniversalJournal.refresh()" title="Обновить список (F5)" style="height: 24px; padding: 0 6px; display: inline-flex; align-items: center; justify-content: center; cursor: pointer;">
         <span style="font-size: 13px;">🔄</span>
+      </button>
+
+      <!-- New / Duplicate Window Button (➕) right in the toolbar -->
+      <button type="button" class="btn-1c" onclick="UniversalJournal.duplicateWindow()" title="Открыть еще одно такое окно (Eyni jurnaldan yenisini aç)" style="height: 24px; padding: 0 6px; display: inline-flex; align-items: center; justify-content: center; cursor: pointer;">
+        <span style="font-size: 13px; font-weight: bold; color: #002060;">➕</span>
       </button>
 
       <div class="mdi-tool-sep" style="height: 18px; width: 1px; background: #b0af9f; margin: 0 3px;"></div>
@@ -137,7 +143,7 @@
       </button>
 
       <!-- 10. Audit / Version History Button -->
-      <button type="button" class="btn-1c" id="ujBtnAuditHistory" onclick="UniversalJournal.openAuditHistoryForSelected()" title="История изменений и аудит документа (Версии, кто изменил, что изменилось)..." style="height: 24px; padding: 0 8px; display: inline-flex; align-items: center; gap: 4px; cursor: pointer; background: #ffffff;">
+      <button type="button" class="btn-1c" id="ujBtnAuditHistory" onclick="UniversalJournal.openAuditHistoryForSelected(event)" title="История изменений и аудит документа (Версии, кто изменил, что изменилось)..." style="height: 24px; padding: 0 8px; display: inline-flex; align-items: center; gap: 4px; cursor: pointer; background: #ffffff;">
         <span style="font-size: 12px;">🕒</span>
         <span style="font-size: 11px; font-weight: 500;">История</span>
       </button>

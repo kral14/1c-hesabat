@@ -53,7 +53,13 @@ def get_generic_documents_list(conn, payload):
 
     if has_kontr:
         sel_parts.append("Т.Контрагент.Наименование КАК Kontragent")
+        sel_parts.append("Т.Контрагент.ГоловнойКонтрагент.Наименование КАК GolovnoyKontragent")
         columns.append({"key": "kontragent", "label": "Контрагент", "width": 240, "align": "left"})
+        columns.append({"key": "golovnoy_kontragent", "label": "Головной контрагент", "width": 180, "align": "left"})
+
+    if has_contract:
+        sel_parts.append("Т.ДоговорКонтрагента.Агент.Наименование КАК Agent")
+        columns.append({"key": "agent", "label": "Агент", "width": 140, "align": "left"})
 
     if has_sum:
         sel_parts.append("Т.СуммаДокумента КАК Amount")
@@ -103,11 +109,15 @@ def get_generic_documents_list(conn, payload):
     field_map = {
         "__doc_table": f"Документ.{doc_type}"
     }
-    if has_kontr: field_map["kontragent"] = "Т.Контрагент.Наименование"
+    if has_kontr:
+        field_map["kontragent"] = "Т.Контрагент.Наименование"
+        field_map["golovnoy_kontragent"] = "Т.Контрагент.ГоловнойКонтрагент.Наименование"
     if has_sum: field_map["amount"] = "Т.СуммаДокумента"
     if has_sklad: field_map["warehouse"] = f"ПРЕДСТАВЛЕНИЕ(Т.{sklad_field})"
     if has_deal: field_map["deal"] = "Т.Сделка.Номер"
-    if has_contract: field_map["contract"] = "Т.ДоговорКонтрагента.Наименование"
+    if has_contract:
+        field_map["contract"] = "Т.ДоговорКонтрагента.Наименование"
+        field_map["agent"] = "Т.ДоговорКонтрагента.Агент.Наименование"
     if has_resp: field_map["responsible"] = "ПРЕДСТАВЛЕНИЕ(Т.Ответственный)"
     if has_comm: field_map["comment"] = "Т.Комментарий"
 
@@ -157,11 +167,15 @@ def get_generic_documents_list(conn, payload):
             "posted": bool(res_doc.Posted),
             "deleted": bool(res_doc.DeletionMark),
         }
-        if has_kontr: row_data["kontragent"] = str(res_doc.Kontragent or "").strip()
+        if has_kontr:
+            row_data["kontragent"] = str(res_doc.Kontragent or "").strip()
+            row_data["golovnoy_kontragent"] = str(res_doc.GolovnoyKontragent or "").strip()
         if has_sum: row_data["amount"] = float(res_doc.Amount or 0)
         if has_sklad: row_data["warehouse"] = str(res_doc.Warehouse or "").strip()
         if has_deal: row_data["deal"] = str(res_doc.Deal or "").strip()
-        if has_contract: row_data["contract"] = str(res_doc.Contract or "").strip()
+        if has_contract:
+            row_data["contract"] = str(res_doc.Contract or "").strip()
+            row_data["agent"] = str(res_doc.Agent or "").strip()
         if has_resp: row_data["responsible"] = str(res_doc.Responsible or "").strip()
         if has_comm: row_data["comment"] = str(res_doc.Comment or "").strip()
 

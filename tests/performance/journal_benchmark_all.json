@@ -1,0 +1,59 @@
+{
+  "server": "Test1C",
+  "ref": "Aztrade_test3",
+  "read_only": true,
+  "period": [
+    "",
+    ""
+  ],
+  "pages": [
+    {
+      "page": 1,
+      "rows": 1500,
+      "seconds": 2.5463
+    },
+    {
+      "page": 2,
+      "rows": 2000,
+      "seconds": 2.22
+    },
+    {
+      "page": 3,
+      "rows": 2000,
+      "seconds": 1.8595
+    }
+  ],
+  "connection_seconds": 8.8158,
+  "complete": false,
+  "total_rows": 5500,
+  "duplicate_rows_across_pages": 0,
+  "full_load_query_seconds": 6.6316,
+  "refresh_seconds": [
+    1.7365,
+    1.698
+  ],
+  "row_fields": [
+    "ref_key",
+    "number",
+    "date",
+    "posted",
+    "deleted",
+    "data_version",
+    "kontragent",
+    "kontragent_code",
+    "amount",
+    "warehouse",
+    "deal",
+    "contract",
+    "contract_price_type",
+    "portfolio",
+    "responsible",
+    "comment",
+    "vms_status",
+    "obrabotka_number",
+    "pogruzka_marshrut",
+    "pogruzka_voditel",
+    "pogruzka_count",
+    "pogruzka_duplicate"
+  ]
+}

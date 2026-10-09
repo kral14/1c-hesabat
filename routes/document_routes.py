@@ -298,6 +298,25 @@ def audit_details_endpoint():
         resp_data = {"success": True}
         if isinstance(res, dict):
             resp_data.update(res)
+
+        # Fallback to local 1C database snapshot if warehouse or contract is missing
+        if not resp_data.get("warehouse") or not resp_data.get("contract"):
+            try:
+                import offline_service
+                doc_det = offline_service.get_document_details(data)
+                h = (doc_det.get("header") or {}) if isinstance(doc_det, dict) else {}
+                if not resp_data.get("warehouse"):
+                    resp_data["warehouse"] = h.get("warehouse", "")
+                if not resp_data.get("contract"):
+                    resp_data["contract"] = h.get("contract", "")
+                if resp_data.get("raw_versions") and len(resp_data["raw_versions"]) > 0:
+                    if not resp_data["raw_versions"][0].get("warehouse"):
+                        resp_data["raw_versions"][0]["warehouse"] = h.get("warehouse", "")
+                    if not resp_data["raw_versions"][0].get("contract"):
+                        resp_data["raw_versions"][0]["contract"] = h.get("contract", "")
+            except Exception:
+                pass
+
         return jsonify(resp_data)
     except Exception as e:
         print_server_error("/api/audit/details", e, data)

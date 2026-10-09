@@ -4,7 +4,12 @@ import json
 import os
 import datetime
 
-DB_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data")
+import sys
+
+if getattr(sys, 'frozen', False):
+    DB_DIR = os.path.join(os.path.dirname(sys.executable), "data")
+else:
+    DB_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data")
 DB_PATH = os.path.join(DB_DIR, "report_settings.db")
 
 def get_connection():

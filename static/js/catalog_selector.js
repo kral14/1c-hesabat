@@ -132,11 +132,24 @@ const CatalogSelector = {
     } else if (catL.includes("портфел")) {
       catTitle = "Справочник: Портфели";
       catIcon = "💼";
+    } else if (catL.includes("агент") || catL.includes("agent")) {
+      catTitle = "Справочник: Агенты";
+      catIcon = "🧑‍💼";
     } else if (isNomenclature) {
       catTitle = "Справочник: Номенклатура";
       catIcon = "📦";
     }
     const fullTitle = catTitle + (this.podborMode ? " (Подбор)" : "");
+    let passwordButton = win.querySelector('.user-password-btn');
+    if (!passwordButton) {
+      passwordButton = document.createElement('button');
+      passwordButton.type = 'button';
+      passwordButton.className = 'btn-1c user-password-btn';
+      passwordButton.textContent = '🔑 Изменить пароль';
+      passwordButton.onclick = () => UserPasswordManager.open(win);
+      win.querySelector('.catalog-toolbar-left')?.appendChild(passwordButton);
+    }
+    passwordButton.style.display = catL.includes('пользовател') ? '' : 'none';
 
     if (titleEl) titleEl.textContent = fullTitle;
     if (iconEl) iconEl.textContent = catIcon;

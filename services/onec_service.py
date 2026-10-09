@@ -91,6 +91,14 @@ class OneCService(threading.Thread):
                         resp_q.put((True, offline_service.get_nomenclature_stock(payload)))
                     elif action == "catalog_data":
                         resp_q.put((True, offline_service.catalog_data(payload)))
+                    elif action == "get_audit_list":
+                        import importlib
+                        importlib.reload(offline_service)
+                        resp_q.put((True, offline_service.get_audit_list(payload)))
+                    elif action == "get_audit_diff":
+                        import importlib
+                        importlib.reload(offline_service)
+                        resp_q.put((True, offline_service.get_audit_diff(payload)))
                     elif action == "get_portfolio_catalog_filters":
                         resp_q.put((True, offline_service.get_portfolio_catalog_filters()))
                     elif action == "get_portfolio_catalog_items":
@@ -175,14 +183,32 @@ class OneCService(threading.Thread):
                     _ = conn.String(1)
                     resp_q.put((True, "pong"))
                 elif action in CATALOG_HANDLERS:
-                    CATALOG_HANDLERS[action](conn, payload, key, resp_q)
+                    if action in ["user_accounts", "change_user_password"]:
+                        import importlib
+                        import services.user_passwords
+                        importlib.reload(services.user_passwords)
+                        if action == "user_accounts":
+                            services.user_passwords.list_accounts(conn, payload, key, resp_q)
+                        else:
+                            services.user_passwords.change_password(conn, payload, key, resp_q)
+                    else:
+                        CATALOG_HANDLERS[action](conn, payload, key, resp_q)
                 elif action in REPORT_HANDLERS:
                     if action == "generate":
                         REPORT_HANDLERS[action](conn, payload, key, resp_q, req_q=self.req_q)
                     else:
                         REPORT_HANDLERS[action](conn, payload, key, resp_q)
                 elif action in DOCUMENT_HANDLERS:
-                    DOCUMENT_HANDLERS[action](conn, payload, key, resp_q)
+                    if action in ["get_audit_list", "get_audit_diff"]:
+                        import importlib
+                        import services.audit_service
+                        importlib.reload(services.audit_service)
+                        if action == "get_audit_list":
+                            resp_q.put((True, services.audit_service.get_audit_list(conn, payload)))
+                        else:
+                            resp_q.put((True, services.audit_service.get_document_version_diff(conn, payload)))
+                    else:
+                        DOCUMENT_HANDLERS[action](conn, payload, key, resp_q)
                 else:
                     raise ValueError(f"1C naməlum əməliyyat (Unknown Action): {action}")
 

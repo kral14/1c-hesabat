@@ -1,0 +1,14 @@
+{
+  "database": "Test1C / Aztrade_test3",
+  "scope": "Live browser, 150 loaded documents, 32 DOM rows including virtualization buffer; warm existing server connection",
+  "method": "Action handler start to DOM rendering and second requestAnimationFrame; approximates first paint opportunity, not physical monitor latency",
+  "samples": [
+    {"action": "first_load", "dom_ms": 1879.8, "paint_opportunity_ms": 1898.3},
+    {"action": "cache_reopen", "dom_ms": 13.8, "paint_opportunity_ms": 35.8},
+    {"action": "refresh", "dom_ms": 1084.9, "paint_opportunity_ms": 1103.7},
+    {"action": "cache_reopen", "dom_ms": 10.6, "paint_opportunity_ms": 31.3},
+    {"action": "refresh", "dom_ms": 1108.3, "paint_opportunity_ms": 1132.8}
+  ],
+  "all_samples_table_visible": true,
+  "all_samples_loading_overlay_hidden": true
+}

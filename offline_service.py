@@ -160,12 +160,14 @@ def get_all_price_types():
 # 8. Get Documents List (Universal Documents Engine)
 def get_documents_list(payload):
     doc_type = payload.get("doc_type") or "РеализацияТоваровУслуг"
+    limit_count = int(payload.get("limit", 0))
     offset = int(payload.get("offset", 0))
     search_str = payload.get("search", "").strip().lower()
     filters = payload.get("filters") or []
     date_from = payload.get("date_from", "").strip()
     date_to = payload.get("date_to", "").strip()
     last_date = payload.get("last_date", "").strip()
+    last_number = payload.get("last_number", "").strip()
 
     if search_str or filters:
         if limit_count <= 0 or limit_count < 5000:
@@ -251,48 +253,49 @@ def get_documents_list(payload):
                 {"key": "date", "label": "Дата", "width": 145, "align": "left"},
                 {"key": "number", "label": "Номер", "width": 115, "align": "left"},
                 {"key": "kontragent", "label": "Контрагент", "width": 240, "align": "left"},
+                {"key": "golovnoy_kontragent", "label": "Головной контрагент", "width": 180, "align": "left"},
+                {"key": "agent", "label": "Агент", "width": 140, "align": "left"},
                 {"key": "kontragent_code", "label": "Код контрагента", "width": 115, "align": "left"},
-                {"key": "amount", "label": "Сумма", "width": 100, "align": "right"},
-                {"key": "warehouse", "label": "Склад", "width": 160, "align": "left"},
-                {"key": "deal", "label": "Номер заказа", "width": 120, "align": "left"},
-                {"key": "obrabotka_number", "label": "Номер обработки", "width": 125, "align": "left"},
-                {"key": "vms_status", "label": "Статус ВМС", "width": 135, "align": "left"},
-                {"key": "contract", "label": "Договор", "width": 150, "align": "left"},
-                {"key": "portfolio", "label": "Портфель", "width": 140, "align": "left"},
-                {"key": "contract_price_type", "label": "Тип цен договора", "width": 130, "align": "left"},
-                {"key": "pogruzka_marshrut", "label": "Пагрузка маршрут", "width": 130, "align": "left"},
+                {"key": "portfolio", "label": "Портфель", "width": 130, "align": "left"},
+                {"key": "amount", "label": "Сумма", "width": 110, "align": "right"},
+                {"key": "warehouse", "label": "Склад", "width": 150, "align": "left"},
+                {"key": "deal", "label": "Номер заказа", "width": 130, "align": "left"},
+                {"key": "obrabotka_number", "label": "Номер обработки", "width": 130, "align": "left"},
+                {"key": "vms_status", "label": "Статус ВМС", "width": 130, "align": "center"},
+                {"key": "contract", "label": "Договор контрагента", "width": 160, "align": "left"},
+                {"key": "contract_price_type", "label": "Тип цен", "width": 120, "align": "left"},
+                {"key": "pogruzka_marshrut", "label": "Пагрузка маршрут", "width": 130, "align": "center"},
                 {"key": "pogruzka_voditel", "label": "Пагрузка водитель", "width": 150, "align": "left"},
-                {"key": "responsible", "label": "Ответственный", "width": 130, "align": "left"},
+                {"key": "responsible", "label": "Ответственный", "width": 160, "align": "left"},
                 {"key": "comment", "label": "Комментарий", "width": 200, "align": "left"}
             ]
 
-            sql = """
-                SELECT 
-                    MIN(id) AS min_id,
-                    period,
-                    kontragent,
-                    podrazdelenie,
-                    COUNT(*) AS item_cnt,
-                    ROUND(SUM(sum), 2) AS tot_sum
-                FROM sales_turnover
-                WHERE kontragent IS NOT NULL AND kontragent != ''
-            """
+            sql = "SELECT * FROM documents_realization"
             conditions = []
             params = []
             if norm_from:
-                conditions.append("(period || ' 12:00:00') >= ?")
+                conditions.append("date >= ?")
                 params.append(norm_from)
             if norm_to:
-                conditions.append("(period || ' 12:00:00') <= ?")
+                conditions.append("date <= ?")
                 params.append(norm_to)
-            if last_date:
-                conditions.append("(period || ' 12:00:00') < ?")
-                params.append(normalize_iso_datetime(last_date))
+            if last_date and not search_str and not filters:
+                if last_number:
+                    conditions.append("(date < ? OR (date = ? AND number < ?))")
+                    params.extend([normalize_iso_datetime(last_date), normalize_iso_datetime(last_date), last_number])
+                else:
+                    conditions.append("date < ?")
+                    params.append(normalize_iso_datetime(last_date))
+
+            if search_str:
+                s_param = f"%{search_str}%"
+                conditions.append("(number LIKE ? OR kontragent LIKE ? OR kontragent_code LIKE ? OR comment LIKE ? OR deal LIKE ? OR contract LIKE ? OR agent LIKE ? OR warehouse LIKE ? OR pogruzka_marshrut LIKE ? OR pogruzka_voditel LIKE ?)")
+                params.extend([s_param] * 10)
 
             if conditions:
-                sql += " AND " + " AND ".join(conditions)
+                sql += " WHERE " + " AND ".join(conditions)
 
-            sql += " GROUP BY period, kontragent ORDER BY period DESC, min_id DESC"
+            sql += " ORDER BY date DESC, number DESC"
             if limit_count and limit_count > 0:
                 sql += " LIMIT ? OFFSET ?"
                 params.extend([limit_count, offset])
@@ -302,114 +305,31 @@ def get_documents_list(payload):
 
             items = []
             for r in rows:
-                dt_iso = f"{r['period']} 12:00:00"
-                if norm_from and dt_iso < norm_from:
-                    continue
-                if norm_to and dt_iso > norm_to:
-                    continue
-
-                doc_num = f"C00004{r['min_id']:05d}"
-                dt_str = format_1c_datetime(dt_iso)
-                amount_val = float(r["tot_sum"] or 0.0)
-                port_val = "01 MONDELEZ" if (r['min_id'] % 2 == 0) else "04 FERRERO"
-                noms_arr = ["Шоколад Milka", "Печенье Oreo"] if (r['min_id'] % 2 == 0) else ["Raffaello", "Nutella"]
-                nom_keys_arr = [
-                    "00000008530|8530|art8530|шоколад milka",
-                    "00000008531|8531|art8531|печенье oreo"
-                ] if (r['min_id'] % 2 == 0) else [
-                    "00000009101|9101|art9101|raffaello",
-                    "00000009102|9102|art9102|nutella"
-                ]
                 item = {
-                    "number": doc_num,
-                    "date": dt_str,
-                    "kontragent": r["kontragent"],
-                    "kontragent_code": f"C{r['min_id']:08d}",
-                    "amount": amount_val,
-                    "warehouse": "1.Anbar - AZTRADE",
-                    "deal": f"C00044{r['min_id']:04d}",
-                    "obrabotka_number": f"00001{r['min_id']:04d}",
-                    "vms_status": "Подтвержден WMS",
-                    "contract": "Основной договор",
-                    "portfolio": port_val,
-                    "contract_price_type": "60",
-                    "pogruzka_marshrut": "5329",
-                    "pogruzka_voditel": "99JP085",
-                    "agent": r["podrazdelenie"] or "Основное подразделение",
-                    "responsible": "Ali",
-                    "comment": f"Продажа товаров ({r['item_cnt']} поз.)",
-                    "nomenclatures": noms_arr,
-                    "nomenclature": ", ".join(noms_arr),
-                    "nom_keys": nom_keys_arr,
-                    "posted": True,
-                    "deleted": False,
-                    "status": "posted",
-                    "data_version": f"off_sales_{r['min_id']}"
+                    "number": r["number"],
+                    "date": format_1c_datetime(r["date"]),
+                    "posted": bool(r["posted"]),
+                    "deleted": bool(r["deleted"]),
+                    "status": "posted" if r["posted"] else "draft",
+                    "kontragent": r["kontragent"] or "",
+                    "kontragent_code": r["kontragent_code"] or "",
+                    "golovnoy_kontragent": r["golovnoy_kontragent"] or "",
+                    "agent": r["agent"] or "",
+                    "amount": float(r["amount"] or 0.0),
+                    "warehouse": r["warehouse"] or "",
+                    "deal": r["deal"] or "",
+                    "obrabotka_number": r["obrabotka_number"] or "",
+                    "vms_status": r["vms_status"] or "",
+                    "contract": r["contract"] or "",
+                    "portfolio": r["portfolio"] or "",
+                    "contract_price_type": r["contract_price_type"] or "",
+                    "pogruzka_marshrut": r["pogruzka_marshrut"] or "",
+                    "pogruzka_voditel": r["pogruzka_voditel"] or "",
+                    "pogruzka_count": 1 if r["pogruzka_marshrut"] else 0,
+                    "responsible": r["responsible"] or "",
+                    "comment": r["comment"] or "",
+                    "data_version": r["data_version"] or f"off_{r['number']}"
                 }
-                if search_str:
-                    target = f"{item['number']} {item['date']} {item['kontragent']} {item['kontragent_code']} {item['deal']} {item['obrabotka_number']} {item['vms_status']} {item['pogruzka_marshrut']} {item['pogruzka_voditel']}".lower()
-                    if search_str not in target:
-                        continue
-                if filters and isinstance(filters, list):
-                    match_fil = True
-                    for crit in filters:
-                        if not isinstance(crit, dict) or crit.get("enabled") is False:
-                            continue
-                        f_k = crit.get("fieldKey")
-                        f_v = str(crit.get("value", "")).lower().strip()
-                        r_v = str(item.get(f_k, "")).lower().strip()
-                        if f_k == "nomenclature":
-                            s_filter = crit.get("structuredFilter") or {}
-                            s_items = s_filter.get("items") or []
-                            match_all = bool(s_filter.get("matchAll"))
-                            if not s_items and f_v:
-                                raw_v = f_v
-                                if raw_v.startswith("[и]"):
-                                    match_all = True
-                                    raw_v = raw_v[3:].strip()
-                                for tok in raw_v.split(";"):
-                                    if tok.strip():
-                                        s_items.append({"value": tok.strip()})
-                            if s_items:
-                                item_noms_str = " ".join(item.get("nom_keys", []) + item.get("nomenclatures", [])).lower()
-                                def check_s(si):
-                                    c_v = str(si.get("value", "")).lower().strip()
-                                    c_c = str(si.get("code", "")).lower().strip()
-                                    c_a = str(si.get("artikul", "")).lower().strip()
-                                    return (c_v and c_v in item_noms_str) or (c_c and c_c in item_noms_str) or (c_a and c_a in item_noms_str)
-                                if match_all:
-                                    if not all(check_s(si) for si in s_items):
-                                        match_fil = False
-                                        break
-                                else:
-                                    if not any(check_s(si) for si in s_items):
-                                        match_fil = False
-                                        break
-                        elif f_v:
-                            f_op = crit.get("operator", "Равно")
-                            if f_op in ("в группе из списка", "в списке", "не в списке") or ";" in f_v:
-                                toks = [t.strip().lower() for t in f_v.split(";") if t.strip()]
-                                def tok_match(t):
-                                    if " - " in t:
-                                        t_parts = t.split(" - ")
-                                        return any(tp.strip() in r_v or r_v in tp.strip() for tp in t_parts if tp.strip())
-                                    return (t in r_v) or (r_v in t)
-                                
-                                is_in = any(tok_match(t) for t in toks)
-                                if f_op in ("не в списке", "не равно"):
-                                    if is_in:
-                                        match_fil = False
-                                        break
-                                else:
-                                    if not is_in:
-                                        match_fil = False
-                                        break
-                            else:
-                                if f_v not in r_v and r_v not in f_v:
-                                    match_fil = False
-                                    break
-                    if not match_fil:
-                        continue
                 items.append(item)
 
             has_more = (len(items) == limit_count) if (limit_count and limit_count > 0) else False
@@ -420,19 +340,178 @@ def get_documents_list(payload):
                 "columns": columns,
                 "items": items,
                 "total": len(items),
+                "total_count": len(items),
                 "has_more": has_more,
                 "last_date": last_item["date"] if last_item else "",
-                "last_number": last_item["number"] if last_item else "",
-                "debug_info": {
-                    "where_sql": "OFFLINE / LOCAL DB SIMULATION",
-                    "parameters": {"search": search_str, "filters_count": len(filters) if filters else 0},
-                    "filters_count": len(filters) if filters else 0,
-                    "search": search_str or "",
-                    "total_fetched": len(items)
-                }
+                "last_number": last_item["number"] if last_item else ""
             }
 
-        # 3. Поступление товаров и услуг (Purchase Documents)
+        # 3. Возврат товаров от покупателя (Customer Returns)
+        elif doc_type == "ВозвратТоваровОтПокупателя":
+            columns = [
+                {"key": "status", "label": "", "width": 30, "align": "center"},
+                {"key": "date", "label": "Дата", "width": 145, "align": "left"},
+                {"key": "number", "label": "Номер", "width": 115, "align": "left"},
+                {"key": "kontragent", "label": "Контрагент", "width": 240, "align": "left"},
+                {"key": "golovnoy_kontragent", "label": "Головной контрагент", "width": 180, "align": "left"},
+                {"key": "agent", "label": "Агент", "width": 140, "align": "left"},
+                {"key": "amount", "label": "Сумма", "width": 110, "align": "right"},
+                {"key": "warehouse", "label": "Склад", "width": 160, "align": "left"},
+                {"key": "deal", "label": "Сделка / Заказ", "width": 130, "align": "left"},
+                {"key": "contract", "label": "Договор", "width": 160, "align": "left"},
+                {"key": "responsible", "label": "Ответственный", "width": 160, "align": "left"},
+                {"key": "comment", "label": "Комментарий", "width": 200, "align": "left"}
+            ]
+
+            sql = "SELECT * FROM documents_vozvrat"
+            conditions = []
+            params = []
+            if norm_from:
+                conditions.append("date >= ?")
+                params.append(norm_from)
+            if norm_to:
+                conditions.append("date <= ?")
+                params.append(norm_to)
+            if last_date and not search_str:
+                if last_number:
+                    conditions.append("(date < ? OR (date = ? AND number < ?))")
+                    params.extend([normalize_iso_datetime(last_date), normalize_iso_datetime(last_date), last_number])
+                else:
+                    conditions.append("date < ?")
+                    params.append(normalize_iso_datetime(last_date))
+
+            if search_str:
+                s_param = f"%{search_str}%"
+                conditions.append("(number LIKE ? OR kontragent LIKE ? OR kontragent_code LIKE ? OR comment LIKE ? OR deal LIKE ? OR contract LIKE ? OR agent LIKE ?)")
+                params.extend([s_param] * 7)
+
+            if conditions:
+                sql += " WHERE " + " AND ".join(conditions)
+
+            sql += " ORDER BY date DESC, number DESC"
+            if limit_count and limit_count > 0:
+                sql += " LIMIT ? OFFSET ?"
+                params.extend([limit_count, offset])
+
+            cur.execute(sql, params)
+            rows = cur.fetchall()
+
+            items = []
+            for r in rows:
+                item = {
+                    "number": r["number"],
+                    "date": format_1c_datetime(r["date"]),
+                    "posted": bool(r["posted"]),
+                    "deleted": bool(r["deleted"]),
+                    "status": "posted" if r["posted"] else "draft",
+                    "kontragent": r["kontragent"] or "",
+                    "kontragent_code": r["kontragent_code"] or "",
+                    "golovnoy_kontragent": r["golovnoy_kontragent"] or "",
+                    "agent": r["agent"] or "",
+                    "amount": float(r["amount"] or 0.0),
+                    "warehouse": r["warehouse"] or "",
+                    "deal": r["deal"] or "",
+                    "contract": r["contract"] or "",
+                    "responsible": r["responsible"] or "",
+                    "comment": r["comment"] or "",
+                    "data_version": r["data_version"] or f"off_vozv_{r['number']}"
+                }
+                items.append(item)
+
+            has_more = (len(items) == limit_count) if (limit_count and limit_count > 0) else False
+            last_item = items[-1] if items else None
+            return {
+                "doc_type": "ВозвратТоваровОтПокупателя",
+                "doc_title": "Возврат товаров от покупателя",
+                "columns": columns,
+                "items": items,
+                "total": len(items),
+                "total_count": len(items),
+                "has_more": has_more,
+                "last_date": last_item["date"] if last_item else "",
+                "last_number": last_item["number"] if last_item else ""
+            }
+
+        # 4. Погрузки машин (Loading machine documents)
+        elif doc_type in ["ПогрузкиМашин", "ПогрузкаМашин"]:
+            columns = [
+                {"key": "status", "label": "", "width": 30, "align": "center"},
+                {"key": "date", "label": "Дата", "width": 145, "align": "left"},
+                {"key": "number", "label": "Номер", "width": 115, "align": "left"},
+                {"key": "marshrut", "label": "Маршрут", "width": 130, "align": "center"},
+                {"key": "voditel", "label": "Водитель", "width": 180, "align": "left"},
+                {"key": "warehouse", "label": "Склад", "width": 160, "align": "left"},
+                {"key": "realization_count", "label": "Кол-во накладных", "width": 120, "align": "right"},
+                {"key": "amount", "label": "Общая сумма", "width": 120, "align": "right"},
+                {"key": "responsible", "label": "Ответственный", "width": 160, "align": "left"}
+            ]
+
+            sql = "SELECT * FROM documents_pogruzka"
+            conditions = []
+            params = []
+            if norm_from:
+                conditions.append("date >= ?")
+                params.append(norm_from)
+            if norm_to:
+                conditions.append("date <= ?")
+                params.append(norm_to)
+            if last_date and not search_str:
+                if last_number:
+                    conditions.append("(date < ? OR (date = ? AND number < ?))")
+                    params.extend([normalize_iso_datetime(last_date), normalize_iso_datetime(last_date), last_number])
+                else:
+                    conditions.append("date < ?")
+                    params.append(normalize_iso_datetime(last_date))
+
+            if search_str:
+                s_param = f"%{search_str}%"
+                conditions.append("(number LIKE ? OR marshrut LIKE ? OR voditel LIKE ? OR warehouse LIKE ? OR responsible LIKE ?)")
+                params.extend([s_param] * 5)
+
+            if conditions:
+                sql += " WHERE " + " AND ".join(conditions)
+
+            sql += " ORDER BY date DESC, number DESC"
+            if limit_count and limit_count > 0:
+                sql += " LIMIT ? OFFSET ?"
+                params.extend([limit_count, offset])
+
+            cur.execute(sql, params)
+            rows = cur.fetchall()
+
+            items = []
+            for r in rows:
+                item = {
+                    "number": r["number"],
+                    "date": format_1c_datetime(r["date"]),
+                    "posted": bool(r["posted"]),
+                    "deleted": bool(r["deleted"]),
+                    "status": "posted" if r["posted"] else "draft",
+                    "marshrut": r["marshrut"] or "",
+                    "voditel": r["voditel"] or "",
+                    "warehouse": r["warehouse"] or "",
+                    "realization_count": int(r["realization_count"] or 0),
+                    "amount": float(r["amount"] or 0.0),
+                    "responsible": r["responsible"] or "",
+                    "comment": r["comment"] or ""
+                }
+                items.append(item)
+
+            has_more = (len(items) == limit_count) if (limit_count and limit_count > 0) else False
+            last_item = items[-1] if items else None
+            return {
+                "doc_type": "ПогрузкиМашин",
+                "doc_title": "Погрузка машин",
+                "columns": columns,
+                "items": items,
+                "total": len(items),
+                "total_count": len(items),
+                "has_more": has_more,
+                "last_date": last_item["date"] if last_item else "",
+                "last_number": last_item["number"] if last_item else ""
+            }
+
+        # 5. Поступление товаров и услуг (Purchase Documents)
         elif doc_type == "ПоступлениеТоваровУслуг":
             columns = [
                 {"key": "status", "label": "", "width": 30, "align": "center"},
@@ -445,43 +524,45 @@ def get_documents_list(payload):
                 {"key": "comment", "label": "Комментарий", "width": 220, "align": "left"}
             ]
 
-            k_sql = "SELECT code, name FROM kontragenty WHERE is_group = 0 AND name NOT LIKE '%физ%' ORDER BY code ASC"
-            k_params = ()
-            if limit_count and limit_count > 0:
-                k_sql += " LIMIT ?"
-                k_params = (limit_count,)
-            cur.execute(k_sql, k_params)
-            k_rows = cur.fetchall()
+            sql = "SELECT * FROM documents_postuplenie"
+            conditions = []
+            params = []
+            if norm_from:
+                conditions.append("date >= ?")
+                params.append(norm_from)
+            if norm_to:
+                conditions.append("date <= ?")
+                params.append(norm_to)
+            if search_str:
+                s_param = f"%{search_str}%"
+                conditions.append("(number LIKE ? OR kontragent LIKE ? OR warehouse LIKE ? OR comment LIKE ?)")
+                params.extend([s_param] * 4)
 
-            cur.execute("SELECT name FROM sklady LIMIT 10")
-            wh_rows = [r["name"] for r in cur.fetchall()]
-            if not wh_rows:
-                wh_rows = ["1.Anbar - AZTRADE"]
+            if conditions:
+                sql += " WHERE " + " AND ".join(conditions)
+
+            sql += " ORDER BY date DESC, number DESC"
+            if limit_count and limit_count > 0:
+                sql += " LIMIT ? OFFSET ?"
+                params.extend([limit_count, offset])
+
+            cur.execute(sql, params)
+            rows = cur.fetchall()
 
             items = []
-            base_date = datetime.date(2026, 9, 1)
-            for i, kr in enumerate(k_rows):
-                cur_date = base_date + datetime.timedelta(days=(i % 28))
-                doc_num = f"ПТ-{i+1:08d}"
-                dt_str = format_1c_datetime(cur_date.strftime("%Y-%m-%d 10:30:00"))
-                wh_name = wh_rows[i % len(wh_rows)]
-                amt = round(1500.0 + (i * 342.5 % 8500), 2)
+            for r in rows:
                 item = {
-                    "number": doc_num,
-                    "date": dt_str,
-                    "kontragent": kr["name"],
-                    "warehouse": wh_name,
-                    "amount": amt,
-                    "responsible": "Keleshov Nasib",
-                    "comment": "Поступление товаров от поставщика",
-                    "posted": True,
-                    "deleted": False,
-                    "status": "posted"
+                    "number": r["number"],
+                    "date": format_1c_datetime(r["date"]),
+                    "posted": bool(r["posted"]),
+                    "deleted": bool(r["deleted"]),
+                    "status": "posted" if r["posted"] else "draft",
+                    "kontragent": r["kontragent"] or "",
+                    "warehouse": r["warehouse"] or "",
+                    "amount": float(r["amount"] or 0.0),
+                    "responsible": r["responsible"] or "",
+                    "comment": r["comment"] or ""
                 }
-                if search_str:
-                    target = f"{item['number']} {item['date']} {item['kontragent']} {item['warehouse']}".lower()
-                    if search_str not in target:
-                        continue
                 items.append(item)
 
             return {
@@ -492,63 +573,58 @@ def get_documents_list(payload):
                 "total": len(items)
             }
 
-        # 4. Заказ покупателя (Customer Orders)
+        # 6. Заказ покупателя (Customer Orders)
         elif doc_type == "ЗаказПокупателя":
             columns = [
                 {"key": "status", "label": "", "width": 30, "align": "center"},
                 {"key": "date", "label": "Дата", "width": 145, "align": "left"},
                 {"key": "number", "label": "Номер", "width": 125, "align": "left"},
                 {"key": "kontragent", "label": "Контрагент", "width": 260, "align": "left"},
+                {"key": "warehouse", "label": "Склад", "width": 160, "align": "left"},
                 {"key": "amount", "label": "Сумма", "width": 110, "align": "right"},
                 {"key": "responsible", "label": "Ответственный", "width": 140, "align": "left"},
                 {"key": "comment", "label": "Комментарий", "width": 220, "align": "left"}
             ]
 
-            zk_sql = """
-                SELECT MIN(id) AS min_id, period, kontragent, ROUND(SUM(sum), 2) AS tot_sum 
-                FROM sales_turnover 
-                WHERE kontragent != '' 
-            """
-            zk_conds = []
-            zk_params = []
+            sql = "SELECT * FROM documents_zakaz"
+            conditions = []
+            params = []
             if norm_from:
-                zk_conds.append("(period || ' 09:15:00') >= ?")
-                zk_params.append(norm_from)
+                conditions.append("date >= ?")
+                params.append(norm_from)
             if norm_to:
-                zk_conds.append("(period || ' 09:15:00') <= ?")
-                zk_params.append(norm_to)
-            if zk_conds:
-                zk_sql += " AND " + " AND ".join(zk_conds)
-            zk_sql += " GROUP BY period, kontragent ORDER BY period DESC LIMIT ?"
-            zk_params.append(min(limit_count, 120) if limit_count else 120)
+                conditions.append("date <= ?")
+                params.append(norm_to)
+            if search_str:
+                s_param = f"%{search_str}%"
+                conditions.append("(number LIKE ? OR kontragent LIKE ? OR kontragent_code LIKE ? OR warehouse LIKE ? OR comment LIKE ?)")
+                params.extend([s_param] * 5)
 
-            cur.execute(zk_sql, zk_params)
+            if conditions:
+                sql += " WHERE " + " AND ".join(conditions)
+
+            sql += " ORDER BY date DESC, number DESC"
+            if limit_count and limit_count > 0:
+                sql += " LIMIT ? OFFSET ?"
+                params.extend([limit_count, offset])
+
+            cur.execute(sql, params)
             rows = cur.fetchall()
 
             items = []
             for r in rows:
-                dt_iso = f"{r['period']} 09:15:00"
-                if norm_from and dt_iso < norm_from:
-                    continue
-                if norm_to and dt_iso > norm_to:
-                    continue
-                doc_num = f"ЗК-{r['min_id']:08d}"
-                dt_str = format_1c_datetime(dt_iso)
                 item = {
-                    "number": doc_num,
-                    "date": dt_str,
-                    "kontragent": r["kontragent"],
-                    "amount": float(r["tot_sum"] or 0.0),
-                    "responsible": "Keleshov Nasib",
-                    "comment": "Заказ клиента на поставку",
-                    "posted": True,
-                    "deleted": False,
-                    "status": "posted"
+                    "number": r["number"],
+                    "date": format_1c_datetime(r["date"]),
+                    "posted": bool(r["posted"]),
+                    "deleted": bool(r["deleted"]),
+                    "status": "posted" if r["posted"] else "draft",
+                    "kontragent": r["kontragent"] or "",
+                    "warehouse": r["warehouse"] or "",
+                    "amount": float(r["amount"] or 0.0),
+                    "responsible": r["responsible"] or "",
+                    "comment": r["comment"] or ""
                 }
-                if search_str:
-                    target = f"{item['number']} {item['date']} {item['kontragent']}".lower()
-                    if search_str not in target:
-                        continue
                 items.append(item)
 
             return {
@@ -559,57 +635,14 @@ def get_documents_list(payload):
                 "total": len(items)
             }
 
-        # 5. Инвентаризация товаров на складе (Warehouse Inventory)
-        elif doc_type == "ИнвентаризацияТоваровНаСкладе":
-            columns = [
-                {"key": "status", "label": "", "width": 30, "align": "center"},
-                {"key": "date", "label": "Дата", "width": 135, "align": "left"},
-                {"key": "number", "label": "Номер", "width": 125, "align": "left"},
-                {"key": "warehouse", "label": "Склад", "width": 240, "align": "left"},
-                {"key": "responsible", "label": "Ответственный", "width": 150, "align": "left"},
-                {"key": "comment", "label": "Комментарий", "width": 260, "align": "left"}
-            ]
-
-            cur.execute("SELECT name FROM sklady ORDER BY name LIMIT ?", (min(limit_count, 80),))
-            sk_rows = cur.fetchall()
-
-            items = []
-            base_date = datetime.date(2026, 9, 30)
-            for i, sr in enumerate(sk_rows):
-                doc_num = f"ИН-{i+1:08d}"
-                dt_str = (base_date - datetime.timedelta(days=(i * 3 % 25))).strftime("%Y-%m-%d 18:00:00")
-                item = {
-                    "number": doc_num,
-                    "date": dt_str,
-                    "warehouse": sr["name"],
-                    "responsible": "Keleshov Nasib",
-                    "comment": "Плановая инвентаризация остатков",
-                    "posted": True,
-                    "deleted": False,
-                    "status": "posted"
-                }
-                if search_str:
-                    target = f"{item['number']} {item['date']} {item['warehouse']}".lower()
-                    if search_str not in target:
-                        continue
-                items.append(item)
-
-            return {
-                "doc_type": "ИнвентаризацияТоваровНаСкладе",
-                "doc_title": "Инвентаризация товаров на складе",
-                "columns": columns,
-                "items": items,
-                "total": len(items)
-            }
-
-        # 6. Default Fallback for other documents (Списание, Оприходование və s.)
+        # 7. Fallback for others
         else:
             title_map = {
                 "СписаниеТоваров": "Списание товаров",
-                "ОприходованиеТоваров": "Оприходование товаров"
+                "ОприходованиеТоваров": "Оприходование товаров",
+                "ИнвентаризацияТоваровНаСкладе": "Инвентаризация товаров на складе"
             }
             doc_title = title_map.get(doc_type, doc_type)
-
             columns = [
                 {"key": "status", "label": "", "width": 30, "align": "center"},
                 {"key": "date", "label": "Дата", "width": 135, "align": "left"},
@@ -619,33 +652,12 @@ def get_documents_list(payload):
                 {"key": "responsible", "label": "Ответственный", "width": 140, "align": "left"},
                 {"key": "comment", "label": "Комментарий", "width": 240, "align": "left"}
             ]
-
-            cur.execute("SELECT name FROM sklady LIMIT 20")
-            sk_rows = [r["name"] for r in cur.fetchall()] or ["1.Anbar - AZTRADE"]
-
-            items = []
-            for i in range(1, 21):
-                doc_num = f"{doc_type[:2].upper()}-{i:08d}"
-                dt_str = f"2026-09-{i:02d} 14:00:00"
-                item = {
-                    "number": doc_num,
-                    "date": dt_str,
-                    "warehouse": sk_rows[i % len(sk_rows)],
-                    "amount": round(120.0 + (i * 85.5), 2),
-                    "responsible": "Keleshov Nasib",
-                    "comment": f"Документ {doc_title}",
-                    "posted": True,
-                    "deleted": False,
-                    "status": "posted"
-                }
-                items.append(item)
-
             return {
                 "doc_type": doc_type,
                 "doc_title": doc_title,
                 "columns": columns,
-                "items": items,
-                "total": len(items)
+                "items": [],
+                "total": 0
             }
     finally:
         conn.close()
@@ -759,81 +771,234 @@ def get_document_details(payload):
     try:
         cur = conn.cursor()
 
-        # Handle Sales Document details from sales_turnover
+        # 1. РеализацияТоваровУслуг
         if doc_type == "РеализацияТоваровУслуг":
-            # Extract id or find by number pattern
-            m = re.search(r'\d+', doc_number)
-            min_id = int(m.group(0)) if m else 1
-
-            cur.execute("SELECT period, kontragent, podrazdelenie FROM sales_turnover WHERE id = ?", (min_id,))
-            target_row = cur.fetchone()
-            if not target_row:
-                cur.execute("SELECT period, kontragent, podrazdelenie FROM sales_turnover LIMIT 1")
-                target_row = cur.fetchone()
-
-            if not target_row:
-                raise ValueError(f"Sənəd №{doc_number} tapılmadı")
-
-            period = target_row["period"]
-            kontr = target_row["kontragent"]
+            clean_num = doc_number.replace("С", "C").replace("с", "c")
+            alt_num = clean_num.replace("C", "С")
 
             cur.execute("""
-                SELECT item_code, item_name, quantity, sum, vat 
-                FROM sales_turnover 
-                WHERE period = ? AND kontragent = ?
-                ORDER BY id ASC
-            """, (period, kontr))
+                SELECT * FROM documents_realization 
+                WHERE number = ? OR number = ? OR number LIKE ?
+                ORDER BY date DESC LIMIT 1
+            """, (clean_num, alt_num, f"%{clean_num}%"))
+            doc = cur.fetchone()
+
+            if not doc:
+                raise ValueError(f"Sənəd №{doc_number} tapılmadı")
+
+            d_num = doc["number"]
+            cur.execute("""
+                SELECT line_no, item_code, item_name, unit, quantity, price, sum, vat 
+                FROM documents_realization_rows 
+                WHERE doc_number = ? OR doc_number = ? 
+                ORDER BY line_no ASC
+            """, (d_num, d_num.replace("C", "С")))
             rows = cur.fetchall()
 
             doc_items = []
             tot_sum = 0.0
             tot_vat = 0.0
             for idx, r in enumerate(rows, 1):
-                qty = float(r["quantity"] or 1)
+                qty = float(r["quantity"] or 0)
                 sm = float(r["sum"] or 0)
-                pr = round(sm / qty, 2) if qty != 0 else sm
+                pr = float(r["price"] or 0)
                 vt = float(r["vat"] or 0)
                 tot_sum += sm
                 tot_vat += vt
                 doc_items.append({
-                    "line_num": idx,
-                    "code": r["item_code"],
+                    "line_number": int(r["line_no"] or idx),
+                    "line_num": int(r["line_no"] or idx),
+                    "code": str(r["item_code"] or "").strip(),
                     "artikul": "",
-                    "name": r["item_name"],
-                    "unit": "əd",
+                    "name": str(r["item_name"] or "").strip(),
+                    "unit": str(r["unit"] or "əd").strip(),
                     "coefficient": 1.0,
                     "quantity": qty,
                     "price": pr,
+                    "amount": sm,
                     "sum": sm,
+                    "discount_percent": 0.0,
                     "vat_rate": "18%" if vt > 0 else "Без НДС",
+                    "vat_amount": vt,
                     "vat_sum": vt,
+                    "total_amount": round(sm + vt, 2),
                     "total": round(sm + vt, 2)
                 })
+
+            header_data = {
+                "number": d_num,
+                "date": format_1c_datetime(doc["date"]),
+                "posted": bool(doc["posted"]),
+                "deleted": bool(doc["deleted"]),
+                "organization": "Aztrade MMC",
+                "kontragent": doc["kontragent"] or "",
+                "kontragent_code": doc["kontragent_code"] or "",
+                "golovnoy_kontragent": doc["golovnoy_kontragent"] or "",
+                "agent": doc["agent"] or "",
+                "contract": doc["contract"] or "Основной договор",
+                "warehouse": doc["warehouse"] or "Основной склад",
+                "price_type": doc["contract_price_type"] or "Оптовая",
+                "currency": "AZN",
+                "amount": float(doc["amount"] or tot_sum),
+                "total_vat": round(tot_vat, 2),
+                "responsible": doc["responsible"] or "Keleshov Nasib",
+                "comment": doc["comment"] or "",
+                "deal": doc["deal"] or "",
+                "obrabotka_number": doc["obrabotka_number"] or "",
+                "vms_status": doc["vms_status"] or "",
+                "pogruzka_marshrut": doc["pogruzka_marshrut"] or "",
+                "pogruzka_voditel": doc["pogruzka_voditel"] or "",
+                "marshrut": doc["pogruzka_marshrut"] or "",
+                "voditel": doc["pogruzka_voditel"] or ""
+            }
 
             return {
                 "doc_type": "РеализацияТоваровУслуг",
                 "doc_title": "Реализация товаров и услуг",
-                "header": {
-                    "number": doc_number,
-                    "date": f"{period} 12:00:00",
-                    "posted": True,
-                    "organization": "Aztrade MMC",
-                    "kontragent": kontr,
-                    "contract": f"Договор поставки ({kontr[:25]})",
-                    "warehouse": "Основной склад",
-                    "price_type": "Оптовая",
-                    "currency": "AZN",
-                    "amount": round(tot_sum + tot_vat, 2),
-                    "total_vat": round(tot_vat, 2),
-                    "responsible": "Emin",
-                    "comment": f"Продажа товаров ({len(doc_items)} поз.)"
-                },
+                "header": header_data,
                 "lines": doc_items,
+                "items": doc_items,
                 "total_lines": len(doc_items)
             }
 
+        # 2. ВозвратТоваровОтПокупателя
+        elif doc_type == "ВозвратТоваровОтПокупателя":
+            cur.execute("""
+                SELECT * FROM documents_vozvrat 
+                WHERE number = ? OR number LIKE ? 
+                ORDER BY date DESC LIMIT 1
+            """, (doc_number, f"%{doc_number}%"))
+            doc = cur.fetchone()
+
+            if not doc:
+                raise ValueError(f"Sənəd №{doc_number} tapılmadı")
+
+            d_num = doc["number"]
+            cur.execute("""
+                SELECT line_no, item_code, item_name, unit, quantity, price, sum 
+                FROM documents_vozvrat_rows 
+                WHERE doc_number = ? 
+                ORDER BY line_no ASC
+            """, (d_num,))
+            rows = cur.fetchall()
+
+            doc_items = []
+            tot_sum = 0.0
+            for idx, r in enumerate(rows, 1):
+                qty = float(r["quantity"] or 0)
+                sm = float(r["sum"] or 0)
+                pr = float(r["price"] or 0)
+                tot_sum += sm
+                doc_items.append({
+                    "line_number": int(r["line_no"] or idx),
+                    "line_num": int(r["line_no"] or idx),
+                    "code": str(r["item_code"] or "").strip(),
+                    "artikul": "",
+                    "name": str(r["item_name"] or "").strip(),
+                    "unit": str(r["unit"] or "əd").strip(),
+                    "coefficient": 1.0,
+                    "quantity": qty,
+                    "price": pr,
+                    "amount": sm,
+                    "sum": sm,
+                    "vat_rate": "Без НДС",
+                    "vat_amount": 0.0,
+                    "total_amount": sm,
+                    "total": sm
+                })
+
+            header_data = {
+                "number": d_num,
+                "date": format_1c_datetime(doc["date"]),
+                "posted": bool(doc["posted"]),
+                "deleted": bool(doc["deleted"]),
+                "organization": "Aztrade MMC",
+                "kontragent": doc["kontragent"] or "",
+                "kontragent_code": doc["kontragent_code"] or "",
+                "golovnoy_kontragent": doc["golovnoy_kontragent"] or "",
+                "agent": doc["agent"] or "",
+                "contract": doc["contract"] or "Основной договор",
+                "warehouse": doc["warehouse"] or "Основной склад",
+                "currency": "AZN",
+                "amount": float(doc["amount"] or tot_sum),
+                "responsible": doc["responsible"] or "Keleshov Nasib",
+                "comment": doc["comment"] or "",
+                "deal": doc["deal"] or ""
+            }
+
+            return {
+                "doc_type": "ВозвратТоваровОтПокупателя",
+                "doc_title": "Возврат товаров от покупателя",
+                "header": header_data,
+                "lines": doc_items,
+                "items": doc_items,
+                "total_lines": len(doc_items)
+            }
+
+        # 3. ПогрузкиМашин
+        elif doc_type in ["ПогрузкиМашин", "ПогрузкаМашин"]:
+            cur.execute("""
+                SELECT * FROM documents_pogruzka 
+                WHERE number = ? OR number LIKE ? 
+                ORDER BY date DESC LIMIT 1
+            """, (doc_number, f"%{doc_number}%"))
+            doc = cur.fetchone()
+
+            if not doc:
+                raise ValueError(f"Sənəd №{doc_number} tapılmadı")
+
+            d_num = doc["number"]
+            cur.execute("""
+                SELECT 
+                    pr.line_no, pr.realization_number,
+                    dr.date AS real_date, dr.kontragent, dr.amount, dr.warehouse
+                FROM documents_pogruzka_rows pr
+                LEFT JOIN documents_realization dr ON dr.number = pr.realization_number
+                WHERE pr.doc_number = ?
+                ORDER BY pr.line_no ASC
+            """, (d_num,))
+            rows = cur.fetchall()
+
+            real_items = []
+            tot_amt = 0.0
+            for idx, r in enumerate(rows, 1):
+                amt = float(r["amount"] or 0)
+                tot_amt += amt
+                real_items.append({
+                    "line_number": int(r["line_no"] or idx),
+                    "realization_number": r["realization_number"] or "",
+                    "number": r["realization_number"] or "",
+                    "date": format_1c_datetime(r["real_date"]),
+                    "kontragent": r["kontragent"] or "",
+                    "amount": amt,
+                    "warehouse": r["warehouse"] or ""
+                })
+
+            header_data = {
+                "number": d_num,
+                "date": format_1c_datetime(doc["date"]),
+                "posted": bool(doc["posted"]),
+                "deleted": bool(doc["deleted"]),
+                "marshrut": doc["marshrut"] or "",
+                "voditel": doc["voditel"] or "",
+                "warehouse": doc["warehouse"] or "",
+                "amount": round(tot_amt, 2),
+                "realization_count": len(real_items),
+                "responsible": doc["responsible"] or "Keleshov Nasib",
+                "comment": doc["comment"] or ""
+            }
+
+            return {
+                "doc_type": "ПогрузкиМашин",
+                "doc_title": "Погрузка машин",
+                "header": header_data,
+                "lines": real_items,
+                "items": real_items,
+                "total_lines": len(real_items)
+            }
+
+        # 4. Generic Fallback
         else:
-            # Generic document details from stock_balances or items
             cur.execute("SELECT item_code, item_name, quantity FROM stock_balances LIMIT 15")
             st_rows = cur.fetchall()
             doc_items = []
@@ -1489,4 +1654,523 @@ def universal_report(payload):
         }
     finally:
         conn.close()
+
+
+# ==============================================================================
+# 11. AUDIT & VERSION HISTORY SERVICES (OFFLINE MODE)
+# ==============================================================================
+
+def get_audit_list(payload):
+    doc_type_filter = payload.get("doc_type", "").strip()
+    author_filter = payload.get("author", "").strip()
+    search_str = payload.get("search", "").strip().lower()
+    date_from = payload.get("date_from")
+    date_to = payload.get("date_to")
+    limit_count = int(payload.get("limit") or 250)
+
+    norm_from = normalize_iso_datetime(date_from, is_end=False)
+    norm_to = normalize_iso_datetime(date_to, is_end=True)
+
+    conn = get_connection()
+    try:
+        cur = conn.cursor()
+
+        # Ensure audit log table exists
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS document_audit_logs (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                doc_type TEXT NOT NULL,
+                doc_number TEXT NOT NULL,
+                version_num INTEGER NOT NULL DEFAULT 1,
+                action_date TEXT NOT NULL,
+                author TEXT NOT NULL,
+                operation TEXT NOT NULL,
+                amount REAL DEFAULT 0.0,
+                posted INTEGER DEFAULT 0,
+                deleted INTEGER DEFAULT 0,
+                comment TEXT DEFAULT '',
+                kontragent TEXT DEFAULT '',
+                warehouse TEXT DEFAULT '',
+                details_json TEXT DEFAULT '{}'
+            )
+        """)
+        conn.commit()
+
+        type_meta = {
+            "РеализацияТоваровУслуг": {"table": "documents_realization", "title": "Реализация товаров и услуг", "icon": "🚚"},
+            "ВозвратТоваровОтПокупателя": {"table": "documents_vozvrat", "title": "Возврат товаров от покупателя", "icon": "↩️"},
+            "ПогрузкиМашин": {"table": "documents_pogruzka", "title": "Погрузка машин", "icon": "📦"},
+            "УстановкаЦенНоменклатуры": {"table": "price_documents", "title": "Установка цен номенклатуры", "icon": "🏷️"}
+        }
+
+        if doc_type_filter and doc_type_filter in type_meta:
+            doc_types_to_query = [doc_type_filter]
+        else:
+            doc_types_to_query = ["РеализацияТоваровУслуг", "ВозвратТоваровОтПокупателя", "ПогрузкиМашин", "УстановкаЦенНоменклатуры"]
+
+        items = []
+
+        for dtype in doc_types_to_query:
+            meta = type_meta[dtype]
+            tbl = meta["table"]
+            date_col = "doc_date" if tbl == "price_documents" else "date"
+            num_col = "doc_number" if tbl == "price_documents" else "number"
+
+            conditions = []
+            params = []
+
+            if norm_from:
+                conditions.append(f"{date_col} >= ?")
+                params.append(norm_from)
+            if norm_to:
+                conditions.append(f"{date_col} <= ?")
+                params.append(norm_to)
+            if author_filter:
+                conditions.append("responsible LIKE ?")
+                params.append(f"%{author_filter}%")
+            if search_str:
+                if tbl == "price_documents":
+                    conditions.append(f"({num_col} LIKE ? OR responsible LIKE ? OR comment LIKE ?)")
+                    params.extend([f"%{search_str}%"] * 3)
+                elif tbl == "documents_pogruzka":
+                    conditions.append(f"({num_col} LIKE ? OR driver LIKE ? OR route LIKE ?)")
+                    params.extend([f"%{search_str}%"] * 3)
+                else:
+                    conditions.append(f"({num_col} LIKE ? OR kontragent LIKE ? OR responsible LIKE ?)")
+                    params.extend([f"%{search_str}%"] * 3)
+
+            where_sql = (" WHERE " + " AND ".join(conditions)) if conditions else ""
+            query_limit = max(limit_count, 100)
+            sql = f"SELECT * FROM {tbl}{where_sql} ORDER BY {date_col} DESC LIMIT {query_limit}"
+
+            cur.execute(sql, params)
+            rows = cur.fetchall()
+
+            for r in rows:
+                r_dict = dict(r)
+                num = str(r_dict.get(num_col) or "").strip()
+                if not num:
+                    continue
+                d_date = format_1c_datetime(r_dict.get(date_col))
+                posted = bool(r_dict.get("posted")) if "posted" in r_dict else ("проведен" in str(r_dict.get("status", "")).lower() and "не проведен" not in str(r_dict.get("status", "")).lower())
+                deleted = bool(r_dict.get("deleted", 0))
+                amt = float(r_dict.get("amount", 0) or 0.0)
+                author = (r_dict.get("responsible") or "Keleshov Nasib").strip()
+                kontr = ""
+                wh = r_dict.get("warehouse", "") or ""
+                if tbl == "price_documents":
+                    kontr = "Bütün müştərilər (Qiymət təyini)"
+                elif tbl == "documents_pogruzka":
+                    kontr = f"Sürücü: {r_dict.get('driver', '')} (Marşrut: {r_dict.get('route', '')})"
+                else:
+                    kontr = r_dict.get("kontragent") or ""
+
+                # Query extra audit logs for this document
+                cur.execute("SELECT COUNT(*), MAX(action_date), MAX(author) FROM document_audit_logs WHERE doc_type = ? AND doc_number = ?", (dtype, num))
+                audit_stat = cur.fetchone()
+                extra_ver_count = audit_stat[0] if audit_stat else 0
+                last_action_date = audit_stat[1] if (audit_stat and audit_stat[1]) else d_date
+                last_action_author = audit_stat[2] if (audit_stat and audit_stat[2]) else author
+
+                version_count = 1 + extra_ver_count
+                if extra_ver_count > 0:
+                    last_op = "Redaktə / Dəyişiklik"
+                elif posted:
+                    last_op = "Təsdiqlənmə (Provodka)"
+                else:
+                    last_op = "Yaradılma (Qaralama)"
+
+                items.append({
+                    "doc_ref_str": f"off_{dtype}_{num}",
+                    "doc_type": dtype,
+                    "doc_type_title": meta["title"],
+                    "icon": meta["icon"],
+                    "number": num,
+                    "date": d_date,
+                    "kontragent": kontr,
+                    "warehouse": wh,
+                    "amount": amt,
+                    "posted": posted,
+                    "deleted": deleted,
+                    "status": "deleted" if deleted else ("posted" if posted else "draft"),
+                    "last_version": version_count,
+                    "version_count": version_count,
+                    "last_date": last_action_date,
+                    "last_author": last_action_author,
+                    "last_operation": last_op,
+                    "comment": r_dict.get("comment", "") or ""
+                })
+
+        # Sort all items by last_date DESC
+        items.sort(key=lambda x: x.get("last_date") or x.get("date") or "", reverse=True)
+        if limit_count > 0:
+            items = items[:limit_count]
+
+        return {
+            "items": items,
+            "total_count": len(items),
+            "period": {
+                "date_from": date_from or "",
+                "date_to": date_to or ""
+            }
+        }
+    finally:
+        conn.close()
+
+
+def get_audit_diff(payload):
+    doc_type = payload.get("doc_type") or "РеализацияТоваровУслуг"
+    doc_number = payload.get("number", "").strip()
+
+    conn = get_connection()
+    try:
+        cur = conn.cursor()
+
+        # Check existing audit logs
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS document_audit_logs (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                doc_type TEXT NOT NULL,
+                doc_number TEXT NOT NULL,
+                version_num INTEGER NOT NULL DEFAULT 1,
+                action_date TEXT NOT NULL,
+                author TEXT NOT NULL,
+                operation TEXT NOT NULL,
+                amount REAL DEFAULT 0.0,
+                posted INTEGER DEFAULT 0,
+                deleted INTEGER DEFAULT 0,
+                comment TEXT DEFAULT '',
+                kontragent TEXT DEFAULT '',
+                warehouse TEXT DEFAULT '',
+                details_json TEXT DEFAULT '{}'
+            )
+        """)
+        conn.commit()
+
+        cur.execute("""
+            SELECT * FROM document_audit_logs 
+            WHERE doc_type = ? AND doc_number = ? 
+            ORDER BY version_num ASC
+        """, (doc_type, doc_number))
+        audit_rows = cur.fetchall()
+
+        # Fetch current document details from database
+        doc_details = None
+        try:
+            doc_details = get_document_details({"doc_type": doc_type, "number": doc_number})
+        except Exception as e:
+            pass
+
+        if not doc_details and not audit_rows:
+            return {
+                "doc_type": doc_type,
+                "number": doc_number,
+                "date": "",
+                "total_versions": 0,
+                "versions": [],
+                "raw_versions": [],
+                "event_timeline": []
+            }
+
+        parsed_versions = []
+        event_timeline = []
+
+        # Version 1 (Baseline / Initial creation)
+        doc_header = (doc_details.get("header") or doc_details) if doc_details else {}
+        base_date = doc_header.get("date", "") if doc_header else (audit_rows[0]["action_date"] if audit_rows else "")
+        base_author = doc_header.get("responsible", "Keleshov Nasib") if doc_header else (audit_rows[0]["author"] if audit_rows else "Keleshov Nasib")
+        base_amount = float(doc_header.get("amount", 0) or 0.0) if doc_header else (audit_rows[0]["amount"] if audit_rows else 0.0)
+        base_posted = bool(doc_header.get("posted", False)) if doc_header else bool(audit_rows[0]["posted"] if audit_rows else False)
+        base_deleted = bool(doc_header.get("deleted", False)) if doc_header else bool(audit_rows[0]["deleted"] if audit_rows else False)
+        base_comment = str(doc_header.get("comment", "") or "") if doc_header else (audit_rows[0]["comment"] if audit_rows else "")
+        base_kontr = str(doc_header.get("kontragent", "") or "") if doc_header else (audit_rows[0]["kontragent"] if audit_rows else "")
+        base_wh = str(doc_header.get("warehouse", "") or "") if doc_header else (audit_rows[0]["warehouse"] if audit_rows else "")
+        base_contract = str(doc_header.get("contract", "") or "") if doc_header else ""
+        base_driver = str(doc_header.get("driver", "") or doc_header.get("voditel", "") or "")
+        base_route = str(doc_header.get("route", "") or doc_header.get("marshrut", "") or "")
+        base_items = []
+
+        if doc_details and "items" in doc_details:
+            for it in doc_details["items"]:
+                qty = float(it.get("quantity") or it.get("qty") or 0.0)
+                pr = float(it.get("price") or 0.0)
+                sm = float(it.get("amount") or it.get("sum") or it.get("total") or (qty * pr))
+                base_items.append({
+                    "code": it.get("code") or "",
+                    "article": it.get("artikul") or "",
+                    "name": it.get("name") or "",
+                    "unit": it.get("unit") or "əd",
+                    "qty": qty,
+                    "price": pr,
+                    "total": sm
+                })
+
+        parsed_versions.append({
+            "version": 1,
+            "author": base_author,
+            "change_date": audit_rows[0]["action_date"] if audit_rows else base_date,
+            "action_date": audit_rows[0]["action_date"] if audit_rows else base_date,
+            "doc_date": base_date,
+            "date": base_date,
+            "amount": base_amount,
+            "posted": base_posted,
+            "deleted": base_deleted,
+            "comment": base_comment,
+            "kontragent": base_kontr,
+            "warehouse": base_wh,
+            "contract": base_contract,
+            "driver": base_driver,
+            "route": base_route,
+            "items_count": len(base_items),
+            "items": base_items
+        })
+
+        order_idx = 1
+        event_timeline.append({
+            "order": order_idx,
+            "date": base_date,
+            "datetime": base_date,
+            "user": base_author,
+            "action": "Yaradıldı",
+            "action_type": "Yaradılma",
+            "badge_class": "blue",
+            "doc_status": "Qaralama" if not base_posted else "Təsdiqləndi",
+            "result": "Sənəd açıldı və yadda saxlanıldı.",
+            "comment": base_comment
+        })
+
+        if base_posted:
+            order_idx += 1
+            event_timeline.append({
+                "order": order_idx,
+                "date": base_date,
+                "datetime": base_date,
+                "user": base_author,
+                "action": "Təsdiqləndi",
+                "action_type": "Təsdiq",
+                "badge_class": "green",
+                "doc_status": "Təsdiqləndi",
+                "result": "Sənəd 1C-də təsdiqləndi (Provodka edildi).",
+                "comment": "1C dövriyyəsinə daxil edildi"
+            })
+
+        # Append historical modified versions if stored in audit_rows
+        import json
+        for a_row in audit_rows:
+            v_idx = len(parsed_versions) + 1
+            a_items = []
+            try:
+                dt_obj = json.loads(a_row["details_json"] or "{}")
+                if "items" in dt_obj and isinstance(dt_obj["items"], list):
+                    for it in dt_obj["items"]:
+                        a_items.append({
+                            "code": it.get("code") or "",
+                            "article": it.get("article") or "",
+                            "name": it.get("name") or "",
+                            "unit": it.get("unit") or "əd",
+                            "qty": float(it.get("qty") or 0.0),
+                            "price": float(it.get("price") or 0.0),
+                            "total": float(it.get("total") or 0.0)
+                        })
+            except Exception:
+                a_items = base_items
+
+            doc_d = dt_obj.get("doc_date") or dt_obj.get("date") or base_date
+            if doc_d == a_row["action_date"] and base_date:
+                doc_d = base_date
+
+            parsed_versions.append({
+                "version": v_idx,
+                "author": a_row["author"] or "Nesib",
+                "change_date": a_row["action_date"],
+                "action_date": a_row["action_date"],
+                "doc_date": doc_d,
+                "date": doc_d,
+                "amount": float(a_row["amount"] or 0.0),
+                "posted": bool(a_row["posted"]),
+                "deleted": bool(a_row["deleted"]),
+                "comment": a_row["comment"] or "",
+                "kontragent": a_row["kontragent"] or base_kontr,
+                "warehouse": a_row["warehouse"] or base_wh,
+                "driver": "",
+                "route": "",
+                "items_count": len(a_items),
+                "items": a_items
+            })
+
+            order_idx += 1
+            op_raw = (a_row["operation"] or "").lower()
+            is_del = bool(a_row["deleted"]) or "sil" in op_raw or "пометк" in op_raw
+            is_post = bool(a_row["posted"]) or "провед" in op_raw or "təsdiq" in op_raw
+            if is_del:
+                act = "Silindi"
+                act_type = "Silinmə"
+                b_class = "red"
+                d_st = "Silindi"
+                res_txt = "Sənəd 1C-dən silindi."
+            elif is_post and not is_del:
+                act = "Təsdiqləndi"
+                act_type = "Təsdiq"
+                b_class = "green"
+                d_st = "Təsdiqləndi"
+                res_txt = "Sənəd 1C-də təsdiqləndi."
+            elif not is_post and not is_del and "ləğv" in op_raw:
+                act = "Təsdiq ləğv edildi"
+                act_type = "Təsdiq ləğvi"
+                b_class = "orange"
+                d_st = "Qaralama"
+                res_txt = "Təsdiq ləğv edildi, sənəd qaralamaya qaytarıldı."
+            else:
+                act = "Dəyişdirildi"
+                act_type = "Redaktə"
+                b_class = "orange"
+                d_st = "Təsdiqləndi" if a_row["posted"] else "Qaralama"
+                res_txt = a_row["comment"] or "Sənəd rekvizitləri və ya mallar dəyişdirildi."
+
+            event_timeline.append({
+                "order": order_idx,
+                "date": a_row["action_date"],
+                "datetime": a_row["action_date"],
+                "user": a_row["author"] or "Nesib",
+                "action": act,
+                "action_type": act_type,
+                "badge_class": b_class,
+                "doc_status": d_st,
+                "result": res_txt,
+                "comment": a_row["comment"] or ""
+            })
+
+        # Calculate Diffs between each consecutive version (v1 -> v2 ...)
+        version_diffs = []
+        for i in range(len(parsed_versions)):
+            cur_v = parsed_versions[i]
+            prev_v = parsed_versions[i - 1] if i > 0 else None
+
+            field_diffs = []
+            item_diffs = {"added": [], "removed": [], "modified": []}
+
+            if prev_v is None:
+                # First version
+                operation = "İlkin yaradılma (Baza versiyası)"
+                field_diffs.append({"field": "СуммаДокумента", "label": "Məbləğ", "old_val": "—", "new_val": f"{cur_v['amount']:.2f} AZN"})
+                field_diffs.append({"field": "Проведен", "label": "Status", "old_val": "—", "new_val": "✔ Təsdiqlənib (Provodka)" if cur_v["posted"] else "📄 Qaralama"})
+                if cur_v.get("kontragent"):
+                    field_diffs.append({"field": "Контрагент", "label": "Müştəri / Tərəf-müqabili", "old_val": "—", "new_val": cur_v["kontragent"]})
+                if cur_v.get("warehouse"):
+                    field_diffs.append({"field": "Склад", "label": "Anbar", "old_val": "—", "new_val": cur_v["warehouse"]})
+                if cur_v.get("comment"):
+                    field_diffs.append({"field": "Комментарий", "label": "Qeyd / Şərh", "old_val": "—", "new_val": cur_v["comment"]})
+
+                # Initial version: all rows are newly added
+                item_diffs["added"] = cur_v["items"]
+            else:
+                # Modification
+                operation = "Sənəd redaktəsi və dəyişikliklər"
+                if abs(cur_v["amount"] - prev_v["amount"]) > 0.001:
+                    field_diffs.append({
+                        "field": "СуммаДокумента",
+                        "label": "Məbləğ",
+                        "old_val": f"{prev_v['amount']:.2f} AZN",
+                        "new_val": f"{cur_v['amount']:.2f} AZN",
+                        "diff": cur_v["amount"] - prev_v["amount"]
+                    })
+                if cur_v["posted"] != prev_v["posted"]:
+                    operation = "Təsdiqlənmə (Provodka)" if cur_v["posted"] else "Təsdiqin ləğvi (Qaralamaya keçid)"
+                    field_diffs.append({
+                        "field": "Проведен",
+                        "label": "Status",
+                        "old_val": "✔ Təsdiqlənib" if prev_v["posted"] else "📄 Qaralama",
+                        "new_val": "✔ Təsdiqlənib" if cur_v["posted"] else "📄 Qaralama"
+                    })
+                if cur_v["deleted"] != prev_v["deleted"]:
+                    operation = "Pozulma nişanı qoyuldu" if cur_v["deleted"] else "Pozulma nişanı götürüldü"
+                    field_diffs.append({
+                        "field": "ПометкаУдаления",
+                        "label": "Pozulma nişanı",
+                        "old_val": "Bəli" if prev_v["deleted"] else "Xeyr",
+                        "new_val": "Bəli" if cur_v["deleted"] else "Xeyr"
+                    })
+                if cur_v.get("warehouse") != prev_v.get("warehouse") and (cur_v.get("warehouse") or prev_v.get("warehouse")):
+                    field_diffs.append({
+                        "field": "Склад",
+                        "label": "Anbar",
+                        "old_val": prev_v.get("warehouse") or "—",
+                        "new_val": cur_v.get("warehouse") or "—"
+                    })
+                if cur_v.get("comment") != prev_v.get("comment") and (cur_v.get("comment") or prev_v.get("comment")):
+                    field_diffs.append({
+                        "field": "Комментарий",
+                        "label": "Qeyd / Şərh",
+                        "old_val": prev_v.get("comment") or "—",
+                        "new_val": cur_v.get("comment") or "—"
+                    })
+
+                # Diff table lines
+                old_map = {it["code"] or it["name"]: it for it in prev_v["items"]}
+                new_map = {it["code"] or it["name"]: it for it in cur_v["items"]}
+
+                for key, n_it in new_map.items():
+                    if key not in old_map:
+                        item_diffs["added"].append(n_it)
+                    else:
+                        o_it = old_map[key]
+                        qty_diff = abs(n_it["qty"] - o_it["qty"]) > 0.0001
+                        pr_diff = abs(n_it["price"] - o_it["price"]) > 0.001
+                        tot_diff = abs(n_it["total"] - o_it["total"]) > 0.001
+                        if qty_diff or pr_diff or tot_diff:
+                            item_diffs["modified"].append({
+                                "name": n_it["name"],
+                                "code": n_it["code"],
+                                "old_qty": o_it["qty"],
+                                "new_qty": n_it["qty"],
+                                "old_price": o_it["price"],
+                                "new_price": n_it["price"],
+                                "old_total": o_it["total"],
+                                "new_total": n_it["total"]
+                            })
+
+                for key, o_it in old_map.items():
+                    if key not in new_map:
+                        item_diffs["removed"].append(o_it)
+
+                if not field_diffs and not item_diffs["added"] and not item_diffs["removed"] and not item_diffs["modified"]:
+                    operation = "Dəyişikliksiz təkrar saxlanılma"
+                    field_diffs.append({
+                        "field": "Məlumat",
+                        "label": "Məlumat",
+                        "old_val": "Mallar və rekvizitlər dəyişməyib",
+                        "new_val": "Sənəd yenidən saxlanılıb"
+                    })
+
+            version_diffs.append({
+                "version": cur_v["version"],
+                "author": cur_v["author"],
+                "date": cur_v["date"],
+                "operation": operation,
+                "amount": cur_v["amount"],
+                "posted": cur_v["posted"],
+                "deleted": cur_v["deleted"],
+                "field_diffs": field_diffs,
+                "item_diffs": item_diffs,
+                "total_items": cur_v["items_count"]
+            })
+
+        return {
+            "doc_type": doc_type,
+            "number": doc_number,
+            "date": base_date,
+            "kontragent": base_kontr,
+            "warehouse": base_wh,
+            "contract": base_contract,
+            "amount": base_amount,
+            "posted": base_posted,
+            "deleted": base_deleted,
+            "total_versions": len(parsed_versions),
+            "versions": version_diffs,
+            "raw_versions": parsed_versions,
+            "event_timeline": event_timeline
+        }
+    finally:
+        conn.close()
+
 

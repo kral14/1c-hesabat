@@ -1,0 +1,18 @@
+{
+  "database": "Test1C / Aztrade_test3",
+  "scope": "Live Universal Journal, 150 loaded sales documents, warm persistent COM connection; double requestAnimationFrame paint opportunity measurement",
+  "query": "C000044",
+  "selected_column": "number",
+  "search_server_first_page_before_column_fix_ms": 16082.1,
+  "search_server_first_page_after_column_fix_ms": 1415.8,
+  "search_loaded_preview_after_fix_ms": 43.3,
+  "filter_loaded_preview_ms": 19.4,
+  "clear_search_filter_ms": [40.9, 32.6],
+  "server_page_limit": 150,
+  "notes": [
+    "Loaded-list previews are partial until server results arrive; the UI identifies this state.",
+    "The diagnostic harness pauses further pages after the measured frame to keep the test bounded.",
+    "Preservation of search field and filter criteria during pagination is checked with mock regression tests.",
+    "Timings are samples, not guarantees for every search or nomenclature filter."
+  ]
+}

@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 import datetime
+from services.user_passwords import list_accounts, change_password
 from services.common import (
     get_folders_map,
     resolve_root_portfolio,
@@ -168,6 +169,8 @@ def handle_catalog_data(conn, payload, key, resp_q):
         ref_cat = "ДоговорыКонтрагентов"
     elif any(w in cat_lower for w in ["контрагент", "клиент", "müştəri", "kontragent"]):
         ref_cat = "Контрагенты"
+    elif any(w in cat_lower for w in ["агент", "agent", "satış nümayəndəsi"]):
+        ref_cat = "Агенты"
     elif any(w in cat_lower for w in ["склад", "склады", "anbar", "warehouse"]):
         ref_cat = "Склады"
     elif any(w in cat_lower for w in ["пользовател", "пользователи", "ответственн", "responsible", "user"]):
@@ -1075,8 +1078,10 @@ def handle_get_nomenclature_stock(conn, payload, key, resp_q):
 
 def handle_catalog_card(conn, payload, key, resp_q):
     catalog = str(payload.get("catalog") or "")
+    if catalog in ("Agent", "agent"):
+        catalog = "Агенты"
     allowed = {"Контрагенты", "Склады", "ДоговорыКонтрагентов", "ТипыЦенНоменклатуры",
-               "Пользователи", "Портфели", "Водители", "Номенклатура"}
+               "Пользователи", "Портфели", "Водители", "Номенклатура", "ФизическиеЛица", "Агенты"}
     if catalog not in allowed:
         raise ValueError("Справочник не поддерживается")
     code = str(payload.get("code") or "").strip()
@@ -1109,6 +1114,8 @@ def handle_catalog_card(conn, payload, key, resp_q):
 
 
 CATALOG_HANDLERS = {
+    "user_accounts": list_accounts,
+    "change_user_password": change_password,
     "catalog_card": handle_catalog_card,
     "get_users": handle_get_users,
     "get_portfolios": handle_get_portfolios,

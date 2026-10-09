@@ -21,6 +21,8 @@ def get_realization_list(conn, payload):
         {"key": "date", "label": "Дата", "width": 145, "align": "left"},
         {"key": "number", "label": "Номер", "width": 115, "align": "left"},
         {"key": "kontragent", "label": "Контрагент", "width": 240, "align": "left"},
+        {"key": "golovnoy_kontragent", "label": "Головной контрагент", "width": 180, "align": "left"},
+        {"key": "agent", "label": "Агент", "width": 140, "align": "left"},
         {"key": "kontragent_code", "label": "Код контрагента", "width": 115, "align": "left"},
         {"key": "portfolio", "label": "Портфель", "width": 130, "align": "left"},
         {"key": "amount", "label": "Сумма", "width": 110, "align": "right"},
@@ -71,6 +73,9 @@ def get_realization_list(conn, payload):
         "number": "Т.Номер",
         "kontragent": "Т.Контрагент.Наименование",
         "kontragent_code": "Т.Контрагент.Код",
+        "golovnoy_kontragent": "Т.Контрагент.ГоловнойКонтрагент.Наименование",
+        "golovnoy_kontragent_code": "Т.Контрагент.ГоловнойКонтрагент.Код",
+        "agent": "Т.ДоговорКонтрагента.Агент.Наименование",
         "deal": "Т.Сделка.Номер",
         "contract": "Т.ДоговорКонтрагента.Наименование",
         "contract_price_type": "Т.ДоговорКонтрагента.ТипЦен.Наименование",
@@ -108,6 +113,8 @@ def get_realization_list(conn, payload):
         Т.ВерсияДанных КАК DataVersion,
         Т.Контрагент.Наименование КАК Kontragent,
         Т.Контрагент.Код КАК KontragentCode,
+        Т.Контрагент.ГоловнойКонтрагент.Наименование КАК GolovnoyKontragent,
+        Т.ДоговорКонтрагента.Агент.Наименование КАК Agent,
         Т.СуммаДокумента КАК Amount,
         Т.Склад.Наименование КАК Warehouse,
         Т.Сделка.Номер КАК Deal,
@@ -169,6 +176,8 @@ def get_realization_list(conn, payload):
             "data_version": dv_str,
             "kontragent": str(res_doc.Kontragent or "").strip(),
             "kontragent_code": str(res_doc.KontragentCode or "").strip(),
+            "golovnoy_kontragent": str(res_doc.GolovnoyKontragent or "").strip(),
+            "agent": str(res_doc.Agent or "").strip(),
             "amount": float(res_doc.Amount or 0),
             "warehouse": str(res_doc.Warehouse or "").strip(),
             "deal": str(res_doc.Deal or "").strip(),
@@ -283,7 +292,11 @@ def get_realization_details(conn, payload):
         "currency": str(getattr(doc_obj.ВалютаДокумента, "Наименование", "") or "").strip() if getattr(doc_obj, "ВалютаДокумента", None) else "AZN",
         "responsible": str(getattr(doc_obj.Ответственный, "Наименование", "") or "").strip() if getattr(doc_obj, "Ответственный", None) else "",
         "comment": str(getattr(doc_obj, "Комментарий", "") or "").strip(),
-        "deal": str(getattr(getattr(doc_obj, "Сделка", None), "Номер", "") or "").strip() if getattr(doc_obj, "Сделка", None) else ""
+        "deal": str(getattr(getattr(doc_obj, "Сделка", None), "Номер", "") or "").strip() if getattr(doc_obj, "Сделка", None) else "",
+        "bu_record": bool(getattr(doc_obj, "ОтражатьВБухгалтерскомУчете", False)),
+        "nu_record": bool(getattr(doc_obj, "ОтражатьВНалоговомУчете", False)),
+        "account_settlement": str(getattr(getattr(doc_obj, "СчетУчетаРасчетовСКонтрагентом", None), "Код", "") or "").strip(),
+        "account_advance": str(getattr(getattr(doc_obj, "СчетУчетаРасчетовПоАвансам", None), "Код", "") or "").strip()
     }
 
     # Tabular section: Товары
@@ -292,6 +305,26 @@ def get_realization_details(conn, payload):
         for row in doc_obj.Товары:
             nom_obj = row.Номенклатура if hasattr(row, "Номенклатура") else None
             ed_obj = row.ЕдиницаИзмерения if hasattr(row, "ЕдиницаИзмерения") else None
+            d_auto = float(getattr(row, "ПроцентАвтоматическихСкидок", 0) or 0)
+            d_manual = float(getattr(row, "ПроцентСкидкиНаценки", 0) or 0)
+            raw_vat = getattr(row, "СтавкаНДС", None)
+            vat_rate_str = ""
+            if raw_vat is not None:
+                try:
+                    vat_rate_str = str(conn.String(raw_vat)).strip()
+                except Exception:
+                    vat_rate_str = str(getattr(raw_vat, "Наименование", "") or "").strip()
+            if "18_118" in vat_rate_str or "18/118" in vat_rate_str: vat_rate_str = "18/118"
+            elif "18" in vat_rate_str: vat_rate_str = "18%"
+            elif "Без" in vat_rate_str: vat_rate_str = "ƏDV-siz"
+            elif not vat_rate_str: vat_rate_str = "0%"
+
+            acc_bu = str(getattr(getattr(row, "СчетУчетаБУ", None), "Код", "") or "").strip()
+            acc_inc = str(getattr(getattr(row, "СчетДоходовБУ", None), "Код", "") or "").strip()
+            acc_exp = str(getattr(getattr(row, "СчетРасходовБУ", None), "Код", "") or "").strip()
+            row_wh = str(getattr(getattr(row, "Склад", None), "Наименование", "") or "").strip()
+            row_series = str(getattr(getattr(row, "СерияНоменклатуры", None), "Наименование", "") or "").strip()
+
             tovary.append({
                 "line_number": int(getattr(row, "НомерСтроки", len(tovary) + 1)),
                 "nomenklatura": str(getattr(nom_obj, "Наименование", "") or "").strip() if nom_obj else "",
@@ -302,10 +335,17 @@ def get_realization_details(conn, payload):
                 "coefficient": float(getattr(row, "Коэффициент", 1) or 1),
                 "price": float(getattr(row, "Цена", 0) or 0),
                 "amount": float(getattr(row, "Сумма", 0) or 0),
-                "discount_percent": float(getattr(row, "ПроцентСкидкиНаценки", 0) or 0),
-                "vat_rate": str(getattr(getattr(row, "СтавкаНДС", None), "Наименование", "") or ""),
+                "discount_auto": d_auto,
+                "discount_manual": d_manual,
+                "discount_percent": d_auto + d_manual,
+                "vat_rate": vat_rate_str,
                 "vat_amount": float(getattr(row, "СуммаНДС", 0) or 0),
-                "total_amount": float(getattr(row, "Сумма", 0) or 0)
+                "total_amount": float(getattr(row, "Сумма", 0) or 0),
+                "account_bu": acc_bu,
+                "income_account_bu": acc_inc,
+                "expense_account_bu": acc_exp,
+                "warehouse": row_wh,
+                "series": row_series
             })
 
     # Query ПогрузкиМашин for this realization
@@ -364,7 +404,14 @@ def get_realization_details(conn, payload):
             "vat_rate": t["vat_rate"],
             "vat_sum": t["vat_amount"],
             "total": t["total_amount"],
-            "discount_percent": t["discount_percent"]
+            "discount_auto": t["discount_auto"],
+            "discount_manual": t["discount_manual"],
+            "discount_percent": t["discount_percent"],
+            "account_bu": t["account_bu"],
+            "income_account_bu": t["income_account_bu"],
+            "expense_account_bu": t["expense_account_bu"],
+            "warehouse": t["warehouse"],
+            "series": t["series"]
         })
 
     return {
@@ -377,3 +424,4 @@ def get_realization_details(conn, payload):
         "pogruzka_count": len(pogruzki),
         "pogruzka_duplicate": (len(pogruzki) > 1)
     }
+

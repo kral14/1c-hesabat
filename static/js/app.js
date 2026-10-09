@@ -5,7 +5,7 @@
 
 document.addEventListener("DOMContentLoaded", async () => {
   // Ensure document editor and detail modals NEVER pop up on clean startup or page reload
-  ["pogruzkaDocEditorWindow", "salesDocEditorWindow", "priceDocEditorWindow", "docVersionDiffWindow"].forEach(id => {
+  ["pogruzkaDocEditorWindow", "salesDocEditorWindow", "priceDocEditorWindow", "docVersionDiffWindow", "auditJournalWindow", "nomenclatureCardWindow"].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.style.display = "none";
   });
@@ -34,10 +34,11 @@ document.addEventListener("DOMContentLoaded", async () => {
       return;
     }
 
-    if (e.key === "F5") {
+    if (e.key === "F5" || e.code === "F5") {
       e.preventDefault();
-      if (window.MdiManager) {
-        MdiManager.handleConfirm();
+      e.stopPropagation();
+      if (window.MdiManager && typeof MdiManager.handleRefresh === "function") {
+        MdiManager.handleRefresh();
       } else if (typeof onActionFormirovat === "function") {
         onActionFormirovat();
       }
@@ -46,6 +47,16 @@ document.addEventListener("DOMContentLoaded", async () => {
       MdiManager.createNewReportWindow();
     }
   }, true);
+
+  // Electron IPC listener: F5 triggers in-place refresh without window reload
+  if (window.electronAPI && typeof window.electronAPI.onRefresh === "function") {
+    window.electronAPI.onRefresh(() => {
+      console.log("[Electron IPC] window-hotkey-refresh received! Refreshing active window in place...");
+      if (window.MdiManager && typeof MdiManager.handleRefresh === "function") {
+        MdiManager.handleRefresh();
+      }
+    });
+  }
 
   // 3. Close actions dropdown when clicking outside
   document.addEventListener("click", (e) => {
@@ -170,4 +181,13 @@ window.openCatalogDirect = openCatalogDirect;
 function toggleFullScreenApp() {
   maximizeAppWindow();
 }
+
+function openJournalDirect(docType) {
+  if (window.UniversalJournal && typeof UniversalJournal.openDirect === "function") {
+    UniversalJournal.openDirect(docType);
+  } else if (typeof openUniversalJournalWindow === "function") {
+    openUniversalJournalWindow(docType);
+  }
+}
+window.openJournalDirect = openJournalDirect;
 

@@ -586,6 +586,59 @@
   color: #666666;
 }
 
+.mdi-dash-compact-tile {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  background: #fbfbf9;
+  border: 1px solid #8e9dae;
+  border-radius: 4px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.18);
+  cursor: pointer;
+  transition: all 0.15s ease-in-out;
+  user-select: none;
+}
+
+.mdi-dash-compact-tile:hover {
+  background: #ffffff;
+  border-color: #316ac5;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.32);
+  transform: translateY(-1px);
+}
+
+.mdi-dash-compact-tile:active {
+  background: #ece9d8;
+  transform: translateY(0);
+}
+
+.mdi-dash-compact-icon {
+  font-size: 20px;
+  width: 34px;
+  height: 34px;
+  background: #f0ede0;
+  border: 1px solid #c5c3b5;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.mdi-dash-compact-title {
+  font-size: 12px;
+  font-weight: bold;
+  color: #1a1a1a;
+  line-height: 1.25;
+}
+
+.mdi-dash-compact-subtitle {
+  font-size: 10px;
+  color: #666666;
+  line-height: 1.2;
+}
+
 .mdi-dashboard-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(260px, 320px));
@@ -857,5 +910,32 @@
               width 0.18s cubic-bezier(0.16, 1, 0.3, 1),
               height 0.18s cubic-bezier(0.16, 1, 0.3, 1);
 }
+
+/* ========================================================
+   BOTTOM SCROLLBAR CLEARANCE
+   Ensures the last row never falls behind horizontal scrollbar
+   ======================================================== */
+.uj-table-wrapper,
+#ujTableWrapper,
+#sdeTableWrapper,
+#pdeTableWrapper,
+#pcTableWrapper,
+#ajTableWrapper,
+#catTableWrapper,
+.c1-table-wrapper,
+.cat-table-wrapper {
+  padding-bottom: 24px !important;
+  box-sizing: border-box !important;
+}
+
+#sdeItemsTable,
+#pdeItemsTable,
+#pcTable,
+#ajTable,
+#catTable,
+.catalog-table {
+  margin-bottom: 24px !important;
+}
+
 
 

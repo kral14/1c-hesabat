@@ -5,12 +5,18 @@ import sys
 import datetime
 import traceback
 
-APP_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if getattr(sys, 'frozen', False):
+    APP_DIR = os.path.dirname(sys.executable)
+else:
+    APP_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SCRATCH_DIR = APP_DIR
-EXCEL_OUTPUT = os.path.join(SCRATCH_DIR, "report_export.xlsx")
-UNIVERSAL_EXCEL = os.path.join(SCRATCH_DIR, "universal_export.xlsx")
-UNIVERSAL_REPORT_EXCEL = os.path.join(SCRATCH_DIR, "universal_report_export.xlsx")
-PORTFOLIO_EXCEL = os.path.join(SCRATCH_DIR, "portfolio_catalog_export.xlsx")
+EXPORTS_DIR = os.path.join(APP_DIR, "exports")
+os.makedirs(EXPORTS_DIR, exist_ok=True)
+
+EXCEL_OUTPUT = os.path.join(EXPORTS_DIR, "report_export.xlsx")
+UNIVERSAL_EXCEL = os.path.join(EXPORTS_DIR, "universal_export.xlsx")
+UNIVERSAL_REPORT_EXCEL = os.path.join(EXPORTS_DIR, "universal_report_export.xlsx")
+PORTFOLIO_EXCEL = os.path.join(EXPORTS_DIR, "portfolio_catalog_export.xlsx")
 CACHE_DIR = os.path.join(SCRATCH_DIR, "epf_cache")
 os.makedirs(CACHE_DIR, exist_ok=True)
 
@@ -20,8 +26,9 @@ def print_server_error(source, err, payload=None):
     print(f"❌ [1C SERVER XƏTASI] Tarix: {now_str} | Mənbə: {source}", flush=True)
     if payload:
         safe_p = dict(payload) if isinstance(payload, dict) else {"payload": str(payload)}
-        if "password" in safe_p:
-            safe_p["password"] = "***"
+        for name in safe_p:
+            if any(token in str(name).lower() for token in ('password', 'парол', 'pwd')):
+                safe_p[name] = "***"
         print(f"📦 Parametrlər: {safe_p}", flush=True)
     print(f"⚠️ Xəta Təsviri: {err}", flush=True)
     print("-" * 70, flush=True)

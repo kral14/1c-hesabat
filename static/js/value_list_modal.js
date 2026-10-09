@@ -68,6 +68,7 @@ const ValueListModal = {
     else if (catL.includes("пользовател") || catL.includes("ответственн")) catalogDisplayName = "Пользователи";
     else if (catL.includes("вод")) catalogDisplayName = "Водители";
     else if (catL.includes("портфел")) catalogDisplayName = "Портфели";
+    else if (catL.includes("агент") || catL.includes("agent")) catalogDisplayName = "Агенты";
     else if (isNom) catalogDisplayName = "Номенклатура";
 
     const winTitle = document.querySelector("#valueListWindowModal .settings-header-title span");

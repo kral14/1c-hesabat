@@ -1,0 +1,12 @@
+{
+  "database": "Test1C / Aztrade_test3",
+  "gesture": "End",
+  "request": {"limit": 0, "offset": 0},
+  "behavior": "One request fetches the complete selected period. Existing rows remain behind a loading overlay until the complete response arrives, then the result is published together.",
+  "live_initial_rows": 2000,
+  "live_complete_rows": 24839,
+  "live_wait_cursor_restored": true,
+  "mock_complete_rows": 87000,
+  "mock_additional_page_requests": 0,
+  "mock_limit_zero_verified": true
+}

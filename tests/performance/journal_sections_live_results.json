@@ -1,0 +1,34 @@
+{
+  "database": "Test1C / Aztrade_test3",
+  "method": "Live browser, action handler to second requestAnimationFrame; warm server connection. Diagnostic harness pauses further pagination after measured frame.",
+  "section_first_150_rows_ms": {
+    "Loading": 205.6,
+    "Returns": 391.5,
+    "Prices": 85.8,
+    "Receipts": 469.5,
+    "Orders": 1832.3,
+    "Inventory": 337.9,
+    "Writeoffs": 354.6,
+    "Stock receipts": 270.5
+  },
+  "sales_first_150_rows_prior_measurement_ms": 1900.9,
+  "large_list_after_fix": {
+    "rows": 10000,
+    "load_ms": 4079.1,
+    "scroll_to_end_ms": 45.1,
+    "dom_rows_at_end": 53
+  },
+  "repeated_section_switches_after_fix": {
+    "count": 20,
+    "all_document_rows_visible": true,
+    "median_ms": 80,
+    "min_ms": 43,
+    "max_ms": 216.5,
+    "cached_rows_min": 10300,
+    "cached_rows_max": 10300,
+    "js_heap_mb_min": 15.21,
+    "js_heap_mb_max": 18.11
+  },
+  "fixed_issue": "Switching from a deeply scrolled large list to a small cached section could render zero document rows. Cached scroll positions are now restored per list, and virtual scroll is clamped to the actual row count.",
+  "limits": "This is a bounded smoke test, not an hours-long memory soak or complete download of every document. JS heap readings are Chromium estimates. Reports and catalogs outside Universal Journal are not covered."
+}

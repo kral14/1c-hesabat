@@ -1,0 +1,12 @@
+{
+  "database": "Test1C / Aztrade_test3",
+  "period": "01.04.2026 - 31.10.2026",
+  "initial_loaded_rows": 2000,
+  "idle_row_count_stayed_at_2000": true,
+  "after_regular_scroll_loaded_rows": 4000,
+  "explicit_full_load_gesture_tested": "Ctrl+End on focused table",
+  "wait_cursor_active_during_full_load": true,
+  "full_load_final_rows": 17507,
+  "wait_cursor_restored_after_completion": true,
+  "notes": "Regular scrolling fetches one 2000-row page near the loaded end. Dragging the scrollbar to its bottom or Ctrl+End explicitly loads the remaining period. Requests are sequential, and leaving the journal cancels the client continuation."
+}

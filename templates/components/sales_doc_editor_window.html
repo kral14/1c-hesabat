@@ -189,20 +189,24 @@
         <div style="font-weight: bold; color: #004080; font-size: 12px;">1C: Загрузка накладной реализации...</div>
       </div>
 
-      <table id="sdeTable" style="width: 100%; min-width: 950px; border-collapse: collapse; font-family: Tahoma, 'MS Sans Serif', Arial, sans-serif; font-size: 11px; table-layout: fixed;">
+      <table id="sdeTable" style="width: 100%; min-width: 1100px; border-collapse: collapse; font-family: Tahoma, 'MS Sans Serif', Arial, sans-serif; font-size: 11px; table-layout: fixed;">
         <colgroup>
-          <col style="width: 35px;">   <!-- № -->
-          <col style="width: 95px;">   <!-- Код -->
-          <col style="width: 85px;">   <!-- Артикул -->
+          <col style="width: 32px;">   <!-- № -->
+          <col style="width: 90px;">   <!-- Код -->
+          <col style="width: 80px;">   <!-- Артикул -->
           <col style="width: auto;">   <!-- Номенклатура -->
-          <col style="width: 80px;">   <!-- Количество -->
-          <col style="width: 45px;">   <!-- Ед. -->
-          <col style="width: 45px;">   <!-- Коэфф -->
-          <col style="width: 85px;">   <!-- Цена -->
-          <col style="width: 95px;">   <!-- Сумма -->
+          <col style="width: 75px;">   <!-- Количество -->
+          <col style="width: 40px;">   <!-- Ед. -->
+          <col style="width: 40px;">   <!-- Коэфф -->
+          <col style="width: 80px;">   <!-- Цена -->
+          <col style="width: 75px;">   <!-- % Скидки (Авто) -->
+          <col style="width: 75px;">   <!-- % Скидки (Ручн) -->
+          <col style="width: 90px;">   <!-- Сумма -->
           <col style="width: 65px;">   <!-- % НДС -->
-          <col style="width: 80px;">   <!-- Сумма НДС -->
-          <col style="width: 105px;">  <!-- Всего -->
+          <col style="width: 75px;">   <!-- Сумма НДС -->
+          <col style="width: 95px;">   <!-- Всего -->
+          <col style="width: 65px;">   <!-- Счет БУ -->
+          <col style="width: 65px;">   <!-- Счет доходов -->
         </colgroup>
         <thead>
           <tr id="sdeTableHeadRow" style="background: #e3dec9; border-bottom: 2px solid #5a5a5a; position: sticky; top: 0; z-index: 10; height: 23px;">
@@ -214,10 +218,14 @@
             <th style="border: 1px solid #b0af9f; padding: 2px; text-align: center;">Ед.</th>
             <th style="border: 1px solid #b0af9f; padding: 2px; text-align: center;">Коэф.</th>
             <th style="border: 1px solid #b0af9f; padding: 2px 4px; text-align: right;">Цена</th>
+            <th style="border: 1px solid #b0af9f; padding: 2px 4px; text-align: right;" title="Процент Автоматических Скидок">% Скидки (Авто)</th>
+            <th style="border: 1px solid #b0af9f; padding: 2px 4px; text-align: right;" title="Процент Ручной Скидки / Наценки">% Скидки (Ручн)</th>
             <th style="border: 1px solid #b0af9f; padding: 2px 6px; text-align: right;">Сумма</th>
             <th style="border: 1px solid #b0af9f; padding: 2px; text-align: center;">% НДС</th>
             <th style="border: 1px solid #b0af9f; padding: 2px 4px; text-align: right;">Сумма НДС</th>
             <th style="border: 1px solid #b0af9f; padding: 2px 6px; text-align: right; color: #002060;">Всего</th>
+            <th style="border: 1px solid #b0af9f; padding: 2px; text-align: center;" title="Счет учета БУ">Счет БУ</th>
+            <th style="border: 1px solid #b0af9f; padding: 2px; text-align: center;" title="Счет доходов БУ">Счет доходов</th>
           </tr>
         </thead>
         <tbody id="sdeTableBody">
@@ -307,19 +315,29 @@
         </div>
 
         <!-- Right: Summary Totals Display (Authentic 1C Summary Panel) -->
-        <div style="display: flex; align-items: center; gap: 16px; background: #e5e2cf; padding: 4px 12px; border: 1px solid #b0af9f; border-radius: 2px;">
+        <div style="display: flex; align-items: center; gap: 14px; background: #e5e2cf; padding: 4px 12px; border: 1px solid #b0af9f; border-radius: 2px;">
           <div style="text-align: right;">
+            <div style="font-size: 10px; color: #555;">Сумма (без скидки):</div>
+            <div id="sdeTotalSumBase" style="font-weight: bold; font-size: 12px; color: #333;">0.00 AZN</div>
+          </div>
+
+          <div style="text-align: right; border-left: 1px solid #b0af9f; padding-left: 12px;">
+            <div style="font-size: 10px; color: #b71c1c; font-weight: 500;">Скидка (Endirim):</div>
+            <div id="sdeTotalDiscount" style="font-weight: bold; font-size: 12px; color: #c62828;">0.00 AZN</div>
+          </div>
+
+          <div style="text-align: right; border-left: 1px solid #b0af9f; padding-left: 12px;">
             <div style="font-size: 10px; color: #555;">Сумма без НДС:</div>
             <div id="sdeTotalSumNet" style="font-weight: bold; font-size: 12px; color: #222;">0.00 AZN</div>
           </div>
 
-          <div style="text-align: right; border-left: 1px solid #b0af9f; padding-left: 14px;">
+          <div style="text-align: right; border-left: 1px solid #b0af9f; padding-left: 12px;">
             <div style="font-size: 10px; color: #555;">В т.ч. НДС (18%):</div>
             <div id="sdeTotalSumVat" style="font-weight: bold; font-size: 12px; color: #222;">0.00 AZN</div>
           </div>
 
           <div style="text-align: right; border-left: 1px solid #b0af9f; padding-left: 14px;">
-            <div style="font-size: 10px; color: #002060; font-weight: bold;">ВСЕГО (С НДС):</div>
+            <div style="font-size: 10px; color: #002060; font-weight: bold;">ВСЕГО (Son Məbləğ):</div>
             <div id="sdeTotalSumGross" style="font-weight: bold; font-size: 14px; color: #002060;">0.00 AZN</div>
           </div>
         </div>

@@ -196,6 +196,6 @@ DOCUMENT_HANDLERS = {
     "get_item_prices": handle_get_item_prices,
     "get_batch_item_prices": handle_get_batch_item_prices,
     "find_pogruzka": handle_find_pogruzka,
-    "get_audit_list": lambda conn, payload, key, resp_q: resp_q.put((True, __import__("services.audit_service", fromlist=["get_audit_list"]).get_audit_list(conn, payload))),
-    "get_audit_diff": lambda conn, payload, key, resp_q: resp_q.put((True, __import__("services.audit_service", fromlist=["get_document_version_diff"]).get_document_version_diff(conn, payload)))
+    "get_audit_list": lambda conn, payload, key, resp_q: resp_q.put((True, __import__("importlib").reload(__import__("services.audit_service", fromlist=["get_audit_list"])).get_audit_list(conn, payload))),
+    "get_audit_diff": lambda conn, payload, key, resp_q: resp_q.put((True, __import__("importlib").reload(__import__("services.audit_service", fromlist=["get_document_version_diff"])).get_document_version_diff(conn, payload)))
 }

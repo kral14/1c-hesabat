@@ -1,0 +1,14 @@
+{
+  "database": "Test1C / Aztrade_test3",
+  "sort_column_and_direction_survive_reload": true,
+  "ctrl_f_seeds_selected_cell_text": true,
+  "ellipsis_opens_contragent_catalog": true,
+  "catalog_choice_returns_to_find_with_selected_value": true,
+  "magnifier_reads_catalog_card": true,
+  "catalog_card_attribute_rows": 38,
+  "catalog_reference_values_display_readable_names": true,
+  "cell_background_before_and_after_redraw": "rgb(49, 106, 197)",
+  "row_background_before_and_after_redraw": "rgb(220, 234, 247)",
+  "ctrl_c_without_reclick_after_redraw_copies_selected_cell": true,
+  "scope": "Live journal smoke checks plus JS regression tests. Catalog card is read-only and shows standard fields and metadata attributes; it does not edit the 1C object. Catalog actions are available for supported reference columns."
+}

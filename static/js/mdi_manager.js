@@ -73,7 +73,7 @@ const MdiManager = {
       Object.values(this.windows).forEach(w => {
         if (w.isOpen && !w.isMinimized && w.element && w.element.style.display !== "none") {
           // Never persist document editor windows or modal diffs across page reloads
-          if (["pogruzkaDocEditorWindow", "salesDocEditorWindow", "priceDocEditorWindow", "docVersionDiffWindow", "nomenclatureCardWindow"].includes(w.id)) {
+          if (["pogruzkaDocEditorWindow", "salesDocEditorWindow", "priceDocEditorWindow", "docVersionDiffWindow", "auditJournalWindow", "nomenclatureCardWindow"].includes(w.id)) {
             return;
           }
 
@@ -108,7 +108,7 @@ const MdiManager = {
             zIndex: parseInt(w.element.style.zIndex) || 0,
             docNumber: docNum,
             docDate: docDate,
-            journalType: (w.id === "universalJournalWindow" && window.UniversalJournal) ? UniversalJournal.activeDocType : null
+            journalType: ((w.id === "universalJournalWindow" || w.id.startsWith("ujWin_")) && window.UniversalJournal) ? (UniversalJournal.instances?.[w.id]?.activeDocType || UniversalJournal.activeDocType) : null
           });
         }
       });
@@ -128,7 +128,7 @@ const MdiManager = {
 
       // Filter out any editor or modal windows so they NEVER pop up on reload
       list = list.filter(item => {
-        return !["pogruzkaDocEditorWindow", "salesDocEditorWindow", "priceDocEditorWindow", "docVersionDiffWindow", "nomenclatureCardWindow"].includes(item.id);
+        return !["pogruzkaDocEditorWindow", "salesDocEditorWindow", "priceDocEditorWindow", "docVersionDiffWindow", "auditJournalWindow", "nomenclatureCardWindow"].includes(item.id);
       });
       try {
         localStorage.setItem("1c_mdi_session_windows", JSON.stringify(list));
@@ -170,8 +170,10 @@ const MdiManager = {
           } else {
             this.activateWindow(item.id, { title: item.title, icon: item.icon });
           }
-        } else if (item.id === "universalJournalWindow") {
-          if (window.UniversalJournal && typeof UniversalJournal.open === "function") {
+        } else if (item.id === "universalJournalWindow" || item.id.startsWith("ujWin_")) {
+          if (window.UniversalJournal && typeof UniversalJournal.openDirect === "function") {
+            UniversalJournal.openDirect(item.journalType, { windowId: item.id, title: item.title, forceNew: true });
+          } else if (window.UniversalJournal && typeof UniversalJournal.open === "function") {
             UniversalJournal.open(item.journalType);
           } else {
             this.activateWindow(item.id, { title: item.title, icon: item.icon });
@@ -504,17 +506,66 @@ const MdiManager = {
       });
     }
 
+    // 15. Loading Machine Document Editor Window (Погрузки машин - starts hidden)
+    const pogruzkaWin = document.getElementById("pogruzkaDocEditorWindow");
+    if (pogruzkaWin) {
+      this.registerWindow("pogruzkaDocEditorWindow", {
+        title: "Погрузка машины",
+        icon: "🚚",
+        element: pogruzkaWin,
+        isDefault: true,
+        startHidden: true,
+        closeFn: () => {
+          if (typeof PogruzkaDocEditor !== "undefined" && PogruzkaDocEditor.close) PogruzkaDocEditor.close();
+        }
+      });
+    }
+
+    // 16. Document Audit Journal Window (Аудит - starts hidden)
+    const auditWin = document.getElementById("auditJournalWindow");
+    if (auditWin) {
+      this.registerWindow("auditJournalWindow", {
+        title: "Журнал изменений (Аудит)",
+        icon: "🕒",
+        element: auditWin,
+        isDefault: true,
+        startHidden: true,
+        closeFn: () => {
+          if (typeof AuditJournal !== "undefined" && AuditJournal.close) AuditJournal.close();
+        }
+      });
+    }
+
+    // 17. Document Version Diff Window (Diff - starts hidden)
+    const diffWin = document.getElementById("docVersionDiffWindow");
+    if (diffWin) {
+      this.registerWindow("docVersionDiffWindow", {
+        title: "История изменений документа",
+        icon: "🔎",
+        element: diffWin,
+        isDefault: true,
+        startHidden: true,
+        closeFn: () => {
+          if (typeof AuditJournal !== "undefined" && AuditJournal.closeDiff) AuditJournal.closeDiff();
+        }
+      });
+    }
+
     // Attach '➕' new window button to all registered windows
     Object.values(this.windows).forEach(w => this.attachNewWindowButton(w));
 
-    // Auto-restore open windows after F5 page reload
+    // Auto-restore open windows after reload if method exists
     setTimeout(() => {
-      this.restoreOpenWindowsSession();
+      if (typeof this.restoreOpenWindowsSession === "function") {
+        this.restoreOpenWindowsSession();
+      }
     }, 120);
 
-    // Save open windows state before page unload / F5
+    // Save open windows state before page unload if method exists
     window.addEventListener("beforeunload", () => {
-      this.saveOpenWindowsSession();
+      if (typeof this.saveOpenWindowsSession === "function") {
+        this.saveOpenWindowsSession();
+      }
     });
   },
 
@@ -762,11 +813,33 @@ const MdiManager = {
     tab.style.display = "inline-flex";
   },
 
+  renderTaskbar() {
+    try {
+      Object.values(this.windows).forEach(w => {
+        if (w && w.isOpen && !w.isMinimized) {
+          this.createTaskbarTab(w);
+        }
+      });
+    } catch(e) {}
+  },
+
   activateWindow(id, options = {}) {
     try {
       let winObj = this.windows[id];
+      const el = document.getElementById(id);
+
+      // Synchronize DOM element: if element detached or renewed in DOM, update reference
+      if (winObj && (!winObj.element || !document.body.contains(winObj.element) || (el && winObj.element !== el))) {
+        if (el) {
+          winObj.element = el;
+          this.setupWindowDragging(winObj);
+        } else {
+          delete this.windows[id];
+          winObj = null;
+        }
+      }
+
       if (!winObj) {
-        const el = document.getElementById(id);
         if (el) {
           const isModal = el.classList.contains("modal-overlay-1c") || el.id.includes("Overlay");
           this.registerWindow(id, {
@@ -790,7 +863,14 @@ const MdiManager = {
       if (options.closeFn) winObj.closeFn = options.closeFn;
 
       // 1. Immediately increment topZIndex and bring this window in front
-      this.topZIndex += 10;
+      let maxExistingZ = this.topZIndex;
+      Object.values(this.windows).forEach(w => {
+        if (w.element) {
+          const z = parseInt(w.element.style.zIndex) || 0;
+          if (z > maxExistingZ) maxExistingZ = z;
+        }
+      });
+      this.topZIndex = maxExistingZ + 10;
       this.activeWindowId = id;
       this._dashboardActive = false;
 
@@ -998,7 +1078,9 @@ const MdiManager = {
   },
 
   closeWindow(id) {
-    if (id === "universalJournalWindow" && typeof UniversalJournal !== "undefined") UniversalJournal.pauseLoading();
+    if ((id === "universalJournalWindow" || (id && id.startsWith("ujWin_"))) && typeof UniversalJournal !== "undefined") {
+      if (typeof UniversalJournal.pauseLoading === "function") UniversalJournal.pauseLoading(id);
+    }
     console.log(`[MDI CLOSE] Request to close window/modal #${id}`);
     const winObj = this.windows[id];
     if (!winObj) {
@@ -1064,6 +1146,9 @@ const MdiManager = {
       }
     } finally {
       winObj._closing = false;
+      if (id.startsWith("docEditorWindow_") || id.startsWith("salesDocEditorWindow_") || id.startsWith("catalogSelectorModal_")) {
+        delete this.windows[id];
+      }
     }
 
     this.updateWindowMenu();
@@ -1223,8 +1308,8 @@ const MdiManager = {
     }
 
     // 2. Universal Journal ("Журнал документов")
-    if (id && id.startsWith("universalJournalWindow") && window.UniversalJournal && typeof UniversalJournal.openNewWindow === "function") {
-      return UniversalJournal.openNewWindow();
+    if (id && (id.startsWith("universalJournalWindow") || id.startsWith("ujWin_")) && window.UniversalJournal && typeof UniversalJournal.duplicateWindow === "function") {
+      return UniversalJournal.duplicateWindow(id);
     }
 
     // 3. Catalog ("Номенклатура", "Склады" və s.)
@@ -1509,6 +1594,12 @@ const MdiManager = {
   },
 
   getTopmostVisibleWindow() {
+    if (this.activeWindowId && this.windows[this.activeWindowId]) {
+      const activeWin = this.windows[this.activeWindowId];
+      if (activeWin.isOpen && !activeWin.isMinimized && activeWin.element && activeWin.element.style.display !== "none") {
+        return activeWin;
+      }
+    }
     const visibleWins = Object.values(this.windows).filter(w =>
       w.isOpen &&
       !w.isMinimized &&
@@ -1564,6 +1655,36 @@ const MdiManager = {
       return true;
     }
 
+    // 2.3 Close Audit Journal Diff Popover if visible
+    if (window.AuditJournal && typeof AuditJournal.hideDiffPopover === "function") {
+      AuditJournal.hideDiffPopover();
+    }
+
+    // 2.4 Close Audit Journal Modals in strict LIFO order:
+    // Level 2: Document Version Snapshot Modal (docViewModalBackdrop)
+    const docViewModal = document.getElementById("docViewModalBackdrop");
+    if (docViewModal && docViewModal.style.display !== "none") {
+      console.log("[HOTKEY ESC] Closing Document Version Snapshot modal (docViewModalBackdrop)");
+      if (window.AuditJournal && typeof AuditJournal.closeDocViewModal === "function") {
+        AuditJournal.closeDocViewModal();
+      } else {
+        docViewModal.style.display = "none";
+      }
+      return true;
+    }
+
+    // Level 1: Audit Protocol Modal (auditModalBackdrop)
+    const auditModal = document.getElementById("auditModalBackdrop");
+    if (auditModal && auditModal.style.display !== "none") {
+      console.log("[HOTKEY ESC] Closing Audit Protocol modal (auditModalBackdrop)");
+      if (window.AuditJournal && typeof AuditJournal.closeAuditModal === "function") {
+        AuditJournal.closeAuditModal();
+      } else {
+        auditModal.style.display = "none";
+      }
+      return true;
+    }
+
     // 2.5 Close transient overlays / sub-modals if open
     const ppModal = document.getElementById("periodPickerModalOverlay");
     if (ppModal && (ppModal.style.display === "flex" || ppModal.style.display === "block")) {
@@ -1581,6 +1702,26 @@ const MdiManager = {
     const ujFormModal = document.getElementById("ujFormSettingsModal");
     if (ujFormModal && (ujFormModal.style.display === "flex" || ujFormModal.style.display === "block")) {
       ujFormModal.style.display = "none";
+      return true;
+    }
+
+    const ujFieldModal = document.getElementById("ujFieldSelectModalOverlay");
+    if (ujFieldModal && (ujFieldModal.style.display === "flex" || ujFieldModal.style.display === "block")) {
+      if (typeof UniversalJournal !== "undefined" && UniversalJournal.closeFieldSelectModal) {
+        UniversalJournal.closeFieldSelectModal();
+      } else {
+        ujFieldModal.style.display = "none";
+      }
+      return true;
+    }
+
+    const ujFindModal = document.getElementById("ujFindModal");
+    if (ujFindModal && (ujFindModal.style.display === "flex" || ujFindModal.style.display === "block")) {
+      if (typeof UniversalJournal !== "undefined" && UniversalJournal.closeFindModal) {
+        UniversalJournal.closeFindModal();
+      } else {
+        ujFindModal.style.display = "none";
+      }
       return true;
     }
 
@@ -1778,6 +1919,225 @@ const MdiManager = {
     }
 
     return false;
+  },
+
+  showToast(msg) {
+    let toast = document.getElementById("mdiGlobalToast");
+    if (!toast) {
+      toast = document.createElement("div");
+      toast.id = "mdiGlobalToast";
+      toast.style.cssText = "position: fixed; bottom: 38px; right: 25px; background: #002060; color: #ffffff; padding: 7px 16px; border-radius: 4px; font-size: 11px; font-weight: bold; z-index: 99999; box-shadow: 0 4px 18px rgba(0,0,0,0.45); border-left: 4px solid #4caf50; display: flex; align-items: center; gap: 8px; transition: opacity 0.2s ease, transform 0.2s ease; pointer-events: none; font-family: -apple-system, Tahoma, Arial, sans-serif; letter-spacing: 0.2px;";
+      document.body.appendChild(toast);
+    }
+    const cleanMsg = msg.replace(/^🔄\s*/, '');
+    toast.innerHTML = `<span style="font-size: 13px; line-height: 1; flex-shrink: 0;">🔄</span><span>${cleanMsg}</span>`;
+    toast.style.opacity = "1";
+    toast.style.transform = "translateY(0)";
+    toast.style.display = "flex";
+    if (this._toastTimer) clearTimeout(this._toastTimer);
+    this._toastTimer = setTimeout(() => {
+      if (toast) {
+        toast.style.opacity = "0";
+        toast.style.transform = "translateY(4px)";
+      }
+      setTimeout(() => { if (toast) toast.style.display = "none"; }, 250);
+    }, 2200);
+  },
+
+  handleRefresh() {
+    console.log("[HOTKEY F5] Refreshing currently active window / modal in 1C...");
+
+    // Check if cursor/focus is inside a specific window or modal
+    let focusedWinId = null;
+    if (document.activeElement) {
+      const parentWinEl = document.activeElement.closest(".mdi-window, .doc-view-modal-backdrop, .audit-modal-backdrop, .modal, [id$='Window'], [id$='Modal'], [id$='ModalOverlay']");
+      if (parentWinEl && parentWinEl.id) {
+        focusedWinId = parentWinEl.id;
+      }
+    }
+
+    // 1. Level 1: Sub-modals inside Audit Journal (Doc Version Modal or Audit Protocol Modal)
+    const docViewModal = document.getElementById("docViewModalBackdrop");
+    if (focusedWinId === "docViewModalBackdrop" || (docViewModal && docViewModal.style.display !== "none" && !docViewModal.classList.contains("minimized"))) {
+      console.log("[HOTKEY F5] Refreshing Document Version Snapshot modal in place...");
+      if (typeof AuditJournal !== "undefined") {
+        const curDoc = AuditJournal.currentDoc 
+          || (AuditJournal.filteredItems && AuditJournal.selectedIndex >= 0 ? AuditJournal.filteredItems[AuditJournal.selectedIndex] : null)
+          || AuditJournal.currentDiffData || null;
+        const docType = AuditJournal.currentDocType || (curDoc && (curDoc.doc_type || curDoc.docType)) || (AuditJournal.currentDiffData && AuditJournal.currentDiffData.doc_type);
+        const docNum = AuditJournal.currentDocNumber || (curDoc && (curDoc.number || curDoc.doc_number)) || (AuditJournal.currentDiffData && AuditJournal.currentDiffData.number);
+        this.showToast(docNum ? `Sənəd №${docNum} yenilənir (F5)...` : "Sənəd versiyası yenilənir (F5)...");
+        if (docType && docNum) {
+          AuditJournal.loadDiff(docType, docNum);
+        }
+        return true;
+      }
+    }
+
+    const auditModal = document.getElementById("auditModalBackdrop");
+    if (focusedWinId === "auditModalBackdrop" || (auditModal && auditModal.style.display !== "none" && !auditModal.classList.contains("minimized"))) {
+      console.log("[HOTKEY F5] Refreshing Audit Protocol modal in place...");
+      if (typeof AuditJournal !== "undefined") {
+        const curDoc = AuditJournal.currentDoc 
+          || (AuditJournal.filteredItems && AuditJournal.selectedIndex >= 0 ? AuditJournal.filteredItems[AuditJournal.selectedIndex] : null)
+          || AuditJournal.currentDiffData || null;
+        const docType = AuditJournal.currentDocType || (curDoc && (curDoc.doc_type || curDoc.docType)) || (AuditJournal.currentDiffData && AuditJournal.currentDiffData.doc_type);
+        const docNum = AuditJournal.currentDocNumber || (curDoc && (curDoc.number || curDoc.doc_number)) || (AuditJournal.currentDiffData && AuditJournal.currentDiffData.number);
+        this.showToast(docNum ? `Audit protokolu №${docNum} yenilənir (F5)...` : "Audit protokolu yenilənir (F5)...");
+        if (docType && docNum) {
+          AuditJournal.loadDiff(docType, docNum);
+        }
+        return true;
+      }
+    }
+
+    // 2. Level 2: Topmost active MDI window
+    const topWin = this.getTopmostVisibleWindow();
+    const activeWinId = focusedWinId || (topWin ? topWin.id : this.activeWindowId);
+
+    // Document Version Diff Window
+    if (activeWinId === "docVersionDiffWindow") {
+      if (typeof AuditJournal !== "undefined") {
+        const curDoc = AuditJournal.currentDoc 
+          || (AuditJournal.filteredItems && AuditJournal.selectedIndex >= 0 ? AuditJournal.filteredItems[AuditJournal.selectedIndex] : null)
+          || AuditJournal.currentDiffData || null;
+        const docType = AuditJournal.currentDocType || (curDoc && (curDoc.doc_type || curDoc.docType)) || (AuditJournal.currentDiffData && AuditJournal.currentDiffData.doc_type);
+        const docNum = AuditJournal.currentDocNumber || (curDoc && (curDoc.number || curDoc.doc_number)) || (AuditJournal.currentDiffData && AuditJournal.currentDiffData.number);
+        this.showToast(docNum ? `Versiyalar №${docNum} yenilənir (F5)...` : "Versiyalar yenilənir (F5)...");
+        if (docType && docNum) {
+          AuditJournal.loadDiff(docType, docNum);
+        }
+        return true;
+      }
+    }
+
+    // Audit Journal Window
+    if (activeWinId === "auditJournalWindow" || (!topWin && typeof AuditJournal !== "undefined" && AuditJournal.isOpen && AuditJournal.isOpen())) {
+      console.log("[HOTKEY F5] Refreshing Audit Journal document list...");
+      this.showToast("Sənədlər siyahısı yenilənir (F5)...");
+      if (typeof AuditJournal !== "undefined" && AuditJournal.loadDocuments) {
+        AuditJournal.loadDocuments();
+      }
+      return true;
+    }
+
+    // Universal Journal Window
+    if (activeWinId === "universalJournalWindow") {
+      console.log("[HOTKEY F5] Refreshing Universal Journal document list...");
+      this.showToast("Sənədlər jurnalı yenilənir (F5)...");
+      if (typeof UniversalJournal !== "undefined" && UniversalJournal.refresh) {
+        UniversalJournal.refresh();
+      }
+      return true;
+    }
+
+    // Sales Document Editor Window
+    if (activeWinId === "salesDocEditorWindow") {
+      const docNum = (typeof SalesDocEditor !== "undefined" && SalesDocEditor.currentDocNumber) 
+        || document.getElementById("sdeDocNumber")?.value 
+        || "";
+      this.showToast(docNum ? `Satış sənədi №${docNum} yenilənir (F5)...` : "Satış sənədi yenilənir (F5)...");
+      if (typeof SalesDocEditor !== "undefined" && docNum) {
+        SalesDocEditor.fetchDocumentData(docNum);
+      }
+      return true;
+    }
+
+    // Price Document Editor Window
+    if (activeWinId === "priceDocEditorWindow") {
+      const docNum = (typeof PriceDocEditor !== "undefined" && PriceDocEditor.currentDocNumber) 
+        || document.getElementById("pdeDocNumber")?.value 
+        || "";
+      this.showToast(docNum ? `Qiymət sənədi №${docNum} yenilənir (F5)...` : "Qiymət sənədi yenilənir (F5)...");
+      if (typeof PriceDocEditor !== "undefined" && docNum) {
+        const docDate = document.getElementById("pdeDocDate")?.value;
+        PriceDocEditor.loadDocumentData(docNum, docDate);
+      }
+      return true;
+    }
+
+    // Loading Machine Document Editor Window (Pogruzka)
+    if (activeWinId === "pogruzkaDocEditorWindow") {
+      const docNum = (typeof PogruzkaDocEditor !== "undefined" && PogruzkaDocEditor.currentDocNumber) 
+        || document.getElementById("pogruzkaDocNumber")?.value 
+        || "";
+      this.showToast(docNum ? `Yükləmə sənədi №${docNum} yenilənir (F5)...` : "Yükləmə sənədi yenilənir (F5)...");
+      if (typeof PogruzkaDocEditor !== "undefined" && PogruzkaDocEditor.refresh) {
+        PogruzkaDocEditor.refresh();
+      }
+      return true;
+    }
+
+    // Portfolio Catalog Report Window
+    if (activeWinId === "portfolioCatalogWindow") {
+      console.log("[HOTKEY F5] Refreshing Portfolio Catalog Report...");
+      this.showToast("Mallar üzrə hesabat yenilənir (F5)...");
+      if (typeof PortfolioCatalog !== "undefined" && PortfolioCatalog.generate) {
+        PortfolioCatalog.generate();
+      }
+      return true;
+    }
+
+    // Nomenclature Card Window
+    if (activeWinId === "nomenclatureCardWindow") {
+      const code = (typeof NomenclatureCard !== "undefined" && NomenclatureCard.currentCode) || "";
+      this.showToast(code ? `Mal kartı ${code} yenilənir (F5)...` : "Mal kartı yenilənir (F5)...");
+      if (typeof NomenclatureCard !== "undefined" && code) {
+        NomenclatureCard.loadCard(code);
+      }
+      return true;
+    }
+
+    // Catalog Selector Modal
+    if (activeWinId === "catalogWindowModal") {
+      const title = document.getElementById("catalogModalTitle")?.textContent || "Soraqça";
+      this.showToast(`${title} yenilənir (F5)...`);
+      if (typeof CatalogSelector !== "undefined" && CatalogSelector.load) {
+        CatalogSelector.load();
+      }
+      return true;
+    }
+
+    // Settings Modal
+    if (activeWinId === "settingsWindowModal") {
+      this.showToast("Hesabat tənzimləmələri yenilənir (F5)...");
+      return true;
+    }
+
+    // Period Picker Modal
+    if (activeWinId === "periodPickerModalOverlay") {
+      this.showToast("Dövr seçimi yenilənir (F5)...");
+      return true;
+    }
+
+    // Main Report Window ("Товары на складах") or any report window
+    if (activeWinId && (activeWinId === "mdiWindow-1" || activeWinId.startsWith("mdiWindow-"))) {
+      console.log("[HOTKEY F5] Refreshing Main Report...");
+      const winObj = this.windows[activeWinId];
+      const title = (winObj && winObj.title) ? winObj.title : "Hesabat";
+      this.showToast(`${title} yenidən hesablanır (F5)...`);
+      if (typeof onActionFormirovat === "function") {
+        onActionFormirovat();
+      }
+      return true;
+    }
+
+    // Fallback: If topWin is another window
+    if (topWin) {
+      const title = topWin.title || "Pəncərə";
+      this.showToast(`${title} yenilənir (F5)...`);
+      if (typeof topWin.refreshFn === "function") {
+        topWin.refreshFn();
+      }
+      return true;
+    }
+
+    // Final Fallback: Dashboard
+    this.showToast("Hesabat yenidən hesablanır (F5)...");
+    if (typeof onActionFormirovat === "function") {
+      onActionFormirovat();
+    }
+    return true;
   },
 
   handleSearch() {
@@ -2025,6 +2385,15 @@ const MdiManager = {
           e.preventDefault();
           e.stopPropagation();
         }
+      }
+    }, true);
+
+    // 7. Global F5 (Обновить / Refresh active window in 1C)
+    document.addEventListener("keydown", (e) => {
+      if (e.key === "F5" || e.code === "F5") {
+        e.preventDefault();
+        e.stopPropagation();
+        this.handleRefresh();
       }
     }, true);
   }

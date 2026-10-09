@@ -1,0 +1,1304 @@
+<!DOCTYPE html>
+<html lang="az">
+<head>
+  <meta charset="UTF-8">
+  <title>Audit Jurnalı - Tarixə Görə Ardıcıl Hərəkət Siyahısı</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Tahoma, Arial, sans-serif; }
+    body { background: #ece9d8; color: #222; font-size: 12px; height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
+
+    /* Top Info Bar */
+    .concept-bar {
+      background: #002060; color: #fff; padding: 8px 16px; display: flex; align-items: center; justify-content: space-between;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.25); z-index: 100;
+    }
+    .concept-title { font-size: 13px; font-weight: bold; display: flex; align-items: center; gap: 8px; }
+
+    /* App Container */
+    .app-viewport { flex: 1; display: flex; flex-direction: column; overflow: hidden; background: #ece9d8; position: relative; }
+
+    /* 1C Classic Window Header */
+    .win-header {
+      background: linear-gradient(to right, #0a246a, #a6caf0); color: #fff; height: 26px; padding: 0 8px;
+      display: flex; align-items: center; justify-content: space-between; font-size: 11px; font-weight: bold;
+    }
+
+    /* Common Toolbar */
+    .toolbar {
+      background: #e3dec9; border-bottom: 1px solid #b5b19e; padding: 5px 10px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: 11px;
+    }
+    .toolbar select, .toolbar input {
+      height: 23px; font-size: 11px; border: 1px solid #7f9db9; padding: 0 6px; background: #fff; border-radius: 2px;
+    }
+    .btn-1c {
+      height: 23px; padding: 0 8px; font-size: 11px; background: #fdfdfd; border: 1px solid #7f9db9; cursor: pointer;
+      display: inline-flex; align-items: center; gap: 4px; border-radius: 2px;
+    }
+    .btn-1c:hover { background: #eef3fb; }
+    .btn-1c-primary { background: linear-gradient(to bottom, #ffea88, #d8a020); border-color: #8c701e; font-weight: bold; color: #000; }
+
+    /* Grid Table Styles */
+    .data-table { width: 100%; border-collapse: collapse; font-size: 11px; background: #fff; }
+    .data-table thead { position: sticky; top: 0; background: #e3dec9; z-index: 5; }
+    .data-table th { border: 1px solid #b0af9f; padding: 6px 8px; text-align: left; font-weight: 600; color: #222; }
+    .data-table td { border: 1px solid #e0dfd5; padding: 5px 8px; white-space: nowrap; }
+    .data-table tr:hover { background: #edf4fe; }
+    .data-table tr.selected { background: #316ac5 !important; color: #fff !important; }
+    .data-table tr.selected td { border-color: #316ac5; }
+
+    /* Badges */
+    .badge { padding: 2px 7px; border-radius: 3px; font-size: 10px; font-weight: bold; display: inline-block; }
+    .badge-green { background: #e8f5e9; color: #2e7d32; border: 1px solid #a5d6a7; }
+    .badge-orange { background: #fff3e0; color: #e65100; border: 1px solid #ffcc80; }
+    .badge-red { background: #ffebee; color: #c62828; border: 1px solid #ef9a9a; }
+    .badge-blue { background: #e3f2fd; color: #002060; border: 1px solid #90caf9; }
+    .badge-gray { background: #f5f5f5; color: #666; border: 1px solid #ddd; }
+
+    /* ========================================================
+       MODAL WINDOW DESIGN (AUDİT VƏ TARİXÇƏ PROTOKOLU)
+       ======================================================== */
+    .audit-modal-backdrop {
+      position: absolute; inset: 0; background: rgba(0, 0, 0, 0.45); z-index: 200;
+      display: flex; align-items: center; justify-content: center; padding: 15px;
+    }
+    .audit-modal {
+      width: 1100px; max-width: 98vw; height: 690px; max-height: 96vh; background: #ece9d8;
+      border: 2px solid #002060; box-shadow: 0 14px 40px rgba(0,0,0,0.4); border-radius: 4px;
+      display: flex; flex-direction: column; overflow: hidden;
+    }
+    .modal-win-header {
+      background: linear-gradient(to right, #002060, #2a5298); color: #fff; height: 28px; padding: 0 10px;
+      display: flex; align-items: center; justify-content: space-between; font-size: 12px; font-weight: bold;
+    }
+    .modal-top-card {
+      background: #fdfcee; border-bottom: 1px solid #d4ceb0; padding: 10px 14px; display: flex; justify-content: space-between; align-items: center; gap: 12px;
+    }
+
+    /* Tabs Bar */
+    .modal-tabs-bar {
+      background: #e3dec9; border-bottom: 1px solid #b5b19e; display: flex; padding: 6px 12px 0; gap: 6px;
+    }
+    .m-tab {
+      padding: 6px 18px; background: #dcd7c4; border: 1px solid #b0af9f; border-bottom: none; cursor: pointer; font-size: 12px;
+      border-top-left-radius: 4px; border-top-right-radius: 4px; font-weight: 500; display: inline-flex; align-items: center; gap: 6px;
+      transition: all 0.15s;
+    }
+    .m-tab.active { background: #fff; font-weight: bold; color: #002060; border-color: #7f9db9; border-bottom: 1px solid #fff; margin-bottom: -1px; }
+
+    .modal-body-content {
+      flex: 1; overflow-y: auto; padding: 14px; background: #fff; display: flex; flex-direction: column; gap: 12px;
+    }
+
+    /* Version Buttons Strip */
+    .version-strip {
+      display: flex; align-items: center; gap: 8px; background: #f5f4ed; padding: 8px 12px; border: 1px solid #dcd7c4; border-radius: 4px;
+    }
+    .v-btn {
+      padding: 6px 14px; font-size: 11px; font-weight: 600; border-radius: 3px; cursor: pointer; border: 1px solid #b0af9f;
+      background: #fff; color: #222; display: inline-flex; align-items: center; gap: 6px; transition: all 0.15s;
+    }
+    .v-btn:hover { background: #eef3fb; }
+    .v-btn.active {
+      background: #002060; color: #fff; border-color: #002060; box-shadow: 0 2px 4px rgba(0,32,96,0.25);
+    }
+
+    /* Red highlight styling for modified parts */
+    .changed-cell {
+      background: #ffebee !important; color: #b71c1c !important; font-weight: bold !important;
+      border: 1px solid #e53935 !important; position: relative; cursor: help;
+      transition: background 0.15s, box-shadow 0.15s;
+    }
+    .changed-cell:hover {
+      background: #ffcdd2 !important;
+      box-shadow: 0 0 8px rgba(229, 57, 53, 0.45);
+    }
+    .changed-badge {
+      background: #d32f2f; color: #fff; font-size: 9px; padding: 2px 5px; border-radius: 2px; margin-left: 6px; font-weight: bold;
+      display: inline-block; vertical-align: middle;
+    }
+    .changed-row {
+      background: #fff8f8 !important;
+    }
+
+    /* Document Form Layout (1C Classic Document View) */
+    .doc-full-form {
+      background: #faf8f2;
+      border: 1px solid #c8c3b0;
+      border-radius: 4px;
+      padding: 12px 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .doc-form-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 10px 16px;
+    }
+    .form-field {
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+    }
+    .form-field-label {
+      font-size: 11px;
+      font-weight: 600;
+      color: #444;
+    }
+    .form-field-input {
+      background: #fff;
+      border: 1px solid #7f9db9;
+      padding: 4px 8px;
+      font-size: 11px;
+      border-radius: 2px;
+      min-height: 25px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      transition: all 0.15s;
+    }
+
+    /* Floating Popover Modal for previous value */
+    .diff-popover {
+      position: fixed;
+      z-index: 99999;
+      background: #ffffff;
+      border: 2px solid #b71c1c;
+      box-shadow: 0 10px 30px rgba(183, 28, 28, 0.35);
+      border-radius: 5px;
+      padding: 10px 14px;
+      font-size: 11px;
+      color: #222;
+      pointer-events: none;
+      display: none;
+      min-width: 270px;
+      max-width: 400px;
+    }
+    .diff-popover-title {
+      font-weight: bold;
+      color: #b71c1c;
+      font-size: 12px;
+      margin-bottom: 6px;
+      padding-bottom: 4px;
+      border-bottom: 1px solid #ffcdd2;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .diff-popover-content {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .diff-popover-line {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+    .diff-popover-lbl {
+      font-size: 10px;
+      color: #666;
+      font-weight: 600;
+    }
+    .diff-popover-val-old {
+      font-size: 11px;
+      color: #555;
+      text-decoration: line-through;
+      background: #f1f1f1;
+      border: 1px solid #ddd;
+      padding: 3px 7px;
+      border-radius: 3px;
+      display: inline-block;
+    }
+    .diff-popover-val-new {
+      font-size: 12px;
+      font-weight: bold;
+      color: #b71c1c;
+      background: #ffebee;
+      border: 1px solid #ffcdd2;
+      padding: 3px 7px;
+      border-radius: 3px;
+      display: inline-block;
+    }
+    .diff-popover-note {
+      margin-top: 4px;
+      font-size: 11px;
+      color: #002060;
+      background: #eef3fb;
+      padding: 4px 8px;
+      border-radius: 3px;
+      border-left: 3px solid #002060;
+      line-height: 1.4;
+    }
+
+    /* Separate Document Snapshot Window */
+    .doc-view-modal-backdrop {
+      position: fixed; inset: 0; background: rgba(0, 0, 0, 0.55); z-index: 500;
+      display: flex; align-items: center; justify-content: center; padding: 20px;
+    }
+    .doc-view-modal {
+      width: 1060px; max-width: 96vw; height: 650px; max-height: 94vh; background: #ece9d8;
+      border: 2px solid #002060; box-shadow: 0 16px 45px rgba(0,0,0,0.5); border-radius: 4px;
+      display: flex; flex-direction: column; overflow: hidden;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Floating Popover Modal for Previous Values on Hover -->
+  <div id="diffPopover" class="diff-popover">
+    <div class="diff-popover-title">
+      <span id="diffPopTitle">Dəyişiklik Fərqi</span>
+      <span style="font-size: 9px; background: #b71c1c; color: #fff; padding: 1px 5px; border-radius: 2px;">FƏRQ</span>
+    </div>
+    <div class="diff-popover-content">
+      <div class="diff-popover-line">
+        <span class="diff-popover-lbl" id="diffPopOldLbl">v1 (Əvvəlki Dəyər):</span>
+        <div class="diff-popover-val-old" id="diffPopOld">-</div>
+      </div>
+      <div class="diff-popover-line">
+        <span class="diff-popover-lbl" id="diffPopNewLbl">v2 (Dəyişdirilmiş Cari Dəyər):</span>
+        <div class="diff-popover-val-new" id="diffPopNew">-</div>
+      </div>
+      <div class="diff-popover-note" id="diffPopNote">-</div>
+    </div>
+  </div>
+
+  <!-- Top Info Bar -->
+  <div class="concept-bar">
+    <div class="concept-title">
+      <span>AUDİT PROTOKOLU: SƏNƏDİN TARİXƏ GÖRƏ ARDICIL HADİSƏLƏR SİYAHISI</span>
+    </div>
+    <div style="font-size: 11px; color: #cbd5e1;">
+      <span>Tarix və saata görə ardıcıl: Yaradıldı ➔ Təsdiqləndi ➔ Dəyişdirildi ➔ Silindi ➔ Bərpa edildi</span>
+    </div>
+  </div>
+
+  <div class="app-viewport">
+    
+    <!-- Window Title -->
+    <div class="win-header">
+      <span>Sənəd Audit və Dəyişikliklər Jurnalı (Əsas Pəncərə)</span>
+      <div style="display: flex; gap: 4px;">
+        <button style="border:none;background:transparent;color:#fff;font-weight:bold;cursor:pointer;">_</button>
+        <button style="border:none;background:transparent;color:#fff;font-weight:bold;cursor:pointer;">□</button>
+        <button style="border:none;background:transparent;color:#fff;font-weight:bold;cursor:pointer;">✕</button>
+      </div>
+    </div>
+
+    <!-- Main Journal Toolbar -->
+    <div class="toolbar">
+      <span style="font-weight: bold;">Sənəd:</span>
+      <select onchange="renderTable()">
+        <option value="realization" selected>Satış (Реализация товаров и услуг)</option>
+        <option value="vozvrat">Qaytarma (Возврат товаров)</option>
+      </select>
+
+      <span style="color:#999;">|</span>
+
+      <span style="font-weight: bold;">Dövr:</span>
+      <button class="btn-1c">01.10.2026 — 09.10.2026</button>
+      <button class="btn-1c">Bu gün</button>
+      <button class="btn-1c">7 gün</button>
+      <button class="btn-1c">Bu ay</button>
+
+      <div style="flex: 1;"></div>
+
+      <span>Axtarış:</span>
+      <input type="text" placeholder="№, müştəri, müəllif..." style="width: 180px;">
+      <button class="btn-1c btn-1c-primary">Yenilə</button>
+    </div>
+
+    <!-- Full-Width Document Table -->
+    <div style="flex: 1; overflow: auto; background: #fff;">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th style="width: 32px; text-align: center;">№</th>
+            <th style="width: 75px; text-align: center;">Status</th>
+            <th style="width: 140px;">Sənəd №</th>
+            <th style="width: 135px;">Sənəd Tarixi</th>
+            <th style="width: 160px;">Son Əməliyyat Edən</th>
+            <th>Müştəri / Kontragent</th>
+            <th style="width: 120px; text-align: right;">Məbləğ (AZN)</th>
+            <th style="width: 110px; text-align: center;">Son Əməliyyat</th>
+            <th style="width: 110px; text-align: center;">Hadisə Sayı</th>
+            <th style="width: 100px; text-align: center;">Audit Aç</th>
+          </tr>
+        </thead>
+        <tbody id="journalTableBody">
+          <!-- Populated by JS -->
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Bottom Status Bar -->
+    <div style="height: 24px; background: #e3dec9; border-top: 1px solid #b5b19e; display: flex; align-items: center; justify-content: space-between; padding: 0 10px; font-size: 11px;">
+      <span>Ümumi sənədlər: 3</span>
+      <span style="color: #666;">Sənədin üzərinə ikiqat klik edərək audit protokolunu açın</span>
+    </div>
+
+    <!-- ========================================================
+         GENİŞLƏNDİRİLMİŞ PROTOKOL PƏNCƏRƏSİ (MODAL)
+         ======================================================== -->
+    <div class="audit-modal-backdrop" id="auditModalBackdrop" style="display: flex;">
+      <div class="audit-modal">
+        
+        <!-- Modal Window Header -->
+        <div class="modal-win-header">
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <span id="modalWinTitle">Sənəd Audit Protokolu: № C00004454738</span>
+          </div>
+          <div style="display: flex; gap: 6px;">
+            <button style="border:none;background:transparent;color:#fff;font-size:12px;cursor:pointer;" title="Bük">_</button>
+            <button style="border:none;background:transparent;color:#fff;font-size:12px;cursor:pointer;" title="Böyüt">□</button>
+            <button style="border:none;background:transparent;color:#fff;font-size:14px;font-weight:bold;cursor:pointer;" onclick="closeModal()" title="Bağla">✕</button>
+          </div>
+        </div>
+
+        <!-- Top Header Card -->
+        <div class="modal-top-card">
+          <div style="display: flex; flex-direction: column; gap: 4px;">
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <strong style="font-size: 14px; color: #002060;" id="mDocTitle">Satış (Реализация) № C00004454738</strong>
+              <span class="badge badge-green" id="mDocStatusBadge">TƏSDİQLƏNİB</span>
+              <span class="badge badge-orange" id="mDocEventsBadge">5 Hadisə Qeydə Alınıb</span>
+            </div>
+            <div style="color: #444; font-size: 11px; display: flex; gap: 16px; margin-top: 2px;">
+              <span>Sənəd Tarixi: <strong id="mDocDate">07.10.2026 16:32:41</strong></span>
+              <span>Müştəri: <strong id="mDocKontr">3030 Bravo Chocolate Tower - C000033107</strong></span>
+              <span>Anbar: <strong id="mDocWh">Əsas Anbar Gəncə</strong></span>
+            </div>
+          </div>
+
+          <div style="display: flex; align-items: center; gap: 14px;">
+            <div style="text-align: right;">
+              <div style="font-size: 11px; color: #666;">Cari Yekun Məbləğ:</div>
+              <strong style="font-size: 18px; color: #002060;" id="mDocAmount">51.84 AZN</strong>
+            </div>
+
+            <!-- Action Buttons -->
+            <div style="display: flex; flex-direction: column; gap: 4px;">
+              <button class="btn-1c btn-1c-primary" style="height: 25px; padding: 0 10px;" onclick="alert('Sənəd redaktoru açıldı!')">
+                <span>Sənədi Redaktorda Aç</span>
+              </button>
+              <button class="btn-1c" style="height: 23px; padding: 0 8px;" onclick="window.print()">
+                <span>Protokolu Çap Et</span>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- 2 ƏSAS TAB: 1. Tarixə Görə Bütün Hərəkətlərin Ardıcıl Siyahısı | 2. Versiyalar və Qırmızı Dəyişikliklər -->
+        <div class="modal-tabs-bar">
+          
+          <!-- TAB 1: Siyahı şəklində tarixə görə ardıcıl bütün hadisələr -->
+          <div class="m-tab active" id="tabBtnChronologicalList" onclick="switchModalTab('chronological_list')">
+            <span>1. Tarixə Görə Hərəkətlər Siyahısı (Yaradıldı ➔ Təsdiqləndi ➔ Dəyişdirildi ➔ Silindi ➔ Bərpa edildi)</span>
+          </div>
+
+          <!-- TAB 2: Versiyalar (Sətir-sətir cədvəl) -->
+          <div class="m-tab" id="tabBtnVersionsDiff" onclick="switchModalTab('versions_diff')">
+            <span>2. Sənədin Versiyalar Siyahısı (Sətirlər)</span>
+            <span class="badge badge-orange" style="padding: 1px 5px; font-size: 9px;">Versiyalar</span>
+          </div>
+
+        </div>
+
+        <!-- Modal Body Content -->
+        <div class="modal-body-content" id="modalTabContent">
+          <!-- Populated by JS -->
+        </div>
+
+        <!-- Modal Footer -->
+        <div style="background: #e3dec9; border-top: 1px solid #b5b19e; padding: 6px 12px; display: flex; justify-content: space-between; align-items: center; font-size: 11px;">
+          <span style="color: #444;">1C:Müəssisə Audit Jurnalı — Sənədin bütün həyat dövrü dəqiq saniyəsinə qədər qeyd olunub</span>
+          <button class="btn-1c" onclick="closeModal()">Bağla</button>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- ========================================================
+         SƏNƏDİN VERSİYA PƏNCƏRƏSİ (AYRICA AÇILAN SƏNƏD FORMASI)
+         ======================================================== -->
+    <div class="doc-view-modal-backdrop" id="docViewModalBackdrop" style="display: none;">
+      <div class="doc-view-modal">
+        <!-- Titlebar -->
+        <div class="modal-win-header" style="background: linear-gradient(to right, #002060, #1e3c72);">
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <span id="docWinHeaderTitle">Satış (Реализация) № C00004454738</span>
+          </div>
+          <div style="display: flex; gap: 6px;">
+            <button style="border:none;background:transparent;color:#fff;font-size:12px;cursor:pointer;" title="Bük">_</button>
+            <button style="border:none;background:transparent;color:#fff;font-size:12px;cursor:pointer;" title="Böyüt">□</button>
+            <button style="border:none;background:transparent;color:#fff;font-size:14px;font-weight:bold;cursor:pointer;" onclick="closeDocViewModal()" title="Bağla">✕</button>
+          </div>
+        </div>
+
+        <!-- Window Toolbar / Version Switcher -->
+        <div class="toolbar" style="background: #f4f0e2; justify-content: space-between;">
+          <div style="display: flex; align-items: center; gap: 8px;" id="docWinVersionButtons">
+            <!-- Populated by JS -->
+          </div>
+          <div style="font-size: 11px; color: #444;" id="docWinVersionMeta">
+            <!-- Populated by JS -->
+          </div>
+        </div>
+
+        <!-- Window Body (Header fields + Goods Grid) -->
+        <div class="modal-body-content" id="docWinBodyContent">
+          <!-- Populated by JS -->
+        </div>
+
+        <!-- Window Footer -->
+        <div style="background: #e3dec9; border-top: 1px solid #b5b19e; padding: 6px 12px; display: flex; justify-content: space-between; align-items: center; font-size: 11px;">
+          <span style="color: #555;">Qırmızı xanaların üzərinə siçanı gətirərək əvvəlki dəyərə baxa bilərsiniz</span>
+          <button class="btn-1c btn-1c-primary" onclick="closeDocViewModal()">Pəncərəni Bağla</button>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <script>
+    const mockData = [
+      {
+        number: "C00004454738",
+        date: "05.10.2026 15:45:20",
+        typeTitle: "Satış (Реализация)",
+        author: "Admin",
+        kontragent: "3030 Bravo Chocolate Tower - C000033107",
+        warehouse: "Əsas Anbar Gəncə",
+        contract: "№ 12/2026 Əsas Müqavilə",
+        comment: "Müştərinin sifarişi ilə tarix 05.10-a çəkildi, say və mal növü yeniləndi",
+        amount: 51.84,
+        posted: true,
+        versionCount: 2,
+        lastOperation: "Təsdiqləndi",
+
+        // TARİX VƏ SAATA GÖRƏ ARDICIL BÜTÜN HƏRƏKƏTLƏRİN SİYAHISI (1, 2, 3, 4, 5...)
+        chronologicalLog: [
+          {
+            order: 1,
+            datetime: "03.10.2026 14:10:00",
+            user: "Keleshov Nasib",
+            action: "Yaradıldı",
+            actionType: "Yaradılma",
+            badgeClass: "blue",
+            docStatus: "Qaralama",
+            result: "İlkin sənəd açıldı (40.00 AZN, 20 ədəd, Tarix: 03.10.2026, Müştəri: Bravo Yasamal)"
+          },
+          {
+            order: 2,
+            datetime: "03.10.2026 14:35:15",
+            user: "Keleshov Nasib",
+            action: "Təsdiqləndi",
+            actionType: "Təsdiq",
+            badgeClass: "green",
+            docStatus: "Təsdiqlənib",
+            result: "1C dövriyyəsinə qəbul edildi (Provodka)"
+          },
+          {
+            order: 3,
+            datetime: "05.10.2026 15:20:00",
+            user: "Admin",
+            action: "Təsdiq ləğv edildi",
+            actionType: "Təsdiqin Ləğvi",
+            badgeClass: "orange",
+            docStatus: "Qaralama",
+            result: "Redaktə üçün təsdiqdən çıxarıldı"
+          },
+          {
+            order: 4,
+            datetime: "05.10.2026 15:45:20",
+            user: "Admin",
+            action: "Dəyişdirildi",
+            actionType: "Redaktə",
+            badgeClass: "orange",
+            docStatus: "Dəyişdirildi",
+            result: "Tarix (03.10 ➔ 05.10), Müştəri (Yasamal ➔ Chocolate Tower), Komment, Say və Qiymət dəyişdirildi"
+          },
+          {
+            order: 5,
+            datetime: "05.10.2026 16:32:41",
+            user: "Keleshov Nasib",
+            action: "Təsdiqləndi",
+            actionType: "Təsdiq",
+            badgeClass: "green",
+            docStatus: "Təsdiqlənib",
+            result: "51.84 AZN məbləğində yenidən təsdiqləndi"
+          },
+          {
+            order: 6,
+            datetime: "08.10.2026 09:10:00",
+            user: "Ali",
+            action: "Silindi",
+            actionType: "Silinmə",
+            badgeClass: "red",
+            docStatus: "Silindi",
+            result: "Sənəd silindi"
+          },
+          {
+            order: 7,
+            datetime: "08.10.2026 09:40:00",
+            user: "Keleshov Nasib",
+            action: "Bərpa edildi",
+            actionType: "Bərpa",
+            badgeClass: "blue",
+            docStatus: "Qaralama",
+            result: "Silinmə ləğv edildi, sənəd bərpa olundu"
+          },
+          {
+            order: 8,
+            datetime: "08.10.2026 09:42:15",
+            user: "Keleshov Nasib",
+            action: "Təsdiqləndi",
+            actionType: "Təsdiq",
+            badgeClass: "green",
+            docStatus: "Təsdiqlənib",
+            result: "Cari aktiv təsdiq vəziyyətindədir"
+          }
+        ],
+
+        // VERSİYALAR ÜZRƏ SƏNƏDİN TAM GÖRÜNÜŞÜ (BAŞLIQ VƏ MALLAR CƏDVƏLİ)
+        versions: [
+          {
+            verNum: 1,
+            verLabel: "v1 (İlkin Halı — 03.10.2026 14:10)",
+            date: "03.10.2026 14:10:00",
+            author: "Keleshov Nasib",
+            kontragent: "3010 Bravo Yasamal Filialı - C000018230",
+            contract: "№ 12/2026 Əsas Müqavilə",
+            warehouse: "Əsas Anbar Gəncə",
+            comment: "İlkin sifariş qeydiyyatı",
+            amount: 40.00,
+            statusText: "Qaralama",
+            headerChanges: [],
+            items: [
+              {
+                lineNo: 1,
+                code: "FER10891-1A",
+                artikul: "KJ-20EU",
+                name: "Aksiya77259132 Kond.məmulatı Kinder Joy 20g EU License",
+                unit: "əd",
+                qty: 20,
+                price: 2.00,
+                sum: 40.00,
+                changedFields: []
+              }
+            ]
+          },
+          {
+            verNum: 2,
+            verLabel: "v2 (Redaktə Olunmuş Halı — 05.10.2026 15:45)",
+            date: "05.10.2026 15:45:20",
+            author: "Admin",
+            kontragent: "3030 Bravo Chocolate Tower - C000033107",
+            contract: "№ 12/2026 Əsas Müqavilə",
+            warehouse: "Əsas Anbar Gəncə",
+            comment: "Müştərinin sifarişi ilə tarix 05.10-a çəkildi, say və mal növü yeniləndi",
+            amount: 51.84,
+            statusText: "Təsdiqlənib",
+            headerChanges: [
+              {
+                field: "date",
+                label: "Sənəd Tarixi",
+                oldVal: "03.10.2026 14:10:00",
+                newVal: "05.10.2026 15:45:20",
+                note: "Tarix 03.10-dan 05.10-a (2 gün irəli) dəyişdirildi"
+              },
+              {
+                field: "kontragent",
+                label: "Müştəri / Kontragent",
+                oldVal: "3010 Bravo Yasamal Filialı - C000018230",
+                newVal: "3030 Bravo Chocolate Tower - C000033107",
+                note: "Kontragent Bravo Yasamal-dan Bravo Chocolate Tower-ə dəyişdirildi"
+              },
+              {
+                field: "comment",
+                label: "Şərh (Komment)",
+                oldVal: "İlkin sifariş qeydiyyatı",
+                newVal: "Müştərinin sifarişi ilə tarix 05.10-a çəkildi, say və mal növü yeniləndi",
+                note: "Şərh mətni dəyişdirildi"
+              }
+            ],
+            items: [
+              {
+                lineNo: 1,
+                code: "FER10891-1A",
+                artikul: "KJ-20EU",
+                name: "Aksiya77259132 Kond.məmulatı Kinder Joy 20g EU License (Premium Box)",
+                unit: "əd",
+                qty: 24,
+                price: 2.16,
+                sum: 51.84,
+                changedFields: [
+                  { field: "name", label: "Malın Adı", oldVal: "Aksiya77259132 Kond.məmulatı Kinder Joy 20g EU License", newVal: "Aksiya77259132 Kond.məmulatı Kinder Joy 20g EU License (Premium Box)", note: "Malın adı dəqiqləşdirildi (Premium Box)" },
+                  { field: "qty", label: "Miqdar (Say)", oldVal: "20 əd", newVal: "24 əd", note: "+4 əd artım" },
+                  { field: "price", label: "Qiymət", oldVal: "2.00 AZN", newVal: "2.16 AZN", note: "+0.16 AZN artım" },
+                  { field: "sum", label: "Məbləğ", oldVal: "40.00 AZN", newVal: "51.84 AZN", note: "+11.84 AZN artım" }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        number: "C00004454737",
+        date: "31.08.2026 12:35:45",
+        typeTitle: "Satış (Реализация)",
+        author: "Emin",
+        kontragent: "TEST 12B Müştəri - C000029100",
+        warehouse: "Mərkəzi Anbar",
+        contract: "№ 08/2026 Standart",
+        comment: "Müqavilə üzrə birbaşa satış",
+        amount: 9.27,
+        posted: true,
+        versionCount: 1,
+        lastOperation: "Təsdiqləndi",
+        chronologicalLog: [
+          {
+            order: 1,
+            datetime: "31.08.2026 12:30:00",
+            user: "Emin",
+            action: "Yaradıldı",
+            actionType: "Yaradılma",
+            badgeClass: "blue",
+            docStatus: "Qaralama",
+            result: "Sənəd açıldı və yadda saxlanıldı (9.27 AZN)."
+          },
+          {
+            order: 2,
+            datetime: "31.08.2026 12:35:45",
+            user: "Emin",
+            action: "Təsdiqləndi",
+            actionType: "Təsdiq",
+            badgeClass: "green",
+            docStatus: "Təsdiqləndi",
+            result: "Sənəd 1C-də təsdiqləndi. Heç bir sonrakı redaktə və ya silinmə qeydə alınmayıb."
+          }
+        ],
+        versions: [
+          {
+            verNum: 1,
+            verLabel: "v1 (İlkin və Cari Halı)",
+            date: "31.08.2026 12:35:45",
+            author: "Emin",
+            kontragent: "TEST 12B Müştəri - C000029100",
+            contract: "№ 08/2026 Standart",
+            warehouse: "Mərkəzi Anbar",
+            comment: "Müqavilə üzrə birbaşa satış",
+            amount: 9.27,
+            statusText: "Təsdiqlənib",
+            headerChanges: [],
+            items: [
+              {
+                lineNo: 1,
+                code: "MDL4266950",
+                artikul: "MILK-BUB",
+                name: "Milka Bubbles Şokolad 76g",
+                unit: "əd",
+                qty: 3,
+                price: 3.09,
+                sum: 9.27,
+                changedFields: []
+              }
+            ]
+          }
+        ]
+      }
+    ];
+
+    let currentDocIndex = 0;
+    let currentModalTab = 'chronological_list';
+    let currentSelectedVersionIdx = 1; // Default to v2 to showcase red highlighting
+
+    // POPOVER CONTROLLER FOR PREVIOUS VALUES ON HOVER
+    function showDiffPopover(e, title, oldVal, newVal, note) {
+      const pop = document.getElementById("diffPopover");
+      if (!pop) return;
+
+      document.getElementById("diffPopTitle").textContent = title || "Dəyişiklik Fərqi";
+      document.getElementById("diffPopOld").textContent = oldVal || "(Boş idi)";
+      document.getElementById("diffPopNew").textContent = newVal || "";
+      
+      const noteEl = document.getElementById("diffPopNote");
+      if (note) {
+        noteEl.textContent = note;
+        noteEl.style.display = "block";
+      } else {
+        noteEl.style.display = "none";
+      }
+
+      pop.style.display = "block";
+      positionPopover(e);
+    }
+
+    function moveDiffPopover(e) {
+      positionPopover(e);
+    }
+
+    function hideDiffPopover() {
+      const pop = document.getElementById("diffPopover");
+      if (pop) pop.style.display = "none";
+    }
+
+    function positionPopover(e) {
+      const pop = document.getElementById("diffPopover");
+      if (!pop || pop.style.display === "none") return;
+
+      const pad = 12;
+      let x = e.clientX + pad;
+      let y = e.clientY + pad;
+
+      const w = pop.offsetWidth || 280;
+      const h = pop.offsetHeight || 130;
+
+      if (x + w > window.innerWidth - 10) {
+        x = e.clientX - w - pad;
+      }
+      if (y + h > window.innerHeight - 10) {
+        y = e.clientY - h - pad;
+      }
+
+      pop.style.left = `${Math.max(10, x)}px`;
+      pop.style.top = `${Math.max(10, y)}px`;
+    }
+
+    function renderTable() {
+      const tbody = document.getElementById("journalTableBody");
+      let html = "";
+      mockData.forEach((d, idx) => {
+        const isSel = (idx === currentDocIndex);
+        const stText = d.posted ? 'Təsdiqlənib' : 'Qaralama';
+        const stClass = d.posted ? 'badge-green' : 'badge-orange';
+
+        html += `
+          <tr class="${isSel ? 'selected' : ''}" onclick="selectRow(${idx})" ondblclick="openModal(${idx})" style="cursor: pointer;">
+            <td style="text-align: center;">${idx + 1}</td>
+            <td style="text-align: center;"><span class="badge ${stClass}">${stText}</span></td>
+            <td style="font-weight: 600;">${d.number}</td>
+            <td>${d.date}</td>
+            <td><strong>${d.author}</strong></td>
+            <td>${d.kontragent}</td>
+            <td style="text-align: right; font-weight: bold;">${d.amount.toFixed(2)}</td>
+            <td style="text-align: center;"><span class="badge badge-green">${d.lastOperation}</span></td>
+            <td style="text-align: center;"><strong style="color: #002060;">${d.chronologicalLog.length} Hadisə</strong></td>
+            <td style="text-align: center;">
+              <button class="btn-1c btn-1c-primary" style="height: 20px; font-size: 10px; padding: 0 6px;" onclick="event.stopPropagation(); openModal(${idx})">Audit Aç</button>
+            </td>
+          </tr>
+        `;
+      });
+      tbody.innerHTML = html;
+    }
+
+    function selectRow(idx) {
+      currentDocIndex = idx;
+      renderTable();
+    }
+
+    function openModal(idx) {
+      currentDocIndex = idx;
+      const doc = mockData[currentDocIndex];
+      currentSelectedVersionIdx = doc.versions.length - 1;
+      renderTable();
+      populateModal();
+      document.getElementById("auditModalBackdrop").style.display = "flex";
+    }
+
+    function closeModal() {
+      hideDiffPopover();
+      document.getElementById("auditModalBackdrop").style.display = "none";
+    }
+
+    function switchModalTab(tab) {
+      hideDiffPopover();
+      currentModalTab = tab;
+      document.getElementById("tabBtnChronologicalList").classList.toggle("active", tab === "chronological_list");
+      document.getElementById("tabBtnVersionsDiff").classList.toggle("active", tab === "versions_diff");
+      populateModalTabContent();
+    }
+
+    function selectVersionBtn(vIdx) {
+      hideDiffPopover();
+      currentSelectedVersionIdx = vIdx;
+      populateModalTabContent();
+    }
+
+    function populateModal() {
+      const doc = mockData[currentDocIndex];
+      if (!doc) return;
+
+      document.getElementById("modalWinTitle").textContent = `Sənəd Audit Protokolu: № ${doc.number}`;
+      document.getElementById("mDocTitle").textContent = `${doc.typeTitle} № ${doc.number}`;
+      document.getElementById("mDocDate").textContent = doc.date;
+      document.getElementById("mDocKontr").textContent = doc.kontragent;
+      document.getElementById("mDocWh").textContent = doc.warehouse;
+      document.getElementById("mDocAmount").textContent = `${doc.amount.toFixed(2)} AZN`;
+
+      const stBadge = document.getElementById("mDocStatusBadge");
+      stBadge.textContent = doc.posted ? "TƏSDİQLƏNİB" : "QARALAMA";
+      stBadge.className = `badge ${doc.posted ? 'badge-green' : 'badge-orange'}`;
+
+      document.getElementById("mDocEventsBadge").textContent = `${doc.chronologicalLog.length} Hadisə Qeydə Alınıb`;
+
+      populateModalTabContent();
+    }
+
+    function populateModalTabContent() {
+      const doc = mockData[currentDocIndex];
+      const container = document.getElementById("modalTabContent");
+      if (!doc || !container) return;
+
+      // ========================================================
+      // TAB 1: TARİX VƏ SAATA GÖRƏ ARDICIL BÜTÜN HƏRƏKƏTLƏRİN SİYAHISI
+      // ========================================================
+      if (currentModalTab === "chronological_list") {
+        let rowsHtml = "";
+        doc.chronologicalLog.forEach((item) => {
+          let badgeBg = "#e3f2fd";
+          let badgeFg = "#002060";
+          if (item.badgeClass === "green") { badgeBg = "#e8f5e9"; badgeFg = "#2e7d32"; }
+          else if (item.badgeClass === "orange") { badgeBg = "#fff3e0"; badgeFg = "#e65100"; }
+          else if (item.badgeClass === "red") { badgeBg = "#ffebee"; badgeFg = "#c62828"; }
+
+          rowsHtml += `
+            <tr style="height: 28px; border-bottom: 1px solid #e0dfd5; background: ${item.order % 2 === 1 ? '#faf9f6' : '#ffffff'};">
+              <td style="text-align: center; color: #777;">${item.order}</td>
+              <td style="padding: 0 8px; font-weight: 600; color: #002060; white-space: nowrap;">
+                ${item.datetime}
+              </td>
+              <td style="padding: 0 8px; white-space: nowrap;">
+                <strong style="color: #0a3d91;">${item.user}</strong>
+              </td>
+              <td style="padding: 0 8px; white-space: nowrap;">
+                <span style="background: ${badgeBg}; color: ${badgeFg}; border: 1px solid ${badgeFg}; padding: 2px 7px; border-radius: 3px; font-weight: 600; font-size: 11px; display: inline-block;">
+                  ${item.action}
+                </span>
+              </td>
+              <td style="padding: 0 8px; font-weight: 500; white-space: nowrap;">
+                ${item.docStatus}
+              </td>
+              <td style="padding: 0 8px; color: #444; font-size: 11px;">
+                ${item.result}
+              </td>
+            </tr>
+          `;
+        });
+
+        container.innerHTML = `
+          <div style="background: #fdfcee; border: 1px solid #e0dbba; padding: 10px 14px; border-radius: 4px; display: flex; justify-content: space-between; align-items: center;">
+            <div>
+              <strong style="color: #002060; font-size: 13px;">Sənədin Tarixə Görə Ardıcıl Hərəkət Jurnalı (Tam Xronologiya):</strong>
+              <div style="font-size: 11px; color: #666; margin-top: 2px;">
+                Sənəd yarandığı andan bu günə qədər baş verən hər bir əməliyyat (Yaradıldı, Təsdiqləndi, Dəyişdirildi, Silindi, Bərpa edildi) tarix və vaxt ardıcıllığı ilə aşağıdadır:
+              </div>
+            </div>
+            <span class="badge badge-green" style="font-size: 11px; padding: 4px 10px;">${doc.chronologicalLog.length} Hadisə Siyahıdadır</span>
+          </div>
+
+          <div style="border: 1px solid #b0af9f; border-radius: 3px; overflow: hidden; margin-top: 4px;">
+            <table class="data-table">
+              <thead>
+                <tr style="height: 28px;">
+                  <th style="width: 35px; text-align: center;">№</th>
+                  <th style="width: 155px;">Dəqiq Tarix və Saat</th>
+                  <th style="width: 170px;">Əməliyyatı Edən Şəxs</th>
+                  <th style="width: 230px;">Görülən Hərəkət / Əməliyyat</th>
+                  <th style="width: 170px;">Sənədin Həmin Andakı Vəziyyəti</th>
+                  <th>Nəticə və Dəqiq İzah</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${rowsHtml}
+              </tbody>
+            </table>
+          </div>
+        `;
+      }
+
+      // ========================================================
+      // TAB 2: SƏNƏDİN VERSİYALAR SİYAHISI (SƏTİRLƏR ŞƏKLİNDƏ CƏDVƏL)
+      // ========================================================
+      else if (currentModalTab === "versions_diff") {
+        const vers = doc.versions || [];
+
+        let vRowsHtml = "";
+        vers.forEach((v, idx) => {
+          const isModified = v.verNum > 1;
+          const hChg = v.headerChanges || [];
+          
+          let changesSummary = "— (İlkin sənəd)";
+          if (isModified) {
+            let chgList = [];
+            hChg.forEach(c => chgList.push(c.label));
+            v.items.forEach(it => {
+              if (it.changedFields && it.changedFields.length > 0) {
+                it.changedFields.forEach(f => {
+                  if (!chgList.includes(f.label)) chgList.push(f.label);
+                });
+              }
+            });
+            changesSummary = chgList.join(", ") || "Dəyişikliklər mövcuddur";
+          }
+
+          vRowsHtml += `
+            <tr style="height: 36px; border-bottom: 1px solid #e0dfd5; background: ${idx % 2 === 1 ? '#faf9f6' : '#ffffff'}; cursor: pointer;"
+                onclick="openDocVersionModal(${idx})" title="Sənəd pəncərəsini açmaq üçün klik edin">
+              <td style="text-align: center;">
+                <span class="badge ${isModified ? 'badge-red' : 'badge-blue'}" style="font-size: 11px;">
+                  v${v.verNum}
+                </span>
+              </td>
+              <td style="padding: 0 8px; font-weight: 600; color: #002060; white-space: nowrap;">
+                ${v.date}
+              </td>
+              <td style="padding: 0 8px; white-space: nowrap;">
+                <strong style="color: #0a3d91;">${v.author}</strong>
+              </td>
+              <td style="padding: 0 8px; white-space: nowrap;">
+                <span class="badge ${isModified ? 'badge-orange' : 'badge-green'}">
+                  ${isModified ? 'Redaktə (Dəyişiklik)' : 'Yaradılma (İlkin Halı)'}
+                </span>
+              </td>
+              <td style="padding: 0 8px; font-size: 11px; color: ${isModified ? '#b71c1c' : '#555'}; font-weight: ${isModified ? '600' : 'normal'};">
+                ${changesSummary}
+              </td>
+              <td style="padding: 0 8px; text-align: right; font-weight: bold; color: ${isModified ? '#b71c1c' : '#002060'};">
+                ${v.amount.toFixed(2)}
+              </td>
+              <td style="padding: 0 8px; text-align: center;">
+                <span class="badge ${v.statusText === 'Təsdiqlənib' ? 'badge-green' : 'badge-orange'}">
+                  ${v.statusText}
+                </span>
+              </td>
+              <td style="padding: 0 8px; text-align: center;" onclick="event.stopPropagation();">
+                <button class="btn-1c ${isModified ? 'btn-1c-primary' : ''}" style="height: 24px; padding: 0 10px; font-weight: 600;" onclick="openDocVersionModal(${idx})">
+                  Sənədi Aç
+                </button>
+              </td>
+            </tr>
+          `;
+        });
+
+        container.innerHTML = `
+          <div style="background: #fdfcee; border: 1px solid #e0dbba; padding: 10px 14px; border-radius: 4px; display: flex; justify-content: space-between; align-items: center;">
+            <div>
+              <strong style="color: #002060; font-size: 13px;">Sənədin Bütün Versiyaları (Sətirlər Şəklində):</strong>
+              <div style="font-size: 11px; color: #666; margin-top: 2px;">
+                Hər bir versiya üzrə sənədin tam görünüşünü və dəyişilən qırmızı sahələrini açmaq üçün istənilən sətrə klik edin və ya <b>"Sənədi Aç"</b> düyməsinə basın:
+              </div>
+            </div>
+            <span class="badge badge-green" style="font-size: 11px; padding: 4px 10px;">${vers.length} Versiya Siyahıdadır</span>
+          </div>
+
+          <div style="border: 1px solid #b0af9f; border-radius: 3px; overflow: hidden; margin-top: 6px;">
+            <table class="data-table">
+              <thead>
+                <tr style="height: 28px;">
+                  <th style="width: 65px; text-align: center;">Versiya</th>
+                  <th style="width: 150px;">Tarix və Saat</th>
+                  <th style="width: 160px;">Redaktə Edən Şəxs</th>
+                  <th style="width: 150px;">Əməliyyat Növü</th>
+                  <th>Dəyişdirilən Rekvizitlər / Sahələr</th>
+                  <th style="width: 110px; text-align: right;">Məbləğ (AZN)</th>
+                  <th style="width: 110px; text-align: center;">Vəziyyət</th>
+                  <th style="width: 110px; text-align: center;">Sənəd Pəncərəsi</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${vRowsHtml}
+              </tbody>
+            </table>
+          </div>
+        `;
+      }
+    }
+
+    // ========================================================
+    // AYRICA AÇILAN 1C SƏNƏD VERSİYA PƏNCƏRƏSİ (DOCUMENT WINDOW)
+    // ========================================================
+    function openDocVersionModal(vIdx) {
+      const doc = mockData[currentDocIndex];
+      if (!doc) return;
+      currentSelectedVersionIdx = vIdx;
+
+      renderDocVersionWindow();
+      document.getElementById("docViewModalBackdrop").style.display = "flex";
+    }
+
+    function closeDocViewModal() {
+      hideDiffPopover();
+      document.getElementById("docViewModalBackdrop").style.display = "none";
+    }
+
+    function renderDocVersionWindow() {
+      const doc = mockData[currentDocIndex];
+      if (!doc) return;
+
+      const vers = doc.versions || [];
+      const curVer = vers[currentSelectedVersionIdx] || vers[0];
+      const isModifiedVer = curVer.verNum > 1;
+
+      // Window Title
+      document.getElementById("docWinHeaderTitle").textContent = 
+        `${doc.typeTitle} № ${doc.number} — ${curVer.verLabel}`;
+
+      // Version switcher buttons in window toolbar
+      let vButtonsHtml = `<span style="font-weight: bold; color: #002060;">Versiyalar:</span>`;
+      vers.forEach((v, idx) => {
+        const isAct = (idx === currentSelectedVersionIdx);
+        vButtonsHtml += `
+          <button type="button" class="v-btn ${isAct ? 'active' : ''}" onclick="selectDocWinVersion(${idx})">
+            <span>${v.verLabel}</span>
+          </button>
+        `;
+      });
+      document.getElementById("docWinVersionButtons").innerHTML = vButtonsHtml;
+
+      document.getElementById("docWinVersionMeta").innerHTML = 
+        `Müəllif: <strong style="color: #002060;">${curVer.author}</strong> | Tarix: <strong>${curVer.date}</strong>`;
+
+      // Header changes for this version
+      const headerChanges = curVer.headerChanges || [];
+      const dateChg = headerChanges.find(c => c.field === "date");
+      const kontrChg = headerChanges.find(c => c.field === "kontragent");
+      const commChg = headerChanges.find(c => c.field === "comment");
+
+      // Status card
+      let statusCardHtml = `
+        <div style="background: ${isModifiedVer ? '#fff8f8' : '#f8fbfd'}; border: 1px solid ${isModifiedVer ? '#ffcdd2' : '#b6d4fe'}; padding: 8px 12px; border-radius: 4px; display: flex; justify-content: space-between; align-items: center;">
+          <div>
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <strong style="color: #002060; font-size: 13px;">${curVer.verLabel}</strong>
+              ${isModifiedVer 
+                ? '<span class="badge badge-red">QIRMIZI SAHƏLƏR DƏYİŞDİRİLİB (Əvvəlki dəyərə baxmaq üçün siçanı üzərinə gətirin)</span>' 
+                : '<span class="badge badge-green">İlkin Vəziyyət (Heç bir dəyişiklik yoxdur)</span>'}
+            </div>
+          </div>
+          <div style="text-align: right;">
+            <span style="font-size: 11px; color: #666;">Yekun Məbləğ:</span>
+            <strong style="font-size: 16px; color: ${isModifiedVer ? '#b71c1c' : '#002060'}; margin-left: 6px;">${curVer.amount.toFixed(2)} AZN</strong>
+          </div>
+        </div>
+      `;
+
+      // Sənədin Başlıq Sahələri (Rekvizitlər)
+      let docHeaderHtml = `
+        <div class="doc-full-form">
+          <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #dcd7c4; padding-bottom: 4px;">
+            <strong style="color: #002060; font-size: 11px;">Sənədin Başlıq Sahələri (Rekvizitlər):</strong>
+            <span style="font-size: 10px; color: #666;">${isModifiedVer ? 'Qırmızı sahələrin üzərinə gəldikdə v1 dəyəri açılır' : 'İlkin sənəd məlumatları'}</span>
+          </div>
+
+          <div class="doc-form-grid">
+            <!-- SƏNƏD № -->
+            <div class="form-field">
+              <span class="form-field-label">Sənəd Nömrəsi:</span>
+              <div class="form-field-input" style="font-weight: bold; color: #002060;">
+                <span>${doc.number}</span>
+              </div>
+            </div>
+
+            <!-- SƏNƏD TARİXİ -->
+            <div class="form-field">
+              <span class="form-field-label">Sənəd Tarixi:</span>
+              ${dateChg 
+                ? `<div class="form-field-input changed-cell" 
+                        onmouseenter="showDiffPopover(event, 'Sənəd Tarixi Dəyişdirilib', '${dateChg.oldVal}', '${dateChg.newVal}', '${dateChg.note}')" 
+                        onmousemove="moveDiffPopover(event)" 
+                        onmouseleave="hideDiffPopover()">
+                     <strong>${curVer.date}</strong>
+                     <span class="changed-badge">v1: ${dateChg.oldVal}</span>
+                   </div>`
+                : `<div class="form-field-input"><span>${curVer.date}</span></div>`
+              }
+            </div>
+
+            <!-- SƏNƏD VƏZİYYƏTİ -->
+            <div class="form-field">
+              <span class="form-field-label">Sənəd Vəziyyəti:</span>
+              <div class="form-field-input">
+                <span class="badge ${curVer.statusText === 'Təsdiqlənib' ? 'badge-green' : 'badge-orange'}">${curVer.statusText}</span>
+              </div>
+            </div>
+
+            <!-- MÜŞTƏRİ / KONTRAGENT -->
+            <div class="form-field" style="grid-column: span 2;">
+              <span class="form-field-label">Müştəri / Kontragent:</span>
+              ${kontrChg 
+                ? `<div class="form-field-input changed-cell" 
+                        onmouseenter="showDiffPopover(event, 'Müştəri / Kontragent Dəyişdirilib', '${kontrChg.oldVal}', '${kontrChg.newVal}', '${kontrChg.note}')" 
+                        onmousemove="moveDiffPopover(event)" 
+                        onmouseleave="hideDiffPopover()">
+                     <strong>${curVer.kontragent}</strong>
+                     <span class="changed-badge">v1: ${kontrChg.oldVal}</span>
+                   </div>`
+                : `<div class="form-field-input"><span>${curVer.kontragent}</span></div>`
+              }
+            </div>
+
+            <!-- ANBAR -->
+            <div class="form-field">
+              <span class="form-field-label">Anbar:</span>
+              <div class="form-field-input">
+                <span>${curVer.warehouse}</span>
+              </div>
+            </div>
+
+            <!-- ŞƏRH (KOMMENT) -->
+            <div class="form-field" style="grid-column: span 2;">
+              <span class="form-field-label">Şərh (Komment):</span>
+              ${commChg 
+                ? `<div class="form-field-input changed-cell" 
+                        onmouseenter="showDiffPopover(event, 'Şərh (Komment) Dəyişdirilib', '${commChg.oldVal}', '${commChg.newVal}', '${commChg.note}')" 
+                        onmousemove="moveDiffPopover(event)" 
+                        onmouseleave="hideDiffPopover()">
+                     <strong>${curVer.comment}</strong>
+                     <span class="changed-badge">v1: ${commChg.oldVal}</span>
+                   </div>`
+                : `<div class="form-field-input"><span>${curVer.comment || '(Şərh yazılmayıb)'}</span></div>`
+              }
+            </div>
+
+            <!-- MÜQAVİLƏ -->
+            <div class="form-field">
+              <span class="form-field-label">Müqavilə:</span>
+              <div class="form-field-input">
+                <span>${curVer.contract}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      `;
+
+      // Mallar Cədvəli
+      let itemsRowsHtml = "";
+      curVer.items.forEach((it) => {
+        const isChanged = (it.changedFields && it.changedFields.length > 0);
+        const nameChg = it.changedFields.find(c => c.field === "name");
+        const qtyChg = it.changedFields.find(c => c.field === "qty");
+        const priceChg = it.changedFields.find(c => c.field === "price");
+        const sumChg = it.changedFields.find(c => c.field === "sum");
+
+        itemsRowsHtml += `
+          <tr class="${isChanged ? 'changed-row' : ''}" style="height: 32px; border-bottom: 1px solid #e0dfd5;">
+            <td style="text-align: center; color: #555;">${it.lineNo}</td>
+            <td style="padding: 0 8px; font-weight: 600; color: #002060;">${it.code}</td>
+            <td style="padding: 0 8px; color: #555;">${it.artikul}</td>
+            
+            <!-- MALIN ADI XANASI -->
+            <td style="padding: 0 8px; font-weight: 500;" class="${nameChg ? 'changed-cell' : ''}"
+                ${nameChg 
+                  ? `onmouseenter="showDiffPopover(event, 'Malın Adı Dəyişdirilib', '${nameChg.oldVal}', '${nameChg.newVal}', '${nameChg.note}')" 
+                     onmousemove="moveDiffPopover(event)" 
+                     onmouseleave="hideDiffPopover()"` 
+                  : ''}>
+              <span>${it.name}</span>
+              ${nameChg ? `<span class="changed-badge">v1: ${nameChg.oldVal}</span>` : ''}
+            </td>
+
+            <td style="padding: 0 8px; text-align: center;">${it.unit}</td>
+
+            <!-- SAY XANASI -->
+            <td style="padding: 0 8px; text-align: right;" class="${qtyChg ? 'changed-cell' : ''}"
+                ${qtyChg 
+                  ? `onmouseenter="showDiffPopover(event, 'Miqdar (Say) Dəyişdirilib', '${qtyChg.oldVal}', '${qtyChg.newVal}', '${qtyChg.note}')" 
+                     onmousemove="moveDiffPopover(event)" 
+                     onmouseleave="hideDiffPopover()"` 
+                  : ''}>
+              ${qtyChg 
+                ? `<div style="display:flex; flex-direction:column; align-items:flex-end;">
+                     <span style="font-size:10px; color:#777; text-decoration:line-through;">${qtyChg.oldVal}</span>
+                     <span style="font-size:12px; font-weight:bold; color:#b71c1c;">${qtyChg.newVal} (${qtyChg.note})</span>
+                   </div>`
+                : `<strong>${it.qty}</strong>`
+              }
+            </td>
+
+            <!-- QİYMƏT XANASI -->
+            <td style="padding: 0 8px; text-align: right;" class="${priceChg ? 'changed-cell' : ''}"
+                ${priceChg 
+                  ? `onmouseenter="showDiffPopover(event, 'Qiymət Dəyişdirilib', '${priceChg.oldVal}', '${priceChg.newVal}', '${priceChg.note}')" 
+                     onmousemove="moveDiffPopover(event)" 
+                     onmouseleave="hideDiffPopover()"` 
+                  : ''}>
+              ${priceChg 
+                ? `<div style="display:flex; flex-direction:column; align-items:flex-end;">
+                     <span style="font-size:10px; color:#777; text-decoration:line-through;">${priceChg.oldVal}</span>
+                     <span style="font-size:12px; font-weight:bold; color:#b71c1c;">${priceChg.newVal}</span>
+                   </div>`
+                : `<span>${it.price.toFixed(2)}</span>`
+              }
+            </td>
+
+            <!-- MƏBLƏĞ XANASI -->
+            <td style="padding: 0 8px; text-align: right;" class="${sumChg ? 'changed-cell' : ''}"
+                ${sumChg 
+                  ? `onmouseenter="showDiffPopover(event, 'Məbləğ Dəyişdirilib', '${sumChg.oldVal}', '${sumChg.newVal}', '${sumChg.note}')" 
+                     onmousemove="moveDiffPopover(event)" 
+                     onmouseleave="hideDiffPopover()"` 
+                  : ''}>
+              ${sumChg 
+                ? `<div style="display:flex; flex-direction:column; align-items:flex-end;">
+                     <span style="font-size:10px; color:#777; text-decoration:line-through;">${sumChg.oldVal}</span>
+                     <span style="font-size:13px; font-weight:bold; color:#b71c1c;">${sumChg.newVal}</span>
+                   </div>`
+                : `<strong>${it.sum.toFixed(2)}</strong>`
+              }
+            </td>
+
+            <!-- STATUS / İZAH -->
+            <td style="padding: 0 8px; text-align: center;">
+              ${isChanged 
+                ? '<span class="badge badge-red">Dəyişdirilib</span>' 
+                : '<span class="badge badge-gray">Dəyişməyib</span>'}
+            </td>
+          </tr>
+        `;
+      });
+
+      document.getElementById("docWinBodyContent").innerHTML = `
+        ${statusCardHtml}
+        ${docHeaderHtml}
+
+        <div style="border: 1px solid #b0af9f; border-radius: 3px; overflow: hidden; margin-top: 4px;">
+          <div style="background: #e3dec9; padding: 5px 10px; border-bottom: 1px solid #b0af9f; font-weight: bold; color: #002060; font-size: 11px;">
+            Sənədin Mallar Cədvəli:
+          </div>
+          <table class="data-table">
+            <thead>
+              <tr style="height: 28px;">
+                <th style="width: 35px; text-align: center;">№</th>
+                <th style="width: 110px;">Mal Kodu</th>
+                <th style="width: 90px;">Artikul</th>
+                <th>Malın Tam Adı</th>
+                <th style="width: 50px; text-align: center;">Vahid</th>
+                <th style="width: 130px; text-align: right;">Miqdar (Say)</th>
+                <th style="width: 110px; text-align: right;">Qiymət (AZN)</th>
+                <th style="width: 130px; text-align: right;">Yekun Məbləğ (AZN)</th>
+                <th style="width: 120px; text-align: center;">Versiya Qeydi</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${itemsRowsHtml}
+            </tbody>
+          </table>
+        </div>
+      `;
+    }
+
+    function selectDocWinVersion(vIdx) {
+      hideDiffPopover();
+      currentSelectedVersionIdx = vIdx;
+      renderDocVersionWindow();
+    }
+
+    // Initial render
+    renderTable();
+    populateModal();
+  </script>
+</body>
+</html>

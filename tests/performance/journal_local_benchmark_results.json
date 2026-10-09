@@ -1,0 +1,63 @@
+{
+  "scope": "synthetic data; actual journal JS; excludes browser layout/paint and network",
+  "cases": [
+    {
+      "rows": 1500,
+      "cache_reopen": {
+        "median_ms": 4.38,
+        "p95_ms": 6.42
+      },
+      "filter": {
+        "median_ms": 1.29,
+        "p95_ms": 2.74
+      },
+      "search": {
+        "median_ms": 3.33,
+        "p95_ms": 5.36
+      },
+      "clear_filter_search": {
+        "median_ms": 4.29,
+        "p95_ms": 7.19
+      }
+    },
+    {
+      "rows": 10000,
+      "cache_reopen": {
+        "median_ms": 18.78,
+        "p95_ms": 21.77
+      },
+      "filter": {
+        "median_ms": 5.45,
+        "p95_ms": 8.11
+      },
+      "search": {
+        "median_ms": 6.53,
+        "p95_ms": 8.46
+      },
+      "clear_filter_search": {
+        "median_ms": 17.65,
+        "p95_ms": 19.48
+      }
+    },
+    {
+      "rows": 30000,
+      "cache_reopen": {
+        "median_ms": 50.06,
+        "p95_ms": 53.63
+      },
+      "filter": {
+        "median_ms": 12.76,
+        "p95_ms": 14.69
+      },
+      "search": {
+        "median_ms": 13.24,
+        "p95_ms": 15.13
+      },
+      "clear_filter_search": {
+        "median_ms": 55.74,
+        "p95_ms": 114.07
+      }
+    }
+  ],
+  "network_requests": 0
+}

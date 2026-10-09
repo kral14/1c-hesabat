@@ -13,7 +13,7 @@
   <link rel="stylesheet" href="/static/css/1c_value_list.css?v=4.0">
   <link rel="stylesheet" href="/static/css/1c_presets.css?v=4.0">
   <link rel="stylesheet" href="/static/css/1c_calendar.css?v=4.3">
-  <link rel="stylesheet" href="/static/css/1c_mdi.css?v=5.0">
+  <link rel="stylesheet" href="/static/css/1c_mdi.css?v=5.2">
 </head>
 <body>
 
@@ -78,6 +78,55 @@
         </div>
       </div>
 
+      <!-- Документы -->
+      <div class="mdi-menu-item">
+        <button class="mdi-menu-btn" onclick="toggleMdiMenu(event, 'menuDocs')">Документы</button>
+        <div class="mdi-dropdown-menu" id="menuDocs">
+          <div class="mdi-dropdown-entry" onclick="openJournalDirect('РеализацияТоваровУслуг')">
+            <span class="mdi-dropdown-entry-icon">🚚</span>
+            <span style="font-weight: bold; color: #002060;">Реализация товаров и услуг</span>
+          </div>
+          <div class="mdi-dropdown-entry" onclick="openJournalDirect('ВозвратТоваровОтПокупателя')">
+            <span class="mdi-dropdown-entry-icon">🔄</span>
+            <span style="font-weight: bold; color: #004080;">Возврат товаров от покупателя</span>
+          </div>
+          <div class="mdi-dropdown-entry" onclick="openJournalDirect('ПогрузкиМашин')">
+            <span class="mdi-dropdown-entry-icon">🚛</span>
+            <span>Погрузка машин</span>
+          </div>
+          <div class="mdi-dropdown-entry" onclick="openJournalDirect('УстановкаЦенНоменклатуры')">
+            <span class="mdi-dropdown-entry-icon">🏷️</span>
+            <span>Установка цен номенклатуры</span>
+          </div>
+          <div class="mdi-dropdown-entry" onclick="openJournalDirect('ЗаказПокупателя')">
+            <span class="mdi-dropdown-entry-icon">🛒</span>
+            <span>Заказ покупателя</span>
+          </div>
+          <div class="mdi-dropdown-entry" onclick="openJournalDirect('ПоступлениеТоваровУслуг')">
+            <span class="mdi-dropdown-entry-icon">📥</span>
+            <span>Поступление товаров и услуг</span>
+          </div>
+          <div class="mdi-dropdown-sep"></div>
+          <div class="mdi-dropdown-entry" onclick="openJournalDirect('ИнвентаризацияТоваровНаСкладе')">
+            <span class="mdi-dropdown-entry-icon">📦</span>
+            <span>Инвентаризация товаров на складе</span>
+          </div>
+          <div class="mdi-dropdown-entry" onclick="openJournalDirect('СписаниеТоваров')">
+            <span class="mdi-dropdown-entry-icon">📉</span>
+            <span>Списание товаров</span>
+          </div>
+          <div class="mdi-dropdown-entry" onclick="openJournalDirect('ОприходованиеТоваров')">
+            <span class="mdi-dropdown-entry-icon">📈</span>
+            <span>Оприходование товаров</span>
+          </div>
+          <div class="mdi-dropdown-sep"></div>
+          <div class="mdi-dropdown-entry" onclick="openUniversalJournalWindow()">
+            <span class="mdi-dropdown-entry-icon">🗂️</span>
+            <span style="font-weight: bold;">Журнал документов (Все)...</span>
+          </div>
+        </div>
+      </div>
+
       <!-- Операции -->
       <div class="mdi-menu-item">
         <button class="mdi-menu-btn" onclick="toggleMdiMenu(event, 'menuOps')">Операции</button>
@@ -98,6 +147,14 @@
           <div class="mdi-dropdown-entry" onclick="openCatalogDirect('Склады')">
             <span class="mdi-dropdown-entry-icon">🏬</span>
             <span>Справочник.Склады</span>
+          </div>
+          <div class="mdi-dropdown-entry" onclick="openCatalogDirect('Контрагенты')">
+            <span class="mdi-dropdown-entry-icon">🤝</span>
+            <span>Справочник.Контрагенты</span>
+          </div>
+          <div class="mdi-dropdown-entry" onclick="openCatalogDirect('Агенты')">
+            <span class="mdi-dropdown-entry-icon">🧑‍💼</span>
+            <span>Справочник.Агенты</span>
           </div>
           <div class="mdi-dropdown-entry" onclick="openCatalogDirect('ТипыЦенНоменклатуры')">
             <span class="mdi-dropdown-entry-icon">🏷️</span>
@@ -190,16 +247,55 @@
     </div>
 
     <!-- 3. Header 2: Main 1C Top Toolbar with Connection Indicators -->
-    <div class="mdi-app-toolbar" style="height: 28px; background: #ece9d8; border-bottom: 1px solid #7a7a7a; display: flex; align-items: center; padding: 0 10px; justify-content: flex-end; gap: 8px; flex-shrink: 0;">
-      <!-- Base & User Connection Indicator -->
-      <div class="statusbar-indicator" id="topBasePill" title="Aktiv 1C Bazası" onclick="openLoginModal()" style="cursor: pointer; display: inline-flex; align-items: center; gap: 5px; padding: 2px 8px; border: 1px inset #d0d0d0; background: #faf8ef; border-radius: 2px;">
-        <span class="dot-green" id="topBaseDot"></span>
-        <span id="topBaseName" style="font-weight: bold; color: #1a1a1a;">Test1C / Aztrade_test3</span>
+    <div class="mdi-app-toolbar" style="height: 28px; background: #ece9d8; border-bottom: 1px solid #7a7a7a; display: flex; align-items: center; padding: 0 10px; justify-content: space-between; gap: 8px; flex-shrink: 0;">
+      <!-- Quick Document & Action Access Toolbar Buttons -->
+      <div style="display: flex; align-items: center; gap: 4px; overflow-x: auto; scrollbar-width: none;">
+        <button type="button" class="mdi-tool-btn mdi-tool-btn-highlight" onclick="openJournalDirect('РеализацияТоваровУслуг')" title="Открыть журнал 'Реализация товаров и услуг'" style="font-weight: bold; color: #002060;">
+          <span>🚚</span>
+          <span>Реализация</span>
+        </button>
+        <button type="button" class="mdi-tool-btn mdi-tool-btn-highlight" onclick="openJournalDirect('ВозвратТоваровОтПокупателя')" title="Открыть журнал 'Возврат товаров от покупателя'" style="font-weight: bold; color: #004080;">
+          <span>🔄</span>
+          <span>Возврат</span>
+        </button>
+        <button type="button" class="mdi-tool-btn" onclick="openJournalDirect('ПогрузкиМашин')" title="Открыть журнал 'Погрузка машин'">
+          <span>🚛</span>
+          <span>Погрузка</span>
+        </button>
+        <button type="button" class="mdi-tool-btn" onclick="openJournalDirect('УстановкаЦенНоменклатуры')" title="Открыть журнал 'Установка цен номенклатуры'">
+          <span>🏷️</span>
+          <span>Цены</span>
+        </button>
+        <button type="button" class="mdi-tool-btn" onclick="openJournalDirect('ЗаказПокупателя')" title="Открыть журнал 'Заказ покупателя'">
+          <span>🛒</span>
+          <span>Заказы</span>
+        </button>
+        <button type="button" class="mdi-tool-btn" onclick="openJournalDirect('ПоступлениеТоваровУслуг')" title="Открыть журнал 'Поступление товаров и услуг'">
+          <span>📥</span>
+          <span>Поступление</span>
+        </button>
+        <div class="mdi-tool-sep"></div>
+        <button type="button" class="mdi-tool-btn" onclick="AuditJournal.open()" title="Журнал изменений (Аудит)" style="color: #8c5b00;">
+          <span>🛡️</span>
+          <span>Аудит</span>
+        </button>
+        <button type="button" class="mdi-tool-btn" onclick="openReportDirect()" title="Товары на складах (Ведомость)">
+          <span>📦</span>
+          <span>Остатки</span>
+        </button>
       </div>
 
-      <div class="statusbar-indicator" id="topUserPill" title="Aktiv İstifadəçi" style="display: inline-flex; align-items: center; gap: 5px; padding: 2px 8px; border: 1px inset #d0d0d0; background: #faf8ef; border-radius: 2px;">
-        <span style="color: #004080;">👤</span>
-        <span id="topUserName" style="font-weight: bold; color: #1a1a1a;">Nesib</span>
+      <!-- Base & User Connection Indicator -->
+      <div style="display: flex; align-items: center; gap: 8px; flex-shrink: 0;">
+        <div class="statusbar-indicator" id="topBasePill" title="Aktiv 1C Bazası" onclick="openLoginModal()" style="cursor: pointer; display: inline-flex; align-items: center; gap: 5px; padding: 2px 8px; border: 1px inset #d0d0d0; background: #faf8ef; border-radius: 2px;">
+          <span class="dot-green" id="topBaseDot"></span>
+          <span id="topBaseName" style="font-weight: bold; color: #1a1a1a;">Test1C / Aztrade_test3</span>
+        </div>
+
+        <div class="statusbar-indicator" id="topUserPill" title="Aktiv İstifadəçi" style="display: inline-flex; align-items: center; gap: 5px; padding: 2px 8px; border: 1px inset #d0d0d0; background: #faf8ef; border-radius: 2px;">
+          <span style="color: #004080;">👤</span>
+          <span id="topUserName" style="font-weight: bold; color: #1a1a1a;">Nesib</span>
+        </div>
       </div>
     </div>
 
@@ -212,90 +308,202 @@
           <div class="mdi-dash-logo">1C</div>
           <div class="mdi-dash-title-group">
             <div class="mdi-dash-main-title">1С:Предприятие 8.3 — Aztrade</div>
-            <div class="mdi-dash-sub-title">İdarəetmə Paneli</div>
+            <div class="mdi-dash-sub-title">İdarəetmə Paneli (Рабочий стол)</div>
           </div>
         </div>
 
-        <div class="mdi-dashboard-sections" style="display: flex; flex-direction: column; gap: 16px; width: 100%; max-width: 480px; margin-bottom: 24px;">
+        <div class="mdi-dashboard-sections" style="display: grid; grid-template-columns: minmax(360px, 1.4fr) minmax(320px, 0.95fr); gap: 20px; width: 100%; max-width: 1080px; margin-bottom: 24px;">
           
-          <!-- 1. AYRICA BÖLMƏ: SƏNƏDLƏRİN AUDİTİ VƏ DƏYİŞİKLİK TARİXÇƏSİ -->
-          <div style="background: rgba(255, 255, 255, 0.09); border: 1px solid rgba(255, 215, 100, 0.4); border-radius: 6px; padding: 12px 14px; box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);">
-            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
-              <span style="font-size: 11px; font-weight: bold; color: #ffe680; text-transform: uppercase; letter-spacing: 0.6px; display: flex; align-items: center; gap: 5px;">
-                <span>🛡️</span>
-                <span>Аудит и Контроль изменений</span>
+          <!-- 1. SOL SÜTUN: BÜTÜN SƏNƏDLƏRİN BİRBAŞA JURNALLARI -->
+          <div style="background: rgba(255, 255, 255, 0.08); border: 1px solid rgba(255, 255, 255, 0.2); border-radius: 6px; padding: 14px 16px; box-shadow: 0 4px 18px rgba(0, 0, 0, 0.25); display: flex; flex-direction: column; gap: 12px;">
+            <div style="display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid rgba(255, 255, 255, 0.15); padding-bottom: 8px;">
+              <span style="font-size: 12px; font-weight: bold; color: #ffffff; text-transform: uppercase; letter-spacing: 0.6px; display: flex; align-items: center; gap: 6px;">
+                <span>📄</span>
+                <span>Документы 1С (Журналы)</span>
               </span>
-              <span style="background: #e65100; color: #ffffff; font-size: 9px; font-weight: bold; padding: 2px 6px; border-radius: 3px;">1C АУДИТ</span>
+              <span style="background: #004080; color: #ffffff; font-size: 10px; font-weight: bold; padding: 2px 8px; border-radius: 3px; border: 1px solid #3385ff;">9 ВИДОВ ДОКУМЕНТОВ</span>
             </div>
 
-            <!-- Dedicated Audit Card -->
-            <div class="mdi-dash-tile" onclick="AuditJournal.open()" title="Открыть 'Журнал изменений и версий документов (Аудит)'"
-                 style="background: linear-gradient(135deg, #ffffff 0%, #fffbe6 100%); border: 2px solid #d4a017; box-shadow: 0 4px 12px rgba(0,0,0,0.2); cursor: pointer; padding: 12px 16px; display: flex; align-items: center; gap: 14px; border-radius: 4px;">
-              <div class="mdi-dash-tile-icon" style="font-size: 28px; background: #fff2cc; border: 1px solid #ffd966; width: 44px; height: 44px; border-radius: 6px; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">🕒</div>
-              <div class="mdi-dash-tile-content" style="flex: 1;">
-                <div style="display: flex; align-items: center; justify-content: space-between;">
-                  <div class="mdi-dash-tile-title" style="color: #8c5b00; font-size: 13px; font-weight: bold;">Журнал изменений (Аудит)</div>
-                  <span style="font-size: 11px; font-weight: bold; color: #8c5b00; background: #ffe499; padding: 2px 8px; border-radius: 3px; border: 1px solid #d4a017;">Открыть ➔</span>
-                </div>
-                <div class="mdi-dash-tile-subtitle" style="color: #635028; font-size: 11px; margin-top: 3px; line-height: 1.35;">
-                  История всех правок, кто изменил, сравнение сумм и товаров, кто провел / отменил проведение
+            <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(235px, 1fr)); gap: 10px;">
+              
+              <!-- 1. Реализация товаров и услуг -->
+              <div class="mdi-dash-compact-tile" onclick="openJournalDirect('РеализацияТоваровУслуг')" title="Открыть журнал 'Реализация товаров и услуг'" style="border-left: 3px solid #1976d2;">
+                <div class="mdi-dash-compact-icon" style="background: #e3f2fd; border-color: #90caf9;">🚚</div>
+                <div class="mdi-dash-tile-content" style="flex: 1;">
+                  <div class="mdi-dash-compact-title" style="color: #0d47a1;">Реализация товаров и услуг</div>
+                  <div class="mdi-dash-compact-subtitle">Продажи, расходные накладные</div>
                 </div>
               </div>
+
+              <!-- 2. Возврат товаров от покупателя -->
+              <div class="mdi-dash-compact-tile" onclick="openJournalDirect('ВозвратТоваровОтПокупателя')" title="Открыть журнал 'Возврат товаров от покупателя'" style="border-left: 3px solid #00897b;">
+                <div class="mdi-dash-compact-icon" style="background: #e0f2f1; border-color: #80cbc4;">🔄</div>
+                <div class="mdi-dash-tile-content" style="flex: 1;">
+                  <div class="mdi-dash-compact-title" style="color: #004d40;">Возврат товаров от покупателя</div>
+                  <div class="mdi-dash-compact-subtitle">Возвратные накладные, сверка</div>
+                </div>
+              </div>
+
+              <!-- 3. Погрузка машин -->
+              <div class="mdi-dash-compact-tile" onclick="openJournalDirect('ПогрузкиМашин')" title="Открыть журнал 'Погрузка машин'" style="border-left: 3px solid #5c6bc0;">
+                <div class="mdi-dash-compact-icon" style="background: #ede7f6; border-color: #b39ddb;">🚛</div>
+                <div class="mdi-dash-tile-content" style="flex: 1;">
+                  <div class="mdi-dash-compact-title" style="color: #311b92;">Погрузка машин</div>
+                  <div class="mdi-dash-compact-subtitle">Рейсы, экспедиция и доставка</div>
+                </div>
+              </div>
+
+              <!-- 4. Установка цен номенклатуры -->
+              <div class="mdi-dash-compact-tile" onclick="openJournalDirect('УстановкаЦенНоменклатуры')" title="Открыть журнал 'Установка цен номенклатуры'" style="border-left: 3px solid #f57c00;">
+                <div class="mdi-dash-compact-icon" style="background: #fff3e0; border-color: #ffcc80;">🏷️</div>
+                <div class="mdi-dash-tile-content" style="flex: 1;">
+                  <div class="mdi-dash-compact-title" style="color: #e65100;">Установка цен номенклатуры</div>
+                  <div class="mdi-dash-compact-subtitle">Прайс-листы, переоценка товаров</div>
+                </div>
+              </div>
+
+              <!-- 5. Заказ покупателя -->
+              <div class="mdi-dash-compact-tile" onclick="openJournalDirect('ЗаказПокупателя')" title="Открыть журнал 'Заказ покупателя'" style="border-left: 3px solid #7cb342;">
+                <div class="mdi-dash-compact-icon" style="background: #f1f8e9; border-color: #c5e1a5;">🛒</div>
+                <div class="mdi-dash-tile-content" style="flex: 1;">
+                  <div class="mdi-dash-compact-title" style="color: #33691e;">Заказ покупателя</div>
+                  <div class="mdi-dash-compact-subtitle">Заказы клиентов, бронирование</div>
+                </div>
+              </div>
+
+              <!-- 6. Поступление товаров и услуг -->
+              <div class="mdi-dash-compact-tile" onclick="openJournalDirect('ПоступлениеТоваровУслуг')" title="Открыть журнал 'Поступление товаров и услуг'" style="border-left: 3px solid #0288d1;">
+                <div class="mdi-dash-compact-icon" style="background: #e1f5fe; border-color: #81d4fa;">📥</div>
+                <div class="mdi-dash-tile-content" style="flex: 1;">
+                  <div class="mdi-dash-compact-title" style="color: #01579b;">Поступление товаров и услуг</div>
+                  <div class="mdi-dash-compact-subtitle">Приход от поставщиков</div>
+                </div>
+              </div>
+
+              <!-- 7. Инвентаризация товаров на складе -->
+              <div class="mdi-dash-compact-tile" onclick="openJournalDirect('ИнвентаризацияТоваровНаСкладе')" title="Открыть журнал 'Инвентаризация товаров на складе'" style="border-left: 3px solid #8d6e63;">
+                <div class="mdi-dash-compact-icon" style="background: #efebe9; border-color: #bcaaa4;">📦</div>
+                <div class="mdi-dash-tile-content" style="flex: 1;">
+                  <div class="mdi-dash-compact-title" style="color: #4e342e;">Инвентаризация на складе</div>
+                  <div class="mdi-dash-compact-subtitle">Пересчет и сверка остатков</div>
+                </div>
+              </div>
+
+              <!-- 8. Списание товаров -->
+              <div class="mdi-dash-compact-tile" onclick="openJournalDirect('СписаниеТоваров')" title="Открыть журнал 'Списание товаров'" style="border-left: 3px solid #e53935;">
+                <div class="mdi-dash-compact-icon" style="background: #ffebee; border-color: #ef9a9a;">📉</div>
+                <div class="mdi-dash-tile-content" style="flex: 1;">
+                  <div class="mdi-dash-compact-title" style="color: #b71c1c;">Списание товаров</div>
+                  <div class="mdi-dash-compact-subtitle">Недостачи, брак, списание</div>
+                </div>
+              </div>
+
+              <!-- 9. Оприходование товаров -->
+              <div class="mdi-dash-compact-tile" onclick="openJournalDirect('ОприходованиеТоваров')" title="Открыть журнал 'Оприходование товаров'" style="border-left: 3px solid #43a047;">
+                <div class="mdi-dash-compact-icon" style="background: #e8f5e9; border-color: #a5d6a7;">📈</div>
+                <div class="mdi-dash-tile-content" style="flex: 1;">
+                  <div class="mdi-dash-compact-title" style="color: #1b5e20;">Оприходование товаров</div>
+                  <div class="mdi-dash-compact-subtitle">Излишки, ввод начальных остатков</div>
+                </div>
+              </div>
+
+              <!-- 10. Общий журнал документов -->
+              <div class="mdi-dash-compact-tile" onclick="openUniversalJournalWindow()" title="Открыть общий журнал документов" style="border-left: 3px solid #546e7a; background: #f0f4f8;">
+                <div class="mdi-dash-compact-icon" style="background: #eceff1; border-color: #b0bec5;">🗂️</div>
+                <div class="mdi-dash-tile-content" style="flex: 1;">
+                  <div class="mdi-dash-compact-title" style="color: #263238;">Общий журнал документов</div>
+                  <div class="mdi-dash-compact-subtitle">Все виды в одном списке</div>
+                </div>
+              </div>
+
             </div>
           </div>
 
-          <!-- 2. ƏSAS BÖLMƏ: SƏNƏDLƏR, HESABATLAR VƏ SORAQÇALAR -->
-          <div>
-            <div style="font-size: 11px; font-weight: bold; color: #d1dde9; text-transform: uppercase; letter-spacing: 0.6px; margin-bottom: 8px;">
-              📁 Документы, Отчеты и Справочники
-            </div>
+          <!-- 2. SAĞ SÜTUN: AUDİT, HESABATLAR VƏ SORAQÇALAR -->
+          <div style="display: flex; flex-direction: column; gap: 14px;">
             
-            <div class="mdi-dashboard-grid-simple" style="margin-bottom: 0;">
-              <!-- 1. Журнал документов -->
-              <div class="mdi-dash-tile" onclick="openUniversalJournalWindow()" title="Открыть 'Журнал документов' (Реализация, Цены, Заказы...)">
-                <div class="mdi-dash-tile-icon">🗂️</div>
-                <div class="mdi-dash-tile-content">
-                  <div class="mdi-dash-tile-title" style="color: #002060;">Журнал документов</div>
-                  <div class="mdi-dash-tile-subtitle">Все виды документов 1С (Реализация, Погрузка, Цены...)</div>
-                </div>
+            <!-- A. Аудит и контроль изменений -->
+            <div style="background: rgba(255, 255, 255, 0.08); border: 1px solid rgba(255, 215, 100, 0.4); border-radius: 6px; padding: 12px 14px; box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);">
+              <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
+                <span style="font-size: 11px; font-weight: bold; color: #ffe680; text-transform: uppercase; letter-spacing: 0.6px; display: flex; align-items: center; gap: 5px;">
+                  <span>🛡️</span>
+                  <span>Аудит и Контроль изменений</span>
+                </span>
+                <span style="background: #e65100; color: #ffffff; font-size: 9px; font-weight: bold; padding: 2px 6px; border-radius: 3px;">1C АУДИТ</span>
               </div>
 
-              <!-- 2. Товары на складах -->
-              <div class="mdi-dash-tile" onclick="openReportDirect()" title="Открыть отчет 'Товары на складах'">
-                <div class="mdi-dash-tile-icon">📦</div>
-                <div class="mdi-dash-tile-content">
-                  <div class="mdi-dash-tile-title">Товары на складах</div>
-                  <div class="mdi-dash-tile-subtitle">Отчет (Ведомость)</div>
-                </div>
-              </div>
-
-              <!-- 3. Товары по портфелям -->
-              <div class="mdi-dash-tile" onclick="openPortfolioReportWindow()" title="Открыть реестр 'Товары по портфелям'">
-                <div class="mdi-dash-tile-icon">📋</div>
-                <div class="mdi-dash-tile-content">
-                  <div class="mdi-dash-tile-title">Товары по портфелям</div>
-                  <div class="mdi-dash-tile-subtitle">Реестр / Справочник</div>
-                </div>
-              </div>
-
-              <!-- 4. Номенклатура -->
-              <div class="mdi-dash-tile" onclick="openCatalogDirect('Номенклатура')" title="Открыть справочник 'Номенклатура'">
-                <div class="mdi-dash-tile-icon">🏷️</div>
-                <div class="mdi-dash-tile-content">
-                  <div class="mdi-dash-tile-title">Номенклатура</div>
-                  <div class="mdi-dash-tile-subtitle">Справочник номенклатуры</div>
-                </div>
-              </div>
-
-              <!-- 5. Склады -->
-              <div class="mdi-dash-tile" onclick="openCatalogDirect('Склады')" title="Открыть справочник 'Склады'">
-                <div class="mdi-dash-tile-icon">🏢</div>
-                <div class="mdi-dash-tile-content">
-                  <div class="mdi-dash-tile-title">Склады</div>
-                  <div class="mdi-dash-tile-subtitle">Справочник складов</div>
+              <div class="mdi-dash-tile" onclick="AuditJournal.open()" title="Открыть 'Журнал изменений и версий документов (Аудит)'"
+                   style="background: linear-gradient(135deg, #ffffff 0%, #fffbe6 100%); border: 2px solid #d4a017; box-shadow: 0 3px 10px rgba(0,0,0,0.18); cursor: pointer; padding: 10px 14px; display: flex; align-items: center; gap: 12px; border-radius: 4px;">
+                <div class="mdi-dash-tile-icon" style="font-size: 24px; background: #fff2cc; border: 1px solid #ffd966; width: 40px; height: 40px; border-radius: 6px; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">🕒</div>
+                <div class="mdi-dash-tile-content" style="flex: 1;">
+                  <div style="display: flex; align-items: center; justify-content: space-between;">
+                    <div class="mdi-dash-tile-title" style="color: #8c5b00; font-size: 13px; font-weight: bold;">Журнал изменений (Аудит)</div>
+                    <span style="font-size: 10px; font-weight: bold; color: #8c5b00; background: #ffe499; padding: 2px 6px; border-radius: 3px; border: 1px solid #d4a017;">Открыть ➔</span>
+                  </div>
+                  <div class="mdi-dash-tile-subtitle" style="color: #635028; font-size: 10px; margin-top: 2px; line-height: 1.3;">
+                    Кто изменил документ, сравнение сумм и строк, история проведения
+                  </div>
                 </div>
               </div>
             </div>
+
+            <!-- B. Отчеты -->
+            <div style="background: rgba(255, 255, 255, 0.08); border: 1px solid rgba(255, 255, 255, 0.2); border-radius: 6px; padding: 12px 14px; box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);">
+              <div style="font-size: 11px; font-weight: bold; color: #d1dde9; text-transform: uppercase; letter-spacing: 0.6px; margin-bottom: 8px;">
+                📊 Отчеты (Ведомости)
+              </div>
+              <div style="display: flex; flex-direction: column; gap: 8px;">
+                <div class="mdi-dash-compact-tile" onclick="openReportDirect()" title="Открыть отчет 'Товары на складах'">
+                  <div class="mdi-dash-compact-icon" style="background: #e8f0fe; border-color: #aecbfa;">📦</div>
+                  <div class="mdi-dash-tile-content" style="flex: 1;">
+                    <div class="mdi-dash-compact-title" style="color: #1a73e8;">Товары на складах</div>
+                    <div class="mdi-dash-compact-subtitle">Ведомость по остаткам, приходу и расходу</div>
+                  </div>
+                </div>
+
+                <div class="mdi-dash-compact-tile" onclick="openPortfolioReportWindow()" title="Открыть реестр 'Товары по портфелям'">
+                  <div class="mdi-dash-compact-icon" style="background: #e8f0fe; border-color: #aecbfa;">📋</div>
+                  <div class="mdi-dash-tile-content" style="flex: 1;">
+                    <div class="mdi-dash-compact-title" style="color: #1a73e8;">Товары по портфелям</div>
+                    <div class="mdi-dash-compact-subtitle">Реестр номенклатуры по портфелям</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- C. Справочники -->
+            <div style="background: rgba(255, 255, 255, 0.08); border: 1px solid rgba(255, 255, 255, 0.2); border-radius: 6px; padding: 12px 14px; box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);">
+              <div style="font-size: 11px; font-weight: bold; color: #d1dde9; text-transform: uppercase; letter-spacing: 0.6px; margin-bottom: 8px;">
+                👥 Справочники 1С
+              </div>
+              <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+                <div class="mdi-dash-compact-tile" onclick="openCatalogDirect('Номенклатура')" title="Справочник 'Номенклатура'" style="padding: 6px 10px;">
+                  <div class="mdi-dash-compact-icon" style="width: 28px; height: 28px; font-size: 16px;">🏷️</div>
+                  <div class="mdi-dash-compact-title" style="font-size: 11px;">Номенклатура</div>
+                </div>
+                <div class="mdi-dash-compact-tile" onclick="openCatalogDirect('Склады')" title="Справочник 'Склады'" style="padding: 6px 10px;">
+                  <div class="mdi-dash-compact-icon" style="width: 28px; height: 28px; font-size: 16px;">🏢</div>
+                  <div class="mdi-dash-compact-title" style="font-size: 11px;">Склады</div>
+                </div>
+                <div class="mdi-dash-compact-tile" onclick="openCatalogDirect('Контрагенты')" title="Справочник 'Контрагенты (Клиенты / Покупатели)'" style="padding: 6px 10px;">
+                  <div class="mdi-dash-compact-icon" style="width: 28px; height: 28px; font-size: 16px;">🤝</div>
+                  <div class="mdi-dash-compact-title" style="font-size: 11px;">Контрагенты</div>
+                </div>
+                <div class="mdi-dash-compact-tile" onclick="openCatalogDirect('Агенты')" title="Справочник 'Агенты (Торговые представители)'" style="padding: 6px 10px;">
+                  <div class="mdi-dash-compact-icon" style="width: 28px; height: 28px; font-size: 16px;">🧑‍💼</div>
+                  <div class="mdi-dash-compact-title" style="font-size: 11px;">Агенты</div>
+                </div>
+                <div class="mdi-dash-compact-tile" onclick="openCatalogDirect('ТипыЦенНоменклатуры')" title="Справочник 'Типы цен'" style="padding: 6px 10px;">
+                  <div class="mdi-dash-compact-icon" style="width: 28px; height: 28px; font-size: 16px;">💰</div>
+                  <div class="mdi-dash-compact-title" style="font-size: 11px;">Типы цен</div>
+                </div>
+                <div class="mdi-dash-compact-tile" onclick="openCatalogDirect('Пользователи')" title="Справочник 'Пользователи 1С'" style="padding: 6px 10px;">
+                  <div class="mdi-dash-compact-icon" style="width: 28px; height: 28px; font-size: 16px;">👤</div>
+                  <div class="mdi-dash-compact-title" style="font-size: 11px;">Пользователи</div>
+                </div>
+              </div>
+            </div>
+
           </div>
 
         </div>
@@ -406,10 +614,11 @@
   </div>
 
   <!-- 1C Modular JavaScript Subsystems -->
-  <script src="/static/js/mdi_manager.js?v=7.1"></script>
+  <script src="/static/js/mdi_manager.js?v=9.7"></script>
   <script src="/static/js/session.js?v=4.1"></script>
-  <script src="/static/js/catalog_selector.js?v=5.0"></script>
-  <script src="/static/js/value_list_modal.js?v=4.8"></script>
+  <script src="/static/js/catalog_selector.js?v=5.2"></script>
+  <script src="/static/js/user_passwords.js"></script>
+  <script src="/static/js/value_list_modal.js?v=4.9"></script>
   <script src="/static/js/operation_type_modal.js?v=4.1"></script>
   <script src="/static/js/field_selector.js?v=4.0"></script>
   <script src="/static/js/calendar_picker.js?v=4.4"></script>
@@ -419,17 +628,17 @@
   <script src="/static/js/c1_column_settings.js?v=1.0"></script>
   <script src="/static/js/portfolio_catalog.js?v=5.1"></script>
   <script src="/static/js/period_picker.js?v=3.2"></script>
-  <script src="/static/js/universal_journal.js?v=8.1"></script>
+  <script src="/static/js/universal_journal.js?v=9.1"></script>
   {% if request.args.get('journal_perf') == '1' %}
   <script src="/static/js/journal_perf.js"></script>
   {% endif %}
   <script src="/static/js/nomenclature_card.js?v=1.0"></script>
   <script src="/static/js/price_doc_editor.js?v=3.8"></script>
-  <script src="/static/js/sales_doc_editor.js?v=2.5"></script>
-  <script src="/static/js/pogruzka_doc_editor.js?v=1.2"></script>
-  <script src="/static/js/audit_journal.js?v=1.1"></script>
+  <script src="/static/js/sales_doc_editor.js?v=3.3"></script>
+  <script src="/static/js/pogruzka_doc_editor.js?v=1.3"></script>
+  <script src="/static/js/audit_journal.js?v=3.4"></script>
   <script src="/static/js/c1_table_selection.js?v=3.0"></script>
-  <script src="/static/js/app.js?v=5.1"></script>
+  <script src="/static/js/app.js?v=6.1"></script>
 
 </body>
 </html>
