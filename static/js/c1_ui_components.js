@@ -41,15 +41,21 @@
       return this.docDraft(sizeW, sizeH, extraClass, options.title);
     },
 
-    /** Təsdiqlənmiş sənəd ikonu (Sənəd vərəqinin üzərində yaşıl quş) */
-    docPosted: function (w = 14, h = 15, cls = '', title = 'Təsdiqlənib (Provodka edilib)') {
+    /** Təsdiqlənmiş sənəd ikonu (Sənəd vərəqi və yuxarı sağda balaca yaşıl quş) */
+    docPosted: function (w = 15, h = 15, cls = '', title = 'Təsdiqlənib (Provodka edilib)') {
       return `
         <span class="c1-status-icon c1-status-posted ${cls}" title="${title}" style="display:inline-flex;align-items:center;justify-content:center;width:${w + 2}px;height:${h + 1}px;vertical-align:middle;user-select:none;">
-          <svg width="${w}" height="${h}" viewBox="0 0 14 15" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <svg width="${w}" height="${h}" viewBox="0 0 15 15" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <!-- Sənəd vərəqi -->
             <path d="M2 1.5C2 1.22386 2.22386 1 2.5 1H9L12 4V13.5C12 13.7761 11.7761 14 11.5 14H2.5C2.22386 14 2 13.7761 2 13.5V1.5Z" fill="#FFFFFF" stroke="#7A8A9E" stroke-width="1"/>
             <path d="M9 1V4H12" fill="#E8EEF5" stroke="#7A8A9E" stroke-width="1"/>
-            <line x1="4" y1="5.5" x2="7.5" y2="5.5" stroke="#C0D0E0" stroke-width="1"/>
-            <path d="M1.5 9.5L4.5 12.5L12.5 3.5" stroke="#2E7D32" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+            <!-- Sənəd daxili xətləri -->
+            <line x1="4" y1="6" x2="8" y2="6" stroke="#B0C0D0" stroke-width="1"/>
+            <line x1="4" y1="8.5" x2="10" y2="8.5" stroke="#B0C0D0" stroke-width="1"/>
+            <line x1="4" y1="11" x2="8" y2="11" stroke="#B0C0D0" stroke-width="1"/>
+            <!-- Yuxarı sağda balaca yaşıl TRUE (quş) işarəsi -->
+            <path d="M7.5 4.5L9.5 6.8L14 1.5" stroke="#FFFFFF" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M7.5 4.5L9.5 6.8L14 1.5" stroke="#2E7D32" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
           </svg>
         </span>
       `.trim();
