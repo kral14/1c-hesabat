@@ -19,7 +19,7 @@ const AuditJournal = {
   _currentAbortCtrl: null,
 
   init: function() {
-    ["auditJournalWindow", "docVersionDiffWindow"].forEach(id => {
+    ["auditJournalWindow", "auditProtocolWindow", "auditSnapshotWindow", "docVersionDiffWindow"].forEach(id => {
       const win = document.getElementById(id);
       if (win) {
         win.style.display = "none";
@@ -35,6 +35,22 @@ const AuditJournal = {
         isDefault: true,
         startHidden: true,
         closeFn: () => this.close()
+      });
+
+      MdiManager.registerWindow("auditProtocolWindow", {
+        title: "Sənəd Audit Protokolu",
+        icon: "📑",
+        isDefault: false,
+        startHidden: true,
+        closeFn: () => this.closeAuditModal()
+      });
+
+      MdiManager.registerWindow("auditSnapshotWindow", {
+        title: "Sənəd Versiya Snapshotu",
+        icon: "🔎",
+        isDefault: false,
+        startHidden: true,
+        closeFn: () => this.closeDocViewModal()
       });
 
       // Backward compatibility stub for old diff window
@@ -61,21 +77,21 @@ const AuditJournal = {
             this.hideDiffPopover();
           }
 
-          // 1. Level 2 modal (Document Version Snapshot Modal)
-          const docModal = document.getElementById("docViewModalBackdrop");
-          if (docModal && (docModal.style.display === "flex" || docModal.style.display === "block" || (docModal.offsetWidth > 0 && docModal.style.display !== "none"))) {
+          // 1. Level 2: Document Version Snapshot Window
+          const snapWin = document.getElementById("auditSnapshotWindow");
+          if (snapWin && snapWin.style.display !== "none" && !snapWin.classList.contains("minimized")) {
             this.closeDocViewModal();
             return;
           }
 
-          // 2. Level 1 modal (Audit Protocol Modal)
-          const auditModal = document.getElementById("auditModalBackdrop");
-          if (auditModal && (auditModal.style.display === "flex" || auditModal.style.display === "block" || (auditModal.offsetWidth > 0 && auditModal.style.display !== "none"))) {
+          // 2. Level 1: Audit Protocol Window
+          const protoWin = document.getElementById("auditProtocolWindow");
+          if (protoWin && protoWin.style.display !== "none" && !protoWin.classList.contains("minimized")) {
             this.closeAuditModal();
             return;
           }
 
-          // 3. Only if no sub-modals are open, close the main audit journal window
+          // 3. Only if no sub-windows are open, close the main audit journal window
           this.close();
           return;
         }
@@ -104,10 +120,10 @@ const AuditJournal = {
         } else if (e.key === "F5") {
           e.preventDefault();
           e.stopPropagation();
-          const docModal = document.getElementById("docViewModalBackdrop");
-          const auditModal = document.getElementById("auditModalBackdrop");
-          if ((docModal && docModal.style.display !== "none" && !docModal.classList.contains("minimized")) ||
-              (auditModal && auditModal.style.display !== "none" && !auditModal.classList.contains("minimized"))) {
+          const snapWin = document.getElementById("auditSnapshotWindow");
+          const protoWin = document.getElementById("auditProtocolWindow");
+          if ((snapWin && snapWin.style.display !== "none" && !snapWin.classList.contains("minimized")) ||
+              (protoWin && protoWin.style.display !== "none" && !protoWin.classList.contains("minimized"))) {
             if (this.selectedIndex >= 0 && this.filteredItems[this.selectedIndex]) {
               const doc = this.filteredItems[this.selectedIndex];
               this.loadDiff(doc.doc_type, doc.number);
@@ -204,15 +220,13 @@ const AuditJournal = {
 
   close: function() {
     this.hideDiffPopover();
-    const docModal = document.getElementById("docViewModalBackdrop");
-    if (docModal && docModal.style.display !== "none") {
+    const snapWin = document.getElementById("auditSnapshotWindow");
+    if (snapWin && snapWin.style.display !== "none") {
       this.closeDocViewModal();
-      return;
     }
-    const auditModal = document.getElementById("auditModalBackdrop");
-    if (auditModal && auditModal.style.display !== "none") {
+    const protoWin = document.getElementById("auditProtocolWindow");
+    if (protoWin && protoWin.style.display !== "none") {
       this.closeAuditModal();
-      return;
     }
     const win = document.getElementById("auditJournalWindow");
     if (win) win.style.display = "none";
@@ -589,18 +603,19 @@ const AuditJournal = {
       tbody.innerHTML = `<tr><td colspan="8" style="text-align: center; padding: 25px; color: #555; font-size: 12px;"><span style="font-size: 16px;">⏳</span> Sənədin versiyaları və dəyişiklik tarixi oxunur...</td></tr>`;
     }
 
-    // Open Modal Window & reset maximize/minimize states
-    const modal = document.getElementById("auditModalBackdrop");
-    const card = modal ? modal.querySelector(".audit-modal") : null;
-    const maxBtn = document.getElementById("ajModalMaxBtn");
-    if (modal && card) {
-      modal.classList.remove("minimized", "maximized");
-      card.classList.remove("minimized", "maximized");
-      if (maxBtn) {
-        maxBtn.textContent = "□";
-        maxBtn.title = "Böyüt / Bərpa et";
+    // Vahid MDI Pəncərə kimi aç və fokusla
+    const docTitle = `Audit: № ${doc.number || '—'}`;
+    if (window.MdiManager) {
+      MdiManager.activateWindow("auditProtocolWindow", {
+        title: docTitle,
+        icon: "📑"
+      });
+    } else {
+      const win = document.getElementById("auditProtocolWindow");
+      if (win) {
+        win.style.display = "flex";
+        win.classList.remove("minimized");
       }
-      modal.style.display = "flex";
     }
 
     // Load and render diff details for this doc
@@ -616,57 +631,24 @@ const AuditJournal = {
 
   closeAuditModal: function() {
     this.hideDiffPopover();
-    const docModal = document.getElementById("docViewModalBackdrop");
-    if (docModal && docModal.style.display !== "none") {
-      this.closeDocViewModal();
-    }
-    const modal = document.getElementById("auditModalBackdrop");
-    const card = modal ? modal.querySelector(".audit-modal") : null;
-    if (modal) {
-      modal.style.display = "none";
-      modal.classList.remove("minimized", "maximized");
-    }
-    if (card) {
-      card.classList.remove("minimized", "maximized");
+    this.closeDocViewModal();
+    if (window.MdiManager) {
+      MdiManager.closeWindow("auditProtocolWindow");
+    } else {
+      const win = document.getElementById("auditProtocolWindow");
+      if (win) win.style.display = "none";
     }
   },
 
   toggleMaximizeAuditModal: function() {
-    const backdrop = document.getElementById("auditModalBackdrop");
-    const modal = backdrop ? backdrop.querySelector(".audit-modal") : null;
-    const maxBtn = document.getElementById("ajModalMaxBtn");
-    if (!backdrop || !modal) return;
-
-    if (modal.classList.contains("minimized")) {
-      modal.classList.remove("minimized");
-      backdrop.classList.remove("minimized");
-    }
-
-    const isMax = modal.classList.toggle("maximized");
-    backdrop.classList.toggle("maximized", isMax);
-
-    if (maxBtn) {
-      maxBtn.textContent = isMax ? "❐" : "□";
-      maxBtn.title = isMax ? "Əvvəlki ölçüyə qaytar" : "Tam ekrana böyüt";
+    if (window.MdiManager) {
+      MdiManager.toggleMaximize("auditProtocolWindow");
     }
   },
 
   toggleMinimizeAuditModal: function() {
-    const backdrop = document.getElementById("auditModalBackdrop");
-    const modal = backdrop ? backdrop.querySelector(".audit-modal") : null;
-    const maxBtn = document.getElementById("ajModalMaxBtn");
-    if (!backdrop || !modal) return;
-
-    const isMin = modal.classList.toggle("minimized");
-    backdrop.classList.toggle("minimized", isMin);
-
-    if (isMin) {
-      modal.classList.remove("maximized");
-      backdrop.classList.remove("maximized");
-      if (maxBtn) {
-        maxBtn.textContent = "□";
-        maxBtn.title = "Tam ekrana böyüt";
-      }
+    if (window.MdiManager) {
+      MdiManager.minimizeWindow("auditProtocolWindow");
     }
   },
 
@@ -755,8 +737,8 @@ const AuditJournal = {
     }
     this.normalizeAuditData(data);
     this.renderActiveTab();
-    const docModal = document.getElementById("docViewModalBackdrop");
-    if (docModal && docModal.style.display !== "none" && !docModal.classList.contains("minimized")) {
+    const snapWin = document.getElementById("auditSnapshotWindow");
+    if (snapWin && snapWin.style.display !== "none" && !snapWin.classList.contains("minimized")) {
       this.renderDocVersionWindow();
     }
   },
@@ -1555,76 +1537,51 @@ const AuditJournal = {
   },
 
   // ========================================================
-  // DOCUMENT VERSION SNAPSHOT WINDOW (MODAL DIALOG)
+  // DOCUMENT VERSION SNAPSHOT WINDOW (MDI WINDOW)
   // ========================================================
   openDocVersionModal: function(vIdx) {
     if (!this.currentDiffData || !this.currentDiffData.normalizedVersions) return;
     this.selectedVersionIdx = vIdx;
     this.renderDocVersionWindow();
 
-    const backdrop = document.getElementById("docViewModalBackdrop");
-    const card = backdrop ? backdrop.querySelector(".doc-view-modal") : null;
-    const maxBtn = document.getElementById("docViewMaxBtn");
-    if (backdrop && card) {
-      backdrop.classList.remove("minimized", "maximized");
-      card.classList.remove("minimized", "maximized");
-      if (maxBtn) {
-        maxBtn.textContent = "□";
-        maxBtn.title = "Böyüt / Bərpa et";
+    const curVer = this.currentDiffData.normalizedVersions[vIdx];
+    const vNum = curVer ? curVer.version : (vIdx + 1);
+    const docNum = (this.currentDiffData && this.currentDiffData.number) || "—";
+    const title = `Snapshot: № ${docNum} (v${vNum})`;
+
+    if (window.MdiManager) {
+      MdiManager.activateWindow("auditSnapshotWindow", {
+        title: title,
+        icon: "🔎"
+      });
+    } else {
+      const win = document.getElementById("auditSnapshotWindow");
+      if (win) {
+        win.style.display = "flex";
+        win.classList.remove("minimized");
       }
-      backdrop.style.display = "flex";
     }
   },
 
   closeDocViewModal: function() {
     this.hideDiffPopover();
-    const backdrop = document.getElementById("docViewModalBackdrop");
-    const card = backdrop ? backdrop.querySelector(".doc-view-modal") : null;
-    if (backdrop) {
-      backdrop.style.display = "none";
-      backdrop.classList.remove("minimized", "maximized");
-    }
-    if (card) {
-      card.classList.remove("minimized", "maximized");
+    if (window.MdiManager) {
+      MdiManager.closeWindow("auditSnapshotWindow");
+    } else {
+      const win = document.getElementById("auditSnapshotWindow");
+      if (win) win.style.display = "none";
     }
   },
 
   toggleMaximizeDocViewModal: function() {
-    const backdrop = document.getElementById("docViewModalBackdrop");
-    const modal = backdrop ? backdrop.querySelector(".doc-view-modal") : null;
-    const maxBtn = document.getElementById("docViewMaxBtn");
-    if (!backdrop || !modal) return;
-
-    if (modal.classList.contains("minimized")) {
-      modal.classList.remove("minimized");
-      backdrop.classList.remove("minimized");
-    }
-
-    const isMax = modal.classList.toggle("maximized");
-    backdrop.classList.toggle("maximized", isMax);
-
-    if (maxBtn) {
-      maxBtn.textContent = isMax ? "❐" : "□";
-      maxBtn.title = isMax ? "Əvvəlki ölçüyə qaytar" : "Tam ekrana böyüt";
+    if (window.MdiManager) {
+      MdiManager.toggleMaximize("auditSnapshotWindow");
     }
   },
 
   toggleMinimizeDocViewModal: function() {
-    const backdrop = document.getElementById("docViewModalBackdrop");
-    const modal = backdrop ? backdrop.querySelector(".doc-view-modal") : null;
-    const maxBtn = document.getElementById("docViewMaxBtn");
-    if (!backdrop || !modal) return;
-
-    const isMin = modal.classList.toggle("minimized");
-    backdrop.classList.toggle("minimized", isMin);
-
-    if (isMin) {
-      modal.classList.remove("maximized");
-      backdrop.classList.remove("maximized");
-      if (maxBtn) {
-        maxBtn.textContent = "□";
-        maxBtn.title = "Tam ekrana böyüt";
-      }
+    if (window.MdiManager) {
+      MdiManager.minimizeWindow("auditSnapshotWindow");
     }
   },
 

@@ -615,6 +615,86 @@ const MdiManager = {
         this.saveOpenWindowsSession();
       }
     });
+  /**
+   * Vahid Pəncərə Qabığı Fabriki (Universal MDI Window Shell Factory)
+   * Bütün bölmələr üçün standart .mdi-window qabığı yaradır, başlıq, idarəetmə düymələri,
+   * sürükləmə, ölçü dəyişmə və taskbar inteqrasiyasını vahid qanuna tabe edir.
+   */
+  createWindowShell(config = {}) {
+    const id = config.id;
+    if (!id) return null;
+
+    let win = document.getElementById(id);
+    const isNew = !win;
+    if (isNew) {
+      win = document.createElement("div");
+      win.className = "mdi-window";
+      win.id = id;
+      win.style.display = "none";
+      win.style.minWidth = config.minWidth || "850px";
+      win.style.minHeight = config.minHeight || "480px";
+      if (config.width) win.style.width = config.width;
+      if (config.height) win.style.height = config.height;
+      if (config.top) win.style.top = config.top;
+      if (config.left) win.style.left = config.left;
+
+      win.innerHTML = `
+        <div class="mdi-window-header" ondblclick="MdiManager.toggleMaximize('${id}')">
+          <div class="mdi-win-title-left">
+            <span class="mdi-win-icon">${config.icon || "📄"}</span>
+            <span class="mdi-win-title-text" id="${id}_titleText">${config.title || "Окно"}</span>
+          </div>
+          <div class="mdi-win-controls">
+            <button class="mdi-win-btn mdi-win-btn-min" title="Bük" onclick="MdiManager.minimizeWindow('${id}')" onmousedown="event.stopPropagation()">_</button>
+            <button class="mdi-win-btn mdi-win-btn-max" title="Böyüt / Bərpa et" onclick="MdiManager.toggleMaximize('${id}')" onmousedown="event.stopPropagation()">□</button>
+            <button class="mdi-win-btn mdi-win-btn-close" title="Bağla" onclick="MdiManager.closeWindow('${id}')" onmousedown="event.stopPropagation()">✕</button>
+          </div>
+        </div>
+        <div class="mdi-window-body" id="${id}_body" style="flex: 1; display: flex; flex-direction: column; overflow: hidden; background: #faf8f2;">
+        </div>
+        ${config.statusLeft || config.statusRight ? `
+        <div class="mdi-window-status" id="${id}_status" style="background: #e5e2cf; border-top: 1px solid #b0af9f; padding: 3px 8px; display: flex; justify-content: space-between; align-items: center; font-size: 11px;">
+          <div id="${id}_statusLeft" style="color: #222; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${config.statusLeft || "Hazırdır"}</div>
+          <div id="${id}_statusRight" style="font-weight: bold; color: #003366; white-space: nowrap;">${config.statusRight || ""}</div>
+        </div>` : ''}
+      `;
+
+      const workspace = document.getElementById("mdiWorkspace") || document.getElementById("mdiContainer") || document.body;
+      workspace.appendChild(win);
+    }
+
+    if (config.title) {
+      const titleEl = win.querySelector(".mdi-win-title-text");
+      if (titleEl) titleEl.textContent = config.title;
+    }
+    if (config.icon) {
+      const iconEl = win.querySelector(".mdi-win-icon");
+      if (iconEl) iconEl.textContent = config.icon;
+    }
+
+    if (config.bodyContent) {
+      const bodyEl = win.querySelector(".mdi-window-body") || document.getElementById(`${id}_body`);
+      if (bodyEl) {
+        if (typeof config.bodyContent === "string") {
+          bodyEl.innerHTML = config.bodyContent;
+        } else if (config.bodyContent instanceof HTMLElement) {
+          bodyEl.innerHTML = "";
+          bodyEl.appendChild(config.bodyContent);
+        }
+      }
+    }
+
+    // Register with MdiManager
+    this.registerWindow(id, {
+      title: config.title || "Окно",
+      icon: config.icon || "📄",
+      element: win,
+      isDialog: !!config.isDialog,
+      startHidden: (config.startHidden !== undefined) ? !!config.startHidden : true,
+      closeFn: config.closeFn || null
+    });
+
+    return win;
   },
 
   registerWindow(id, options = {}) {
@@ -1722,27 +1802,27 @@ const MdiManager = {
       AuditJournal.hideDiffPopover();
     }
 
-    // 2.4 Close Audit Journal Modals in strict LIFO order:
-    // Level 2: Document Version Snapshot Modal (docViewModalBackdrop)
-    const docViewModal = document.getElementById("docViewModalBackdrop");
-    if (docViewModal && docViewModal.style.display !== "none") {
-      console.log("[HOTKEY ESC] Closing Document Version Snapshot modal (docViewModalBackdrop)");
+    // 2.4 Close Audit Journal Windows in strict LIFO order:
+    // Level 2: Document Version Snapshot Window
+    const docViewModal = document.getElementById("auditSnapshotWindow") || document.getElementById("docViewModalBackdrop");
+    if (docViewModal && docViewModal.style.display !== "none" && !docViewModal.classList.contains("minimized")) {
+      console.log("[HOTKEY ESC] Closing Document Version Snapshot window");
       if (window.AuditJournal && typeof AuditJournal.closeDocViewModal === "function") {
         AuditJournal.closeDocViewModal();
       } else {
-        docViewModal.style.display = "none";
+        this.closeWindow(docViewModal.id);
       }
       return true;
     }
 
-    // Level 1: Audit Protocol Modal (auditModalBackdrop)
-    const auditModal = document.getElementById("auditModalBackdrop");
-    if (auditModal && auditModal.style.display !== "none") {
-      console.log("[HOTKEY ESC] Closing Audit Protocol modal (auditModalBackdrop)");
+    // Level 1: Audit Protocol Window
+    const auditModal = document.getElementById("auditProtocolWindow") || document.getElementById("auditModalBackdrop");
+    if (auditModal && auditModal.style.display !== "none" && !auditModal.classList.contains("minimized")) {
+      console.log("[HOTKEY ESC] Closing Audit Protocol window");
       if (window.AuditJournal && typeof AuditJournal.closeAuditModal === "function") {
         AuditJournal.closeAuditModal();
       } else {
-        auditModal.style.display = "none";
+        this.closeWindow(auditModal.id);
       }
       return true;
     }
@@ -2018,10 +2098,10 @@ const MdiManager = {
       }
     }
 
-    // 1. Level 1: Sub-modals inside Audit Journal (Doc Version Modal or Audit Protocol Modal)
-    const docViewModal = document.getElementById("docViewModalBackdrop");
-    if (focusedWinId === "docViewModalBackdrop" || (docViewModal && docViewModal.style.display !== "none" && !docViewModal.classList.contains("minimized"))) {
-      console.log("[HOTKEY F5] Refreshing Document Version Snapshot modal in place...");
+    // 1. Level 1: Sub-windows inside Audit Journal (Doc Version Window or Audit Protocol Window)
+    const docViewModal = document.getElementById("auditSnapshotWindow") || document.getElementById("docViewModalBackdrop");
+    if (focusedWinId === "auditSnapshotWindow" || focusedWinId === "docViewModalBackdrop" || (docViewModal && docViewModal.style.display !== "none" && !docViewModal.classList.contains("minimized"))) {
+      console.log("[HOTKEY F5] Refreshing Document Version Snapshot window in place...");
       if (typeof AuditJournal !== "undefined") {
         const curDoc = AuditJournal.currentDoc 
           || (AuditJournal.filteredItems && AuditJournal.selectedIndex >= 0 ? AuditJournal.filteredItems[AuditJournal.selectedIndex] : null)
@@ -2036,8 +2116,8 @@ const MdiManager = {
       }
     }
 
-    const auditModal = document.getElementById("auditModalBackdrop");
-    if (focusedWinId === "auditModalBackdrop" || (auditModal && auditModal.style.display !== "none" && !auditModal.classList.contains("minimized"))) {
+    const auditModal = document.getElementById("auditProtocolWindow") || document.getElementById("auditModalBackdrop");
+    if (focusedWinId === "auditProtocolWindow" || focusedWinId === "auditModalBackdrop" || (auditModal && auditModal.style.display !== "none" && !auditModal.classList.contains("minimized"))) {
       console.log("[HOTKEY F5] Refreshing Audit Protocol modal in place...");
       if (typeof AuditJournal !== "undefined") {
         const curDoc = AuditJournal.currentDoc 
