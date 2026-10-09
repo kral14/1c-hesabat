@@ -559,8 +559,6 @@ const AuditJournal = {
         ? `<strong style="color: ${isSelected ? '#ffeb3b' : '#002060'}; font-weight: bold;">${doc.version_count} versiya</strong>`
         : `<span style="color: ${isSelected ? '#eee' : '#888'};">1</span>`;
 
-      const docIcon = doc.icon || (doc.doc_type === "ВозвратТоваровОтПокупателя" ? "↩️" : (doc.doc_type === "ПогрузкиМашин" ? "📦" : "🚚"));
-
       html += `
         <tr id="ajRow_${idx}"
             style="height: 25px; cursor: pointer; background: ${bg}; color: ${fg}; border-bottom: 1px solid ${isSelected ? '#316ac5' : '#e0dfd5'}; user-select: none;"
@@ -569,12 +567,11 @@ const AuditJournal = {
           <td style="border: 1px solid #d4d0c8; text-align: center; color: ${isSelected ? '#fff' : '#777'}; font-size: 10px;">${idx + 1}</td>
           <td style="border: 1px solid #d4d0c8; text-align: center; font-size: 11px;" title="${statusTitle}">${statusIcon}</td>
           <td style="border: 1px solid #d4d0c8; padding: 0 8px; font-weight: 600; white-space: nowrap;">
-            <span style="margin-right: 4px;">${docIcon}</span>
             <span>${this.escapeHtml(doc.number)}</span>
           </td>
           <td style="border: 1px solid #d4d0c8; padding: 0 8px; white-space: nowrap; font-size: 11px;">${this.escapeHtml(doc.date)}</td>
           <td style="border: 1px solid #d4d0c8; padding: 0 8px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 155px;" title="${this.escapeHtml(doc.last_author)}">
-            <span style="font-weight: 500;">👤 ${this.escapeHtml(doc.last_author)}</span>
+            <span style="font-weight: 500;">${this.escapeHtml(doc.last_author)}</span>
           </td>
           <td style="border: 1px solid #d4d0c8; padding: 0 8px; overflow: hidden; text-overflow: ellipsis;" title="${this.escapeHtml(doc.kontragent)}">
             ${this.escapeHtml(doc.kontragent)}
