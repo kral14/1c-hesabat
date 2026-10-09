@@ -41,49 +41,49 @@
       return this.docDraft(sizeW, sizeH, extraClass, options.title);
     },
 
-    /** Təsdiqlənmiş sənəd ikonu (Sənəd vərəqi və yuxarı sağda balaca yaşıl quş) */
-    docPosted: function (w = 15, h = 15, cls = '', title = 'Təsdiqlənib (Provodka edilib)') {
+    /** Təsdiqlənmiş sənəd ikonu (Sənəd vərəqi və yuxarı sağda optimal yaşıl quş) */
+    docPosted: function (w = 16, h = 16, cls = '', title = 'Təsdiqlənib (Provodka edilib)') {
       return `
         <span class="c1-status-icon c1-status-posted ${cls}" title="${title}" style="display:inline-flex;align-items:center;justify-content:center;width:${w + 2}px;height:${h + 1}px;vertical-align:middle;user-select:none;">
-          <svg width="${w}" height="${h}" viewBox="0 0 15 15" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <svg width="${w}" height="${h}" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
             <!-- Sənəd vərəqi -->
-            <path d="M2 1.5C2 1.22386 2.22386 1 2.5 1H9L12 4V13.5C12 13.7761 11.7761 14 11.5 14H2.5C2.22386 14 2 13.7761 2 13.5V1.5Z" fill="#FFFFFF" stroke="#7A8A9E" stroke-width="1"/>
-            <path d="M9 1V4H12" fill="#E8EEF5" stroke="#7A8A9E" stroke-width="1"/>
+            <path d="M1.5 1.5C1.5 1.22 1.72 1 2 1H8.5L12 4.5V14.5C12 14.78 11.78 15 11.5 15H2C1.72 15 1.5 14.78 1.5 14.5V1.5Z" fill="#FFFFFF" stroke="#7A8A9E" stroke-width="1"/>
+            <path d="M8.5 1V4.5H12" fill="#E8EEF5" stroke="#7A8A9E" stroke-width="1"/>
             <!-- Sənəd daxili xətləri -->
-            <line x1="4" y1="6" x2="8" y2="6" stroke="#B0C0D0" stroke-width="1"/>
-            <line x1="4" y1="8.5" x2="10" y2="8.5" stroke="#B0C0D0" stroke-width="1"/>
-            <line x1="4" y1="11" x2="8" y2="11" stroke="#B0C0D0" stroke-width="1"/>
-            <!-- Yuxarı sağda balaca yaşıl TRUE (quş) işarəsi -->
-            <path d="M7.5 4.5L9.5 6.8L14 1.5" stroke="#FFFFFF" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"/>
-            <path d="M7.5 4.5L9.5 6.8L14 1.5" stroke="#2E7D32" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+            <line x1="3.5" y1="6.5" x2="6.5" y2="6.5" stroke="#B0C0D0" stroke-width="1"/>
+            <line x1="3.5" y1="9.5" x2="8" y2="9.5" stroke="#B0C0D0" stroke-width="1"/>
+            <line x1="3.5" y1="12" x2="9.5" y2="12" stroke="#B0C0D0" stroke-width="1"/>
+            <!-- Yuxarı sağda aydın yaşıl TRUE (quş) işarəsi -->
+            <path d="M6.5 6.2L9.2 9.5L15 1.5" stroke="#FFFFFF" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M6.5 6.2L9.2 9.5L15 1.5" stroke="#247828" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"/>
           </svg>
         </span>
       `.trim();
     },
 
     /** Təsdiqlənməmiş / Qaralama sənəd ikonu (Boş sənəd vərəqi) */
-    docDraft: function (w = 14, h = 15, cls = '', title = 'Qaralama (Təsdiqlənməyib)') {
+    docDraft: function (w = 16, h = 16, cls = '', title = 'Qaralama (Təsdiqlənməyib)') {
       return `
         <span class="c1-status-icon c1-status-draft ${cls}" title="${title}" style="display:inline-flex;align-items:center;justify-content:center;width:${w + 2}px;height:${h + 1}px;vertical-align:middle;user-select:none;">
-          <svg width="${w}" height="${h}" viewBox="0 0 14 15" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <path d="M2 1.5C2 1.22386 2.22386 1 2.5 1H9L12 4V13.5C12 13.7761 11.7761 14 11.5 14H2.5C2.22386 14 2 13.7761 2 13.5V1.5Z" fill="#FFFFFF" stroke="#7A8A9E" stroke-width="1"/>
-            <path d="M9 1V4H12" fill="#E8EEF5" stroke="#7A8A9E" stroke-width="1"/>
-            <line x1="4" y1="6" x2="10" y2="6" stroke="#B0C0D0" stroke-width="1"/>
-            <line x1="4" y1="8.5" x2="10" y2="8.5" stroke="#B0C0D0" stroke-width="1"/>
-            <line x1="4" y1="11" x2="8" y2="11" stroke="#B0C0D0" stroke-width="1"/>
+          <svg width="${w}" height="${h}" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M1.5 1.5C1.5 1.22 1.72 1 2 1H8.5L12 4.5V14.5C12 14.78 11.78 15 11.5 15H2C1.72 15 1.5 14.78 1.5 14.5V1.5Z" fill="#FFFFFF" stroke="#7A8A9E" stroke-width="1"/>
+            <path d="M8.5 1V4.5H12" fill="#E8EEF5" stroke="#7A8A9E" stroke-width="1"/>
+            <line x1="3.5" y1="6.5" x2="9.5" y2="6.5" stroke="#B0C0D0" stroke-width="1"/>
+            <line x1="3.5" y1="9.5" x2="9.5" y2="9.5" stroke="#B0C0D0" stroke-width="1"/>
+            <line x1="3.5" y1="12" x2="8" y2="12" stroke="#B0C0D0" stroke-width="1"/>
           </svg>
         </span>
       `.trim();
     },
 
     /** Silinməyə qeyd olunmuş sənəd ikonu (Vərəq üzərində qırmızı ✕) */
-    docDeleted: function (w = 14, h = 15, cls = '', title = 'Pozulma nişanı qoyulub (Silinib)') {
+    docDeleted: function (w = 16, h = 16, cls = '', title = 'Pozulma nişanı qoyulub (Silinib)') {
       return `
         <span class="c1-status-icon c1-status-deleted ${cls}" title="${title}" style="display:inline-flex;align-items:center;justify-content:center;width:${w + 2}px;height:${h + 1}px;vertical-align:middle;user-select:none;">
-          <svg width="${w}" height="${h}" viewBox="0 0 14 15" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <path d="M2 1.5C2 1.22386 2.22386 1 2.5 1H9L12 4V13.5C12 13.7761 11.7761 14 11.5 14H2.5C2.22386 14 2 13.7761 2 13.5V1.5Z" fill="#FFFFFF" stroke="#7A8A9E" stroke-width="1"/>
-            <path d="M9 1V4H12" fill="#E8EEF5" stroke="#7A8A9E" stroke-width="1"/>
-            <path d="M3.5 4.5L10.5 11.5M10.5 4.5L3.5 11.5" stroke="#D32F2F" stroke-width="2" stroke-linecap="round"/>
+          <svg width="${w}" height="${h}" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M1.5 1.5C1.5 1.22 1.72 1 2 1H8.5L12 4.5V14.5C12 14.78 11.78 15 11.5 15H2C1.72 15 1.5 14.78 1.5 14.5V1.5Z" fill="#FFFFFF" stroke="#7A8A9E" stroke-width="1"/>
+            <path d="M8.5 1V4.5H12" fill="#E8EEF5" stroke="#7A8A9E" stroke-width="1"/>
+            <path d="M3.5 4.5L11 12M11 4.5L3.5 12" stroke="#D32F2F" stroke-width="2.2" stroke-linecap="round"/>
           </svg>
         </span>
       `.trim();
