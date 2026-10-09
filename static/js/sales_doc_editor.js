@@ -66,6 +66,9 @@ const SalesDocEditor = {
       win.style.left = `${35 + offset}px`;
       const curTopZ = (window.MdiManager ? window.MdiManager.topZIndex + 10 : 200);
       win.style.zIndex = curTopZ;
+      if (window.MdiManager && typeof MdiManager.shouldBeMaximized === "function" && MdiManager.shouldBeMaximized(winId)) {
+        win.classList.add("maximized");
+      }
       document.getElementById("mdiWorkspace").appendChild(win);
 
       win.setAttribute("onmousedown", `MdiManager.activateWindow('${winId}')`);

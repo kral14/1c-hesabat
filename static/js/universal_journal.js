@@ -161,6 +161,9 @@ const _UniversalJournalTarget = {
         winEl.style.height = "calc(100% - 60px)";
         winEl.style.display = "flex";
         winEl.classList.remove("minimized");
+        if (typeof MdiManager !== "undefined" && typeof MdiManager.shouldBeMaximized === "function" && MdiManager.shouldBeMaximized(winId)) {
+          winEl.classList.add("maximized");
+        }
 
         // Set header title and icon
         const countMatch = winId.match(/_(\d+)$/);

@@ -67,6 +67,54 @@ const MdiManager = {
     } catch (e) {}
   },
 
+  isGlobalMaximized() {
+    try {
+      const glob = localStorage.getItem("1c_mdi_global_maximized");
+      if (glob !== null) return glob === "true";
+      return Object.values(this.windows).some(w => w.isOpen && !w.isMinimized && !w.isDialog && w.isMaximized);
+    } catch(e) {
+      return false;
+    }
+  },
+
+  getWindowCategory(id) {
+    if (!id || typeof id !== "string") return "general";
+    if (id === "universalJournalWindow" || id.startsWith("ujWin_")) return "universalJournal";
+    if (id.startsWith("salesDocEditorWindow") || id.startsWith("docEditorWindow")) return "salesDocEditor";
+    if (id.startsWith("priceDocEditorWindow")) return "priceDocEditor";
+    if (id.startsWith("pogruzkaDocEditorWindow")) return "pogruzkaDocEditor";
+    if (id.startsWith("nomenclatureCardWindow")) return "nomenclatureCard";
+    if (id.startsWith("auditJournalWindow")) return "auditJournal";
+    if (id.startsWith("portfolioCatalogWindow")) return "portfolioCatalog";
+    if (id.startsWith("mdiWindow-")) return "reportWindow";
+    return id;
+  },
+
+  shouldBeMaximized(id, options = {}) {
+    // Modal dialoqlar və kiçik popup-lar maximize olmur
+    if (options.isDialog || ["settingsWindowModal", "catalogWindowModal", "valueListModalOverlay", "fieldSelectorModalOverlay", "operationTypeModalOverlay", "settingsRestoreModalOverlay", "settingsSaveModalOverlay", "loginModalOverlay", "periodPickerModalOverlay", "ujFilterWindow"].includes(id)) {
+      return false;
+    }
+
+    // 1. Dəqiq bu ID üçün konkret yadda saxlanmış vəziyyət varmı?
+    const state = this.getWindowState(id);
+    if (typeof state.isMaximized === "boolean") {
+      return state.isMaximized;
+    }
+
+    // 2. Bu pəncərə kateqoriyası üçün yadda saxlanmış vəziyyət varmı?
+    const cat = this.getWindowCategory(id);
+    if (cat && cat !== id) {
+      const catState = this.getWindowState(cat);
+      if (typeof catState.isMaximized === "boolean") {
+        return catState.isMaximized;
+      }
+    }
+
+    // 3. 1C standartı: Hər hansı bir MDI pəncərəsi maximize edilibsə və ya qlobal rejim aktivdirsə
+    return this.isGlobalMaximized();
+  },
+
   saveOpenWindowsSession() {
     try {
       const openWins = [];
@@ -574,7 +622,7 @@ const MdiManager = {
     if (!el) return;
 
     const savedState = this.getWindowState(id);
-    const wasMax = (savedState && savedState.isMaximized === true);
+    const wasMax = this.shouldBeMaximized(id, options);
     const initialSavedRect = (savedState && savedState.savedRect) ? savedState.savedRect : {
       top: el.style.top || "20px",
       left: el.style.left || "20px",
@@ -842,11 +890,12 @@ const MdiManager = {
       if (!winObj) {
         if (el) {
           const isModal = el.classList.contains("modal-overlay-1c") || el.id.includes("Overlay");
+          const isDialog = (options.isDialog !== undefined) ? !!options.isDialog : isModal;
           this.registerWindow(id, {
             title: options.title || "Окно",
             icon: options.icon || "📄",
             element: el,
-            isDialog: true,
+            isDialog: isDialog,
             isModal: isModal,
             closeFn: options.closeFn
           });
@@ -929,16 +978,14 @@ const MdiManager = {
 
       console.log(`[MDI ACTIVATE] Window #${id} ("${winObj.title}") -> assigned zIndex = ${this.topZIndex}`);
 
-      // Restore maximized state from localStorage if remembered
-      const savedState = this.getWindowState(id);
-      if (savedState && savedState.isMaximized) {
-        if (!winObj.isMaximized) {
+      // Restore maximized state according to 1C MDI persistence
+      const shouldMax = this.shouldBeMaximized(id, winObj);
+      if (shouldMax) {
+        if (!winObj.isMaximized || !winObj.element.classList.contains("maximized")) {
           this.maximizeWindow(id, false);
         }
-      } else if (savedState && savedState.isMaximized === false) {
-        if (winObj.isMaximized) {
-          this.restoreWindow(id, false);
-        }
+      } else if (winObj.isMaximized) {
+        this.restoreWindow(id, false);
       }
 
       this.updateWindowTitlebar(id);
@@ -987,6 +1034,13 @@ const MdiManager = {
     }
 
     this.saveWindowState(id, { isMaximized: true, savedRect: winObj.savedRect });
+    const cat = this.getWindowCategory(id);
+    if (cat && cat !== id) {
+      this.saveWindowState(cat, { isMaximized: true });
+    }
+    if (!winObj.isDialog) {
+      try { localStorage.setItem("1c_mdi_global_maximized", "true"); } catch(e) {}
+    }
 
     if (doActivate) {
       this.activateWindow(id);
@@ -1017,6 +1071,14 @@ const MdiManager = {
     }
 
     this.saveWindowState(id, { isMaximized: false, savedRect: winObj.savedRect });
+    const cat = this.getWindowCategory(id);
+    if (cat && cat !== id) {
+      this.saveWindowState(cat, { isMaximized: false });
+    }
+    const anyOtherMax = Object.values(this.windows).some(w => w.id !== id && w.isOpen && !w.isMinimized && !w.isDialog && w.isMaximized);
+    if (!anyOtherMax) {
+      try { localStorage.setItem("1c_mdi_global_maximized", "false"); } catch(e) {}
+    }
 
     if (doActivate) {
       this.activateWindow(id);
