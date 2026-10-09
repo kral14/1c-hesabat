@@ -153,14 +153,17 @@
 
   /* MODAL WINDOW 1: AUDİT PROTOKOLU PƏNCƏRƏSİ */
   .audit-modal-backdrop {
-    position: absolute; inset: 0; background: rgba(0, 0, 0, 0.45); z-index: 200;
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 27px;
+    background: rgba(0, 0, 0, 0.45); z-index: 200;
     display: none; align-items: center; justify-content: center; padding: 15px;
+    box-sizing: border-box;
     transition: background 0.15s ease;
   }
   .audit-modal {
-    width: 1120px; max-width: 98vw; height: 690px; max-height: 96vh; background: #ece9d8;
+    width: 1120px; max-width: calc(100vw - 30px); height: 690px; max-height: calc(100vh - 65px); background: #ece9d8;
     border: 2px solid #002060; box-shadow: 0 14px 40px rgba(0,0,0,0.4); border-radius: 4px;
-    display: flex; flex-direction: column; overflow: hidden;
+    display: flex; flex-direction: column; overflow: hidden; box-sizing: border-box;
   }
   .modal-win-header {
     background: linear-gradient(to right, #002060, #2a5298); color: #fff; height: 28px; padding: 0 10px;
@@ -171,6 +174,7 @@
   /* Maximized / Minimized for Audit Modal */
   .audit-modal-backdrop.maximized {
     padding: 0 !important;
+    top: 0 !important; left: 0 !important; right: 0 !important; bottom: 27px !important;
   }
   .audit-modal.maximized {
     width: 100% !important;
@@ -179,6 +183,7 @@
     max-height: 100% !important;
     border-radius: 0 !important;
     border: none !important;
+    box-sizing: border-box !important;
   }
   .audit-modal-backdrop.minimized {
     background: transparent !important;
@@ -186,6 +191,7 @@
     align-items: flex-end !important;
     justify-content: flex-end !important;
     padding: 6px 16px !important;
+    bottom: 27px !important;
   }
   .audit-modal.minimized {
     width: 380px !important;
@@ -204,14 +210,17 @@
 
   /* MODAL WINDOW 2: SƏNƏDİN VERSİYA SNAPSHOT FORMASI */
   .doc-view-modal-backdrop {
-    position: fixed; inset: 0; background: rgba(0, 0, 0, 0.55); z-index: 500;
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 27px;
+    background: rgba(0, 0, 0, 0.55); z-index: 500;
     display: none; align-items: center; justify-content: center; padding: 20px;
+    box-sizing: border-box;
     transition: background 0.15s ease;
   }
   .doc-view-modal {
-    width: 1060px; max-width: 96vw; height: 650px; max-height: 94vh; background: #ece9d8;
+    width: 1060px; max-width: calc(100vw - 30px); height: 650px; max-height: calc(100vh - 65px); background: #ece9d8;
     border: 2px solid #002060; box-shadow: 0 16px 45px rgba(0,0,0,0.5); border-radius: 4px;
-    display: flex; flex-direction: column; overflow: hidden;
+    display: flex; flex-direction: column; overflow: hidden; box-sizing: border-box;
   }
   .doc-view-win-header {
     background: linear-gradient(to right, #002060, #1e3c72); color: #fff; height: 28px; padding: 0 10px;
@@ -220,6 +229,7 @@
   }
   .doc-view-modal-backdrop.maximized {
     padding: 0 !important;
+    top: 0 !important; left: 0 !important; right: 0 !important; bottom: 27px !important;
   }
   .doc-view-modal.maximized {
     width: 100% !important;
@@ -228,6 +238,7 @@
     max-height: 100% !important;
     border-radius: 0 !important;
     border: none !important;
+    box-sizing: border-box !important;
   }
   .doc-view-modal-backdrop.minimized {
     background: transparent !important;
@@ -235,6 +246,7 @@
     align-items: flex-end !important;
     justify-content: flex-end !important;
     padding: 6px 410px !important;
+    bottom: 27px !important;
   }
   .doc-view-modal.minimized {
     width: 380px !important;

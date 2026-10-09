@@ -233,13 +233,13 @@
 
     /* Separate Document Snapshot Window */
     .doc-view-modal-backdrop {
-      position: fixed; inset: 0; background: rgba(0, 0, 0, 0.55); z-index: 500;
-      display: flex; align-items: center; justify-content: center; padding: 20px;
+      position: fixed; top: 0; left: 0; right: 0; bottom: 27px; background: rgba(0, 0, 0, 0.55); z-index: 500;
+      display: flex; align-items: center; justify-content: center; padding: 20px; box-sizing: border-box;
     }
     .doc-view-modal {
-      width: 1060px; max-width: 96vw; height: 650px; max-height: 94vh; background: #ece9d8;
+      width: 1060px; max-width: calc(100vw - 30px); height: 650px; max-height: calc(100vh - 65px); background: #ece9d8;
       border: 2px solid #002060; box-shadow: 0 16px 45px rgba(0,0,0,0.5); border-radius: 4px;
-      display: flex; flex-direction: column; overflow: hidden;
+      display: flex; flex-direction: column; overflow: hidden; box-sizing: border-box;
     }
   </style>
 </head>
