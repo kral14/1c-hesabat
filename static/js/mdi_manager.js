@@ -2174,11 +2174,24 @@ const MdiManager = {
 
     console.log(`[HOTKEY CTRL+F] Search in topmost window #${topWin.id} ("${topWin.title}", z=${topWin.element.style.zIndex || 0})`);
 
-    // 0.5 Universal Journal Window
-    if (topWin.id === "universalJournalWindow") {
-      if (typeof UniversalJournal !== "undefined" && UniversalJournal.openFindModal) {
-        UniversalJournal.openFindModal();
-        return true;
+    // 0.5 Universal Journal Window (Bütün növlər və nüsxələr: universalJournalWindow, ujWin_...)
+    const isUjWindow = (topWin.id === "universalJournalWindow") || 
+                       topWin.id.startsWith("ujWin_") || 
+                       (typeof UniversalJournal !== "undefined" && UniversalJournal.instances && UniversalJournal.instances[topWin.id]) ||
+                       (topWin.element && topWin.element.querySelector(".uj-table-wrapper, #ujTableWrapper, [data-uj='ujTableWrapper']"));
+
+    if (isUjWindow) {
+      if (typeof UniversalJournal !== "undefined") {
+        let inst = (typeof UniversalJournal.getActiveInstance === "function") 
+          ? UniversalJournal.getActiveInstance(topWin.id) 
+          : null;
+        if (inst && typeof inst.openFindModal === "function") {
+          inst.openFindModal();
+          return true;
+        } else if (typeof UniversalJournal.openFindModal === "function") {
+          UniversalJournal.openFindModal();
+          return true;
+        }
       }
     }
 
@@ -2261,11 +2274,23 @@ const MdiManager = {
 
     console.log(`[HOTKEY CTRL+Q] Cancel search in topmost window #${topWin.id} ("${topWin.title}", z=${topWin.element.style.zIndex || 0})`);
 
-    // 0.5 Universal Journal Window
-    if (topWin.id === "universalJournalWindow") {
-      if (typeof UniversalJournal !== "undefined" && UniversalJournal.clearSearch) {
-        UniversalJournal.clearSearch();
-        return true;
+    // 0.5 Universal Journal Window (Bütün növlər və nüsxələr: universalJournalWindow, ujWin_...)
+    const isUjCancelWindow = (topWin.id === "universalJournalWindow") || 
+                             topWin.id.startsWith("ujWin_") || 
+                             (typeof UniversalJournal !== "undefined" && UniversalJournal.instances && UniversalJournal.instances[topWin.id]);
+
+    if (isUjCancelWindow) {
+      if (typeof UniversalJournal !== "undefined") {
+        let inst = (typeof UniversalJournal.getActiveInstance === "function") 
+          ? UniversalJournal.getActiveInstance(topWin.id) 
+          : null;
+        if (inst && typeof inst.clearSearch === "function") {
+          inst.clearSearch();
+          return true;
+        } else if (typeof UniversalJournal.clearSearch === "function") {
+          UniversalJournal.clearSearch();
+          return true;
+        }
       }
     }
 

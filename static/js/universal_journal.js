@@ -4683,23 +4683,40 @@ const _UniversalJournalTarget = {
 
   openFindModal: function(initialText) {
     const modal = document.getElementById("ujFindModal");
-    if (!modal) return;
+    if (!modal) {
+      console.warn("[UniversalJournal] #ujFindModal elementi DOM-da tapılmadı!");
+      return;
+    }
     const select = document.getElementById("ujFindColumn");
-    select.innerHTML = this.getAvailableFields().map(c =>
-      `<option value="${this.escapeHtml(c.key)}">${this.escapeHtml(c.label)}</option>`).join("");
-    const field = this.selectedColKey === "status" ? (this.selectedRow?.deleted ? "deleted" : "posted") : (this.selectedColKey || "number");
-    select.value = field;
+    if (select) {
+      const avail = (typeof this.getAvailableFields === "function") ? this.getAvailableFields() : [];
+      select.innerHTML = avail.map(c =>
+        `<option value="${this.escapeHtml ? this.escapeHtml(c.key) : c.key}">${this.escapeHtml ? this.escapeHtml(c.label) : c.label}</option>`).join("");
+      const field = this.selectedColKey === "status" ? (this.selectedRow?.deleted ? "deleted" : "posted") : (this.selectedColKey || "number");
+      select.value = field;
+    }
+    const selectEl = document.getElementById("ujFindColumn");
+    const currentField = selectEl ? selectEl.value : (this.selectedColKey || "number");
     const input = document.getElementById("ujFindText");
-    const existing = (this.activeFilters || []).find(c => c.fieldKey === field);
-    const cellValue = this.selectedRow?.[field];
-    input.value = initialText !== undefined ? initialText : (cellValue !== undefined && cellValue !== null ? String(cellValue) : (existing?.value || ""));
+    const existing = (this.activeFilters || []).find(c => c.fieldKey === currentField);
+    const cellValue = this.selectedRow?.[currentField];
+    if (input) {
+      input.value = initialText !== undefined ? initialText : (cellValue !== undefined && cellValue !== null ? String(cellValue) : (existing?.value || ""));
+    }
     this._findItem = null;
-    this.updateFindReferenceButtons();
+    if (typeof this.updateFindReferenceButtons === "function") {
+      this.updateFindReferenceButtons();
+    }
     const mode = existing ? ({ "Равно": "exact", "Начинается с": "starts", "Содержит": "contains" }[existing.comparison] || "exact") : "exact";
     modal.querySelectorAll('input[name="ujFindMatch"]').forEach(r => { r.checked = r.value === mode; });
     modal.style.display = "flex";
-    input.focus();
-    if (initialText === undefined) input.select();
+    modal.style.zIndex = "2147483000";
+    if (input) {
+      setTimeout(() => {
+        input.focus();
+        if (initialText === undefined) input.select();
+      }, 50);
+    }
   },
 
   closeFindModal: function() {
@@ -4708,10 +4725,11 @@ const _UniversalJournalTarget = {
   },
 
   submitFindModal: function() {
-    const field = document.getElementById("ujFindColumn").value;
-    const value = document.getElementById("ujFindText").value.trim();
+    const field = document.getElementById("ujFindColumn")?.value || (this.selectedColKey || "number");
+    const value = document.getElementById("ujFindText")?.value?.trim() || "";
     const mode = document.querySelector('input[name="ujFindMatch"]:checked')?.value || "exact";
-    const definition = this.getAvailableFields().find(f => f.key === field);
+    const avail = (typeof this.getAvailableFields === "function") ? this.getAvailableFields() : [];
+    const definition = avail.find(f => f.key === field);
     const operator = definition?.type && definition.type !== "text" ? "Равно" : ({ exact: "Равно", starts: "Начинается с", contains: "Содержит" })[mode];
     const criterion = { fieldKey: field, fieldLabel: definition?.label || field,
       comparison: operator, operator, value, enabled: true };
@@ -5428,8 +5446,13 @@ window.openUniversalJournalWindow = window.openJournalDirect;
 
 // Hotkeys for Universal Journal: F7, Shift+F7, Ctrl+F, Ctrl+Q, Ctrl+Shift+F
 document.addEventListener("keydown", function(e) {
-  const ujWin = document.getElementById("universalJournalWindow");
+  const activeInst = (typeof UniversalJournal !== "undefined" && UniversalJournal.getActiveInstance) 
+    ? UniversalJournal.getActiveInstance() 
+    : null;
+  const ujWin = activeInst ? (activeInst.windowElement || document.getElementById(activeInst.windowId)) : document.getElementById("universalJournalWindow");
   if (!ujWin || ujWin.style.display === "none") return;
+  if (typeof MdiManager !== "undefined" && MdiManager.activeWindowId && activeInst && MdiManager.activeWindowId !== activeInst.windowId) return;
+
   const findModal = document.getElementById("ujFindModal");
   const findInfo = document.getElementById("ujFindInfo");
   if (findInfo && findInfo.style.display !== "none") {
@@ -5440,55 +5463,55 @@ document.addEventListener("keydown", function(e) {
     if (e.key === "Escape") { e.preventDefault(); e.stopImmediatePropagation(); UniversalJournal.closeFindModal(); }
     return;
   }
-  if (!UniversalJournal.isJournalActive()) return;
+  if (!activeInst || !activeInst.isJournalActive()) return;
   const isEditing = e.target.closest && e.target.closest('input,textarea,select,[contenteditable="true"]');
   if (!isEditing && e.key === "End") {
     e.preventDefault();
     e.stopPropagation();
-    UniversalJournal.requestMoreDocuments(true);
-    const wrapper = document.getElementById("ujTableWrapper");
+    activeInst.requestMoreDocuments(true);
+    const wrapper = activeInst.getEl("ujTableWrapper");
     if (wrapper) wrapper.scrollTop = wrapper.scrollHeight;
     return;
   }
-  if (!isEditing && !e.ctrlKey && !e.metaKey && !e.altKey && e.key.length === 1 && !e.isComposing && (UniversalJournal.selectedRow || UniversalJournal._columnSelectedForFind)) {
+  if (!isEditing && !e.ctrlKey && !e.metaKey && !e.altKey && e.key.length === 1 && !e.isComposing && (activeInst.selectedRow || activeInst._columnSelectedForFind)) {
     e.preventDefault();
-    UniversalJournal.openFindModal(e.key);
+    activeInst.openFindModal(e.key);
     return;
   }
 
   // Ctrl + Q: Cancel / Clear search and reset column search highlight
   if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "q") {
     e.preventDefault();
-    if (typeof UniversalJournal !== "undefined" && UniversalJournal.clearSearch) {
-      UniversalJournal.clearSearch();
+    if (activeInst && activeInst.clearSearch) {
+      activeInst.clearSearch();
     }
   }
   // Ctrl + Shift + F: Clear all filters
-  else if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key.toLowerCase() === "f") {
+  else if ((e.ctrlKey || e.metaKey) && e.shiftKey && (e.key.toLowerCase() === "f" || e.code === "KeyF")) {
     e.preventDefault();
-    if (typeof UniversalJournal !== "undefined" && UniversalJournal.clearFilter) {
-      UniversalJournal.clearFilter();
+    if (activeInst && activeInst.clearFilter) {
+      activeInst.clearFilter();
     }
   }
   // Ctrl + F: Quick Find in current/selected column
-  else if ((e.ctrlKey || e.metaKey) && !e.shiftKey && e.key.toLowerCase() === "f") {
+  else if ((e.ctrlKey || e.metaKey) && !e.shiftKey && (e.key.toLowerCase() === "f" || e.code === "KeyF")) {
     e.preventDefault();
-    if (typeof UniversalJournal !== "undefined" && UniversalJournal.openFindModal) {
-      UniversalJournal.openFindModal();
+    if (activeInst && activeInst.openFindModal) {
+      activeInst.openFindModal();
     }
   }
   // Shift + F7: Remove filter for current column
   else if (e.key === "F7" && e.shiftKey) {
     e.preventDefault();
-    if (typeof UniversalJournal !== "undefined" && UniversalJournal.removeFilterByCurrentColumn) {
-      UniversalJournal.removeFilterByCurrentColumn();
+    if (activeInst && activeInst.removeFilterByCurrentColumn) {
+      activeInst.removeFilterByCurrentColumn();
     }
   }
   // F7: Quick Filter by selected column value
   else if (e.key === "F7") {
     e.preventDefault();
-    if (typeof UniversalJournal !== "undefined" && UniversalJournal.filterByCurrentValue) {
-      UniversalJournal.filterByCurrentValue();
+    if (activeInst && activeInst.filterByCurrentValue) {
+      activeInst.filterByCurrentValue();
     }
   }
 }, true);
