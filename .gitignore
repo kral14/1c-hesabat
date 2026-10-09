@@ -85,6 +85,7 @@ data/*.db
 *.sqlite3
 *.db-journal
 *.sqlite3-journal
+!data/offline_1c_data.zip
 
 # --- Logs & Run Artifacts ---
 *.log

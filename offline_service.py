@@ -9,9 +9,21 @@ import sqlite3
 import datetime
 import re
 
+import zipfile
+
 DB_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data", "offline_1c_data.db")
+ZIP_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data", "offline_1c_data.zip")
 
 def is_offline_db_ready():
+    if not os.path.exists(DB_PATH) or os.path.getsize(DB_PATH) <= 1024:
+        if os.path.exists(ZIP_PATH) and os.path.getsize(ZIP_PATH) > 1024:
+            try:
+                print("📦 [OFFLINE BAZA] 'offline_1c_data.zip' arxivindən SQLite bazası çıxarılır...", flush=True)
+                with zipfile.ZipFile(ZIP_PATH, 'r') as zf:
+                    zf.extractall(os.path.dirname(DB_PATH))
+                print("✅ [OFFLINE BAZA] Baza uğurla çıxarıldı!", flush=True)
+            except Exception as e_unzip:
+                print(f"⚠️ [OFFLINE BAZA XƏTASI] Zip çıxarılmadı: {e_unzip}", flush=True)
     return os.path.exists(DB_PATH) and os.path.getsize(DB_PATH) > 1024
 
 def get_connection():
