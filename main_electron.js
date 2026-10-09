@@ -136,11 +136,12 @@ function createWindow() {
   });
 
   // Load URL directly without blocking cache manipulations
-  win.loadURL('http://127.0.0.1:5050');
+  const targetUrl = process.env.SERVER_URL || process.argv.find(arg => arg.startsWith('http://') || arg.startsWith('https://')) || 'http://127.0.0.1:5050';
+  win.loadURL(targetUrl);
 
   win.webContents.on('did-fail-load', () => {
     setTimeout(() => {
-      win.loadURL('http://127.0.0.1:5050');
+      win.loadURL(targetUrl);
     }, 1200);
   });
 

@@ -82,4 +82,4 @@ if __name__ == "__main__":
     print("     👉 Electron bağlansa da 1C bağlantısı QIRILMIR və lisenziya bitmir!")
     print("=" * 70, flush=True)
 
-    app.run(host="127.0.0.1", port=5050, debug=False, threaded=True)
+    app.run(host="0.0.0.0", port=5050, debug=False, threaded=True)
