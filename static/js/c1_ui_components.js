@@ -76,14 +76,21 @@
       `.trim();
     },
 
-    /** Silinməyə qeyd olunmuş sənəd ikonu (Vərəq üzərində qırmızı ✕) */
+    /** Silinməyə qeyd olunmuş sənəd ikonu (Vərəq üzərində zərif və aydın qırmızı ✕) */
     docDeleted: function (w = 16, h = 16, cls = '', title = 'Pozulma nişanı qoyulub (Silinib)') {
       return `
         <span class="c1-status-icon c1-status-deleted ${cls}" title="${title}" style="display:inline-flex;align-items:center;justify-content:center;width:${w + 2}px;height:${h + 1}px;vertical-align:middle;user-select:none;">
           <svg width="${w}" height="${h}" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <path d="M1.5 1.5C1.5 1.22 1.72 1 2 1H8.5L12 4.5V14.5C12 14.78 11.78 15 11.5 15H2C1.72 15 1.5 14.78 1.5 14.5V1.5Z" fill="#FFFFFF" stroke="#7A8A9E" stroke-width="1"/>
-            <path d="M8.5 1V4.5H12" fill="#E8EEF5" stroke="#7A8A9E" stroke-width="1"/>
-            <path d="M3.5 4.5L11 12M11 4.5L3.5 12" stroke="#D32F2F" stroke-width="2.2" stroke-linecap="round"/>
+            <!-- Sənəd vərəqi -->
+            <path d="M1.5 1.5C1.5 1.22 1.72 1 2 1H8.5L12 4.5V14.5C12 14.78 11.78 15 11.5 15H2C1.72 15 1.5 14.78 1.5 14.5V1.5Z" fill="#FFFFFF" stroke="#8A9AA8" stroke-width="1"/>
+            <path d="M8.5 1V4.5H12" fill="#E8EEF5" stroke="#8A9AA8" stroke-width="1"/>
+            <!-- Sənəd daxili xətləri -->
+            <line x1="3.5" y1="6.5" x2="8" y2="6.5" stroke="#C0D0DC" stroke-width="1"/>
+            <line x1="3.5" y1="9.5" x2="6.5" y2="9.5" stroke="#C0D0DC" stroke-width="1"/>
+            <line x1="3.5" y1="12" x2="8" y2="12" stroke="#C0D0DC" stroke-width="1"/>
+            <!-- Zərif, aydın və estetik qırmızı silinmə çarpazı (ağ halo ilə) -->
+            <path d="M4.5 5.5L10 11M10 5.5L4.5 11" stroke="#FFFFFF" stroke-width="3.2" stroke-linecap="round"/>
+            <path d="M4.5 5.5L10 11M10 5.5L4.5 11" stroke="#C62828" stroke-width="2" stroke-linecap="round"/>
           </svg>
         </span>
       `.trim();
