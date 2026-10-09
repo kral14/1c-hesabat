@@ -615,6 +615,8 @@ const MdiManager = {
         this.saveOpenWindowsSession();
       }
     });
+  },
+
   /**
    * Vahid Pəncərə Qabığı Fabriki (Universal MDI Window Shell Factory)
    * Bütün bölmələr üçün standart .mdi-window qabığı yaradır, başlıq, idarəetmə düymələri,
