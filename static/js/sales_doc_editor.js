@@ -1185,7 +1185,10 @@ const SalesDocEditor = {
 
     const list = pogruzki || this.pogruzki || [];
     const count = list.length;
-    const isDuplicate = (count > 1);
+    // Yalnız aktiv (silinməmiş) погрузка-ların sayı > 1 olduqda DUBLLİKAT sayılır!
+    const activeList = list.filter(p => !p.deleted);
+    const activeCount = activeList.length;
+    const isDuplicate = (activeCount > 1);
 
     // 1. Badge on Tab
     const badge = win.querySelector("#sdePogruzkaBadge");
@@ -1194,10 +1197,10 @@ const SalesDocEditor = {
       badge.style.display = count > 0 ? "inline-block" : "none";
       if (isDuplicate) {
         badge.style.background = "#dc2626";
-        badge.title = `ВНИМАНИЕ: Найдено ${count} погрузок (Дубликат!)`;
+        badge.title = `ВНИМАНИЕ: Найдено ${activeCount} активных погрузок (Дубликат!)`;
       } else {
         badge.style.background = "#2563eb";
-        badge.title = "Погрузка машины: 1 документ";
+        badge.title = `Погрузка машины: ${count} документ(ов)`;
       }
     }
 
@@ -1208,12 +1211,19 @@ const SalesDocEditor = {
     const summaryCount = win.querySelector("#sdePogruzkaSummaryCount");
 
     if (summaryCount) {
-      summaryCount.textContent = `Всего документов погрузки: ${count}` + (isDuplicate ? ` ⚠️ (ДУБЛИКАТ: ${count} рейса!)` : "");
+      let countText = `Всего документов погрузки: ${count}`;
+      if (count > activeCount) {
+        countText += ` (активных: ${activeCount}, помечено на удаление: ${count - activeCount})`;
+      }
+      if (isDuplicate) {
+        countText += ` ⚠️ (ДУБЛИКАТ: ${activeCount} активных рейса!)`;
+      }
+      summaryCount.textContent = countText;
       summaryCount.style.color = isDuplicate ? "#b91c1c" : "#002060";
     }
 
     if (dupAlert) dupAlert.style.display = isDuplicate ? "block" : "none";
-    if (normInfo) normInfo.style.display = (count === 1) ? "flex" : "none";
+    if (normInfo) normInfo.style.display = (!isDuplicate && activeCount === 1) ? "flex" : "none";
     if (emptyInfo) emptyInfo.style.display = (count === 0) ? "block" : "none";
 
     // 3. Render Table
@@ -1228,31 +1238,44 @@ const SalesDocEditor = {
     let html = "";
     list.forEach((p, idx) => {
       const marshrutVal = p.marshrut || "(без маршрута)";
-      // If duplicate (count > 1): RED cell highlighting!
-      const marshrutStyle = isDuplicate
-        ? "background: #fee2e2; color: #b91c1c; font-weight: bold; border: 2px solid #ef4444; padding: 2px 8px;"
-        : "padding: 2px 8px; color: #002060; font-weight: 500;";
+      const isDeleted = Boolean(p.deleted);
+      // Əgər погрузка silinibdirsə, onu əsla qırmızı etmirik!
+      // Yalnız aktiv dublikat olduqda və sənəd özü də aktiv olduqda qırmızı göstərilir
+      const isRowDuplicate = isDuplicate && !isDeleted;
 
-      const bg = isDuplicate ? "#fff5f5" : (idx % 2 === 1 ? "#f9f8f2" : "#ffffff");
-      const statLabel = p.deleted ? "❌ Помечен на удаление" : (p.posted ? "✔ Проведен" : "📄 Не проведен");
-      const statColor = p.deleted ? "#dc2626" : (p.posted ? "#15803d" : "#c2410c");
+      const marshrutStyle = isRowDuplicate
+        ? "background: #fee2e2; color: #b91c1c; font-weight: bold; border: 2px solid #ef4444; padding: 2px 8px;"
+        : (isDeleted
+            ? "padding: 2px 8px; color: #888888; text-decoration: line-through;"
+            : "padding: 2px 8px; color: #002060; font-weight: 500;");
+
+      const bg = isRowDuplicate
+        ? "#fff5f5"
+        : (isDeleted ? "#fbfbfb" : (idx % 2 === 1 ? "#f9f8f2" : "#ffffff"));
+
+      const statLabel = isDeleted ? "❌ Помечен на удаление" : (p.posted ? "✔ Проведен" : "📄 Не проведен");
+      const statColor = isDeleted ? "#dc2626" : (p.posted ? "#15803d" : "#c2410c");
+      const rowOpacity = isDeleted ? "opacity: 0.75;" : "";
+
+      const docNumDisp = p.number || p.pogruzka_number || "—";
+      const docDateDisp = p.date || p.pogruzka_date || "—";
 
       html += `
-        <tr style="background: ${bg}; height: 26px; border-bottom: 1px solid #d4d0c8;">
+        <tr style="background: ${bg}; height: 26px; border-bottom: 1px solid #d4d0c8; ${rowOpacity}">
           <td style="text-align: center; border: 1px solid #d4d0c8; color: #555;">${idx + 1}</td>
-          <td style="padding: 2px 6px; border: 1px solid #d4d0c8; font-weight: bold; color: #004080; cursor: pointer; text-decoration: underline;" title="Открыть документ погрузки..." onclick="if(window.PogruzkaDocEditor) PogruzkaDocEditor.open('${this.escapeHtml(p.number || '')}', '${this.escapeHtml(p.date || '')}')">
-            🚚 Погрузка № ${this.escapeHtml(p.number || "—")}
+          <td style="padding: 2px 6px; border: 1px solid #d4d0c8; font-weight: bold; color: ${isDeleted ? '#888' : '#004080'}; cursor: pointer; text-decoration: underline;" title="Открыть документ погрузки..." onclick="if(window.PogruzkaDocEditor) PogruzkaDocEditor.open('${this.escapeHtml(docNumDisp)}', '${this.escapeHtml(docDateDisp)}')">
+            🚚 Погрузка № ${this.escapeHtml(docNumDisp)}
           </td>
-          <td style="padding: 2px 6px; border: 1px solid #d4d0c8; color: #333;">
-            ${this.escapeHtml(p.date || "—")}
+          <td style="padding: 2px 6px; border: 1px solid #d4d0c8; color: ${isDeleted ? '#888' : '#333'};">
+            ${this.escapeHtml(docDateDisp)}
           </td>
           <td style="border: 1px solid #d4d0c8; ${marshrutStyle}">
-            ${isDuplicate ? `<span style="margin-right: 4px;">🚨</span>` : ''}${this.escapeHtml(marshrutVal)}
+            ${isRowDuplicate ? `<span style="margin-right: 4px;">🚨</span>` : ''}${this.escapeHtml(marshrutVal)}
           </td>
-          <td style="padding: 2px 6px; border: 1px solid #d4d0c8; color: #111;">
+          <td style="padding: 2px 6px; border: 1px solid #d4d0c8; color: ${isDeleted ? '#888' : '#111'};">
             ${this.escapeHtml(p.voditel || "—")}
           </td>
-          <td style="padding: 2px 6px; border: 1px solid #d4d0c8; color: #333;">
+          <td style="padding: 2px 6px; border: 1px solid #d4d0c8; color: ${isDeleted ? '#888' : '#333'};">
             ${this.escapeHtml(p.car || "—")}
           </td>
           <td style="text-align: center; border: 1px solid #d4d0c8; font-weight: bold; color: ${statColor}; font-size: 10px;">

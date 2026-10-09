@@ -210,9 +210,12 @@ def get_realization_list(conn, payload):
             qp.Text = """
             ВЫБРАТЬ
                 П.Накладная.Номер КАК RealizNum,
-                КОЛИЧЕСТВО(РАЗЛИЧНЫЕ П.Ссылка) КАК PogCount,
-                МАКСИМУМ(П.Ссылка.Маршрут) КАК Marshrut,
-                ПРЕДСТАВЛЕНИЕ(МАКСИМУМ(П.Ссылка.Водитель)) КАК Voditel
+                КОЛИЧЕСТВО(РАЗЛИЧНЫЕ ВЫБОР КОГДА НЕ П.Ссылка.ПометкаУдаления ТОГДА П.Ссылка ИНАЧЕ NULL КОНЕЦ) КАК ActivePogCount,
+                КОЛИЧЕСТВО(РАЗЛИЧНЫЕ П.Ссылка) КАК TotalPogCount,
+                МАКСИМУМ(ВЫБОР КОГДА НЕ П.Ссылка.ПометкаУдаления ТОГДА П.Ссылка.Маршрут ИНАЧЕ "" КОНЕЦ) КАК ActiveMarshrut,
+                МАКСИМУМ(П.Ссылка.Маршрут) КАК AnyMarshrut,
+                ПРЕДСТАВЛЕНИЕ(МАКСИМУМ(ВЫБОР КОГДА НЕ П.Ссылка.ПометкаУдаления ТОГДА П.Ссылка.Водитель ИНАЧЕ НЕОПРЕДЕЛЕНО КОНЕЦ)) КАК ActiveVoditel,
+                ПРЕДСТАВЛЕНИЕ(МАКСИМУМ(П.Ссылка.Водитель)) КАК AnyVoditel
             ИЗ
                 Документ.ПогрузкиМашин.СписокРеализаций КАК П
             ГДЕ
@@ -228,11 +231,14 @@ def get_realization_list(conn, payload):
                     alt_num = r_num.replace("C", "С") if "C" in r_num else r_num.replace("С", "C")
                     target_row = doc_ref_map.get(alt_num)
                 if target_row:
-                    cnt = int(rp.PogCount or 0)
-                    target_row["pogruzka_count"] = cnt
-                    target_row["pogruzka_duplicate"] = (cnt > 1)
-                    target_row["pogruzka_marshrut"] = str(rp.Marshrut or "").strip()
-                    target_row["pogruzka_voditel"] = str(rp.Voditel or "").strip()
+                    act_cnt = int(rp.ActivePogCount or 0)
+                    tot_cnt = int(rp.TotalPogCount or 0)
+                    target_row["pogruzka_count"] = act_cnt if act_cnt > 0 else tot_cnt
+                    target_row["pogruzka_duplicate"] = (act_cnt > 1)
+                    act_m = str(rp.ActiveMarshrut or "").strip()
+                    target_row["pogruzka_marshrut"] = act_m if act_m else str(rp.AnyMarshrut or "").strip()
+                    act_v = str(rp.ActiveVoditel or "").strip()
+                    target_row["pogruzka_voditel"] = act_v if act_v else str(rp.AnyVoditel or "").strip()
         except Exception as e_pog:
             print("Pogruzka batch lookup error:", e_pog)
 
@@ -376,9 +382,13 @@ def get_realization_details(conn, payload):
         """
         rp = qp.Execute().Choose()
         while rp.Next():
+            p_num = str(rp.PogruzkaNumber or "").strip()
+            p_dt = format_1c_datetime(rp.PogruzkaDate)
             pogruzki.append({
-                "pogruzka_number": str(rp.PogruzkaNumber or "").strip(),
-                "pogruzka_date": format_1c_datetime(rp.PogruzkaDate),
+                "pogruzka_number": p_num,
+                "number": p_num,
+                "pogruzka_date": p_dt,
+                "date": p_dt,
                 "marshrut": str(rp.Marshrut or "").strip(),
                 "voditel": str(rp.Voditel or "").strip(),
                 "warehouse": str(rp.Sklad or "").strip(),
@@ -414,6 +424,8 @@ def get_realization_details(conn, payload):
             "series": t["series"]
         })
 
+    active_pogruzki = [p for p in pogruzki if not p.get("deleted")]
+
     return {
         "doc_type": "РеализацияТоваровУслуг",
         "header": header_data,
@@ -422,6 +434,7 @@ def get_realization_details(conn, payload):
         "tovary": tovary,
         "pogruzki": pogruzki,
         "pogruzka_count": len(pogruzki),
-        "pogruzka_duplicate": (len(pogruzki) > 1)
+        "active_pogruzka_count": len(active_pogruzki),
+        "pogruzka_duplicate": (len(active_pogruzki) > 1)
     }
 
