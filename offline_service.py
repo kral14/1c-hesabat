@@ -14,16 +14,25 @@ import zipfile
 DB_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data", "offline_1c_data.db")
 ZIP_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data", "offline_1c_data.zip")
 
+def safe_print(msg):
+    try:
+        print(msg, flush=True)
+    except Exception:
+        try:
+            print(msg.encode('ascii', errors='replace').decode('ascii'), flush=True)
+        except Exception:
+            pass
+
 def is_offline_db_ready():
     if not os.path.exists(DB_PATH) or os.path.getsize(DB_PATH) <= 1024:
         if os.path.exists(ZIP_PATH) and os.path.getsize(ZIP_PATH) > 1024:
             try:
-                print("📦 [OFFLINE BAZA] 'offline_1c_data.zip' arxivindən SQLite bazası çıxarılır...", flush=True)
+                safe_print("[OFFLINE BAZA] 'offline_1c_data.zip' arxivinden SQLite bazasi cixarilir...")
                 with zipfile.ZipFile(ZIP_PATH, 'r') as zf:
                     zf.extractall(os.path.dirname(DB_PATH))
-                print("✅ [OFFLINE BAZA] Baza uğurla çıxarıldı!", flush=True)
+                safe_print("[OFFLINE BAZA] Baza ugurla cixarildi!")
             except Exception as e_unzip:
-                print(f"⚠️ [OFFLINE BAZA XƏTASI] Zip çıxarılmadı: {e_unzip}", flush=True)
+                safe_print(f"[OFFLINE BAZA XETASI] Zip cixarilmadi: {e_unzip}")
     return os.path.exists(DB_PATH) and os.path.getsize(DB_PATH) > 1024
 
 def get_connection():
