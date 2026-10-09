@@ -134,6 +134,10 @@ const AuditJournal = {
         }
       });
     }
+
+    // Yadda saxlanılmış son tarixi və sənəd növünü dərhal bərpa et
+    this.restoreRememberedState();
+    this.updatePeriodLabel();
   },
 
   isOpen: function() {
@@ -141,11 +145,76 @@ const AuditJournal = {
     return win && win.style.display !== "none";
   },
 
+  saveRememberedState: function() {
+    try {
+      localStorage.setItem("1c_audit_journal_period", JSON.stringify({
+        startDate: this.startDateStr || "",
+        endDate: this.endDateStr || ""
+      }));
+      if (this.activeDocType) {
+        localStorage.setItem("1c_audit_journal_doctype", this.activeDocType);
+      }
+    } catch (e) {
+      console.warn("[AuditJournal] Could not save state to localStorage", e);
+    }
+  },
+
+  restoreRememberedState: function() {
+    try {
+      const savedDocType = localStorage.getItem("1c_audit_journal_doctype");
+      if (savedDocType && !this.activeDocType) {
+        this.activeDocType = savedDocType;
+      }
+      const sel = document.getElementById("ajDocTypeSelect");
+      if (sel && this.activeDocType) {
+        sel.value = this.activeDocType;
+      }
+
+      const savedPeriod = localStorage.getItem("1c_audit_journal_period");
+      if (savedPeriod) {
+        const parsed = JSON.parse(savedPeriod);
+        if (parsed && typeof parsed === "object") {
+          this.startDateStr = parsed.startDate || "";
+          this.endDateStr = parsed.endDate || "";
+          return true;
+        }
+      }
+    } catch (e) {
+      console.warn("[AuditJournal] Could not restore state from localStorage", e);
+    }
+
+    // Əgər heç vaxt seçilməyibsə, sistemin ümumi PeriodPicker yaddaşına bax
+    if (window.PeriodPicker && typeof PeriodPicker.getRememberedPeriod === "function") {
+      const rem = PeriodPicker.getRememberedPeriod();
+      if (rem && (rem.startDate || rem.endDate)) {
+        const clean = (s) => (s || "").trim().split(" ")[0];
+        this.startDateStr = clean(rem.startDate);
+        this.endDateStr = clean(rem.endDate);
+        return true;
+      }
+    }
+
+    // İlk default: son 30 gün
+    if (!this.startDateStr && !this.endDateStr) {
+      const now = new Date();
+      const past = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+      const pad = (n) => String(n).padStart(2, '0');
+      this.startDateStr = `${pad(past.getDate())}.${pad(past.getMonth() + 1)}.${past.getFullYear()}`;
+      this.endDateStr = `${pad(now.getDate())}.${pad(now.getMonth() + 1)}.${now.getFullYear()}`;
+    }
+    return false;
+  },
+
   open: function(defaultDocType) {
     if (defaultDocType !== undefined) {
       this.activeDocType = defaultDocType;
+      this.saveRememberedState();
       const sel = document.getElementById("ajDocTypeSelect");
       if (sel) sel.value = defaultDocType;
+    } else {
+      this.restoreRememberedState();
+      const sel = document.getElementById("ajDocTypeSelect");
+      if (sel && this.activeDocType) sel.value = this.activeDocType;
     }
 
     const win = document.getElementById("auditJournalWindow");
@@ -157,16 +226,8 @@ const AuditJournal = {
       MdiManager.activateWindow("auditJournalWindow");
     }
 
-    // Default to last 30 days if not set
-    if (!this.startDateStr && !this.endDateStr) {
-      const now = new Date();
-      const past = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
-      const pad = (n) => String(n).padStart(2, '0');
-      this.startDateStr = `${pad(past.getDate())}.${pad(past.getMonth() + 1)}.${past.getFullYear()}`;
-      this.endDateStr = `${pad(now.getDate())}.${pad(now.getMonth() + 1)}.${now.getFullYear()}`;
-      this.updatePeriodLabel();
-    }
-
+    // Son seçilmiş tarixi ekranda yenilə və sənədləri oxu
+    this.updatePeriodLabel();
     this.loadDocuments();
   },
 
@@ -238,6 +299,7 @@ const AuditJournal = {
   onDocTypeChange: function() {
     const sel = document.getElementById("ajDocTypeSelect");
     this.activeDocType = sel ? sel.value : "";
+    this.saveRememberedState();
     this.loadDocuments();
   },
 
@@ -261,6 +323,7 @@ const AuditJournal = {
       this.startDateStr = "";
       this.endDateStr = "";
     }
+    this.saveRememberedState();
     this.updatePeriodLabel();
     this.loadDocuments();
   },
@@ -271,8 +334,10 @@ const AuditJournal = {
         startDate: this.startDateStr,
         endDate: this.endDateStr,
         onSelect: (sStr, eStr) => {
-          this.startDateStr = sStr;
-          this.endDateStr = eStr;
+          const clean = (s) => (s || "").trim().split(" ")[0];
+          this.startDateStr = clean(sStr);
+          this.endDateStr = clean(eStr);
+          this.saveRememberedState();
           this.updatePeriodLabel();
           this.loadDocuments();
         }
