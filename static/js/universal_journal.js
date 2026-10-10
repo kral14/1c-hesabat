@@ -98,6 +98,15 @@ const _UniversalJournalTarget = {
     return this.instances[winId] || this.getActiveInstance(winId);
   },
 
+  cancelLoad: function(winIdOrEvent) {
+    const inst = this.getActiveInstance(winIdOrEvent);
+    if (inst && typeof inst.cancelLoad === "function") {
+      inst.cancelLoad();
+    } else if (inst && typeof inst.pauseLoading === "function") {
+      inst.pauseLoading();
+    }
+  },
+
   open: function(defaultDocType) {
     return this.openDirect(defaultDocType);
   },
@@ -765,7 +774,9 @@ const _UniversalJournalTarget = {
     this.setFullLoadCursor(false);
     this.saveListCache();
     this.currentLoadSessionId++;
-    if (this._listAbortController) this._listAbortController.abort();
+    if (this._listAbortController) {
+      try { this._listAbortController.abort(); } catch (e) {}
+    }
     if (this._bgTimer) clearTimeout(this._bgTimer);
     if (this._searchDebounceTimer) clearTimeout(this._searchDebounceTimer);
     this._bgTimer = this._searchDebounceTimer = null;
@@ -774,6 +785,12 @@ const _UniversalJournalTarget = {
     this.updateBottomLoadingState(false);
     const loading = this.getEl("ujLoadingState");
     if (loading) loading.style.display = "none";
+  },
+
+  cancelLoad: function(reason) {
+    console.log(`[JOURNAL CANCEL] cancelLoad triggered for ${this.windowId}:`, reason || "Pause");
+    this.pauseLoading();
+    this.updateStatus("⏹ Sorğu dayandırıldı (Pause).");
   },
 
   isJournalActive: function() {
@@ -5483,6 +5500,15 @@ document.addEventListener("keydown", function(e) {
     e.preventDefault();
     activeInst.openFindModal(e.key);
     return;
+  }
+
+  // Pause / Break və ya Escape (əgər loading gedirsə): Sorğunu dayandır
+  if (e.key === "Pause" || e.code === "Pause" || (e.key === "Escape" && activeInst && activeInst.getEl("ujLoadingState") && activeInst.getEl("ujLoadingState").style.display !== "none")) {
+    if (activeInst && typeof activeInst.cancelLoad === "function") {
+      e.preventDefault();
+      activeInst.cancelLoad("Klaviatura: Pause/Esc");
+      return;
+    }
   }
 
   // Ctrl + Q: Cancel / Clear search and reset column search highlight

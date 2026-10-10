@@ -170,10 +170,13 @@
     <!-- Table Container -->
     <div class="uj-table-wrapper" id="ujTableWrapper" tabindex="0" style="flex: 1; overflow: auto; background: #ffffff; position: relative;">
       
-      <!-- Loading State -->
-      <div id="ujLoadingState" style="display: none; position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: rgba(255,255,255,0.85); z-index: 50; flex-direction: column; align-items: center; justify-content: center; gap: 8px;">
+      <!-- Loading State (1C Standart Dayandır / Pause Düyməsi ilə) -->
+      <div id="ujLoadingState" data-uj="ujLoadingState" class="loading-box-1c" style="display: none; position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: rgba(255,255,255,0.88); z-index: 50; flex-direction: column; align-items: center; justify-content: center; gap: 10px;">
         <div class="spinner-1c"></div>
-        <div style="font-weight: bold; color: #004080; font-size: 12px;">1C: Загрузка списка документов...</div>
+        <div class="uj-loading-text" style="font-weight: bold; color: #004080; font-size: 12px;">1C: Məlumatlar sorğulanır...</div>
+        <button type="button" class="btn-cancel-loading uj-btn-cancel-loading" onclick="if(window.UniversalJournal) UniversalJournal.cancelLoad(this);" title="Sorğunu dayandır (Klaviatura: Pause)">
+          ⏹ Dayandır (Pause)
+        </button>
       </div>
 
       <!-- Empty State -->

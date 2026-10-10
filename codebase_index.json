@@ -3822,7 +3822,7 @@
     "static/js/mdi_manager.js": {
       "file_path": "static/js/mdi_manager.js",
       "type": "frontend_javascript",
-      "total_lines": 2879,
+      "total_lines": 2905,
       "objects": {
         "MdiManager": {
           "name": "MdiManager",
@@ -3994,7 +3994,7 @@
             "openOrRestoreReportWindow": {
               "name": "openOrRestoreReportWindow",
               "args": [],
-              "line": 1303
+              "line": 1329
             },
             "setWindowTitle": {
               "name": "setWindowTitle",
@@ -4002,84 +4002,84 @@
                 "id",
                 "title"
               ],
-              "line": 1322
+              "line": 1348
             },
             "updateWindowTitlebar": {
               "name": "updateWindowTitlebar",
               "args": [
                 "id"
               ],
-              "line": 1341
+              "line": 1367
             },
             "createNewReportWindow": {
               "name": "createNewReportWindow",
               "args": [
                 "presetToLoad = null"
               ],
-              "line": 1359
+              "line": 1385
             },
             "attachNewWindowButton": {
               "name": "attachNewWindowButton",
               "args": [
                 "winObj"
               ],
-              "line": 1424
+              "line": 1450
             },
             "duplicateWindow": {
               "name": "duplicateWindow",
               "args": [
                 "id"
               ],
-              "line": 1446
+              "line": 1472
             },
             "createDuplicateCatalogWindow": {
               "name": "createDuplicateCatalogWindow",
               "args": [
                 "catName"
               ],
-              "line": 1475
+              "line": 1501
             },
             "createDuplicatePortfolioWindow": {
               "name": "createDuplicatePortfolioWindow",
               "args": [],
-              "line": 1534
+              "line": 1560
             },
             "createGenericDuplicateWindow": {
               "name": "createGenericDuplicateWindow",
               "args": [
                 "id"
               ],
-              "line": 1573
+              "line": 1599
             },
             "cascadeWindows": {
               "name": "cascadeWindows",
               "args": [],
-              "line": 1618
+              "line": 1644
             },
             "tileHorizontal": {
               "name": "tileHorizontal",
               "args": [],
-              "line": 1634
+              "line": 1660
             },
             "tileVertical": {
               "name": "tileVertical",
               "args": [],
-              "line": 1650
+              "line": 1676
             },
             "closeAllWindows": {
               "name": "closeAllWindows",
               "args": [],
-              "line": 1666
+              "line": 1692
             },
             "updateWindowMenu": {
               "name": "updateWindowMenu",
               "args": [],
-              "line": 1673
+              "line": 1699
             },
             "getNextZIndex": {
               "name": "getNextZIndex",
               "args": [],
-              "line": 1712
+              "line": 1738
             },
             "bringModalToFront": {
               "name": "bringModalToFront",
@@ -4087,7 +4087,7 @@
                 "modalEl",
                 "options = {}"
               ],
-              "line": 1717
+              "line": 1743
             },
             "createModalTaskbarTab": {
               "name": "createModalTaskbarTab",
@@ -4097,68 +4097,68 @@
                 "icon",
                 "closeFn"
               ],
-              "line": 1725
+              "line": 1751
             },
             "removeModalTaskbarTab": {
               "name": "removeModalTaskbarTab",
               "args": [
                 "modalId"
               ],
-              "line": 1735
+              "line": 1761
             },
             "getTopmostVisibleWindow": {
               "name": "getTopmostVisibleWindow",
               "args": [],
-              "line": 1740
+              "line": 1766
             },
             "handleEscape": {
               "name": "handleEscape",
               "args": [],
-              "line": 1758
+              "line": 1784
             },
             "handleConfirm": {
               "name": "handleConfirm",
               "args": [],
-              "line": 1898
+              "line": 1924
             },
             "showToast": {
               "name": "showToast",
               "args": [
                 "msg"
               ],
-              "line": 2068
+              "line": 2094
             },
             "handleRefresh": {
               "name": "handleRefresh",
               "args": [],
-              "line": 2091
+              "line": 2117
             },
             "handleSearch": {
               "name": "handleSearch",
               "args": [],
-              "line": 2287
+              "line": 2313
             },
             "handleCancelSearch": {
               "name": "handleCancelSearch",
               "args": [],
-              "line": 2393
+              "line": 2419
             },
             "bindGlobalEvents": {
               "name": "bindGlobalEvents",
               "args": [],
-              "line": 2485
+              "line": 2511
             }
           }
         },
         "SnapLayoutHelper": {
           "name": "SnapLayoutHelper",
           "kind": "object_literal",
-          "start_line": 2574,
+          "start_line": 2600,
           "methods": {
             "init": {
               "name": "init",
               "args": [],
-              "line": 2580
+              "line": 2606
             },
             "onMaxButtonHover": {
               "name": "onMaxButtonHover",
@@ -4166,7 +4166,7 @@
                 "winId",
                 "btnEl"
               ],
-              "line": 2634
+              "line": 2660
             },
             "show": {
               "name": "show",
@@ -4174,24 +4174,24 @@
                 "winId",
                 "btnEl"
               ],
-              "line": 2644
+              "line": 2670
             },
             "hide": {
               "name": "hide",
               "args": [],
-              "line": 2673
+              "line": 2699
             },
             "scheduleHide": {
               "name": "scheduleHide",
               "args": [
                 "delay = 200"
               ],
-              "line": 2682
+              "line": 2708
             },
             "cancelHide": {
               "name": "cancelHide",
               "args": [],
-              "line": 2690
+              "line": 2716
             },
             "applyRect": {
               "name": "applyRect",
@@ -4202,7 +4202,7 @@
                 "width",
                 "height"
               ],
-              "line": 2697
+              "line": 2723
             },
             "applySnap": {
               "name": "applySnap",
@@ -4210,14 +4210,14 @@
                 "layoutType",
                 "zoneIdx"
               ],
-              "line": 2721
+              "line": 2747
             },
             "quickAction": {
               "name": "quickAction",
               "args": [
                 "action"
               ],
-              "line": 2831
+              "line": 2857
             }
           }
         }
@@ -4236,7 +4236,7 @@
             "e",
             "menuId"
           ],
-          "line": 2865
+          "line": 2891
         }
       },
       "api_calls": [],
@@ -5339,7 +5339,7 @@
     "static/js/universal_journal.js": {
       "file_path": "static/js/universal_journal.js",
       "type": "frontend_javascript",
-      "total_lines": 5543,
+      "total_lines": 5569,
       "objects": {
         "_UniversalJournalTarget": {
           "name": "_UniversalJournalTarget",
@@ -5350,37 +5350,37 @@
         "metaMap": {
           "name": "metaMap",
           "kind": "object_literal",
-          "start_line": 442,
+          "start_line": 451,
           "methods": {}
         },
         "payload": {
           "name": "payload",
           "kind": "object_literal",
-          "start_line": 1154,
+          "start_line": 1171,
           "methods": {}
         },
         "names": {
           "name": "names",
           "kind": "object_literal",
-          "start_line": 2171,
+          "start_line": 2188,
           "methods": {}
         },
         "presetObj": {
           "name": "presetObj",
           "kind": "object_literal",
-          "start_line": 3472,
+          "start_line": 3489,
           "methods": {}
         },
         "newCrit": {
           "name": "newCrit",
           "kind": "object_literal",
-          "start_line": 3740,
+          "start_line": 3757,
           "methods": {}
         },
         "criterion": {
           "name": "criterion",
           "kind": "object_literal",
-          "start_line": 4740,
+          "start_line": 4757,
           "methods": {
             "get": {
               "name": "get",
@@ -5389,7 +5389,7 @@
                 "prop",
                 "receiver"
               ],
-              "line": 5409
+              "line": 5426
             },
             "set": {
               "name": "set",
@@ -5399,7 +5399,7 @@
                 "value",
                 "receiver"
               ],
-              "line": 5422
+              "line": 5439
             }
           }
         }
@@ -6001,7 +6001,7 @@
     "templates/components/universal_journal_window.html": {
       "file_path": "templates/components/universal_journal_window.html",
       "type": "html_template",
-      "size_bytes": 21541
+      "size_bytes": 21888
     },
     "templates/components/value_list_modal.html": {
       "file_path": "templates/components/value_list_modal.html",

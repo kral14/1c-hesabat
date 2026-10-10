@@ -1222,9 +1222,35 @@ const MdiManager = {
   },
 
   closeWindow(id) {
-    if ((id === "universalJournalWindow" || (id && id.startsWith("ujWin_"))) && typeof UniversalJournal !== "undefined") {
-      if (typeof UniversalJournal.pauseLoading === "function") UniversalJournal.pauseLoading(id);
+    // Pəncərə bağlandıqda (X vurulduqda) həmin pəncərədə davam edən bütün sorğuları dərhal dayandırırıq (Abort)
+    if (typeof UniversalJournal !== "undefined") {
+      if (id === "universalJournalWindow" || (id && id.startsWith("ujWin_"))) {
+        if (typeof UniversalJournal.cancelLoad === "function") {
+          UniversalJournal.cancelLoad(id);
+        } else if (typeof UniversalJournal.pauseLoading === "function") {
+          UniversalJournal.pauseLoading(id);
+        }
+      }
     }
+    if (typeof ReportEngine !== "undefined" && typeof ReportEngine.cancelReport === "function") {
+      if (id === "mdiWindow-1" || (id && id.startsWith("reportWindow_")) || id === "reportSheetWindow") {
+        ReportEngine.cancelReport();
+      }
+    }
+    if (typeof CatalogSelector !== "undefined") {
+      if (id === "catalogWindowModal" || (id && id.startsWith("catalogWin_"))) {
+        if (CatalogSelector.abortController) {
+          try { CatalogSelector.abortController.abort(); } catch (e) {}
+          CatalogSelector.abortController = null;
+        }
+      }
+    }
+    if (typeof AuditJournalController !== "undefined" && (id === "auditJournalWindow" || (id && id.startsWith("auditWin_")))) {
+      if (typeof AuditJournalController.cancelLoad === "function") {
+        AuditJournalController.cancelLoad();
+      }
+    }
+
     console.log(`[MDI CLOSE] Request to close window/modal #${id}`);
     const winObj = this.windows[id];
     if (!winObj) {
