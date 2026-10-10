@@ -400,7 +400,7 @@ def handle_catalog_data(conn, payload, key, resp_q):
         q_items.SetParameter("Search", f"%{search_q}%")
     elif folder_name:
         q_items.Text = f"""
-        ВЫБРАТЬ ПЕРВЫЕ 150
+        ВЫБРАТЬ ПЕРВЫЕ 500
             Т.Код КАК Code,
             Т.Наименование КАК Name,
             {artikul_sql}

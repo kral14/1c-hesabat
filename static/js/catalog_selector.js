@@ -406,6 +406,56 @@ const CatalogSelector = {
     this.loadCatalogData("");
   },
 
+  getFolderChain(folderName) {
+    if (!folderName) return [];
+    const chain = [];
+    const map = new Map();
+    (this.allFolders || []).forEach(f => map.set(f.name, f));
+
+    let cur = map.get(folderName);
+    if (!cur && folderName) {
+      cur = { name: folderName, code: "", parent: this.parentFolder || "" };
+    }
+
+    const visited = new Set();
+    while (cur && !visited.has(cur.name)) {
+      visited.add(cur.name);
+      chain.unshift(cur);
+      if (cur.parent && map.has(cur.parent)) {
+        cur = map.get(cur.parent);
+      } else if (cur.parent && !visited.has(cur.parent)) {
+        cur = { name: cur.parent, code: "", parent: "" };
+      } else {
+        break;
+      }
+    }
+    return chain;
+  },
+
+  openFolderDirectly(folderName) {
+    this.currentFolder = folderName || "";
+    this.selectedItem = folderName ? { name: folderName, is_folder: true, code: "" } : null;
+    this.updateFolderButton();
+
+    // Axtarış xanasını təmizləyirik: Əsas papkaya (məs. MONDELEZ) basanda BÜTÜN papkalar görünür
+    const win = this.getActiveWindow();
+    const searchWrap = win ? win.querySelector("#catalogSearchWrap") : document.getElementById("catalogSearchWrap");
+    if (searchWrap) {
+      const inp = searchWrap.querySelector("input");
+      if (inp) inp.value = "";
+      const clr = searchWrap.querySelector(".c1-icon-clear");
+      const sc = searchWrap.querySelector(".c1-icon-search");
+      if (clr) clr.style.display = "none";
+      if (sc) sc.style.display = "block";
+    }
+
+    if (folderName) {
+      this.expandedFolders.add(folderName);
+    }
+    this.renderFolders();
+    this.loadCatalogData("");
+  },
+
   renderFolders(folders) {
     if (folders && folders.length > 0) {
       this.allFolders = folders;
@@ -547,23 +597,76 @@ const CatalogSelector = {
 
     const isNom = this.currentCatalog === "Номенклатура";
 
-    // 1C standard ".." up-folder navigation row
-    if (this.currentFolder) {
-      const upTr = document.createElement("tr");
-      upTr.style.background = "#faf9f5";
-      upTr.style.cursor = "pointer";
-      upTr.title = "Yuxarı qovluğa keçmək üçün klikləyin";
-      upTr.onclick = () => this.navigateUpFolder();
-      const artikulUp = isNom ? `<td></td>` : "";
-      upTr.innerHTML = `
-        <td style="text-align: center; width: 30px;">📁</td>
-        <td style="font-family: monospace; font-weight: bold; color: #004080; width: 100px;">..</td>
-        ${artikulUp}
-        <td colspan="3" style="color: #666; font-style: italic;">
-          [.. Yuxarı qovluq${this.parentFolder ? ': ' + escapeHtml(this.parentFolder) : ''}]
-        </td>
-      `;
-      tbody.appendChild(upTr);
+    // 1C İyerarxik Qovluq Zənciri (Məhsulun yerləşdiyi qovluq və onun valideynləri: məs. 01 MONDELEZ -> MDLZ_7DAYS)
+    const folderChain = this.getFolderChain(this.currentFolder);
+    if (folderChain && folderChain.length > 0) {
+      folderChain.forEach((fNode, fIdx) => {
+        // Əgər items içində artıq bu qovluq varsa, dublikat etmirik
+        const alreadyInItems = items.some(it => it.is_folder && it.name === fNode.name);
+        if (alreadyInItems) return;
+
+        const fTr = document.createElement("tr");
+        fTr.className = "catalog-tree-nav-folder";
+        fTr.style.background = "#fffdf0";
+        fTr.style.cursor = "pointer";
+        fTr.title = `Bu qovluğa daxil olmaq və bütün papkalarını görmək üçün klikləyin: ${fNode.name}`;
+        fTr.onclick = () => {
+          this.highlightItem(fTr, { name: fNode.name, code: fNode.code, is_folder: true });
+        };
+        fTr.ondblclick = () => {
+          this.openFolderDirectly(fNode.name);
+        };
+
+        const fArtikul = isNom ? `<td></td>` : "";
+        const fCode = fNode.code || "";
+
+        fTr.innerHTML = `
+          <td style="text-align: center; width: 30px; font-size: 13px;">📁</td>
+          <td style="font-family: monospace; font-weight: bold; color: #004080; width: 100px;">${escapeHtml(fCode)}</td>
+          ${fArtikul}
+          <td style="font-weight: bold; color: #002060;">
+            <span style="display: inline-flex; align-items: center; gap: 4px;">
+              <span style="color: #7f9db9; font-size: 10px;">▸</span>
+              <span>${escapeHtml(fNode.name)}</span>
+            </span>
+            <button class="btn-1c" style="margin-left: 8px; padding: 0 6px; font-size: 10px; height: 18px; border: 1px solid #316ac5; color: #004080; background: #eef6ff;" onclick="event.stopPropagation(); CatalogSelector.openFolderDirectly('${escapeAttr(fNode.name)}')" title="Bu qovluğa keç və bütün alt papkalarını göstər">
+              📂 Daxil ol
+            </button>
+          </td>
+          <td style="width: 100px; color: #666;">Qrup</td>
+          <td style="width: 80px; color: #666;"></td>
+        `;
+        tbody.appendChild(fTr);
+      });
+    }
+
+    // Əgər cari qovluğun daxilindəyiksə (məs. 01 MONDELEZ), onun bütün alt qovluqlarını cədvəlin əvvəlinə təmin edirik
+    if (this.currentFolder && this.allFolders && this.allFolders.length > 0) {
+      const subFolders = this.allFolders.filter(f => f.parent === this.currentFolder);
+      subFolders.forEach(subF => {
+        const alreadyIn = items.some(it => it.name === subF.name);
+        if (!alreadyIn) {
+          const sTr = document.createElement("tr");
+          sTr.style.cursor = "pointer";
+          sTr.onclick = () => this.highlightItem(sTr, { name: subF.name, code: subF.code, is_folder: true });
+          sTr.ondblclick = () => this.openFolderDirectly(subF.name);
+          const sArtikul = isNom ? `<td></td>` : "";
+          sTr.innerHTML = `
+            <td style="text-align: center; width: 30px;">📁</td>
+            <td style="font-family: monospace; font-weight: bold; color: #004080; width: 100px;">${escapeHtml(subF.code || "")}</td>
+            ${sArtikul}
+            <td style="font-weight: bold; color: #002060;">
+              <span>${escapeHtml(subF.name)}</span>
+              <button class="btn-1c" style="margin-left: 6px; padding: 0 6px; font-size: 10px; height: 18px; border: 1px solid #316ac5; color: #004080; background: #eef6ff;" onclick="event.stopPropagation(); CatalogSelector.selectItemDirectly(${escapeAttrJson(subF)})" title="Bu qovluğu seç">
+                ✔ Seç
+              </button>
+            </td>
+            <td style="width: 100px; color: #555;">Qrup</td>
+            <td style="width: 80px; color: #555;"></td>
+          `;
+          tbody.appendChild(sTr);
+        }
+      });
     }
 
     if (items.length === 0) {
