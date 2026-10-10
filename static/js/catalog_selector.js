@@ -227,9 +227,8 @@ const CatalogSelector = {
         }
       }
     } else {
-      const searchInput = win.querySelector("#catalogSearchInput") || document.getElementById("catalogSearchInput");
-      if (searchInput) searchInput.value = this.initialSearch || "";
-    }
+    // Initialize 1C Filter Manager Toolbar & Chips for this window
+    this.initFilters(win);
 
     // Load Folders & Items
     this.loadCatalogData(this.initialSearch || "");
@@ -349,18 +348,19 @@ const CatalogSelector = {
       if (data.target_code) {
         this.preserveTargetCode = data.target_code;
       }
+      this.rawItems = data.items || [];
       this.renderFolders(data.folders || []);
-      this.renderItems(data.items || []);
+      this.applyLocalFilters(win);
 
       const targetToHighlight = data.target_code || this.preserveTargetCode;
       if (targetToHighlight) {
-        const tbody = document.getElementById("catalogItemsBody");
+        const tbody = win ? win.querySelector("#catalogItemsBody") : document.getElementById("catalogItemsBody");
         if (tbody) {
           const foundTr = Array.from(tbody.querySelectorAll("tr")).find(
             r => r.dataset.code === targetToHighlight || r.dataset.name === targetToHighlight
           );
           if (foundTr) {
-            const itemObj = (data.items || []).find(
+            const itemObj = (this.rawItems || []).find(
               it => it.code === targetToHighlight || it.name === targetToHighlight
             );
             if (itemObj) {
@@ -568,6 +568,32 @@ const CatalogSelector = {
     tr.classList.add("selected");
     this.selectedItem = item;
 
+    // Əgər seçilən elementin aid olduğu qovluq varsa, həmin qovluğu ağacda və toolbar-da göstəririk
+    if (item.folder) {
+      this.currentFolder = item.folder;
+      if (item.parent_folder) {
+        this.parentFolder = item.parent_folder;
+      }
+      this.updateFolderButton();
+
+      const treeList = win ? win.querySelector("#catalogTreeList") : document.getElementById("catalogTreeList");
+      if (treeList) {
+        let foundFolderLi = Array.from(treeList.querySelectorAll(".catalog-tree-item")).find(li => {
+          return (li.textContent || "").trim().includes(item.folder);
+        });
+        if (!foundFolderLi) {
+          const newLi = document.createElement("li");
+          newLi.className = "catalog-tree-item selected";
+          newLi.onclick = () => this.selectFolder(newLi, item.folder);
+          newLi.innerHTML = `<span style="padding-left: ${this.parentFolder ? '20px' : '12px'};">📂</span><span style="font-weight: bold; color: #002060;">${escapeHtml(item.folder)}</span>`;
+          treeList.appendChild(newLi);
+          foundFolderLi = newLi;
+        }
+        treeList.querySelectorAll(".catalog-tree-item").forEach(i => i.classList.remove("selected"));
+        if (foundFolderLi) foundFolderLi.classList.add("selected");
+      }
+    }
+
     const label = win ? win.querySelector("#catalogSelectedLabel") : document.getElementById("catalogSelectedLabel");
     const previewTitle = win ? win.querySelector("#catalogSelectedPreviewTitle") : document.getElementById("catalogSelectedPreviewTitle");
     const btnText = win ? win.querySelector("#btnCatalogSelectText") : document.getElementById("btnCatalogSelectText");
@@ -586,6 +612,151 @@ const CatalogSelector = {
       this.loadStockData(item.code, item.name);
     } else {
       this.resetStockPane(win);
+    }
+  },
+
+  // ========================================================
+  // 1C STANDART FILTR VƏ TREE İDARƏETMƏSİ (KOMPONENT İNTEQRASİYASI)
+  // ========================================================
+  filterCriteria: [],
+  rawItems: [],
+
+  initFilters(win) {
+    const filterContainer = win ? (win.querySelector(".cat-filter-toolbar-container") || win.querySelector("#catFilterToolbarContainer")) : document.getElementById("catFilterToolbarContainer");
+    const chipsContainer = win ? (win.querySelector(".cat-filter-chips-bar") || win.querySelector("#catFilterChipsBar")) : document.getElementById("catFilterChipsBar");
+    if (!filterContainer) return;
+
+    const prefix = `catFlt_${win ? win.id : 'main'}`;
+    if (window.FilterToolbar && (!filterContainer.children || filterContainer.children.length === 0)) {
+      filterContainer.innerHTML = FilterToolbar.renderHtml({ prefix });
+    }
+
+    const isNom = (this.currentCatalog || "").toLowerCase().includes("номенклатур");
+    const fields = isNom ? [
+      { key: "name", label: "Наименование", type: "string" },
+      { key: "artikul", label: "Артикул", type: "string" },
+      { key: "code", label: "Код", type: "string" },
+      { key: "folder", label: "Папка / Группа", type: "catalog", catalog: "Номенклатура" },
+      { key: "vid_nom", label: "Вид номенклатуры", type: "list", options: ["Товар", "Услуга", "Тара", "Набор"] },
+      { key: "unit", label: "Ед. изм.", type: "string" },
+      { key: "barcode", label: "Штрихкод", type: "string" }
+    ] : [
+      { key: "name", label: "Наименование", type: "string" },
+      { key: "code", label: "Код", type: "string" },
+      { key: "folder", label: "Папка / Группа", type: "string" }
+    ];
+
+    if (window.FilterManager) {
+      win._filterManager = FilterManager.create({
+        getAvailableFields: () => fields,
+        onFilterChange: (criteria) => {
+          this.filterCriteria = criteria || [];
+          this.applyLocalFilters(win);
+        },
+        onQuickFilter: () => {
+          this.quickFilterSelected(win);
+        },
+        onRemoveColumnFilter: () => {
+          if (this.filterCriteria && this.filterCriteria.length > 0) {
+            this.filterCriteria.pop();
+            if (win._filterManager) {
+              win._filterManager.criteria = this.filterCriteria;
+              win._filterManager.updateUI();
+            }
+            this.applyLocalFilters(win);
+          }
+        },
+        onClearAll: () => {
+          this.filterCriteria = [];
+          if (win._filterManager) {
+            win._filterManager.criteria = [];
+            win._filterManager.updateUI();
+          }
+          this.applyLocalFilters(win);
+        }
+      });
+
+      win._filterManager.attach(filterContainer, chipsContainer);
+    }
+  },
+
+  quickFilterSelected(win) {
+    if (!this.selectedItem) {
+      alert("Sürətli filtr üçün siyahıdan bir element seçin.");
+      return;
+    }
+    const val = this.selectedItem.name;
+    const crit = {
+      field: "name",
+      fieldLabel: "Наименование",
+      operator: "equal",
+      operatorLabel: "Равно",
+      value: val,
+      active: true
+    };
+    this.filterCriteria = [crit];
+    if (win && win._filterManager) {
+      win._filterManager.criteria = this.filterCriteria;
+      win._filterManager.updateUI();
+    }
+    this.applyLocalFilters(win);
+  },
+
+  applyLocalFilters(winTarget) {
+    const win = winTarget || this.getActiveWindow();
+    let items = this.rawItems || [];
+
+    if (this.filterCriteria && this.filterCriteria.length > 0) {
+      const activeCriteria = this.filterCriteria.filter(c => c.active !== false);
+      if (activeCriteria.length > 0) {
+        items = items.filter(it => {
+          return activeCriteria.every(crit => {
+            const fieldKey = crit.field || "name";
+            const val = String(it[fieldKey] || it[fieldKey === 'folder' ? 'folder' : 'name'] || "").toLowerCase();
+            const targetVal = String(crit.value || "").toLowerCase();
+            const op = crit.operator || "equal";
+
+            if (op === "equal" || op === "Равно") return val === targetVal;
+            if (op === "not_equal" || op === "Не равно") return val !== targetVal;
+            if (op === "contains" || op === "Содержит") return val.includes(targetVal);
+            if (op === "not_contains" || op === "Не содержит") return !val.includes(targetVal);
+            if (op === "starts_with" || op === "Начинается с") return val.startsWith(targetVal);
+            if (op === "in_list" || op === "В списке") {
+              const listVals = String(crit.value || "").split(";").map(s => s.trim().toLowerCase());
+              return listVals.includes(val);
+            }
+            if (op === "in_group" || op === "В группе") {
+              const fld = String(it.folder || "").toLowerCase();
+              return fld === targetVal || fld.includes(targetVal);
+            }
+            return true;
+          });
+        });
+      }
+    }
+
+    this.renderItems(items);
+  },
+
+  toggleTreePane() {
+    const win = this.getActiveWindow();
+    if (!win) return;
+    const treePane = win.querySelector(".catalog-tree-pane") || win.querySelector("#catalogTreeContainer");
+    const toggleBtn = win.querySelector("#btnCatalogToggleTree");
+    if (!treePane) return;
+
+    if (treePane.style.display === "none") {
+      treePane.style.display = "";
+      if (toggleBtn) {
+        toggleBtn.classList.remove("active");
+        toggleBtn.style.background = "";
+      }
+    } else {
+      treePane.style.display = "none";
+      if (toggleBtn) {
+        toggleBtn.classList.add("active");
+        toggleBtn.style.background = "#e0e0e0";
+      }
     }
   },
 

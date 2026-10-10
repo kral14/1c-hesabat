@@ -382,6 +382,11 @@ def handle_catalog_data(conn, payload, key, resp_q):
             Штрихкоды.Владелец
     ) КАК Ш ПО (Ш.Владелец = Т.Ссылка)""" if ref_cat == "Номенклатура" else ""
 
+    folder_sql = """
+        ЕСТЬNULL(Т.Родитель.Наименование, "") КАК FolderName,
+        ЕСТЬNULL(Т.Родитель.Родитель.Наименование, "") КАК ParentFolderName,
+    """ if is_hier else '"" КАК FolderName, "" КАК ParentFolderName,'
+
     search_field = payload.get("search_field", "all")
     q_items = conn.NewObject("Запрос")
     if search_q:
@@ -410,6 +415,7 @@ def handle_catalog_data(conn, payload, key, resp_q):
             {barcode_sql}
             {vid_sql}
             {unit_sql},
+            {folder_sql}
             Т.ЭтоГруппа КАК IsFolder
         ИЗ
             Справочник.{ref_cat} КАК Т
@@ -431,6 +437,7 @@ def handle_catalog_data(conn, payload, key, resp_q):
             {barcode_sql}
             {vid_sql}
             {unit_sql},
+            {folder_sql}
             Т.ЭтоГруппа КАК IsFolder
         ИЗ
             Справочник.{ref_cat} КАК Т
@@ -452,6 +459,7 @@ def handle_catalog_data(conn, payload, key, resp_q):
             {barcode_sql}
             {vid_sql}
             {unit_sql},
+            {folder_sql}
             Т.ЭтоГруппа КАК IsFolder
         ИЗ
             Справочник.{ref_cat} КАК Т
@@ -467,6 +475,8 @@ def handle_catalog_data(conn, payload, key, resp_q):
     try:
         res_i = q_items.Execute().Choose()
         while res_i.Next():
+            f_name = str(getattr(res_i, "FolderName", "") or "").strip() if is_hier else ""
+            p_f_name = str(getattr(res_i, "ParentFolderName", "") or "").strip() if is_hier else ""
             items.append({
                 "code": str(res_i.Code).strip(),
                 "name": str(res_i.Name).strip(),
@@ -474,10 +484,22 @@ def handle_catalog_data(conn, payload, key, resp_q):
                 "barcode": str(res_i.Barcode).strip() if ref_cat == "Номенклатура" else "",
                 "vid_nom": str(res_i.VidNom).strip() if ref_cat == "Номенклатура" else "",
                 "unit": str(res_i.Unit).strip() if ref_cat == "Номенклатура" else "",
+                "folder": f_name,
+                "parent_folder": p_f_name,
                 "is_folder": bool(res_i.IsFolder)
             })
     except Exception as ei:
         print("Error fetching items:", ei)
+
+    # Axtarış zamanı tapılan ilk elementin qovluğunu seçilən qovluq təyin edirik
+    if search_q and items and not target_folder:
+        for it in items:
+            if it.get("folder"):
+                target_folder = it["folder"]
+                parent_folder = it.get("parent_folder", "")
+                target_code = it.get("code", "")
+                folder_name = target_folder
+                break
 
     # Ensure target_code is included in items if located but beyond pagination limit
     if target_code and not any(it.get("code") == target_code for it in items):

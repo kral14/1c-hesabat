@@ -27,18 +27,18 @@
       <span id="catalogPodborCount" style="font-weight: bold; color: #2e7d32; background: #e8f5e9; padding: 1px 6px; border-radius: 3px;"></span>
     </div>
 
-    <!-- Action Toolbar (Screenshot 2) -->
+    <!-- Action Toolbar (Screenshot 2 & 1C Standartı) -->
     <div class="catalog-toolbar">
-      <div class="catalog-toolbar-left" style="gap: 5px;">
+      <div class="catalog-toolbar-left" style="display: flex; align-items: center; gap: 5px; flex-wrap: nowrap;">
         <!-- "Выбрать" Button -->
-        <button class="btn-catalog-select" onclick="CatalogSelector.confirmSelection(true)" title="Seçilmiş elementi və ya qovluğu süzgəcə daxil et">
+        <button class="btn-catalog-select" onclick="CatalogSelector.confirmSelection(true)" title="Seçilmiş elementi və ya qovluğu daxil et">
           <span style="font-size: 11px;">✔</span>
           <span id="btnCatalogSelectText">Выбрать</span>
         </button>
 
-        <!-- "Выбрать эту папку" Button -->
-        <button class="btn-1c" id="btnSelectCurrentFolder" onclick="CatalogSelector.confirmCurrentFolder()" style="display: none; height: 22px; padding: 0 8px; font-weight: bold; background: #e8f4fd; border: 1px solid #316ac5; color: #004080;" title="Açılmış qovluğu bütövlükdə süzgəcə daxil et">
-          <span id="btnSelectCurrentFolderText">📁 Выбрать эту папку</span>
+        <!-- "Выбрать эту папку" Button (1C Standartı) -->
+        <button class="btn-1c btn-select-current-folder" id="btnSelectCurrentFolder" onclick="CatalogSelector.confirmCurrentFolder()" style="display: none; height: 22px; padding: 0 8px; font-weight: bold; background: #e8f4fd; border: 1px solid #316ac5; color: #004080; white-space: nowrap;" title="Seçilmiş qovluğu sənədə/süzgəcə daxil et">
+          <span id="btnSelectCurrentFolderText">📁 Выбрать папку</span>
         </button>
 
         <button class="btn-actions" onclick="alert('1C Əməliyyat menyusu')">
@@ -46,7 +46,25 @@
           <span style="font-size: 8px;">▼</span>
         </button>
 
-        <button class="box-tool-btn" title="Yenilə" onclick="CatalogSelector.reload()">🔄</button>
+        <!-- 1C İyerarxik baxış düyməsi (Ağacı gizlət/göstər) -->
+        <button type="button" class="box-tool-btn btn-hierarchical" id="btnCatalogToggleTree" title="Иерархический просмотр (Дерево папок)" onclick="CatalogSelector.toggleTreePane()" style="height: 22px; width: 24px; padding: 0; display: inline-flex; align-items: center; justify-content: center;">
+          <svg width="14" height="14" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <rect x="2" y="2" width="4" height="4" rx="0.5" fill="#fbc02d" stroke="#f57f17" stroke-width="0.8"/>
+            <rect x="8" y="2" width="6" height="4" rx="0.5" fill="#ffffff" stroke="#78909c" stroke-width="0.8"/>
+            <rect x="2" y="10" width="4" height="4" rx="0.5" fill="#fbc02d" stroke="#f57f17" stroke-width="0.8"/>
+            <rect x="8" y="10" width="6" height="4" rx="0.5" fill="#ffffff" stroke="#78909c" stroke-width="0.8"/>
+            <line x1="4" y1="6" x2="4" y2="10" stroke="#f57f17" stroke-width="1"/>
+          </svg>
+        </button>
+
+        <button class="box-tool-btn" title="Обновить (F5)" onclick="CatalogSelector.reload()" style="height: 22px; width: 24px; padding: 0; display: inline-flex; align-items: center; justify-content: center;">🔄</button>
+
+        <div style="width: 1px; height: 16px; background: #c0c0c0; margin: 0 2px;"></div>
+
+        <!-- 1C Standart Filtr Alətlər Paneli (Bizim FilterManager komponenti) -->
+        <div id="catFilterToolbarContainer" class="cat-filter-toolbar-container" style="display: inline-flex; align-items: center; gap: 3px;">
+          <!-- FilterToolbar dinamik bura render olunur və ya daxili düymələr işləyir -->
+        </div>
       </div>
 
       <!-- Search Group: Universal OneCSearchBox Component (Realizasiya Standartı) -->
@@ -66,6 +84,9 @@
         </div>
       </div>
     </div>
+
+    <!-- Aktiv Filtrlər Zolağı (FilterChipsBar) -->
+    <div id="catFilterChipsBar" class="cat-filter-chips-bar" style="display: none; background: #fffde7; border-bottom: 1px solid #ffe082; padding: 3px 8px; font-size: 11px; align-items: center; gap: 6px; flex-wrap: wrap;"></div>
 
     <!-- Catalog Main Body (Split Pane) -->
     <div class="catalog-body">
