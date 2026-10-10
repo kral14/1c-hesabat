@@ -201,9 +201,37 @@ const CatalogSelector = {
       }
     }
 
+    // Universal OneCSearchBox Component Integration (Realizasiya Standartı)
+    const searchWrap = win.querySelector("#catalogSearchWrap");
+    if (searchWrap && window.OneCSearchBox) {
+      OneCSearchBox.attach(searchWrap, {
+        debounceMs: 250,
+        onInput: (query) => {
+          this.loadCatalogData((query || "").trim());
+        },
+        onSearch: (query) => {
+          this.loadCatalogData((query || "").trim());
+        },
+        onClear: () => {
+          this.loadCatalogData("");
+        }
+      });
+      if (this.initialSearch) {
+        const inp = searchWrap.querySelector("input");
+        if (inp) {
+          inp.value = this.initialSearch;
+          const clr = searchWrap.querySelector(".c1-icon-clear");
+          const sc = searchWrap.querySelector(".c1-icon-search");
+          if (clr) clr.style.display = "block";
+          if (sc) sc.style.display = "none";
+        }
+      }
+    } else {
+      const searchInput = win.querySelector("#catalogSearchInput") || document.getElementById("catalogSearchInput");
+      if (searchInput) searchInput.value = this.initialSearch || "";
+    }
+
     // Load Folders & Items
-    const searchInput = document.getElementById("catalogSearchInput");
-    if (searchInput) searchInput.value = this.initialSearch || "";
     this.loadCatalogData(this.initialSearch || "");
   },
 

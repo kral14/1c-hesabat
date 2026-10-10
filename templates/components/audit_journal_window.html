@@ -407,13 +407,20 @@
 
       </div>
 
-      <!-- Right Search Box -->
+      <!-- Right Search Box: Universal OneCSearchBox Component (Realizasiya Standartı) -->
       <div style="display: flex; align-items: center; gap: 6px;">
-        <span style="color: #333; font-weight: 500;">Axtarış:</span>
-        <div style="display: flex; align-items: center; border: 1px solid #7f9db9; background: #fff; height: 24px; padding: 0 6px; border-radius: 2px; width: 220px;">
-          <span style="font-size: 11px; margin-right: 4px; color: #888;">🔍</span>
-          <input type="text" id="ajSearchInput" oninput="AuditJournal.onSearchInput(this.value)" placeholder="№, müştəri, məsul şəxs..." style="border: none; outline: none; font-size: 11px; width: 100%; background: transparent;">
-          <span id="ajClearSearchBtn" onclick="AuditJournal.clearSearch()" style="display: none; cursor: pointer; color: #888; font-weight: bold; margin-left: 4px;" title="Təmizlə">✕</span>
+        <div id="ajSearchWrap" class="c1-search-box-wrap" style="position: relative; display: flex; align-items: center; width: 260px; box-sizing: border-box;">
+          <input type="text" id="ajSearchInput" class="input-1c c1-search-input" placeholder="№, müştəri, məsul şəxs (Ctrl+Q)..."
+                 style="width: 100%; height: 24px; padding: 2px 26px 2px 8px; font-size: 11px; border: 1px solid #7f9db9; border-radius: 2px; background: #ffffff; box-sizing: border-box; outline: none;"
+                 autocomplete="off">
+          <button type="button" class="c1-search-action-btn" id="ajSearchActionBtn" title="Axtar (Enter) / Təmizlə (Ctrl+Q)"
+                  style="position: absolute; right: 3px; top: 50%; transform: translateY(-50%); width: 20px; height: 19px; border: none; background: transparent; cursor: pointer; display: flex; align-items: center; justify-content: center; padding: 0; outline: none;">
+            <svg class="c1-icon-search" width="13" height="13" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <circle cx="6.5" cy="6.5" r="4.5" stroke="#004080" stroke-width="1.8"/>
+              <line x1="10" y1="10" x2="14.5" y2="14.5" stroke="#004080" stroke-width="2" stroke-linecap="round"/>
+            </svg>
+            <span class="c1-icon-clear" style="display: none; color: #c62828; font-weight: bold; font-size: 13px; line-height: 13px;">✕</span>
+          </button>
         </div>
       </div>
 

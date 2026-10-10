@@ -135,6 +135,17 @@ const AuditJournal = {
       });
     }
 
+    // Universal OneCSearchBox Component Integration (Realizasiya Standartı)
+    const ajSearchWrap = document.getElementById("ajSearchWrap");
+    if (ajSearchWrap && window.OneCSearchBox) {
+      OneCSearchBox.attach(ajSearchWrap, {
+        debounceMs: 200,
+        onInput: (q) => this.onSearchInput(q),
+        onSearch: (q) => this.onSearchInput(q),
+        onClear: () => this.clearSearch()
+      });
+    }
+
     // Yadda saxlanılmış son tarixi və sənəd növünü dərhal bərpa et
     this.restoreRememberedState();
     this.updatePeriodLabel();

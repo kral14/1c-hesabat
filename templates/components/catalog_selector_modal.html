@@ -49,19 +49,20 @@
         <button class="box-tool-btn" title="Yenilə" onclick="CatalogSelector.reload()">🔄</button>
       </div>
 
-      <!-- Search Group -->
-      <div class="catalog-toolbar-right">
-        <div class="catalog-search-group">
-          <select class="catalog-search-select" id="catalogSearchField">
-            <option value="all">Все видимые поля</option>
-            <option value="name">Наименование</option>
-            <option value="artikul">Артикул</option>
-            <option value="code">Код</option>
-          </select>
-          <span style="color: #444;">содержит:</span>
-          <input type="text" id="catalogSearchInput" class="catalog-search-input" placeholder="Axtarış..." onkeydown="if(event.key==='Enter') CatalogSelector.search()">
-          <button class="btn-1c" onclick="CatalogSelector.search()" style="padding: 1px 8px;">Найти</button>
-          <button class="btn-1c" onclick="CatalogSelector.clearSearch()" title="Axtarışı təmizlə" style="padding: 1px 6px;">✕</button>
+      <!-- Search Group: Universal OneCSearchBox Component (Realizasiya Standartı) -->
+      <div class="catalog-toolbar-right" style="display: flex; align-items: center; margin-left: auto;">
+        <div id="catalogSearchWrap" class="c1-search-box-wrap" style="position: relative; display: flex; align-items: center; width: 280px; box-sizing: border-box;">
+          <input type="text" id="catalogSearchInput" class="input-1c c1-search-input" placeholder="Найти по всем колонкам (Ctrl+Q)..."
+                 style="width: 100%; height: 23px; padding: 2px 26px 2px 8px; font-size: 11px; border: 1px solid #7f9db9; border-radius: 2px; background: #ffffff; box-sizing: border-box; outline: none;"
+                 autocomplete="off">
+          <button type="button" class="c1-search-action-btn" id="catalogSearchActionBtn" title="Найти (Enter) / Очистить (Ctrl+Q)"
+                  style="position: absolute; right: 3px; top: 50%; transform: translateY(-50%); width: 20px; height: 19px; border: none; background: transparent; cursor: pointer; display: flex; align-items: center; justify-content: center; padding: 0; outline: none;">
+            <svg class="c1-icon-search" width="13" height="13" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <circle cx="6.5" cy="6.5" r="4.5" stroke="#004080" stroke-width="1.8"/>
+              <line x1="10" y1="10" x2="14.5" y2="14.5" stroke="#004080" stroke-width="2" stroke-linecap="round"/>
+            </svg>
+            <span class="c1-icon-clear" style="display: none; color: #c62828; font-weight: bold; font-size: 13px; line-height: 13px;">✕</span>
+          </button>
         </div>
       </div>
     </div>
