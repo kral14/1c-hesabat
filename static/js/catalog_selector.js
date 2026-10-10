@@ -25,6 +25,10 @@ const CatalogSelector = {
     this.currentFolder = options.folder || "";
     this.parentFolder = "";
     this.selectedItem = null;
+    this.expandedFolders = new Set(['', this.currentCatalog, "Номенклатура"]);
+    if (this.currentFolder) {
+      this.expandedFolders.add(this.currentFolder);
+    }
 
     // Item locate support
     this.locateCode = String(options.locate_code || options.code || "").trim();
@@ -403,49 +407,136 @@ const CatalogSelector = {
   },
 
   renderFolders(folders) {
+    if (folders && folders.length > 0) {
+      this.allFolders = folders;
+    }
+    const currentFoldersList = this.allFolders || [];
     const win = this.getActiveWindow();
     const treeList = win ? win.querySelector("#catalogTreeList") : document.getElementById("catalogTreeList");
     if (!treeList) return;
 
-    // Root folder
-    const rootHtml = `
-      <li class="catalog-tree-item ${!this.currentFolder ? 'selected' : ''}" onclick="CatalogSelector.selectFolder(this, '')">
-        <span>📁</span>
-        <span>${escapeHtml(this.currentCatalog)}</span>
+    // Ağac iyerarxiyasını qururuq (Parent-Child Tree)
+    const { roots, map } = this.buildFolderHierarchy(currentFoldersList);
+
+    // Əgər cari qovluq seçilibsə, onun bütün valideyn budaqlarını avtomatik açırıq
+    if (this.currentFolder) {
+      this.expandPathToFolder(this.currentFolder, map);
+    }
+
+    const isRootExpanded = this.expandedFolders.has("") || this.expandedFolders.has(this.currentCatalog);
+    const isRootSelected = !this.currentFolder;
+
+    // 1. Kök Qovluq (məsələn: 📁 Номенклатура)
+    let rootHtml = `
+      <li class="catalog-tree-item ${isRootSelected ? 'selected' : ''}" 
+          data-folder=""
+          onclick="CatalogSelector.selectFolder(this, '')" 
+          style="padding-left: 2px;">
+        <span class="c1-tree-toggle-box" onclick="event.stopPropagation(); CatalogSelector.toggleFolderExpand('')" title="${isRootExpanded ? 'Qatla' : 'Genişləndir'}">
+          ${isRootExpanded ? '−' : '+'}
+        </span>
+        <span class="c1-tree-icon">${isRootExpanded ? '📂' : '📁'}</span>
+        <span class="c1-tree-label" style="font-weight: bold; color: inherit;">${escapeHtml(this.currentCatalog)}</span>
       </li>
     `;
 
-    // Parent folder if exists in hierarchy
-    let parentFolderHtml = "";
-    if (this.parentFolder && this.parentFolder !== this.currentFolder) {
-      parentFolderHtml = `
-        <li class="catalog-tree-item" onclick="CatalogSelector.selectFolder(this, '${escapeHtml(this.parentFolder)}')">
-          <span style="padding-left: 10px;">📁</span>
-          <span>${escapeHtml(this.parentFolder)}</span>
-        </li>
-      `;
+    // 2. Alt Qovluqlar (Rekursiv 1C ağac iyerarxiyası)
+    let childrenHtml = "";
+    if (isRootExpanded && roots.length > 0) {
+      childrenHtml = roots.map(rootNode => this.renderTreeNode(rootNode, 1, map)).join("");
     }
 
-    // Active current folder in tree if selected
-    let currentFolderHtml = "";
+    treeList.innerHTML = rootHtml + childrenHtml;
+
+    // Əgər cari seçilən qovluq varsa, onu ağacın görünüş sahəsinə avtomatik scroll edirik
     if (this.currentFolder) {
-      currentFolderHtml = `
-        <li class="catalog-tree-item selected" onclick="CatalogSelector.selectFolder(this, '${escapeHtml(this.currentFolder)}')">
-          <span style="padding-left: ${this.parentFolder ? '20px' : '12px'};">📂</span>
-          <span style="font-weight: bold; color: #002060;">${escapeHtml(this.currentFolder)}</span>
-        </li>
+      setTimeout(() => {
+        const selItem = treeList.querySelector(`.catalog-tree-item[data-folder="${CSS.escape(this.currentFolder)}"]`);
+        if (selItem) {
+          selItem.scrollIntoView({ block: "nearest", behavior: "smooth" });
+        }
+      }, 50);
+    }
+  },
+
+  buildFolderHierarchy(folders) {
+    const map = new Map();
+    const roots = [];
+
+    // Bütün qovluqları xəritəyə daxil edirik
+    folders.forEach(f => {
+      map.set(f.name, { ...f, children: [] });
+    });
+
+    // Valideyn-uşaq əlaqələrini qururuq
+    folders.forEach(f => {
+      const node = map.get(f.name);
+      if (f.parent && map.has(f.parent)) {
+        map.get(f.parent).children.push(node);
+      } else {
+        roots.push(node);
+      }
+    });
+
+    return { roots, map };
+  },
+
+  expandPathToFolder(folderName, map) {
+    if (!folderName || !map) return;
+    let cur = map.get(folderName);
+    while (cur) {
+      if (cur.parent) {
+        this.expandedFolders.add(cur.parent);
+        cur = map.get(cur.parent);
+      } else {
+        this.expandedFolders.add("");
+        break;
+      }
+    }
+  },
+
+  toggleFolderExpand(folderName) {
+    if (this.expandedFolders.has(folderName)) {
+      this.expandedFolders.delete(folderName);
+    } else {
+      this.expandedFolders.add(folderName);
+    }
+    this.renderFolders();
+  },
+
+  renderTreeNode(node, depth, map) {
+    const isSelected = (this.currentFolder === node.name);
+    const hasChildren = node.children && node.children.length > 0;
+    const isExpanded = this.expandedFolders.has(node.name);
+
+    let toggleHtml = `<span style="display:inline-block; width:9px; height:9px; margin-right:4px;"></span>`;
+    if (hasChildren) {
+      toggleHtml = `
+        <span class="c1-tree-toggle-box" onclick="event.stopPropagation(); CatalogSelector.toggleFolderExpand('${escapeAttr(node.name)}')" title="${isExpanded ? 'Qatla' : 'Genişləndir'}">
+          ${isExpanded ? '−' : '+'}
+        </span>
       `;
     }
 
-    // Subfolders list
-    const subHtml = (folders || []).filter(f => f.name !== this.currentFolder && f.name !== this.parentFolder).map(f => `
-      <li class="catalog-tree-item" onclick="CatalogSelector.selectFolder(this, '${escapeHtml(f.name)}')">
-        <span style="padding-left: ${this.currentFolder ? '28px' : '14px'};">📁</span>
-        <span>${escapeHtml(f.name)}</span>
-      </li>
-    `).join("");
+    const icon = isExpanded ? '📂' : '📁';
+    const indentPx = depth * 14 + 4;
 
-    treeList.innerHTML = rootHtml + parentFolderHtml + currentFolderHtml + subHtml;
+    let html = `
+      <li class="catalog-tree-item ${isSelected ? 'selected' : ''}" 
+          data-folder="${escapeAttr(node.name)}"
+          onclick="CatalogSelector.selectFolder(this, '${escapeAttr(node.name)}')" 
+          style="padding-left: ${indentPx}px;">
+        ${toggleHtml}
+        <span class="c1-tree-icon">${icon}</span>
+        <span class="c1-tree-label">${escapeHtml(node.name)}</span>
+      </li>
+    `;
+
+    if (hasChildren && isExpanded) {
+      html += node.children.map(child => this.renderTreeNode(child, depth + 1, map)).join("");
+    }
+
+    return html;
   },
 
   renderItems(items) {
@@ -524,15 +615,19 @@ const CatalogSelector = {
     });
   },
 
-  selectFolder(el, folderName) {
-    const win = el.closest(".mdi-window") || this.getActiveWindow();
-    if (win) {
-      win.querySelectorAll(".catalog-tree-item").forEach(i => i.classList.remove("selected"));
+  selectFolder(elOrName, folderName) {
+    let fName = "";
+    if (typeof elOrName === "string") {
+      fName = elOrName;
+    } else if (typeof folderName === "string") {
+      fName = folderName;
+    } else if (elOrName && elOrName.dataset && elOrName.dataset.folder !== undefined) {
+      fName = elOrName.dataset.folder;
     }
-    el.classList.add("selected");
-    this.currentFolder = folderName;
-    this.selectedItem = folderName ? { name: folderName, is_folder: true, code: "" } : null;
+    this.currentFolder = fName || "";
+    this.selectedItem = fName ? { name: fName, is_folder: true, code: "" } : null;
     this.updateFolderButton();
+    this.renderFolders();
     this.loadCatalogData();
   },
 
@@ -1143,4 +1238,9 @@ if (typeof escapeHtml !== "function") {
 
 function escapeAttrJson(obj) {
   return JSON.stringify(obj).replace(/"/g, "&quot;");
+}
+
+function escapeAttr(str) {
+  if (!str) return "";
+  return String(str).replace(/"/g, "&quot;").replace(/'/g, "&#39;");
 }

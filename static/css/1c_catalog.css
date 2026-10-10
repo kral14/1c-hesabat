@@ -166,10 +166,14 @@
   display: flex;
   align-items: center;
   gap: 4px;
-  padding: 2px 4px;
+  padding: 1px 4px;
   cursor: pointer;
   white-space: nowrap;
   font-size: 11px;
+  height: 20px;
+  line-height: 20px;
+  user-select: none;
+  font-family: Tahoma, Arial, sans-serif;
 }
 
 .catalog-tree-item:hover {
@@ -177,12 +181,45 @@
 }
 
 .catalog-tree-item.selected {
-  background-color: var(--1c-bg-selected);
-  color: var(--1c-text-selected);
+  background-color: #316ac5 !important;
+  color: #ffffff !important;
 }
 
 .catalog-tree-item.selected span {
-  color: var(--1c-text-selected);
+  color: #ffffff !important;
+}
+
+.c1-tree-toggle-box {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 9px;
+  height: 9px;
+  min-width: 9px;
+  min-height: 9px;
+  border: 1px solid #7f9db9;
+  background: #ffffff;
+  color: #333333;
+  font-family: monospace, sans-serif;
+  font-size: 9px;
+  line-height: 8px;
+  font-weight: bold;
+  cursor: pointer;
+  margin-right: 4px;
+  vertical-align: middle;
+  user-select: none;
+  box-sizing: border-box;
+}
+
+.c1-tree-toggle-box:hover {
+  border-color: #316ac5;
+  background: #f0f7ff;
+}
+
+.catalog-tree-item.selected .c1-tree-toggle-box {
+  background: #ffffff;
+  color: #000000;
+  border-color: #ffffff;
 }
 
 /* Right Pane: Items Table */

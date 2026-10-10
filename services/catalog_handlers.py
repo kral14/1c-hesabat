@@ -306,52 +306,21 @@ def handle_catalog_data(conn, payload, key, resp_q):
         return
 
     # 2. Hierarchical Catalogs (e.g. Номенклатура, Контрагенты, Склады, Договоры, etc.)
-    # 2a. Fetch folders
+    # 2a. Fetch full folder tree (bütün qovluq iyerarxiyası)
     q_f = conn.NewObject("Запрос")
-    if search_q:
-        q_f.Text = f"""
-        ВЫБРАТЬ ПЕРВЫЕ 30
-            Т.Код КАК Code,
-            Т.Наименование КАК Name
-        ИЗ
-            Справочник.{ref_cat} КАК Т
-        ГДЕ
-            Т.ЭтоГруппа
-            И НЕ Т.ПометкаУдаления
-            И (Т.Наименование ПОДОБНО &Search ИЛИ Т.Код ПОДОБНО &Search)
-        УПОРЯДОЧИТЬ ПО
-            Name
-        """
-        q_f.SetParameter("Search", f"%{search_q}%")
-    elif folder_name:
-        q_f.Text = f"""
-        ВЫБРАТЬ ПЕРВЫЕ 50
-            Т.Код КАК Code,
-            Т.Наименование КАК Name
-        ИЗ
-            Справочник.{ref_cat} КАК Т
-        ГДЕ
-            Т.ЭтоГруппа
-            И НЕ Т.ПометкаУдаления
-            И Т.Родитель.Наименование = &Parent
-        УПОРЯДОЧИТЬ ПО
-            Name
-        """
-        q_f.SetParameter("Parent", folder_name)
-    else:
-        q_f.Text = f"""
-        ВЫБРАТЬ ПЕРВЫЕ 50
-            Т.Код КАК Code,
-            Т.Наименование КАК Name
-        ИЗ
-            Справочник.{ref_cat} КАК Т
-        ГДЕ
-            Т.ЭтоГруппа
-            И НЕ Т.ПометкаУдаления
-            И (Т.Родитель ЕСТЬ NULL ИЛИ Т.Родитель = ЗНАЧЕНИЕ(Справочник.{ref_cat}.ПустаяСсылка))
-        УПОРЯДОЧИТЬ ПО
-            Name
-        """
+    q_f.Text = f"""
+    ВЫБРАТЬ
+        Т.Код КАК Code,
+        Т.Наименование КАК Name,
+        ЕСТЬNULL(Т.Родитель.Наименование, "") КАК ParentName
+    ИЗ
+        Справочник.{ref_cat} КАК Т
+    ГДЕ
+        Т.ЭтоГруппа
+        И НЕ Т.ПометкаУдаления
+    УПОРЯДОЧИТЬ ПО
+        Name
+    """
 
     try:
         res_f = q_f.Execute().Choose()
@@ -359,6 +328,7 @@ def handle_catalog_data(conn, payload, key, resp_q):
             folders.append({
                 "code": str(res_f.Code).strip(),
                 "name": str(res_f.Name).strip(),
+                "parent": str(res_f.ParentName).strip(),
                 "is_folder": True
             })
     except Exception as ef:
