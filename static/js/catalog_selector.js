@@ -410,21 +410,34 @@ const CatalogSelector = {
     if (!folderName) return [];
     const chain = [];
     const map = new Map();
-    (this.allFolders || []).forEach(f => map.set(f.name, f));
+    (this.allFolders || []).forEach(f => {
+      if (f && f.name) map.set(f.name.trim(), f);
+    });
 
-    let cur = map.get(folderName);
-    if (!cur && folderName) {
-      cur = { name: folderName, code: "", parent: this.parentFolder || "" };
-    }
+    // Əgər rawItems içində bu qovluq və onun valideyni varsa, xəritəni zənginləşdiririk
+    (this.rawItems || []).forEach(it => {
+      if (it && it.folder && it.parent_folder) {
+        const curObj = map.get(it.folder.trim());
+        if (curObj && !curObj.parent) {
+          curObj.parent = it.parent_folder.trim();
+        } else if (!curObj) {
+          map.set(it.folder.trim(), { name: it.folder.trim(), code: "", parent: it.parent_folder.trim() });
+        }
+      }
+    });
+
+    let curName = folderName.trim();
+    let cur = map.get(curName) || { name: curName, code: "", parent: (this.parentFolder || "").trim() };
 
     const visited = new Set();
     while (cur && !visited.has(cur.name)) {
       visited.add(cur.name);
       chain.unshift(cur);
-      if (cur.parent && map.has(cur.parent)) {
-        cur = map.get(cur.parent);
-      } else if (cur.parent && !visited.has(cur.parent)) {
-        cur = { name: cur.parent, code: "", parent: "" };
+      const pName = (cur.parent || (cur.name === folderName.trim() ? this.parentFolder : "") || "").trim();
+      if (pName && map.has(pName)) {
+        cur = map.get(pName);
+      } else if (pName && !visited.has(pName)) {
+        cur = { name: pName, code: "", parent: "" };
       } else {
         break;
       }
@@ -454,6 +467,31 @@ const CatalogSelector = {
     }
     this.renderFolders();
     this.loadCatalogData("");
+  },
+
+  getParentFolder(folderName) {
+    if (!folderName) return "";
+    const fTrim = folderName.trim();
+    if (this.allFolders && this.allFolders.length > 0) {
+      const fObj = this.allFolders.find(f => f && f.name && f.name.trim() === fTrim);
+      if (fObj && fObj.parent) return fObj.parent.trim();
+    }
+    if (this.rawItems && this.rawItems.length > 0) {
+      const it = this.rawItems.find(i => i && i.folder && i.folder.trim() === fTrim && i.parent_folder);
+      if (it) return it.parent_folder.trim();
+    }
+    if (this.parentFolder) return this.parentFolder.trim();
+    return "";
+  },
+
+  getFolderCode(folderName) {
+    if (!folderName) return "";
+    const fTrim = folderName.trim();
+    if (this.allFolders && this.allFolders.length > 0) {
+      const fObj = this.allFolders.find(f => f && f.name && f.name.trim() === fTrim);
+      if (fObj && fObj.code) return fObj.code.trim();
+    }
+    return "";
   },
 
   renderFolders(folders) {
@@ -597,47 +635,78 @@ const CatalogSelector = {
 
     const isNom = this.currentCatalog === "Номенклатура";
 
-    // 1C İyerarxik Qovluq Zənciri (Məhsulun yerləşdiyi qovluq və onun valideynləri: məs. 01 MONDELEZ -> MDLZ_7DAYS)
-    const folderChain = this.getFolderChain(this.currentFolder);
-    if (folderChain && folderChain.length > 0) {
-      folderChain.forEach((fNode, fIdx) => {
-        // Əgər items içində artıq bu qovluq varsa, dublikat etmirik
-        const alreadyInItems = items.some(it => it.is_folder && it.name === fNode.name);
-        if (alreadyInItems) return;
+    // 1C İyerarxik Naviqasiya Başlığı (Yuxarı qovluq və Kökə qayıdış)
+    if (this.currentFolder) {
+      const parentName = this.getParentFolder(this.currentFolder);
+      if (parentName) {
+        // MDLZ_7DAYS-in içindəyiksə: Yuxarıda 01 MONDELEZ görünür!
+        const parentCode = this.getFolderCode(parentName);
+        const pTr = document.createElement("tr");
+        pTr.className = "catalog-nav-parent-row";
+        pTr.style.background = "#fff8e1";
+        pTr.style.cursor = "pointer";
+        pTr.title = `${parentName} qovluğuna qayıtmaq üçün klikləyin`;
+        pTr.onclick = () => this.openFolderDirectly(parentName);
 
-        const fTr = document.createElement("tr");
-        fTr.className = "catalog-tree-nav-folder";
-        fTr.style.background = "#fffdf0";
-        fTr.style.cursor = "pointer";
-        fTr.title = `Bu qovluğa daxil olmaq və bütün papkalarını görmək üçün klikləyin: ${fNode.name}`;
-        fTr.onclick = () => {
-          this.highlightItem(fTr, { name: fNode.name, code: fNode.code, is_folder: true });
-        };
-        fTr.ondblclick = () => {
-          this.openFolderDirectly(fNode.name);
-        };
-
-        const fArtikul = isNom ? `<td></td>` : "";
-        const fCode = fNode.code || "";
-
-        fTr.innerHTML = `
+        pTr.innerHTML = `
           <td style="text-align: center; width: 30px; font-size: 13px;">📁</td>
-          <td style="font-family: monospace; font-weight: bold; color: #004080; width: 100px;">${escapeHtml(fCode)}</td>
-          ${fArtikul}
-          <td style="font-weight: bold; color: #002060;">
-            <span style="display: inline-flex; align-items: center; gap: 4px;">
-              <span style="color: #7f9db9; font-size: 10px;">▸</span>
-              <span>${escapeHtml(fNode.name)}</span>
-            </span>
-            <button class="btn-1c" style="margin-left: 8px; padding: 0 6px; font-size: 10px; height: 18px; border: 1px solid #316ac5; color: #004080; background: #eef6ff;" onclick="event.stopPropagation(); CatalogSelector.openFolderDirectly('${escapeAttr(fNode.name)}')" title="Bu qovluğa keç və bütün alt papkalarını göstər">
-              📂 Daxil ol
+          <td style="font-family: monospace; font-weight: bold; color: #b78103; width: 100px;">${escapeHtml(parentCode)}</td>
+          ${isNom ? '<td></td>' : ''}
+          <td style="font-weight: bold; color: #874d00;">
+            <span>📁 ${escapeHtml(parentName)}</span>
+            <span style="font-weight: normal; font-size: 10px; color: #888; margin-left: 6px;">(Yuxarı qovluq)</span>
+            <button class="btn-1c" style="margin-left: 8px; padding: 1px 7px; font-size: 10px; height: 19px; border: 1px solid #b78103; color: #874d00; background: #fffbe6;" onclick="event.stopPropagation(); CatalogSelector.openFolderDirectly('${escapeAttr(parentName)}')">
+              📂 ${escapeHtml(parentName)} papkasını aç
             </button>
           </td>
-          <td style="width: 100px; color: #666;">Qrup</td>
-          <td style="width: 80px; color: #666;"></td>
+          <td style="width: 100px; color: #b78103;">Yuxarı qrup</td>
+          <td style="width: 80px;"></td>
         `;
-        tbody.appendChild(fTr);
-      });
+        tbody.appendChild(pTr);
+
+        // Və cari qovluğun sətri: MDLZ_7DAYS
+        const curCode = this.getFolderCode(this.currentFolder);
+        const curTr = document.createElement("tr");
+        curTr.className = "catalog-nav-cur-row";
+        curTr.style.background = "#f7f9fc";
+        curTr.innerHTML = `
+          <td style="text-align: center; width: 30px; font-size: 13px;">📂</td>
+          <td style="font-family: monospace; font-weight: bold; color: #004080; width: 100px;">${escapeHtml(curCode)}</td>
+          ${isNom ? '<td></td>' : ''}
+          <td style="font-weight: bold; color: #002060;">
+            <span>${escapeHtml(this.currentFolder)}</span>
+            <span style="font-weight: normal; font-size: 10px; color: #2e7d32; margin-left: 6px;">(Cari qovluq)</span>
+          </td>
+          <td style="width: 100px; color: #002060;">Qrup</td>
+          <td style="width: 80px;"></td>
+        `;
+        tbody.appendChild(curTr);
+      } else {
+        // Əsas papkadayıqsa (məsələn 01 MONDELEZ): Yuxarıda Mondelez və Ümumi bölməyə çıxış görünür!
+        const curCode = this.getFolderCode(this.currentFolder);
+        const rootTr = document.createElement("tr");
+        rootTr.className = "catalog-nav-root-row";
+        rootTr.style.background = "#fff8e1";
+        rootTr.style.cursor = "pointer";
+        rootTr.title = `${this.currentFolder} qovluğundan çıxmaq və bütün papkalar olan ümumi bölməyə keçmək üçün klikləyin`;
+        rootTr.onclick = () => this.openFolderDirectly("");
+
+        rootTr.innerHTML = `
+          <td style="text-align: center; width: 30px; font-size: 13px;">📁</td>
+          <td style="font-family: monospace; font-weight: bold; color: #b78103; width: 100px;">${escapeHtml(curCode || "..")}</td>
+          ${isNom ? '<td></td>' : ''}
+          <td style="font-weight: bold; color: #874d00;">
+            <span>📁 ${escapeHtml(this.currentFolder)}</span>
+            <span style="font-weight: normal; font-size: 11px; color: #795548; margin-left: 6px;">(Çıxmaq və bütün papkaları görmək üçün klikləyin)</span>
+            <button class="btn-1c" style="margin-left: 8px; padding: 1px 7px; font-size: 10px; height: 19px; border: 1px solid #b78103; color: #874d00; background: #fffbe6;" onclick="event.stopPropagation(); CatalogSelector.openFolderDirectly('')" title="Ümumi bölməyə keçid">
+              ⮵ Ümumi bölməyə çıx
+            </button>
+          </td>
+          <td style="width: 100px; color: #b78103;">Əsas qrup</td>
+          <td style="width: 80px;"></td>
+        `;
+        tbody.appendChild(rootTr);
+      }
     }
 
     // Əgər cari qovluğun daxilindəyiksə (məs. 01 MONDELEZ), onun bütün alt qovluqlarını cədvəlin əvvəlinə təmin edirik

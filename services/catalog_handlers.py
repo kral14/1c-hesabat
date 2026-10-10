@@ -445,8 +445,19 @@ def handle_catalog_data(conn, payload, key, resp_q):
     try:
         res_i = q_items.Execute().Choose()
         while res_i.Next():
-            f_name = str(getattr(res_i, "FolderName", "") or "").strip() if is_hier else ""
-            p_f_name = str(getattr(res_i, "ParentFolderName", "") or "").strip() if is_hier else ""
+            f_name = ""
+            p_f_name = ""
+            if is_hier:
+                try:
+                    f_name = str(res_i.FolderName or "").strip()
+                except Exception:
+                    f_name = str(getattr(res_i, "FolderName", "") or "").strip()
+
+                try:
+                    p_f_name = str(res_i.ParentFolderName or "").strip()
+                except Exception:
+                    p_f_name = str(getattr(res_i, "ParentFolderName", "") or "").strip()
+
             items.append({
                 "code": str(res_i.Code).strip(),
                 "name": str(res_i.Name).strip(),
