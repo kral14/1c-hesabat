@@ -227,6 +227,10 @@ const CatalogSelector = {
         }
       }
     } else {
+      const searchInput = win.querySelector("#catalogSearchInput") || document.getElementById("catalogSearchInput");
+      if (searchInput) searchInput.value = this.initialSearch || "";
+    }
+
     // Initialize 1C Filter Manager Toolbar & Chips for this window
     this.initFilters(win);
 
