@@ -3422,7 +3422,7 @@
     "static/js/catalog_selector.js": {
       "file_path": "static/js/catalog_selector.js",
       "type": "frontend_javascript",
-      "total_lines": 1418,
+      "total_lines": 1439,
       "objects": {
         "CatalogSelector": {
           "name": "CatalogSelector",
@@ -3548,78 +3548,67 @@
               ],
               "line": 595
             },
+            "toggleFolderInTable": {
+              "name": "toggleFolderInTable",
+              "args": [
+                "folderName"
+              ],
+              "line": 630
+            },
             "renderItems": {
               "name": "renderItems",
               "args": [
                 "items"
               ],
-              "line": 630
-            },
-            "selectFolder": {
-              "name": "selectFolder",
-              "args": [
-                "elOrName",
-                "folderName"
-              ],
-              "line": 790
-            },
-            "updateFolderButton": {
-              "name": "updateFolderButton",
-              "args": [],
-              "line": 806
-            },
-            "confirmCurrentFolder": {
-              "name": "confirmCurrentFolder",
-              "args": [],
-              "line": 822
-            },
-            "selectItemDirectly": {
-              "name": "selectItemDirectly",
-              "args": [
-                "item"
-              ],
-              "line": 828
-            },
+              "line": 649
+            }
+          }
+        },
+        "orphanNode": {
+          "name": "orphanNode",
+          "kind": "object_literal",
+          "start_line": 716,
+          "methods": {
             "highlightItem": {
               "name": "highlightItem",
               "args": [
                 "tr",
                 "item"
               ],
-              "line": 833
+              "line": 854
             },
             "initFilters": {
               "name": "initFilters",
               "args": [
                 "win"
               ],
-              "line": 895
+              "line": 916
             },
             "quickFilterSelected": {
               "name": "quickFilterSelected",
               "args": [
                 "win"
               ],
-              "line": 954
+              "line": 975
             }
           }
         },
         "crit": {
           "name": "crit",
           "kind": "object_literal",
-          "start_line": 960,
+          "start_line": 981,
           "methods": {
             "applyLocalFilters": {
               "name": "applyLocalFilters",
               "args": [
                 "winTarget"
               ],
-              "line": 976
+              "line": 997
             },
             "toggleTreePane": {
               "name": "toggleTreePane",
               "args": [],
-              "line": 1012
+              "line": 1033
             },
             "loadStockData": {
               "name": "loadStockData",
@@ -3627,79 +3616,79 @@
                 "code",
                 "name"
               ],
-              "line": 1036
+              "line": 1057
             },
             "renderStockTable": {
               "name": "renderStockTable",
               "args": [
                 "warehouses"
               ],
-              "line": 1110
+              "line": 1131
             },
             "getSelectedPrice": {
               "name": "getSelectedPrice",
               "args": [],
-              "line": 1116
+              "line": 1137
             },
             "selectPriceType": {
               "name": "selectPriceType",
               "args": [
                 "idx"
               ],
-              "line": 1124
+              "line": 1145
             },
             "updateStockTableRows": {
               "name": "updateStockTableRows",
               "args": [],
-              "line": 1131
+              "line": 1152
             },
             "toggleWarehouseRow": {
               "name": "toggleWarehouseRow",
               "args": [
                 "idx"
               ],
-              "line": 1249
+              "line": 1270
             },
             "toggleSelectAllWarehouses": {
               "name": "toggleSelectAllWarehouses",
               "args": [
                 "checked"
               ],
-              "line": 1259
+              "line": 1280
             },
             "renderPricesList": {
               "name": "renderPricesList",
               "args": [],
-              "line": 1268
+              "line": 1289
             },
             "resetStockPane": {
               "name": "resetStockPane",
               "args": [
                 "item"
               ],
-              "line": 1297
+              "line": 1318
             },
             "confirmSelection": {
               "name": "confirmSelection",
               "args": [
                 "finishPodbor = false"
               ],
-              "line": 1324
+              "line": 1345
             },
             "search": {
               "name": "search",
               "args": [],
-              "line": 1380
+              "line": 1401
             },
             "clearSearch": {
               "name": "clearSearch",
               "args": [],
-              "line": 1386
+              "line": 1407
             },
             "reload": {
               "name": "reload",
               "args": [],
-              "line": 1392
+              "line": 1413
             }
           }
         }
@@ -3710,14 +3699,14 @@
           "args": [
             "obj"
           ],
-          "line": 1411
+          "line": 1432
         },
         "escapeAttr": {
           "name": "escapeAttr",
           "args": [
             "str"
           ],
-          "line": 1415
+          "line": 1436
         }
       },
       "api_calls": [
