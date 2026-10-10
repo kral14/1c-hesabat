@@ -1,0 +1,6590 @@
+{
+  "project_name": "1C-Hesabat (1C:Enterprise Web & Electron Integration)",
+  "version": "1.0",
+  "description": "1C:Предприятие 8.3 veb və masaüstü inteqrasiya sistemi, universal MDI pəncərələr, kataloq seçimləri, dinamik hesabatlar və sənəd jurnalları.",
+  "modules": {
+    "app.py": {
+      "file_path": "app.py",
+      "type": "backend_python",
+      "docstring": "1C Reporter — Flask giriş nöqtəsi.\n\nStruktur:\n  services/common.py            - yol sabitləri, xəta loqu, keşlər (qovluq, barkod, qiymət növləri)\n  services/onec_service.py      - 1C STA COM işçi axını (OneCService) və əməliyyat dispetçeri\n  services/catalog_handlers.py  - kataloq, portfel, agent, istifadəçi əməliyyatları\n  services/report_handlers.py   - hesabat əməliyyatları (universal_report, universal_sales, generate)\n  services/document_handlers.py - sənəd jurnalı, sənəd redaktoru, qiymət əməliyyatları\n  routes/*.py                   - Flask Blueprint marşrutları",
+      "imports": [
+        "sys",
+        "flask.Flask",
+        "database",
+        "services.onec_service.one_c",
+        "routes.base_routes.base_bp",
+        "routes.report_routes.report_bp",
+        "routes.catalog_routes.catalog_bp",
+        "routes.document_routes.document_bp",
+        "os"
+      ],
+      "functions": {
+        "add_header": {
+          "name": "add_header",
+          "args": [
+            "response"
+          ],
+          "start_line": 42,
+          "end_line": 46,
+          "docstring": "",
+          "decorators": [
+            "app.after_request"
+          ]
+        }
+      },
+      "classes": {},
+      "endpoints": []
+    },
+    "run.py": {
+      "file_path": "run.py",
+      "type": "backend_python",
+      "docstring": "1C:Enterprise Electron Desktop Runner.\n\nBu skript sadəcə Electron interfeys pəncərəsini açır.\nƏgər ofis serverinə (Cloudflare WARP) qoşuluruqsa, ən son interfeys dəyişikliklərini (HTML, JS, CSS)\nlokal diskdən götürən və 1C məlumatlarını ofisdən çəkən Smart Proxy işə salınır.\nBeləliklə, ofis kompüterində heç bir fayl yeniləməyə ehtiyac qalmır!",
+      "imports": [
+        "os",
+        "sys",
+        "time",
+        "threading",
+        "subprocess",
+        "urllib.request",
+        "local_proxy"
+      ],
+      "functions": {
+        "is_url_active": {
+          "name": "is_url_active",
+          "args": [
+            "url",
+            "timeout"
+          ],
+          "start_line": 24,
+          "end_line": 30,
+          "docstring": "",
+          "decorators": []
+        },
+        "is_server_running": {
+          "name": "is_server_running",
+          "args": [
+            "url"
+          ],
+          "start_line": 32,
+          "end_line": 33,
+          "docstring": "",
+          "decorators": []
+        },
+        "ensure_proxy_server": {
+          "name": "ensure_proxy_server",
+          "args": [
+            "office_url"
+          ],
+          "start_line": 35,
+          "end_line": 54,
+          "docstring": "Ofis serveri üçün ev kompüterində lokal UI proxy başladır.",
+          "decorators": []
+        },
+        "ensure_server": {
+          "name": "ensure_server",
+          "args": [
+            "target_url"
+          ],
+          "start_line": 56,
+          "end_line": 79,
+          "docstring": "",
+          "decorators": []
+        },
+        "open_electron": {
+          "name": "open_electron",
+          "args": [
+            "target_url"
+          ],
+          "start_line": 81,
+          "end_line": 95,
+          "docstring": "",
+          "decorators": []
+        }
+      },
+      "classes": {},
+      "endpoints": []
+    },
+    "server.py": {
+      "file_path": "server.py",
+      "type": "backend_python",
+      "docstring": "1C:Enterprise Arxa Plan Serveri (Flask + 1C COM Persistent Session).\n\nBu skript 1C COM bağlantısını və Flask serverini arxa planda fasiləsiz işlədir.\nElectron pəncərəsi bağlansa və ya yenidən açılsada, yaxud brauzerdə F5 sıxılsa belə,\n1C bağlantısı qırılmır və sabit yaddaşda qalır.",
+      "imports": [
+        "os",
+        "sys",
+        "time",
+        "subprocess",
+        "threading",
+        "database",
+        "app.app",
+        "services.onec_service.one_c",
+        "win32timezone"
+      ],
+      "functions": {
+        "free_port_5050": {
+          "name": "free_port_5050",
+          "args": [],
+          "start_line": 30,
+          "end_line": 45,
+          "docstring": "",
+          "decorators": []
+        },
+        "warmup_1c": {
+          "name": "warmup_1c",
+          "args": [],
+          "start_line": 47,
+          "end_line": 65,
+          "docstring": "Arxa planda 1C bağlantısını qabaqcadan qurur və hazır saxlayır.",
+          "decorators": []
+        }
+      },
+      "classes": {},
+      "endpoints": []
+    },
+    "database.py": {
+      "file_path": "database.py",
+      "type": "backend_python",
+      "docstring": "",
+      "imports": [
+        "sqlite3",
+        "json",
+        "os",
+        "datetime",
+        "sys"
+      ],
+      "functions": {
+        "get_connection": {
+          "name": "get_connection",
+          "args": [],
+          "start_line": 15,
+          "end_line": 19,
+          "docstring": "",
+          "decorators": []
+        },
+        "init_db": {
+          "name": "init_db",
+          "args": [],
+          "start_line": 21,
+          "end_line": 91,
+          "docstring": "",
+          "decorators": []
+        },
+        "seed_default_presets": {
+          "name": "seed_default_presets",
+          "args": [
+            "conn"
+          ],
+          "start_line": 93,
+          "end_line": 159,
+          "docstring": "",
+          "decorators": []
+        },
+        "get_all_presets": {
+          "name": "get_all_presets",
+          "args": [],
+          "start_line": 161,
+          "end_line": 187,
+          "docstring": "",
+          "decorators": []
+        },
+        "save_preset": {
+          "name": "save_preset",
+          "args": [
+            "name",
+            "config",
+            "user_name",
+            "open_on_startup",
+            "save_on_close"
+          ],
+          "start_line": 189,
+          "end_line": 211,
+          "docstring": "",
+          "decorators": []
+        },
+        "delete_preset": {
+          "name": "delete_preset",
+          "args": [
+            "name"
+          ],
+          "start_line": 213,
+          "end_line": 220,
+          "docstring": "",
+          "decorators": []
+        },
+        "rename_preset": {
+          "name": "rename_preset",
+          "args": [
+            "old_name",
+            "new_name"
+          ],
+          "start_line": 222,
+          "end_line": 234,
+          "docstring": "",
+          "decorators": []
+        },
+        "duplicate_preset": {
+          "name": "duplicate_preset",
+          "args": [
+            "source_name",
+            "target_name"
+          ],
+          "start_line": 236,
+          "end_line": 252,
+          "docstring": "",
+          "decorators": []
+        },
+        "set_startup_preset": {
+          "name": "set_startup_preset",
+          "args": [
+            "name",
+            "is_startup"
+          ],
+          "start_line": 254,
+          "end_line": 263,
+          "docstring": "",
+          "decorators": []
+        },
+        "set_save_on_close": {
+          "name": "set_save_on_close",
+          "args": [
+            "name",
+            "is_save"
+          ],
+          "start_line": 265,
+          "end_line": 271,
+          "docstring": "",
+          "decorators": []
+        },
+        "save_current_settings": {
+          "name": "save_current_settings",
+          "args": [
+            "config",
+            "active_preset_name"
+          ],
+          "start_line": 273,
+          "end_line": 287,
+          "docstring": "",
+          "decorators": []
+        },
+        "get_current_settings": {
+          "name": "get_current_settings",
+          "args": [],
+          "start_line": 289,
+          "end_line": 304,
+          "docstring": "",
+          "decorators": []
+        },
+        "get_custom_bases": {
+          "name": "get_custom_bases",
+          "args": [],
+          "start_line": 306,
+          "end_line": 312,
+          "docstring": "",
+          "decorators": []
+        },
+        "get_hidden_bases": {
+          "name": "get_hidden_bases",
+          "args": [],
+          "start_line": 314,
+          "end_line": 320,
+          "docstring": "",
+          "decorators": []
+        },
+        "add_custom_base": {
+          "name": "add_custom_base",
+          "args": [
+            "title",
+            "server",
+            "ref"
+          ],
+          "start_line": 322,
+          "end_line": 341,
+          "docstring": "",
+          "decorators": []
+        },
+        "delete_base": {
+          "name": "delete_base",
+          "args": [
+            "server",
+            "ref"
+          ],
+          "start_line": 343,
+          "end_line": 354,
+          "docstring": "",
+          "decorators": []
+        },
+        "set_active_base": {
+          "name": "set_active_base",
+          "args": [
+            "server",
+            "ref",
+            "title",
+            "user",
+            "password"
+          ],
+          "start_line": 356,
+          "end_line": 382,
+          "docstring": "",
+          "decorators": []
+        },
+        "get_active_base": {
+          "name": "get_active_base",
+          "args": [],
+          "start_line": 384,
+          "end_line": 398,
+          "docstring": "",
+          "decorators": []
+        }
+      },
+      "classes": {},
+      "endpoints": []
+    },
+    "offline_service.py": {
+      "file_path": "offline_service.py",
+      "type": "backend_python",
+      "docstring": "Offline 1C Data Service Provider\nOperates directly on data/offline_1c_data.db SQLite database when 1C COMConnector\nis not installed or unavailable (e.g. running from home computer).",
+      "imports": [
+        "os",
+        "sqlite3",
+        "datetime",
+        "re",
+        "zipfile",
+        "json"
+      ],
+      "functions": {
+        "safe_print": {
+          "name": "safe_print",
+          "args": [
+            "msg"
+          ],
+          "start_line": 17,
+          "end_line": 24,
+          "docstring": "",
+          "decorators": []
+        },
+        "is_offline_db_ready": {
+          "name": "is_offline_db_ready",
+          "args": [],
+          "start_line": 26,
+          "end_line": 36,
+          "docstring": "",
+          "decorators": []
+        },
+        "get_connection": {
+          "name": "get_connection",
+          "args": [],
+          "start_line": 38,
+          "end_line": 41,
+          "docstring": "",
+          "decorators": []
+        },
+        "format_1c_datetime": {
+          "name": "format_1c_datetime",
+          "args": [
+            "dt_val"
+          ],
+          "start_line": 43,
+          "end_line": 60,
+          "docstring": "",
+          "decorators": []
+        },
+        "normalize_iso_datetime": {
+          "name": "normalize_iso_datetime",
+          "args": [
+            "d_str",
+            "is_end"
+          ],
+          "start_line": 62,
+          "end_line": 80,
+          "docstring": "",
+          "decorators": []
+        },
+        "ping": {
+          "name": "ping",
+          "args": [],
+          "start_line": 83,
+          "end_line": 84,
+          "docstring": "",
+          "decorators": []
+        },
+        "get_users": {
+          "name": "get_users",
+          "args": [],
+          "start_line": 87,
+          "end_line": 98,
+          "docstring": "",
+          "decorators": []
+        },
+        "get_portfolios": {
+          "name": "get_portfolios",
+          "args": [],
+          "start_line": 101,
+          "end_line": 114,
+          "docstring": "",
+          "decorators": []
+        },
+        "get_agents": {
+          "name": "get_agents",
+          "args": [],
+          "start_line": 117,
+          "end_line": 130,
+          "docstring": "",
+          "decorators": []
+        },
+        "search_kontragents": {
+          "name": "search_kontragents",
+          "args": [
+            "query"
+          ],
+          "start_line": 133,
+          "end_line": 145,
+          "docstring": "",
+          "decorators": []
+        },
+        "search_nomenklatura": {
+          "name": "search_nomenklatura",
+          "args": [
+            "query"
+          ],
+          "start_line": 148,
+          "end_line": 166,
+          "docstring": "",
+          "decorators": []
+        },
+        "get_all_price_types": {
+          "name": "get_all_price_types",
+          "args": [],
+          "start_line": 169,
+          "end_line": 179,
+          "docstring": "",
+          "decorators": []
+        },
+        "get_documents_list": {
+          "name": "get_documents_list",
+          "args": [
+            "payload"
+          ],
+          "start_line": 182,
+          "end_line": 684,
+          "docstring": "",
+          "decorators": []
+        },
+        "get_price_document": {
+          "name": "get_price_document",
+          "args": [
+            "payload"
+          ],
+          "start_line": 687,
+          "end_line": 781,
+          "docstring": "",
+          "decorators": []
+        },
+        "get_document_details": {
+          "name": "get_document_details",
+          "args": [
+            "payload"
+          ],
+          "start_line": 784,
+          "end_line": 1055,
+          "docstring": "",
+          "decorators": []
+        },
+        "save_price_document": {
+          "name": "save_price_document",
+          "args": [
+            "payload"
+          ],
+          "start_line": 1058,
+          "end_line": 1115,
+          "docstring": "",
+          "decorators": []
+        },
+        "resolve_nomenclature_batch": {
+          "name": "resolve_nomenclature_batch",
+          "args": [
+            "payload"
+          ],
+          "start_line": 1118,
+          "end_line": 1155,
+          "docstring": "",
+          "decorators": []
+        },
+        "get_batch_item_prices": {
+          "name": "get_batch_item_prices",
+          "args": [
+            "payload"
+          ],
+          "start_line": 1158,
+          "end_line": 1184,
+          "docstring": "",
+          "decorators": []
+        },
+        "get_nomenclature_stock": {
+          "name": "get_nomenclature_stock",
+          "args": [
+            "payload"
+          ],
+          "start_line": 1187,
+          "end_line": 1212,
+          "docstring": "",
+          "decorators": []
+        },
+        "get_nomenclature_card": {
+          "name": "get_nomenclature_card",
+          "args": [
+            "payload"
+          ],
+          "start_line": 1215,
+          "end_line": 1263,
+          "docstring": "",
+          "decorators": []
+        },
+        "catalog_data": {
+          "name": "catalog_data",
+          "args": [
+            "payload"
+          ],
+          "start_line": 1266,
+          "end_line": 1334,
+          "docstring": "",
+          "decorators": []
+        },
+        "get_portfolio_catalog_filters": {
+          "name": "get_portfolio_catalog_filters",
+          "args": [],
+          "start_line": 1337,
+          "end_line": 1361,
+          "docstring": "",
+          "decorators": []
+        },
+        "get_portfolio_catalog_items": {
+          "name": "get_portfolio_catalog_items",
+          "args": [
+            "payload"
+          ],
+          "start_line": 1364,
+          "end_line": 1423,
+          "docstring": "",
+          "decorators": []
+        },
+        "universal_sales": {
+          "name": "universal_sales",
+          "args": [
+            "payload"
+          ],
+          "start_line": 1426,
+          "end_line": 1478,
+          "docstring": "",
+          "decorators": []
+        },
+        "universal_report": {
+          "name": "universal_report",
+          "args": [
+            "payload"
+          ],
+          "start_line": 1481,
+          "end_line": 1677,
+          "docstring": "",
+          "decorators": []
+        },
+        "get_audit_list": {
+          "name": "get_audit_list",
+          "args": [
+            "payload"
+          ],
+          "start_line": 1684,
+          "end_line": 1839,
+          "docstring": "",
+          "decorators": []
+        },
+        "get_audit_diff": {
+          "name": "get_audit_diff",
+          "args": [
+            "payload"
+          ],
+          "start_line": 1842,
+          "end_line": 2195,
+          "docstring": "",
+          "decorators": []
+        }
+      },
+      "classes": {},
+      "endpoints": []
+    },
+    "excel_generator.py": {
+      "file_path": "excel_generator.py",
+      "type": "backend_python",
+      "docstring": "",
+      "imports": [
+        "os",
+        "datetime",
+        "openpyxl",
+        "openpyxl.styles.Font",
+        "openpyxl.styles.PatternFill",
+        "openpyxl.styles.Alignment",
+        "openpyxl.styles.Border",
+        "openpyxl.styles.Side",
+        "openpyxl.utils.get_column_letter"
+      ],
+      "functions": {
+        "generate_1c_excel": {
+          "name": "generate_1c_excel",
+          "args": [
+            "report_data",
+            "config",
+            "output_path"
+          ],
+          "start_line": 8,
+          "end_line": 466,
+          "docstring": "Generates an authentic 1C:Enterprise styled Excel (.xlsx) workbook\nmatching the exact visual layout, colors, grouping levels (urven),\noutline collapsing brackets, numbers, and metadata of 'Товары на складах'.",
+          "decorators": []
+        },
+        "generate_portfolio_catalog_excel": {
+          "name": "generate_portfolio_catalog_excel",
+          "args": [
+            "items",
+            "filters",
+            "output_path"
+          ],
+          "start_line": 469,
+          "end_line": 645,
+          "docstring": "Generates an authentic 1C:Enterprise styled Excel workbook for the\nPortfolio Catalog (Реестр номенклатуры по портфелям) with all fields:\nCode, Artikul, CV Code, Barcode, Name, Folder, Nom Group, Portfolio,\nItem Type, Base Unit, Price, Manufacturer.",
+          "decorators": []
+        }
+      },
+      "classes": {},
+      "endpoints": []
+    },
+    "services/audit_service.py": {
+      "file_path": "services/audit_service.py",
+      "type": "backend_python",
+      "docstring": "services/audit_service.py\n1C:Enterprise Document Versioning & Change Audit Service.\nExtracts document versions from РегистрСведений.ВерсииОбъектов and event log\nto provide a complete audit trail of modifications, amounts, users, and line item diffs.",
+      "imports": [
+        "base64",
+        "datetime",
+        "xml.etree.ElementTree",
+        "services.documents.base.format_1c_datetime",
+        "services.documents.base.parse_query_datetime"
+      ],
+      "functions": {
+        "get_audit_list": {
+          "name": "get_audit_list",
+          "args": [
+            "conn",
+            "payload"
+          ],
+          "start_line": 14,
+          "end_line": 278,
+          "docstring": "Returns list of modified documents with version counts, last modified date, and last author.",
+          "decorators": []
+        },
+        "resolve_ref_info": {
+          "name": "resolve_ref_info",
+          "args": [
+            "conn",
+            "catalog_name",
+            "guid_str",
+            "cache"
+          ],
+          "start_line": 281,
+          "end_line": 298,
+          "docstring": "",
+          "decorators": []
+        },
+        "resolve_ref_name": {
+          "name": "resolve_ref_name",
+          "args": [
+            "conn",
+            "catalog_name",
+            "guid_str",
+            "cache"
+          ],
+          "start_line": 301,
+          "end_line": 314,
+          "docstring": "",
+          "decorators": []
+        },
+        "resolve_doc_info": {
+          "name": "resolve_doc_info",
+          "args": [
+            "conn",
+            "doc_type",
+            "guid_str",
+            "cache"
+          ],
+          "start_line": 317,
+          "end_line": 335,
+          "docstring": "",
+          "decorators": []
+        },
+        "resolve_account_info": {
+          "name": "resolve_account_info",
+          "args": [
+            "conn",
+            "guid_str",
+            "cache"
+          ],
+          "start_line": 338,
+          "end_line": 352,
+          "docstring": "",
+          "decorators": []
+        },
+        "format_vat_rate": {
+          "name": "format_vat_rate",
+          "args": [
+            "raw_vat"
+          ],
+          "start_line": 355,
+          "end_line": 372,
+          "docstring": "",
+          "decorators": []
+        },
+        "unpack_version_snapshot": {
+          "name": "unpack_version_snapshot",
+          "args": [
+            "conn",
+            "storage_cell",
+            "nom_cache",
+            "kontr_cache",
+            "wh_cache",
+            "driver_cache",
+            "doc_cache",
+            "contract_cache",
+            "acc_cache"
+          ],
+          "start_line": 375,
+          "end_line": 713,
+          "docstring": "Unpacks version object from 1C Storage.\nSupports both BinaryData (Base64 UTF-8 XML) and direct DocumentObject COM objects.\nExtracts line items with auto/manual discounts, VAT rates, and BU chart of accounts.",
+          "decorators": []
+        },
+        "get_document_version_diff": {
+          "name": "get_document_version_diff",
+          "args": [
+            "conn",
+            "payload"
+          ],
+          "start_line": 716,
+          "end_line": 1286,
+          "docstring": "Returns full chronological version history and granular line-by-line diff\nfor a specific document.",
+          "decorators": []
+        }
+      },
+      "classes": {},
+      "endpoints": [],
+      "role_and_purpose": "1C Verilənlər bazası üzrə audit jurnalları, sənəd hərəkətləri və dəyişikliklərin analizi."
+    },
+    "services/catalog_handlers.py": {
+      "file_path": "services/catalog_handlers.py",
+      "type": "backend_python",
+      "docstring": "",
+      "imports": [
+        "datetime",
+        "services.user_passwords.list_accounts",
+        "services.user_passwords.change_password",
+        "services.common.get_folders_map",
+        "services.common.resolve_root_portfolio",
+        "services.common.is_vehicle_group",
+        "services.common.get_barcodes_map",
+        "services.common.get_all_price_types",
+        "services.common.print_server_error"
+      ],
+      "functions": {
+        "handle_get_users": {
+          "name": "handle_get_users",
+          "args": [
+            "conn",
+            "payload",
+            "key",
+            "resp_q"
+          ],
+          "start_line": 13,
+          "end_line": 22,
+          "docstring": "",
+          "decorators": []
+        },
+        "handle_get_portfolios": {
+          "name": "handle_get_portfolios",
+          "args": [
+            "conn",
+            "payload",
+            "key",
+            "resp_q"
+          ],
+          "start_line": 26,
+          "end_line": 44,
+          "docstring": "",
+          "decorators": []
+        },
+        "handle_get_agents": {
+          "name": "handle_get_agents",
+          "args": [
+            "conn",
+            "payload",
+            "key",
+            "resp_q"
+          ],
+          "start_line": 48,
+          "end_line": 67,
+          "docstring": "",
+          "decorators": []
+        },
+        "handle_search_kontragents": {
+          "name": "handle_search_kontragents",
+          "args": [
+            "conn",
+            "payload",
+            "key",
+            "resp_q"
+          ],
+          "start_line": 71,
+          "end_line": 91,
+          "docstring": "",
+          "decorators": []
+        },
+        "handle_search_nomenklatura": {
+          "name": "handle_search_nomenklatura",
+          "args": [
+            "conn",
+            "payload",
+            "key",
+            "resp_q"
+          ],
+          "start_line": 95,
+          "end_line": 120,
+          "docstring": "",
+          "decorators": []
+        },
+        "handle_catalog_data": {
+          "name": "handle_catalog_data",
+          "args": [
+            "conn",
+            "payload",
+            "key",
+            "resp_q"
+          ],
+          "start_line": 124,
+          "end_line": 527,
+          "docstring": "",
+          "decorators": []
+        },
+        "handle_get_reports": {
+          "name": "handle_get_reports",
+          "args": [
+            "conn",
+            "payload",
+            "key",
+            "resp_q"
+          ],
+          "start_line": 531,
+          "end_line": 604,
+          "docstring": "",
+          "decorators": []
+        },
+        "handle_get_price_types": {
+          "name": "handle_get_price_types",
+          "args": [
+            "conn",
+            "payload",
+            "key",
+            "resp_q"
+          ],
+          "start_line": 608,
+          "end_line": 610,
+          "docstring": "",
+          "decorators": []
+        },
+        "handle_get_portfolio_catalog_filters": {
+          "name": "handle_get_portfolio_catalog_filters",
+          "args": [
+            "conn",
+            "payload",
+            "key",
+            "resp_q"
+          ],
+          "start_line": 613,
+          "end_line": 697,
+          "docstring": "",
+          "decorators": []
+        },
+        "handle_get_portfolio_catalog_items": {
+          "name": "handle_get_portfolio_catalog_items",
+          "args": [
+            "conn",
+            "payload",
+            "key",
+            "resp_q"
+          ],
+          "start_line": 700,
+          "end_line": 933,
+          "docstring": "",
+          "decorators": []
+        },
+        "handle_get_nomenclature_stock": {
+          "name": "handle_get_nomenclature_stock",
+          "args": [
+            "conn",
+            "payload",
+            "key",
+            "resp_q"
+          ],
+          "start_line": 937,
+          "end_line": 1078,
+          "docstring": "",
+          "decorators": []
+        },
+        "handle_catalog_card": {
+          "name": "handle_catalog_card",
+          "args": [
+            "conn",
+            "payload",
+            "key",
+            "resp_q"
+          ],
+          "start_line": 1082,
+          "end_line": 1116,
+          "docstring": "",
+          "decorators": []
+        }
+      },
+      "classes": {},
+      "endpoints": [],
+      "role_and_purpose": "1C COM sorğuları vasitəsilə Nomenklatura, Kontragentlər, Skladlar, Qiymət tipləri və bütün iyerarxik kataloqların çəkilməsi, axtarışı və naviqasiyası."
+    },
+    "services/common.py": {
+      "file_path": "services/common.py",
+      "type": "backend_python",
+      "docstring": "",
+      "imports": [
+        "os",
+        "re",
+        "sys",
+        "datetime",
+        "traceback"
+      ],
+      "functions": {
+        "print_server_error": {
+          "name": "print_server_error",
+          "args": [
+            "source",
+            "err",
+            "payload"
+          ],
+          "start_line": 23,
+          "end_line": 36,
+          "docstring": "",
+          "decorators": []
+        },
+        "is_vehicle_group": {
+          "name": "is_vehicle_group",
+          "args": [
+            "name"
+          ],
+          "start_line": 40,
+          "end_line": 59,
+          "docstring": "Returns True if the nomenclature group name corresponds to a company vehicle,\ntruck, fleet maintenance, or internal logistics asset, rather than commercial merchandise.",
+          "decorators": []
+        },
+        "get_folders_map": {
+          "name": "get_folders_map",
+          "args": [
+            "conn",
+            "base_key"
+          ],
+          "start_line": 61,
+          "end_line": 94,
+          "docstring": "",
+          "decorators": []
+        },
+        "resolve_root_portfolio": {
+          "name": "resolve_root_portfolio",
+          "args": [
+            "p_id",
+            "fmap"
+          ],
+          "start_line": 96,
+          "end_line": 108,
+          "docstring": "",
+          "decorators": []
+        },
+        "get_barcodes_map": {
+          "name": "get_barcodes_map",
+          "args": [
+            "conn",
+            "base_key"
+          ],
+          "start_line": 112,
+          "end_line": 155,
+          "docstring": "",
+          "decorators": []
+        },
+        "get_all_price_types": {
+          "name": "get_all_price_types",
+          "args": [
+            "conn",
+            "base_key"
+          ],
+          "start_line": 159,
+          "end_line": 205,
+          "docstring": "",
+          "decorators": []
+        }
+      },
+      "classes": {},
+      "endpoints": [],
+      "role_and_purpose": "1C COM obyektləri ilə ortaq kommunikasiya və köməkçi funksiyalar."
+    },
+    "services/document_handlers.py": {
+      "file_path": "services/document_handlers.py",
+      "type": "backend_python",
+      "docstring": "services/document_handlers.py\nRe-exports modular document handlers from services.documents package\nfor backwards compatibility with onec_service and other modules.",
+      "imports": [
+        "services.documents.DOCUMENT_HANDLERS",
+        "services.documents.handle_get_documents_list",
+        "services.documents.handle_get_document_details",
+        "services.documents.handle_get_price_document",
+        "services.documents.handle_save_price_document",
+        "services.documents.handle_get_all_price_types",
+        "services.documents.handle_get_item_prices",
+        "services.documents.handle_resolve_nomenclature_batch",
+        "services.documents.handle_search_nomenclature",
+        "services.documents.handle_find_pogruzka",
+        "services.documents.format_1c_datetime",
+        "services.documents.parse_query_datetime"
+      ],
+      "functions": {},
+      "classes": {},
+      "endpoints": []
+    },
+    "services/onec_service.py": {
+      "file_path": "services/onec_service.py",
+      "type": "backend_python",
+      "docstring": "",
+      "imports": [
+        "os",
+        "sys",
+        "time",
+        "queue",
+        "threading",
+        "atexit",
+        "win32com.client",
+        "pythoncom",
+        "database",
+        "offline_service",
+        "virtual_1c",
+        "services.common.print_server_error",
+        "services.catalog_handlers.CATALOG_HANDLERS",
+        "services.report_handlers.REPORT_HANDLERS",
+        "services.document_handlers.DOCUMENT_HANDLERS",
+        "importlib",
+        "services.user_passwords",
+        "importlib",
+        "services.audit_service",
+        "importlib",
+        "importlib"
+      ],
+      "functions": {},
+      "classes": {
+        "OneCService": {
+          "name": "OneCService",
+          "start_line": 18,
+          "end_line": 257,
+          "methods": {
+            "__init__": {
+              "name": "__init__",
+              "args": [
+                "self"
+              ],
+              "start_line": 19,
+              "end_line": 23
+            },
+            "run": {
+              "name": "run",
+              "args": [
+                "self"
+              ],
+              "start_line": 25,
+              "end_line": 225
+            },
+            "execute": {
+              "name": "execute",
+              "args": [
+                "self",
+                "action",
+                "payload",
+                "retry"
+              ],
+              "start_line": 227,
+              "end_line": 249
+            },
+            "close_all": {
+              "name": "close_all",
+              "args": [
+                "self"
+              ],
+              "start_line": 251,
+              "end_line": 257
+            }
+          }
+        }
+      },
+      "endpoints": [],
+      "role_and_purpose": "1C COM bağlantı hovuzu (connection pool), sessiya idarəsi və sorğuların icrası."
+    },
+    "services/report_handlers.py": {
+      "file_path": "services/report_handlers.py",
+      "type": "backend_python",
+      "docstring": "",
+      "imports": [
+        "services.common.CACHE_DIR",
+        "os",
+        "re",
+        "datetime",
+        "json",
+        "services.common.get_folders_map",
+        "services.common.resolve_root_portfolio",
+        "services.common.is_vehicle_group",
+        "services.common.get_barcodes_map",
+        "services.common.get_all_price_types",
+        "services.common.print_server_error",
+        "services.common.SCRATCH_DIR",
+        "services.common.EXCEL_OUTPUT",
+        "services.common.UNIVERSAL_EXCEL",
+        "services.common.UNIVERSAL_REPORT_EXCEL",
+        "excel_generator",
+        "excel_generator"
+      ],
+      "functions": {
+        "handle_universal_sales": {
+          "name": "handle_universal_sales",
+          "args": [
+            "conn",
+            "payload",
+            "key",
+            "resp_q"
+          ],
+          "start_line": 21,
+          "end_line": 235,
+          "docstring": "",
+          "decorators": []
+        },
+        "handle_universal_report": {
+          "name": "handle_universal_report",
+          "args": [
+            "conn",
+            "payload",
+            "key",
+            "resp_q"
+          ],
+          "start_line": 239,
+          "end_line": 935,
+          "docstring": "",
+          "decorators": []
+        },
+        "handle_direct_calculate": {
+          "name": "handle_direct_calculate",
+          "args": [
+            "conn",
+            "payload",
+            "key",
+            "resp_q"
+          ],
+          "start_line": 939,
+          "end_line": 1099,
+          "docstring": "",
+          "decorators": []
+        },
+        "handle_generate": {
+          "name": "handle_generate",
+          "args": [
+            "conn",
+            "payload",
+            "key",
+            "resp_q",
+            "req_q"
+          ],
+          "start_line": 1103,
+          "end_line": 1260,
+          "docstring": "",
+          "decorators": []
+        }
+      },
+      "classes": {},
+      "endpoints": [],
+      "role_and_purpose": "1C Hesabatlarının (Realizasiya, Sifarişlər, Qalıqlar) formalaşdırılması, cədvəl matrisi, filtrasiya və qruplaşdırma."
+    },
+    "services/user_passwords.py": {
+      "file_path": "services/user_passwords.py",
+      "type": "backend_python",
+      "docstring": "Password administration through the platform API, restricted to the test infobase.",
+      "imports": [],
+      "functions": {
+        "require_test_admin": {
+          "name": "require_test_admin",
+          "args": [
+            "conn",
+            "payload"
+          ],
+          "start_line": 3,
+          "end_line": 12,
+          "docstring": "",
+          "decorators": []
+        },
+        "list_accounts": {
+          "name": "list_accounts",
+          "args": [
+            "conn",
+            "payload",
+            "key",
+            "resp_q"
+          ],
+          "start_line": 15,
+          "end_line": 27,
+          "docstring": "",
+          "decorators": []
+        },
+        "change_password": {
+          "name": "change_password",
+          "args": [
+            "conn",
+            "payload",
+            "key",
+            "resp_q"
+          ],
+          "start_line": 30,
+          "end_line": 46,
+          "docstring": "",
+          "decorators": []
+        }
+      },
+      "classes": {},
+      "endpoints": []
+    },
+    "services/__init__.py": {
+      "file_path": "services/__init__.py",
+      "type": "backend_python",
+      "docstring": "",
+      "imports": [],
+      "functions": {},
+      "classes": {},
+      "endpoints": []
+    },
+    "services/documents/base.py": {
+      "file_path": "services/documents/base.py",
+      "type": "backend_python",
+      "docstring": "services/documents/base.py\nShared utility functions for 1C document query handlers.",
+      "imports": [
+        "datetime",
+        "re"
+      ],
+      "functions": {
+        "narrow_search_to_column": {
+          "name": "narrow_search_to_column",
+          "args": [
+            "payload",
+            "where_parts",
+            "field_map",
+            "query"
+          ],
+          "start_line": 9,
+          "end_line": 24,
+          "docstring": "Honor the journal's selected text column using only trusted query fields.",
+          "decorators": []
+        },
+        "format_1c_datetime": {
+          "name": "format_1c_datetime",
+          "args": [
+            "raw_date"
+          ],
+          "start_line": 26,
+          "end_line": 43,
+          "docstring": "",
+          "decorators": []
+        },
+        "parse_query_datetime": {
+          "name": "parse_query_datetime",
+          "args": [
+            "val",
+            "is_end"
+          ],
+          "start_line": 46,
+          "end_line": 73,
+          "docstring": "",
+          "decorators": []
+        },
+        "build_filter_conditions": {
+          "name": "build_filter_conditions",
+          "args": [
+            "filters",
+            "q_doc",
+            "where_parts",
+            "debug_params",
+            "field_map"
+          ],
+          "start_line": 76,
+          "end_line": 294,
+          "docstring": "Translates UI filter rules into 1C query conditions safely and accurately.\nfield_map: dict of UI field key -> 1C SQL expression (e.g. {'kontragent': 'Т.Контрагент.Наименование'})",
+          "decorators": []
+        }
+      },
+      "classes": {},
+      "endpoints": []
+    },
+    "services/documents/generic.py": {
+      "file_path": "services/documents/generic.py",
+      "type": "backend_python",
+      "docstring": "services/documents/generic.py\nGeneric fallback handler for standard 1C document types:\n- ПоступлениеТоваровУслуг\n- ЗаказПокупателя\n- ИнвентаризацияТоваровНаСкладе\n- СписаниеТоваров\n- ОприходованиеТоваров",
+      "imports": [
+        "services.documents.base.format_1c_datetime",
+        "services.documents.base.parse_query_datetime",
+        "services.documents.base.build_filter_conditions",
+        "services.documents.base.narrow_search_to_column"
+      ],
+      "functions": {
+        "get_generic_documents_list": {
+          "name": "get_generic_documents_list",
+          "args": [
+            "conn",
+            "payload"
+          ],
+          "start_line": 13,
+          "end_line": 201,
+          "docstring": "",
+          "decorators": []
+        },
+        "get_generic_document_details": {
+          "name": "get_generic_document_details",
+          "args": [
+            "conn",
+            "payload"
+          ],
+          "start_line": 204,
+          "end_line": 258,
+          "docstring": "",
+          "decorators": []
+        }
+      },
+      "classes": {},
+      "endpoints": []
+    },
+    "services/documents/nomenclature.py": {
+      "file_path": "services/documents/nomenclature.py",
+      "type": "backend_python",
+      "docstring": "services/documents/nomenclature.py\nHandlers for nomenclature lookup, barcode resolution, and batch matching.",
+      "imports": [
+        "services.common.get_barcodes_map"
+      ],
+      "functions": {
+        "resolve_nomenclature_batch": {
+          "name": "resolve_nomenclature_batch",
+          "args": [
+            "conn",
+            "payload",
+            "key"
+          ],
+          "start_line": 8,
+          "end_line": 98,
+          "docstring": "",
+          "decorators": []
+        },
+        "search_nomenclature": {
+          "name": "search_nomenclature",
+          "args": [
+            "conn",
+            "payload",
+            "key"
+          ],
+          "start_line": 101,
+          "end_line": 146,
+          "docstring": "",
+          "decorators": []
+        }
+      },
+      "classes": {},
+      "endpoints": []
+    },
+    "services/documents/pogruzka.py": {
+      "file_path": "services/documents/pogruzka.py",
+      "type": "backend_python",
+      "docstring": "services/documents/pogruzka.py\nDedicated handler for 'ПогрузкиМашин' (Loading Machine) documents.",
+      "imports": [
+        "services.documents.base.format_1c_datetime",
+        "services.documents.base.parse_query_datetime",
+        "services.documents.base.build_filter_conditions",
+        "services.documents.base.narrow_search_to_column"
+      ],
+      "functions": {
+        "get_pogruzka_list": {
+          "name": "get_pogruzka_list",
+          "args": [
+            "conn",
+            "payload"
+          ],
+          "start_line": 8,
+          "end_line": 178,
+          "docstring": "",
+          "decorators": []
+        },
+        "get_pogruzka_details": {
+          "name": "get_pogruzka_details",
+          "args": [
+            "conn",
+            "payload"
+          ],
+          "start_line": 181,
+          "end_line": 330,
+          "docstring": "",
+          "decorators": []
+        }
+      },
+      "classes": {},
+      "endpoints": []
+    },
+    "services/documents/price.py": {
+      "file_path": "services/documents/price.py",
+      "type": "backend_python",
+      "docstring": "services/documents/price.py\nDedicated handler for 'УстановкаЦенНоменклатуры' documents and pricing registers.",
+      "imports": [
+        "datetime",
+        "services.documents.base.format_1c_datetime",
+        "services.documents.base.parse_query_datetime",
+        "services.common.get_barcodes_map"
+      ],
+      "functions": {
+        "get_price_document_details": {
+          "name": "get_price_document_details",
+          "args": [
+            "conn",
+            "payload",
+            "key"
+          ],
+          "start_line": 10,
+          "end_line": 132,
+          "docstring": "",
+          "decorators": []
+        },
+        "save_price_document": {
+          "name": "save_price_document",
+          "args": [
+            "conn",
+            "payload"
+          ],
+          "start_line": 135,
+          "end_line": 226,
+          "docstring": "",
+          "decorators": []
+        },
+        "get_all_price_types_list": {
+          "name": "get_all_price_types_list",
+          "args": [
+            "conn"
+          ],
+          "start_line": 229,
+          "end_line": 252,
+          "docstring": "",
+          "decorators": []
+        },
+        "get_item_prices_dict": {
+          "name": "get_item_prices_dict",
+          "args": [
+            "conn",
+            "payload"
+          ],
+          "start_line": 255,
+          "end_line": 299,
+          "docstring": "",
+          "decorators": []
+        },
+        "get_batch_item_prices_dict": {
+          "name": "get_batch_item_prices_dict",
+          "args": [
+            "conn",
+            "payload"
+          ],
+          "start_line": 302,
+          "end_line": 390,
+          "docstring": "",
+          "decorators": []
+        }
+      },
+      "classes": {},
+      "endpoints": []
+    },
+    "services/documents/realization.py": {
+      "file_path": "services/documents/realization.py",
+      "type": "backend_python",
+      "docstring": "services/documents/realization.py\nHandler for 'РеализацияТоваровУслуг' (Sales Invoice) documents.\nHigh-performance batch querying without full-table scans.",
+      "imports": [
+        "services.documents.base.format_1c_datetime",
+        "services.documents.base.parse_query_datetime",
+        "services.documents.base.build_filter_conditions",
+        "services.documents.base.narrow_search_to_column"
+      ],
+      "functions": {
+        "get_realization_list": {
+          "name": "get_realization_list",
+          "args": [
+            "conn",
+            "payload"
+          ],
+          "start_line": 9,
+          "end_line": 259,
+          "docstring": "",
+          "decorators": []
+        },
+        "get_realization_details": {
+          "name": "get_realization_details",
+          "args": [
+            "conn",
+            "payload"
+          ],
+          "start_line": 262,
+          "end_line": 439,
+          "docstring": "",
+          "decorators": []
+        }
+      },
+      "classes": {},
+      "endpoints": []
+    },
+    "services/documents/vozvrat.py": {
+      "file_path": "services/documents/vozvrat.py",
+      "type": "backend_python",
+      "docstring": "services/documents/vozvrat.py\nDedicated handler for 'ВозвратТоваровОтПокупателя' (Customer Returns) documents.",
+      "imports": [
+        "services.documents.base.format_1c_datetime",
+        "services.documents.base.parse_query_datetime",
+        "services.documents.base.build_filter_conditions",
+        "services.documents.base.narrow_search_to_column"
+      ],
+      "functions": {
+        "get_vozvrat_list": {
+          "name": "get_vozvrat_list",
+          "args": [
+            "conn",
+            "payload"
+          ],
+          "start_line": 8,
+          "end_line": 227,
+          "docstring": "",
+          "decorators": []
+        },
+        "get_vozvrat_details": {
+          "name": "get_vozvrat_details",
+          "args": [
+            "conn",
+            "payload"
+          ],
+          "start_line": 230,
+          "end_line": 365,
+          "docstring": "",
+          "decorators": []
+        }
+      },
+      "classes": {},
+      "endpoints": []
+    },
+    "services/documents/__init__.py": {
+      "file_path": "services/documents/__init__.py",
+      "type": "backend_python",
+      "docstring": "services/documents/__init__.py\nCentral modular router for 1C document operations.\nDispatches requests cleanly to per-document handler modules:\n- realization.py (РеализацияТоваровУслуг)\n- pogruzka.py    (ПогрузкиМашин)\n- vozvrat.py     (ВозвратТоваровОтПокупателя)\n- price.py       (УстановкаЦенНоменклатуры & Pricing)\n- generic.py     (Generic fallback for all other 1C documents)\n- nomenclature.py (Nomenclature lookup & barcodes)",
+      "imports": [
+        "services.documents.realization.get_realization_list",
+        "services.documents.realization.get_realization_details",
+        "services.documents.pogruzka.get_pogruzka_list",
+        "services.documents.pogruzka.get_pogruzka_details",
+        "services.documents.vozvrat.get_vozvrat_list",
+        "services.documents.vozvrat.get_vozvrat_details",
+        "services.documents.generic.get_generic_documents_list",
+        "services.documents.generic.get_generic_document_details",
+        "services.documents.price.get_price_document_details",
+        "services.documents.price.save_price_document",
+        "services.documents.price.get_all_price_types_list",
+        "services.documents.price.get_item_prices_dict",
+        "services.documents.nomenclature.resolve_nomenclature_batch",
+        "services.documents.nomenclature.search_nomenclature",
+        "services.documents.base.format_1c_datetime",
+        "services.documents.base.parse_query_datetime",
+        "services.documents.price.get_batch_item_prices_dict",
+        "importlib",
+        "services.documents.pogruzka"
+      ],
+      "functions": {
+        "handle_get_documents_list": {
+          "name": "handle_get_documents_list",
+          "args": [
+            "conn",
+            "payload",
+            "key",
+            "resp_q"
+          ],
+          "start_line": 27,
+          "end_line": 39,
+          "docstring": "",
+          "decorators": []
+        },
+        "handle_get_document_details": {
+          "name": "handle_get_document_details",
+          "args": [
+            "conn",
+            "payload",
+            "key",
+            "resp_q"
+          ],
+          "start_line": 42,
+          "end_line": 57,
+          "docstring": "",
+          "decorators": []
+        },
+        "handle_get_price_document": {
+          "name": "handle_get_price_document",
+          "args": [
+            "conn",
+            "payload",
+            "key",
+            "resp_q"
+          ],
+          "start_line": 60,
+          "end_line": 62,
+          "docstring": "",
+          "decorators": []
+        },
+        "handle_save_price_document": {
+          "name": "handle_save_price_document",
+          "args": [
+            "conn",
+            "payload",
+            "key",
+            "resp_q"
+          ],
+          "start_line": 65,
+          "end_line": 67,
+          "docstring": "",
+          "decorators": []
+        },
+        "handle_get_all_price_types": {
+          "name": "handle_get_all_price_types",
+          "args": [
+            "conn",
+            "payload",
+            "key",
+            "resp_q"
+          ],
+          "start_line": 70,
+          "end_line": 72,
+          "docstring": "",
+          "decorators": []
+        },
+        "handle_get_item_prices": {
+          "name": "handle_get_item_prices",
+          "args": [
+            "conn",
+            "payload",
+            "key",
+            "resp_q"
+          ],
+          "start_line": 75,
+          "end_line": 77,
+          "docstring": "",
+          "decorators": []
+        },
+        "handle_get_batch_item_prices": {
+          "name": "handle_get_batch_item_prices",
+          "args": [
+            "conn",
+            "payload",
+            "key",
+            "resp_q"
+          ],
+          "start_line": 80,
+          "end_line": 83,
+          "docstring": "",
+          "decorators": []
+        },
+        "handle_resolve_nomenclature_batch": {
+          "name": "handle_resolve_nomenclature_batch",
+          "args": [
+            "conn",
+            "payload",
+            "key",
+            "resp_q"
+          ],
+          "start_line": 86,
+          "end_line": 88,
+          "docstring": "",
+          "decorators": []
+        },
+        "handle_search_nomenclature": {
+          "name": "handle_search_nomenclature",
+          "args": [
+            "conn",
+            "payload",
+            "key",
+            "resp_q"
+          ],
+          "start_line": 91,
+          "end_line": 93,
+          "docstring": "",
+          "decorators": []
+        },
+        "handle_find_pogruzka": {
+          "name": "handle_find_pogruzka",
+          "args": [
+            "conn",
+            "payload",
+            "key",
+            "resp_q"
+          ],
+          "start_line": 96,
+          "end_line": 185,
+          "docstring": "",
+          "decorators": []
+        }
+      },
+      "classes": {},
+      "endpoints": []
+    },
+    "routes/base_routes.py": {
+      "file_path": "routes/base_routes.py",
+      "type": "backend_python",
+      "docstring": "",
+      "imports": [
+        "os",
+        "re",
+        "time",
+        "threading",
+        "flask.Blueprint",
+        "flask.render_template",
+        "flask.request",
+        "flask.jsonify",
+        "database",
+        "offline_service",
+        "services.common.print_server_error",
+        "services.onec_service.one_c",
+        "win32gui",
+        "win32con"
+      ],
+      "functions": {
+        "parse_ibases": {
+          "name": "parse_ibases",
+          "args": [],
+          "start_line": 14,
+          "end_line": 83,
+          "docstring": "",
+          "decorators": []
+        },
+        "index": {
+          "name": "index",
+          "args": [],
+          "start_line": 87,
+          "end_line": 88,
+          "docstring": "",
+          "decorators": [],
+          "endpoint": {
+            "url": "/",
+            "methods": [
+              "GET"
+            ]
+          }
+        },
+        "get_bases": {
+          "name": "get_bases",
+          "args": [],
+          "start_line": 91,
+          "end_line": 104,
+          "docstring": "",
+          "decorators": [],
+          "endpoint": {
+            "url": "/api/bases",
+            "methods": [
+              "GET"
+            ]
+          }
+        },
+        "set_active_base_endpoint": {
+          "name": "set_active_base_endpoint",
+          "args": [],
+          "start_line": 107,
+          "end_line": 120,
+          "docstring": "",
+          "decorators": [],
+          "endpoint": {
+            "url": "/api/bases/set_active",
+            "methods": [
+              "POST"
+            ]
+          }
+        },
+        "add_base_endpoint": {
+          "name": "add_base_endpoint",
+          "args": [],
+          "start_line": 123,
+          "end_line": 139,
+          "docstring": "",
+          "decorators": [],
+          "endpoint": {
+            "url": "/api/bases/add",
+            "methods": [
+              "POST"
+            ]
+          }
+        },
+        "delete_base_endpoint": {
+          "name": "delete_base_endpoint",
+          "args": [],
+          "start_line": 142,
+          "end_line": 159,
+          "docstring": "",
+          "decorators": [],
+          "endpoint": {
+            "url": "/api/bases/delete",
+            "methods": [
+              "POST"
+            ]
+          }
+        },
+        "ping_connection_endpoint": {
+          "name": "ping_connection_endpoint",
+          "args": [],
+          "start_line": 162,
+          "end_line": 181,
+          "docstring": "",
+          "decorators": [],
+          "endpoint": {
+            "url": "/api/ping_connection",
+            "methods": [
+              "GET",
+              "POST"
+            ]
+          }
+        },
+        "user_login": {
+          "name": "user_login",
+          "args": [],
+          "start_line": 184,
+          "end_line": 200,
+          "docstring": "",
+          "decorators": [],
+          "endpoint": {
+            "url": "/api/login",
+            "methods": [
+              "POST"
+            ]
+          }
+        },
+        "get_presets_endpoint": {
+          "name": "get_presets_endpoint",
+          "args": [],
+          "start_line": 203,
+          "end_line": 209,
+          "docstring": "",
+          "decorators": [],
+          "endpoint": {
+            "url": "/api/presets",
+            "methods": [
+              "GET"
+            ]
+          }
+        },
+        "save_presets_endpoint": {
+          "name": "save_presets_endpoint",
+          "args": [],
+          "start_line": 212,
+          "end_line": 227,
+          "docstring": "",
+          "decorators": [],
+          "endpoint": {
+            "url": "/api/presets/save",
+            "methods": [
+              "POST"
+            ]
+          }
+        },
+        "delete_preset_endpoint": {
+          "name": "delete_preset_endpoint",
+          "args": [],
+          "start_line": 230,
+          "end_line": 239,
+          "docstring": "",
+          "decorators": [],
+          "endpoint": {
+            "url": "/api/presets/delete",
+            "methods": [
+              "POST"
+            ]
+          }
+        },
+        "rename_preset_endpoint": {
+          "name": "rename_preset_endpoint",
+          "args": [],
+          "start_line": 242,
+          "end_line": 252,
+          "docstring": "",
+          "decorators": [],
+          "endpoint": {
+            "url": "/api/presets/rename",
+            "methods": [
+              "POST"
+            ]
+          }
+        },
+        "duplicate_preset_endpoint": {
+          "name": "duplicate_preset_endpoint",
+          "args": [],
+          "start_line": 255,
+          "end_line": 265,
+          "docstring": "",
+          "decorators": [],
+          "endpoint": {
+            "url": "/api/presets/duplicate",
+            "methods": [
+              "POST"
+            ]
+          }
+        },
+        "set_startup_endpoint": {
+          "name": "set_startup_endpoint",
+          "args": [],
+          "start_line": 268,
+          "end_line": 276,
+          "docstring": "",
+          "decorators": [],
+          "endpoint": {
+            "url": "/api/presets/set_startup",
+            "methods": [
+              "POST"
+            ]
+          }
+        },
+        "set_save_on_close_endpoint": {
+          "name": "set_save_on_close_endpoint",
+          "args": [],
+          "start_line": 279,
+          "end_line": 287,
+          "docstring": "",
+          "decorators": [],
+          "endpoint": {
+            "url": "/api/presets/set_save_on_close",
+            "methods": [
+              "POST"
+            ]
+          }
+        },
+        "current_settings_endpoint": {
+          "name": "current_settings_endpoint",
+          "args": [],
+          "start_line": 290,
+          "end_line": 302,
+          "docstring": "",
+          "decorators": [],
+          "endpoint": {
+            "url": "/api/current_settings",
+            "methods": [
+              "GET",
+              "POST"
+            ]
+          }
+        },
+        "app_minimize_endpoint": {
+          "name": "app_minimize_endpoint",
+          "args": [],
+          "start_line": 305,
+          "end_line": 315,
+          "docstring": "",
+          "decorators": [],
+          "endpoint": {
+            "url": "/api/app/minimize",
+            "methods": [
+              "POST",
+              "GET"
+            ]
+          }
+        },
+        "app_close_endpoint": {
+          "name": "app_close_endpoint",
+          "args": [],
+          "start_line": 318,
+          "end_line": 323,
+          "docstring": "",
+          "decorators": [],
+          "endpoint": {
+            "url": "/api/app/close",
+            "methods": [
+              "POST",
+              "GET"
+            ]
+          }
+        }
+      },
+      "classes": {},
+      "endpoints": [
+        {
+          "url": "/",
+          "methods": [
+            "GET"
+          ],
+          "handler": "index",
+          "start_line": 87
+        },
+        {
+          "url": "/api/bases",
+          "methods": [
+            "GET"
+          ],
+          "handler": "get_bases",
+          "start_line": 91
+        },
+        {
+          "url": "/api/bases/set_active",
+          "methods": [
+            "POST"
+          ],
+          "handler": "set_active_base_endpoint",
+          "start_line": 107
+        },
+        {
+          "url": "/api/bases/add",
+          "methods": [
+            "POST"
+          ],
+          "handler": "add_base_endpoint",
+          "start_line": 123
+        },
+        {
+          "url": "/api/bases/delete",
+          "methods": [
+            "POST"
+          ],
+          "handler": "delete_base_endpoint",
+          "start_line": 142
+        },
+        {
+          "url": "/api/ping_connection",
+          "methods": [
+            "GET",
+            "POST"
+          ],
+          "handler": "ping_connection_endpoint",
+          "start_line": 162
+        },
+        {
+          "url": "/api/login",
+          "methods": [
+            "POST"
+          ],
+          "handler": "user_login",
+          "start_line": 184
+        },
+        {
+          "url": "/api/presets",
+          "methods": [
+            "GET"
+          ],
+          "handler": "get_presets_endpoint",
+          "start_line": 203
+        },
+        {
+          "url": "/api/presets/save",
+          "methods": [
+            "POST"
+          ],
+          "handler": "save_presets_endpoint",
+          "start_line": 212
+        },
+        {
+          "url": "/api/presets/delete",
+          "methods": [
+            "POST"
+          ],
+          "handler": "delete_preset_endpoint",
+          "start_line": 230
+        },
+        {
+          "url": "/api/presets/rename",
+          "methods": [
+            "POST"
+          ],
+          "handler": "rename_preset_endpoint",
+          "start_line": 242
+        },
+        {
+          "url": "/api/presets/duplicate",
+          "methods": [
+            "POST"
+          ],
+          "handler": "duplicate_preset_endpoint",
+          "start_line": 255
+        },
+        {
+          "url": "/api/presets/set_startup",
+          "methods": [
+            "POST"
+          ],
+          "handler": "set_startup_endpoint",
+          "start_line": 268
+        },
+        {
+          "url": "/api/presets/set_save_on_close",
+          "methods": [
+            "POST"
+          ],
+          "handler": "set_save_on_close_endpoint",
+          "start_line": 279
+        },
+        {
+          "url": "/api/current_settings",
+          "methods": [
+            "GET",
+            "POST"
+          ],
+          "handler": "current_settings_endpoint",
+          "start_line": 290
+        },
+        {
+          "url": "/api/app/minimize",
+          "methods": [
+            "POST",
+            "GET"
+          ],
+          "handler": "app_minimize_endpoint",
+          "start_line": 305
+        },
+        {
+          "url": "/api/app/close",
+          "methods": [
+            "POST",
+            "GET"
+          ],
+          "handler": "app_close_endpoint",
+          "start_line": 318
+        }
+      ],
+      "role_and_purpose": "Əsas səhifələr, autentifikasiya və sessiya marşrutları."
+    },
+    "routes/catalog_routes.py": {
+      "file_path": "routes/catalog_routes.py",
+      "type": "backend_python",
+      "docstring": "",
+      "imports": [
+        "os",
+        "datetime",
+        "flask.Blueprint",
+        "flask.request",
+        "flask.jsonify",
+        "flask.send_file",
+        "services.common.PORTFOLIO_EXCEL",
+        "services.common.print_server_error",
+        "services.onec_service.one_c",
+        "excel_generator"
+      ],
+      "functions": {
+        "_password_request_allowed": {
+          "name": "_password_request_allowed",
+          "args": [
+            "data"
+          ],
+          "start_line": 10,
+          "end_line": 13,
+          "docstring": "",
+          "decorators": []
+        },
+        "user_accounts_endpoint": {
+          "name": "user_accounts_endpoint",
+          "args": [],
+          "start_line": 17,
+          "end_line": 25,
+          "docstring": "",
+          "decorators": [],
+          "endpoint": {
+            "url": "/api/users/accounts",
+            "methods": [
+              "POST"
+            ]
+          }
+        },
+        "change_user_password_endpoint": {
+          "name": "change_user_password_endpoint",
+          "args": [],
+          "start_line": 29,
+          "end_line": 39,
+          "docstring": "",
+          "decorators": [],
+          "endpoint": {
+            "url": "/api/users/change_password",
+            "methods": [
+              "POST"
+            ]
+          }
+        },
+        "catalog_card_endpoint": {
+          "name": "catalog_card_endpoint",
+          "args": [],
+          "start_line": 42,
+          "end_line": 47,
+          "docstring": "",
+          "decorators": [],
+          "endpoint": {
+            "url": "/api/catalog_card",
+            "methods": [
+              "POST"
+            ]
+          }
+        },
+        "get_users": {
+          "name": "get_users",
+          "args": [],
+          "start_line": 50,
+          "end_line": 57,
+          "docstring": "",
+          "decorators": [],
+          "endpoint": {
+            "url": "/api/users",
+            "methods": [
+              "POST"
+            ]
+          }
+        },
+        "get_portfolios": {
+          "name": "get_portfolios",
+          "args": [],
+          "start_line": 60,
+          "end_line": 67,
+          "docstring": "",
+          "decorators": [],
+          "endpoint": {
+            "url": "/api/portfolios",
+            "methods": [
+              "POST"
+            ]
+          }
+        },
+        "get_agents": {
+          "name": "get_agents",
+          "args": [],
+          "start_line": 70,
+          "end_line": 77,
+          "docstring": "",
+          "decorators": [],
+          "endpoint": {
+            "url": "/api/agents",
+            "methods": [
+              "POST"
+            ]
+          }
+        },
+        "search_kontragents": {
+          "name": "search_kontragents",
+          "args": [],
+          "start_line": 80,
+          "end_line": 87,
+          "docstring": "",
+          "decorators": [],
+          "endpoint": {
+            "url": "/api/search_kontragents",
+            "methods": [
+              "POST"
+            ]
+          }
+        },
+        "search_nomenklatura": {
+          "name": "search_nomenklatura",
+          "args": [],
+          "start_line": 90,
+          "end_line": 97,
+          "docstring": "",
+          "decorators": [],
+          "endpoint": {
+            "url": "/api/search_nomenklatura",
+            "methods": [
+              "POST"
+            ]
+          }
+        },
+        "get_price_types_endpoint": {
+          "name": "get_price_types_endpoint",
+          "args": [],
+          "start_line": 101,
+          "end_line": 112,
+          "docstring": "",
+          "decorators": [],
+          "endpoint": {
+            "url": "/api/documents/price_types",
+            "methods": [
+              "GET",
+              "POST"
+            ]
+          }
+        },
+        "catalog_data_endpoint": {
+          "name": "catalog_data_endpoint",
+          "args": [],
+          "start_line": 115,
+          "end_line": 122,
+          "docstring": "",
+          "decorators": [],
+          "endpoint": {
+            "url": "/api/catalog_data",
+            "methods": [
+              "POST"
+            ]
+          }
+        },
+        "portfolio_catalog_filters_endpoint": {
+          "name": "portfolio_catalog_filters_endpoint",
+          "args": [],
+          "start_line": 125,
+          "end_line": 132,
+          "docstring": "",
+          "decorators": [],
+          "endpoint": {
+            "url": "/api/portfolio_catalog/filters",
+            "methods": [
+              "GET",
+              "POST"
+            ]
+          }
+        },
+        "portfolio_catalog_items_endpoint": {
+          "name": "portfolio_catalog_items_endpoint",
+          "args": [],
+          "start_line": 135,
+          "end_line": 149,
+          "docstring": "",
+          "decorators": [],
+          "endpoint": {
+            "url": "/api/portfolio_catalog/items",
+            "methods": [
+              "POST"
+            ]
+          }
+        },
+        "portfolio_catalog_export_excel_endpoint": {
+          "name": "portfolio_catalog_export_excel_endpoint",
+          "args": [],
+          "start_line": 152,
+          "end_line": 162,
+          "docstring": "",
+          "decorators": [],
+          "endpoint": {
+            "url": "/api/portfolio_catalog/export_excel",
+            "methods": [
+              "POST"
+            ]
+          }
+        },
+        "download_portfolio_catalog_excel": {
+          "name": "download_portfolio_catalog_excel",
+          "args": [],
+          "start_line": 165,
+          "end_line": 169,
+          "docstring": "",
+          "decorators": [],
+          "endpoint": {
+            "url": "/api/portfolio_catalog/download_excel",
+            "methods": [
+              "GET"
+            ]
+          }
+        },
+        "search_nomenclature_endpoint": {
+          "name": "search_nomenclature_endpoint",
+          "args": [],
+          "start_line": 173,
+          "end_line": 183,
+          "docstring": "",
+          "decorators": [],
+          "endpoint": {
+            "url": "/api/documents/search_nomenclature",
+            "methods": [
+              "POST"
+            ]
+          }
+        },
+        "get_item_prices_endpoint": {
+          "name": "get_item_prices_endpoint",
+          "args": [],
+          "start_line": 187,
+          "end_line": 197,
+          "docstring": "",
+          "decorators": [],
+          "endpoint": {
+            "url": "/api/documents/item_prices",
+            "methods": [
+              "POST"
+            ]
+          }
+        },
+        "get_nomenclature_card_endpoint": {
+          "name": "get_nomenclature_card_endpoint",
+          "args": [],
+          "start_line": 201,
+          "end_line": 211,
+          "docstring": "",
+          "decorators": [],
+          "endpoint": {
+            "url": "/api/documents/nomenclature_card",
+            "methods": [
+              "POST"
+            ]
+          }
+        },
+        "get_nomenclature_stock_endpoint": {
+          "name": "get_nomenclature_stock_endpoint",
+          "args": [],
+          "start_line": 215,
+          "end_line": 224,
+          "docstring": "",
+          "decorators": [],
+          "endpoint": {
+            "url": "/api/documents/nomenclature_stock",
+            "methods": [
+              "POST"
+            ]
+          }
+        }
+      },
+      "classes": {},
+      "endpoints": [
+        {
+          "url": "/api/users/accounts",
+          "methods": [
+            "POST"
+          ],
+          "handler": "user_accounts_endpoint",
+          "start_line": 17
+        },
+        {
+          "url": "/api/users/change_password",
+          "methods": [
+            "POST"
+          ],
+          "handler": "change_user_password_endpoint",
+          "start_line": 29
+        },
+        {
+          "url": "/api/catalog_card",
+          "methods": [
+            "POST"
+          ],
+          "handler": "catalog_card_endpoint",
+          "start_line": 42
+        },
+        {
+          "url": "/api/users",
+          "methods": [
+            "POST"
+          ],
+          "handler": "get_users",
+          "start_line": 50
+        },
+        {
+          "url": "/api/portfolios",
+          "methods": [
+            "POST"
+          ],
+          "handler": "get_portfolios",
+          "start_line": 60
+        },
+        {
+          "url": "/api/agents",
+          "methods": [
+            "POST"
+          ],
+          "handler": "get_agents",
+          "start_line": 70
+        },
+        {
+          "url": "/api/search_kontragents",
+          "methods": [
+            "POST"
+          ],
+          "handler": "search_kontragents",
+          "start_line": 80
+        },
+        {
+          "url": "/api/search_nomenklatura",
+          "methods": [
+            "POST"
+          ],
+          "handler": "search_nomenklatura",
+          "start_line": 90
+        },
+        {
+          "url": "/api/documents/price_types",
+          "methods": [
+            "GET",
+            "POST"
+          ],
+          "handler": "get_price_types_endpoint",
+          "start_line": 101
+        },
+        {
+          "url": "/api/catalog_data",
+          "methods": [
+            "POST"
+          ],
+          "handler": "catalog_data_endpoint",
+          "start_line": 115
+        },
+        {
+          "url": "/api/portfolio_catalog/filters",
+          "methods": [
+            "GET",
+            "POST"
+          ],
+          "handler": "portfolio_catalog_filters_endpoint",
+          "start_line": 125
+        },
+        {
+          "url": "/api/portfolio_catalog/items",
+          "methods": [
+            "POST"
+          ],
+          "handler": "portfolio_catalog_items_endpoint",
+          "start_line": 135
+        },
+        {
+          "url": "/api/portfolio_catalog/export_excel",
+          "methods": [
+            "POST"
+          ],
+          "handler": "portfolio_catalog_export_excel_endpoint",
+          "start_line": 152
+        },
+        {
+          "url": "/api/portfolio_catalog/download_excel",
+          "methods": [
+            "GET"
+          ],
+          "handler": "download_portfolio_catalog_excel",
+          "start_line": 165
+        },
+        {
+          "url": "/api/documents/search_nomenclature",
+          "methods": [
+            "POST"
+          ],
+          "handler": "search_nomenclature_endpoint",
+          "start_line": 173
+        },
+        {
+          "url": "/api/documents/item_prices",
+          "methods": [
+            "POST"
+          ],
+          "handler": "get_item_prices_endpoint",
+          "start_line": 187
+        },
+        {
+          "url": "/api/documents/nomenclature_card",
+          "methods": [
+            "POST"
+          ],
+          "handler": "get_nomenclature_card_endpoint",
+          "start_line": 201
+        },
+        {
+          "url": "/api/documents/nomenclature_stock",
+          "methods": [
+            "POST"
+          ],
+          "handler": "get_nomenclature_stock_endpoint",
+          "start_line": 215
+        }
+      ],
+      "role_and_purpose": "/api/catalog_data, /api/search_* API endpointləri və frontend-ə cavab yönləndirmələri."
+    },
+    "routes/document_routes.py": {
+      "file_path": "routes/document_routes.py",
+      "type": "backend_python",
+      "docstring": "",
+      "imports": [
+        "os",
+        "io",
+        "csv",
+        "flask.Blueprint",
+        "flask.request",
+        "flask.jsonify",
+        "flask.send_file",
+        "services.common.APP_DIR",
+        "services.common.print_server_error",
+        "services.onec_service.one_c",
+        "openpyxl",
+        "openpyxl",
+        "xlrd",
+        "offline_service"
+      ],
+      "functions": {
+        "documents_list_endpoint": {
+          "name": "documents_list_endpoint",
+          "args": [],
+          "start_line": 12,
+          "end_line": 32,
+          "docstring": "",
+          "decorators": [],
+          "endpoint": {
+            "url": "/api/documents/list",
+            "methods": [
+              "POST"
+            ]
+          }
+        },
+        "document_details_endpoint": {
+          "name": "document_details_endpoint",
+          "args": [],
+          "start_line": 35,
+          "end_line": 45,
+          "docstring": "",
+          "decorators": [],
+          "endpoint": {
+            "url": "/api/documents/details",
+            "methods": [
+              "POST"
+            ]
+          }
+        },
+        "find_pogruzka_endpoint": {
+          "name": "find_pogruzka_endpoint",
+          "args": [],
+          "start_line": 48,
+          "end_line": 59,
+          "docstring": "",
+          "decorators": [],
+          "endpoint": {
+            "url": "/api/documents/find_pogruzka",
+            "methods": [
+              "POST"
+            ]
+          }
+        },
+        "get_price_doc_endpoint": {
+          "name": "get_price_doc_endpoint",
+          "args": [],
+          "start_line": 63,
+          "end_line": 73,
+          "docstring": "",
+          "decorators": [],
+          "endpoint": {
+            "url": "/api/documents/price_doc",
+            "methods": [
+              "POST"
+            ]
+          }
+        },
+        "save_price_doc_endpoint": {
+          "name": "save_price_doc_endpoint",
+          "args": [],
+          "start_line": 76,
+          "end_line": 86,
+          "docstring": "",
+          "decorators": [],
+          "endpoint": {
+            "url": "/api/documents/save_price_doc",
+            "methods": [
+              "POST"
+            ]
+          }
+        },
+        "resolve_nomenclature_endpoint": {
+          "name": "resolve_nomenclature_endpoint",
+          "args": [],
+          "start_line": 89,
+          "end_line": 99,
+          "docstring": "",
+          "decorators": [],
+          "endpoint": {
+            "url": "/api/documents/resolve_nomenclature",
+            "methods": [
+              "POST"
+            ]
+          }
+        },
+        "get_batch_item_prices_endpoint": {
+          "name": "get_batch_item_prices_endpoint",
+          "args": [],
+          "start_line": 102,
+          "end_line": 113,
+          "docstring": "",
+          "decorators": [],
+          "endpoint": {
+            "url": "/api/documents/batch_item_prices",
+            "methods": [
+              "POST"
+            ]
+          }
+        },
+        "download_excel_template_endpoint": {
+          "name": "download_excel_template_endpoint",
+          "args": [],
+          "start_line": 116,
+          "end_line": 139,
+          "docstring": "",
+          "decorators": [],
+          "endpoint": {
+            "url": "/api/documents/download_excel_template",
+            "methods": [
+              "GET"
+            ]
+          }
+        },
+        "parse_excel_file_endpoint": {
+          "name": "parse_excel_file_endpoint",
+          "args": [],
+          "start_line": 142,
+          "end_line": 278,
+          "docstring": "",
+          "decorators": [],
+          "endpoint": {
+            "url": "/api/documents/parse_excel_file",
+            "methods": [
+              "POST"
+            ]
+          }
+        },
+        "audit_list_endpoint": {
+          "name": "audit_list_endpoint",
+          "args": [],
+          "start_line": 281,
+          "end_line": 291,
+          "docstring": "",
+          "decorators": [],
+          "endpoint": {
+            "url": "/api/audit/list",
+            "methods": [
+              "POST"
+            ]
+          }
+        },
+        "audit_details_endpoint": {
+          "name": "audit_details_endpoint",
+          "args": [],
+          "start_line": 294,
+          "end_line": 323,
+          "docstring": "",
+          "decorators": [],
+          "endpoint": {
+            "url": "/api/audit/details",
+            "methods": [
+              "POST"
+            ]
+          }
+        }
+      },
+      "classes": {},
+      "endpoints": [
+        {
+          "url": "/api/documents/list",
+          "methods": [
+            "POST"
+          ],
+          "handler": "documents_list_endpoint",
+          "start_line": 12
+        },
+        {
+          "url": "/api/documents/details",
+          "methods": [
+            "POST"
+          ],
+          "handler": "document_details_endpoint",
+          "start_line": 35
+        },
+        {
+          "url": "/api/documents/find_pogruzka",
+          "methods": [
+            "POST"
+          ],
+          "handler": "find_pogruzka_endpoint",
+          "start_line": 48
+        },
+        {
+          "url": "/api/documents/price_doc",
+          "methods": [
+            "POST"
+          ],
+          "handler": "get_price_doc_endpoint",
+          "start_line": 63
+        },
+        {
+          "url": "/api/documents/save_price_doc",
+          "methods": [
+            "POST"
+          ],
+          "handler": "save_price_doc_endpoint",
+          "start_line": 76
+        },
+        {
+          "url": "/api/documents/resolve_nomenclature",
+          "methods": [
+            "POST"
+          ],
+          "handler": "resolve_nomenclature_endpoint",
+          "start_line": 89
+        },
+        {
+          "url": "/api/documents/batch_item_prices",
+          "methods": [
+            "POST"
+          ],
+          "handler": "get_batch_item_prices_endpoint",
+          "start_line": 102
+        },
+        {
+          "url": "/api/documents/download_excel_template",
+          "methods": [
+            "GET"
+          ],
+          "handler": "download_excel_template_endpoint",
+          "start_line": 116
+        },
+        {
+          "url": "/api/documents/parse_excel_file",
+          "methods": [
+            "POST"
+          ],
+          "handler": "parse_excel_file_endpoint",
+          "start_line": 142
+        },
+        {
+          "url": "/api/audit/list",
+          "methods": [
+            "POST"
+          ],
+          "handler": "audit_list_endpoint",
+          "start_line": 281
+        },
+        {
+          "url": "/api/audit/details",
+          "methods": [
+            "POST"
+          ],
+          "handler": "audit_details_endpoint",
+          "start_line": 294
+        }
+      ]
+    },
+    "routes/report_routes.py": {
+      "file_path": "routes/report_routes.py",
+      "type": "backend_python",
+      "docstring": "",
+      "imports": [
+        "os",
+        "json",
+        "datetime",
+        "flask.Blueprint",
+        "flask.request",
+        "flask.jsonify",
+        "flask.send_file",
+        "services.common.APP_DIR",
+        "services.common.SCRATCH_DIR",
+        "services.common.EXCEL_OUTPUT",
+        "services.common.UNIVERSAL_EXCEL",
+        "services.common.UNIVERSAL_REPORT_EXCEL",
+        "services.common.print_server_error",
+        "services.onec_service.one_c",
+        "excel_generator"
+      ],
+      "functions": {
+        "generate_report": {
+          "name": "generate_report",
+          "args": [],
+          "start_line": 19,
+          "end_line": 26,
+          "docstring": "",
+          "decorators": [],
+          "endpoint": {
+            "url": "/api/generate_report",
+            "methods": [
+              "POST"
+            ]
+          }
+        },
+        "universal_sales": {
+          "name": "universal_sales",
+          "args": [],
+          "start_line": 29,
+          "end_line": 36,
+          "docstring": "",
+          "decorators": [],
+          "endpoint": {
+            "url": "/api/universal_sales",
+            "methods": [
+              "POST"
+            ]
+          }
+        },
+        "download_excel": {
+          "name": "download_excel",
+          "args": [],
+          "start_line": 39,
+          "end_line": 43,
+          "docstring": "",
+          "decorators": [],
+          "endpoint": {
+            "url": "/api/download_excel",
+            "methods": [
+              "GET"
+            ]
+          }
+        },
+        "download_universal_excel": {
+          "name": "download_universal_excel",
+          "args": [],
+          "start_line": 46,
+          "end_line": 50,
+          "docstring": "",
+          "decorators": [],
+          "endpoint": {
+            "url": "/api/download_universal_excel",
+            "methods": [
+              "GET"
+            ]
+          }
+        },
+        "universal_report_endpoint": {
+          "name": "universal_report_endpoint",
+          "args": [],
+          "start_line": 53,
+          "end_line": 83,
+          "docstring": "",
+          "decorators": [],
+          "endpoint": {
+            "url": "/api/universal_report",
+            "methods": [
+              "POST"
+            ]
+          }
+        },
+        "download_universal_report_excel": {
+          "name": "download_universal_report_excel",
+          "args": [],
+          "start_line": 86,
+          "end_line": 90,
+          "docstring": "",
+          "decorators": [],
+          "endpoint": {
+            "url": "/api/download_universal_report_excel",
+            "methods": [
+              "GET"
+            ]
+          }
+        },
+        "export_universal_report_excel_endpoint": {
+          "name": "export_universal_report_excel_endpoint",
+          "args": [],
+          "start_line": 93,
+          "end_line": 103,
+          "docstring": "",
+          "decorators": [],
+          "endpoint": {
+            "url": "/api/export_universal_report_excel",
+            "methods": [
+              "POST"
+            ]
+          }
+        }
+      },
+      "classes": {},
+      "endpoints": [
+        {
+          "url": "/api/generate_report",
+          "methods": [
+            "POST"
+          ],
+          "handler": "generate_report",
+          "start_line": 19
+        },
+        {
+          "url": "/api/universal_sales",
+          "methods": [
+            "POST"
+          ],
+          "handler": "universal_sales",
+          "start_line": 29
+        },
+        {
+          "url": "/api/download_excel",
+          "methods": [
+            "GET"
+          ],
+          "handler": "download_excel",
+          "start_line": 39
+        },
+        {
+          "url": "/api/download_universal_excel",
+          "methods": [
+            "GET"
+          ],
+          "handler": "download_universal_excel",
+          "start_line": 46
+        },
+        {
+          "url": "/api/universal_report",
+          "methods": [
+            "POST"
+          ],
+          "handler": "universal_report_endpoint",
+          "start_line": 53
+        },
+        {
+          "url": "/api/download_universal_report_excel",
+          "methods": [
+            "GET"
+          ],
+          "handler": "download_universal_report_excel",
+          "start_line": 86
+        },
+        {
+          "url": "/api/export_universal_report_excel",
+          "methods": [
+            "POST"
+          ],
+          "handler": "export_universal_report_excel_endpoint",
+          "start_line": 93
+        }
+      ],
+      "role_and_purpose": "/api/generate_report, /api/export_excel və hesabat API endpointləri."
+    },
+    "routes/__init__.py": {
+      "file_path": "routes/__init__.py",
+      "type": "backend_python",
+      "docstring": "",
+      "imports": [],
+      "functions": {},
+      "classes": {},
+      "endpoints": []
+    },
+    "static/js/app.js": {
+      "file_path": "static/js/app.js",
+      "type": "frontend_javascript",
+      "total_lines": 193,
+      "objects": {},
+      "functions": {
+        "toggleActionsMenu": {
+          "name": "toggleActionsMenu",
+          "args": [
+            "e"
+          ],
+          "line": 73
+        },
+        "minimizeAppWindow": {
+          "name": "minimizeAppWindow",
+          "args": [],
+          "line": 81
+        },
+        "maximizeAppWindow": {
+          "name": "maximizeAppWindow",
+          "args": [],
+          "line": 96
+        },
+        "closeAppWindow": {
+          "name": "closeAppWindow",
+          "args": [],
+          "line": 115
+        },
+        "confirmCloseWindow": {
+          "name": "confirmCloseWindow",
+          "args": [],
+          "line": 132
+        },
+        "openReportDirect": {
+          "name": "openReportDirect",
+          "args": [],
+          "line": 136
+        },
+        "openCatalogDirect": {
+          "name": "openCatalogDirect",
+          "args": [
+            "catalogName"
+          ],
+          "line": 151
+        },
+        "toggleFullScreenApp": {
+          "name": "toggleFullScreenApp",
+          "args": [],
+          "line": 181
+        },
+        "openJournalDirect": {
+          "name": "openJournalDirect",
+          "args": [
+            "docType"
+          ],
+          "line": 185
+        }
+      },
+      "api_calls": [
+        "/api/app/minimize",
+        "/api/app/close"
+      ],
+      "event_listeners": []
+    },
+    "static/js/audit_journal.js": {
+      "file_path": "static/js/audit_journal.js",
+      "type": "frontend_javascript",
+      "total_lines": 2436,
+      "objects": {
+        "AuditJournal": {
+          "name": "AuditJournal",
+          "kind": "object_literal",
+          "start_line": 7,
+          "methods": {}
+        },
+        "payload": {
+          "name": "payload",
+          "kind": "object_literal",
+          "start_line": 384,
+          "methods": {}
+        }
+      },
+      "functions": {},
+      "api_calls": [
+        "/api/audit/list",
+        "/api/audit/details"
+      ],
+      "event_listeners": []
+    },
+    "static/js/c1_column_settings.js": {
+      "file_path": "static/js/c1_column_settings.js",
+      "type": "frontend_javascript",
+      "total_lines": 414,
+      "objects": {
+        "OneCColumnSettings": {
+          "name": "OneCColumnSettings",
+          "kind": "object_literal",
+          "start_line": 17,
+          "methods": {}
+        }
+      },
+      "functions": {},
+      "api_calls": [],
+      "event_listeners": []
+    },
+    "static/js/c1_table_selection.js": {
+      "file_path": "static/js/c1_table_selection.js",
+      "type": "frontend_javascript",
+      "total_lines": 140,
+      "objects": {},
+      "functions": {
+        "isInteractiveElement": {
+          "name": "isInteractiveElement",
+          "args": [
+            "target"
+          ],
+          "line": 15
+        },
+        "highlightAndSelectCell": {
+          "name": "highlightAndSelectCell",
+          "args": [
+            "td",
+            "event"
+          ],
+          "line": 30
+        }
+      },
+      "api_calls": [],
+      "event_listeners": []
+    },
+    "static/js/c1_ui_components.js": {
+      "file_path": "static/js/c1_ui_components.js",
+      "type": "frontend_javascript",
+      "total_lines": 384,
+      "objects": {
+        "OneCIcons": {
+          "name": "OneCIcons",
+          "kind": "object_literal",
+          "start_line": 21,
+          "methods": {}
+        },
+        "OneCPeriodBar": {
+          "name": "OneCPeriodBar",
+          "kind": "object_literal",
+          "start_line": 118,
+          "methods": {}
+        },
+        "instance": {
+          "name": "instance",
+          "kind": "object_literal",
+          "start_line": 164,
+          "methods": {}
+        },
+        "OneCFilterBar": {
+          "name": "OneCFilterBar",
+          "kind": "object_literal",
+          "start_line": 289,
+          "methods": {}
+        }
+      },
+      "functions": {},
+      "api_calls": [],
+      "event_listeners": []
+    },
+    "static/js/calendar_picker.js": {
+      "file_path": "static/js/calendar_picker.js",
+      "type": "frontend_javascript",
+      "total_lines": 754,
+      "objects": {
+        "OneCCalendar": {
+          "name": "OneCCalendar",
+          "kind": "object_literal",
+          "start_line": 108,
+          "methods": {
+            "init": {
+              "name": "init",
+              "args": [],
+              "line": 115
+            },
+            "attachInputs": {
+              "name": "attachInputs",
+              "args": [],
+              "line": 138
+            },
+            "applySmartInput": {
+              "name": "applySmartInput",
+              "args": [
+                "input"
+              ],
+              "line": 161
+            },
+            "open": {
+              "name": "open",
+              "args": [
+                "inputOrId",
+                "triggerEl = null"
+              ],
+              "line": 175
+            },
+            "close": {
+              "name": "close",
+              "args": [],
+              "line": 247
+            },
+            "isOpen": {
+              "name": "isOpen",
+              "args": [],
+              "line": 253
+            },
+            "prevMonth": {
+              "name": "prevMonth",
+              "args": [],
+              "line": 257
+            },
+            "nextMonth": {
+              "name": "nextMonth",
+              "args": [],
+              "line": 266
+            },
+            "prevYear": {
+              "name": "prevYear",
+              "args": [],
+              "line": 275
+            },
+            "nextYear": {
+              "name": "nextYear",
+              "args": [],
+              "line": 280
+            },
+            "selectDate": {
+              "name": "selectDate",
+              "args": [
+                "year",
+                "month",
+                "day"
+              ],
+              "line": 285
+            },
+            "selectToday": {
+              "name": "selectToday",
+              "args": [],
+              "line": 329
+            },
+            "clearDate": {
+              "name": "clearDate",
+              "args": [],
+              "line": 334
+            },
+            "render": {
+              "name": "render",
+              "args": [],
+              "line": 348
+            }
+          }
+        },
+        "OneCPeriodPicker": {
+          "name": "OneCPeriodPicker",
+          "kind": "object_literal",
+          "start_line": 450,
+          "methods": {
+            "init": {
+              "name": "init",
+              "args": [],
+              "line": 453
+            },
+            "open": {
+              "name": "open",
+              "args": [
+                "triggerBtn"
+              ],
+              "line": 470
+            },
+            "close": {
+              "name": "close",
+              "args": [],
+              "line": 494
+            },
+            "isOpen": {
+              "name": "isOpen",
+              "args": [],
+              "line": 500
+            },
+            "setPeriod": {
+              "name": "setPeriod",
+              "args": [
+                "startDate",
+                "endDate"
+              ],
+              "line": 504
+            },
+            "render": {
+              "name": "render",
+              "args": [],
+              "line": 519
+            }
+          }
+        },
+        "q1": {
+          "name": "q1",
+          "kind": "object_literal",
+          "start_line": 539,
+          "methods": {}
+        },
+        "q2": {
+          "name": "q2",
+          "kind": "object_literal",
+          "start_line": 540,
+          "methods": {}
+        },
+        "q3": {
+          "name": "q3",
+          "kind": "object_literal",
+          "start_line": 541,
+          "methods": {}
+        },
+        "q4": {
+          "name": "q4",
+          "kind": "object_literal",
+          "start_line": 542,
+          "methods": {}
+        },
+        "yearFull": {
+          "name": "yearFull",
+          "kind": "object_literal",
+          "start_line": 544,
+          "methods": {}
+        },
+        "yearToDate": {
+          "name": "yearToDate",
+          "kind": "object_literal",
+          "start_line": 545,
+          "methods": {}
+        },
+        "prevYearFull": {
+          "name": "prevYearFull",
+          "kind": "object_literal",
+          "start_line": 546,
+          "methods": {}
+        }
+      },
+      "functions": {
+        "smartParse1CDate": {
+          "name": "smartParse1CDate",
+          "args": [
+            "rawStr",
+            "currentVal = \"\""
+          ],
+          "line": 7
+        },
+        "pickDate": {
+          "name": "pickDate",
+          "args": [
+            "inputId",
+            "btnEl = null"
+          ],
+          "line": 586
+        },
+        "openPeriodSelectDialog": {
+          "name": "openPeriodSelectDialog",
+          "args": [
+            "btnEl = null"
+          ],
+          "line": 591
+        }
+      },
+      "api_calls": [],
+      "event_listeners": []
+    },
+    "static/js/catalog_selector.js": {
+      "file_path": "static/js/catalog_selector.js",
+      "type": "frontend_javascript",
+      "total_lines": 1418,
+      "objects": {
+        "CatalogSelector": {
+          "name": "CatalogSelector",
+          "kind": "object_literal",
+          "start_line": 6,
+          "methods": {
+            "open": {
+              "name": "open",
+              "args": [
+                "options = {}"
+              ],
+              "line": 18
+            },
+            "close": {
+              "name": "close",
+              "args": [
+                "e"
+              ],
+              "line": 245
+            },
+            "toggleMaximize": {
+              "name": "toggleMaximize",
+              "args": [],
+              "line": 273
+            },
+            "toggleMinimize": {
+              "name": "toggleMinimize",
+              "args": [],
+              "line": 279
+            },
+            "getActiveWindow": {
+              "name": "getActiveWindow",
+              "args": [],
+              "line": 285
+            },
+            "cancel": {
+              "name": "cancel",
+              "args": [],
+              "line": 296
+            },
+            "loadCatalogData": {
+              "name": "loadCatalogData",
+              "args": [
+                "searchQuery = \"\""
+              ],
+              "line": 308
+            }
+          }
+        },
+        "payload": {
+          "name": "payload",
+          "kind": "object_literal",
+          "start_line": 324,
+          "methods": {
+            "navigateUpFolder": {
+              "name": "navigateUpFolder",
+              "args": [],
+              "line": 400
+            },
+            "getFolderChain": {
+              "name": "getFolderChain",
+              "args": [
+                "folderName"
+              ],
+              "line": 409
+            },
+            "openFolderDirectly": {
+              "name": "openFolderDirectly",
+              "args": [
+                "folderName"
+              ],
+              "line": 448
+            },
+            "getParentFolder": {
+              "name": "getParentFolder",
+              "args": [
+                "folderName"
+              ],
+              "line": 472
+            },
+            "getFolderCode": {
+              "name": "getFolderCode",
+              "args": [
+                "folderName"
+              ],
+              "line": 487
+            },
+            "renderFolders": {
+              "name": "renderFolders",
+              "args": [
+                "folders"
+              ],
+              "line": 497
+            },
+            "buildFolderHierarchy": {
+              "name": "buildFolderHierarchy",
+              "args": [
+                "folders"
+              ],
+              "line": 550
+            },
+            "expandPathToFolder": {
+              "name": "expandPathToFolder",
+              "args": [
+                "folderName",
+                "map"
+              ],
+              "line": 572
+            },
+            "toggleFolderExpand": {
+              "name": "toggleFolderExpand",
+              "args": [
+                "folderName"
+              ],
+              "line": 586
+            },
+            "renderTreeNode": {
+              "name": "renderTreeNode",
+              "args": [
+                "node",
+                "depth",
+                "map"
+              ],
+              "line": 595
+            },
+            "renderItems": {
+              "name": "renderItems",
+              "args": [
+                "items"
+              ],
+              "line": 630
+            },
+            "selectFolder": {
+              "name": "selectFolder",
+              "args": [
+                "elOrName",
+                "folderName"
+              ],
+              "line": 790
+            },
+            "updateFolderButton": {
+              "name": "updateFolderButton",
+              "args": [],
+              "line": 806
+            },
+            "confirmCurrentFolder": {
+              "name": "confirmCurrentFolder",
+              "args": [],
+              "line": 822
+            },
+            "selectItemDirectly": {
+              "name": "selectItemDirectly",
+              "args": [
+                "item"
+              ],
+              "line": 828
+            },
+            "highlightItem": {
+              "name": "highlightItem",
+              "args": [
+                "tr",
+                "item"
+              ],
+              "line": 833
+            },
+            "initFilters": {
+              "name": "initFilters",
+              "args": [
+                "win"
+              ],
+              "line": 895
+            },
+            "quickFilterSelected": {
+              "name": "quickFilterSelected",
+              "args": [
+                "win"
+              ],
+              "line": 954
+            }
+          }
+        },
+        "crit": {
+          "name": "crit",
+          "kind": "object_literal",
+          "start_line": 960,
+          "methods": {
+            "applyLocalFilters": {
+              "name": "applyLocalFilters",
+              "args": [
+                "winTarget"
+              ],
+              "line": 976
+            },
+            "toggleTreePane": {
+              "name": "toggleTreePane",
+              "args": [],
+              "line": 1012
+            },
+            "loadStockData": {
+              "name": "loadStockData",
+              "args": [
+                "code",
+                "name"
+              ],
+              "line": 1036
+            },
+            "renderStockTable": {
+              "name": "renderStockTable",
+              "args": [
+                "warehouses"
+              ],
+              "line": 1110
+            },
+            "getSelectedPrice": {
+              "name": "getSelectedPrice",
+              "args": [],
+              "line": 1116
+            },
+            "selectPriceType": {
+              "name": "selectPriceType",
+              "args": [
+                "idx"
+              ],
+              "line": 1124
+            },
+            "updateStockTableRows": {
+              "name": "updateStockTableRows",
+              "args": [],
+              "line": 1131
+            },
+            "toggleWarehouseRow": {
+              "name": "toggleWarehouseRow",
+              "args": [
+                "idx"
+              ],
+              "line": 1249
+            },
+            "toggleSelectAllWarehouses": {
+              "name": "toggleSelectAllWarehouses",
+              "args": [
+                "checked"
+              ],
+              "line": 1259
+            },
+            "renderPricesList": {
+              "name": "renderPricesList",
+              "args": [],
+              "line": 1268
+            },
+            "resetStockPane": {
+              "name": "resetStockPane",
+              "args": [
+                "item"
+              ],
+              "line": 1297
+            },
+            "confirmSelection": {
+              "name": "confirmSelection",
+              "args": [
+                "finishPodbor = false"
+              ],
+              "line": 1324
+            },
+            "search": {
+              "name": "search",
+              "args": [],
+              "line": 1380
+            },
+            "clearSearch": {
+              "name": "clearSearch",
+              "args": [],
+              "line": 1386
+            },
+            "reload": {
+              "name": "reload",
+              "args": [],
+              "line": 1392
+            }
+          }
+        }
+      },
+      "functions": {
+        "escapeAttrJson": {
+          "name": "escapeAttrJson",
+          "args": [
+            "obj"
+          ],
+          "line": 1411
+        },
+        "escapeAttr": {
+          "name": "escapeAttr",
+          "args": [
+            "str"
+          ],
+          "line": 1415
+        }
+      },
+      "api_calls": [
+        "/api/catalog_data",
+        "/api/nomenclature/stock"
+      ],
+      "event_listeners": [],
+      "role_and_purpose": "Universal 1C Kataloq Seçim Pəncərəsi (CatalogSelector): Ağac strukturu, naviqasiya sətirləri (ana qovluq, alt qovluqlar, kökə çıxış), axtarış, seçmə və MDI inteqrasiyası."
+    },
+    "static/js/field_selector.js": {
+      "file_path": "static/js/field_selector.js",
+      "type": "frontend_javascript",
+      "total_lines": 125,
+      "objects": {
+        "FieldSelector": {
+          "name": "FieldSelector",
+          "kind": "object_literal",
+          "start_line": 6,
+          "methods": {
+            "open": {
+              "name": "open",
+              "args": [
+                "currentValue",
+                "callback"
+              ],
+              "line": 10
+            },
+            "close": {
+              "name": "close",
+              "args": [],
+              "line": 55
+            },
+            "select": {
+              "name": "select",
+              "args": [
+                "fieldName"
+              ],
+              "line": 67
+            },
+            "confirm": {
+              "name": "confirm",
+              "args": [],
+              "line": 71
+            }
+          }
+        }
+      },
+      "functions": {
+        "toggleFieldNode": {
+          "name": "toggleFieldNode",
+          "args": [
+            "e",
+            "expander"
+          ],
+          "line": 83
+        },
+        "onFieldNodeClick": {
+          "name": "onFieldNodeClick",
+          "args": [
+            "rowEl",
+            "fieldName"
+          ],
+          "line": 99
+        },
+        "confirmFieldSelection": {
+          "name": "confirmFieldSelection",
+          "args": [],
+          "line": 108
+        },
+        "closeFieldSelectorModal": {
+          "name": "closeFieldSelectorModal",
+          "args": [],
+          "line": 112
+        },
+        "toggleFieldSelectorMaximize": {
+          "name": "toggleFieldSelectorMaximize",
+          "args": [],
+          "line": 116
+        }
+      },
+      "api_calls": [],
+      "event_listeners": []
+    },
+    "static/js/journal_perf.js": {
+      "file_path": "static/js/journal_perf.js",
+      "type": "frontend_javascript",
+      "total_lines": 127,
+      "objects": {},
+      "functions": {
+        "button": {
+          "name": "button",
+          "args": [
+            "label",
+            "action"
+          ],
+          "line": 46
+        }
+      },
+      "api_calls": [],
+      "event_listeners": []
+    },
+    "static/js/mdi_manager.js": {
+      "file_path": "static/js/mdi_manager.js",
+      "type": "frontend_javascript",
+      "total_lines": 2879,
+      "objects": {
+        "MdiManager": {
+          "name": "MdiManager",
+          "kind": "object_literal",
+          "start_line": 45,
+          "methods": {
+            "getWindowState": {
+              "name": "getWindowState",
+              "args": [
+                "id"
+              ],
+              "line": 51
+            },
+            "saveWindowState": {
+              "name": "saveWindowState",
+              "args": [
+                "id",
+                "state"
+              ],
+              "line": 61
+            },
+            "isGlobalMaximized": {
+              "name": "isGlobalMaximized",
+              "args": [],
+              "line": 70
+            },
+            "getWindowCategory": {
+              "name": "getWindowCategory",
+              "args": [
+                "id"
+              ],
+              "line": 80
+            },
+            "shouldBeMaximized": {
+              "name": "shouldBeMaximized",
+              "args": [
+                "id",
+                "options = {}"
+              ],
+              "line": 93
+            },
+            "saveOpenWindowsSession": {
+              "name": "saveOpenWindowsSession",
+              "args": [],
+              "line": 118
+            },
+            "restoreOpenWindowsSession": {
+              "name": "restoreOpenWindowsSession",
+              "args": [],
+              "line": 170
+            },
+            "auditStack": {
+              "name": "auditStack",
+              "args": [
+                "trigger"
+              ],
+              "line": 265
+            },
+            "init": {
+              "name": "init",
+              "args": [],
+              "line": 313
+            },
+            "createWindowShell": {
+              "name": "createWindowShell",
+              "args": [
+                "config = {}"
+              ],
+              "line": 625
+            },
+            "registerWindow": {
+              "name": "registerWindow",
+              "args": [
+                "id",
+                "options = {}"
+              ],
+              "line": 702
+            }
+          }
+        },
+        "winObj": {
+          "name": "winObj",
+          "kind": "object_literal",
+          "start_line": 715,
+          "methods": {
+            "setupWindowDragging": {
+              "name": "setupWindowDragging",
+              "args": [
+                "winObj"
+              ],
+              "line": 764
+            },
+            "formatTaskbarLabel": {
+              "name": "formatTaskbarLabel",
+              "args": [
+                "title"
+              ],
+              "line": 835
+            },
+            "showDashboard": {
+              "name": "showDashboard",
+              "args": [],
+              "line": 851
+            },
+            "createTaskbarTab": {
+              "name": "createTaskbarTab",
+              "args": [
+                "winObj"
+              ],
+              "line": 904
+            },
+            "renderTaskbar": {
+              "name": "renderTaskbar",
+              "args": [],
+              "line": 946
+            },
+            "activateWindow": {
+              "name": "activateWindow",
+              "args": [
+                "id",
+                "options = {}"
+              ],
+              "line": 956
+            },
+            "toggleMaximize": {
+              "name": "toggleMaximize",
+              "args": [
+                "id"
+              ],
+              "line": 1082
+            },
+            "maximizeWindow": {
+              "name": "maximizeWindow",
+              "args": [
+                "id",
+                "doActivate = true"
+              ],
+              "line": 1093
+            },
+            "restoreWindow": {
+              "name": "restoreWindow",
+              "args": [
+                "id",
+                "doActivate = true"
+              ],
+              "line": 1132
+            },
+            "minimizeWindow": {
+              "name": "minimizeWindow",
+              "args": [
+                "id"
+              ],
+              "line": 1170
+            },
+            "restoreFromMinimize": {
+              "name": "restoreFromMinimize",
+              "args": [
+                "id"
+              ],
+              "line": 1214
+            },
+            "closeWindow": {
+              "name": "closeWindow",
+              "args": [
+                "id"
+              ],
+              "line": 1224
+            },
+            "openOrRestoreReportWindow": {
+              "name": "openOrRestoreReportWindow",
+              "args": [],
+              "line": 1303
+            },
+            "setWindowTitle": {
+              "name": "setWindowTitle",
+              "args": [
+                "id",
+                "title"
+              ],
+              "line": 1322
+            },
+            "updateWindowTitlebar": {
+              "name": "updateWindowTitlebar",
+              "args": [
+                "id"
+              ],
+              "line": 1341
+            },
+            "createNewReportWindow": {
+              "name": "createNewReportWindow",
+              "args": [
+                "presetToLoad = null"
+              ],
+              "line": 1359
+            },
+            "attachNewWindowButton": {
+              "name": "attachNewWindowButton",
+              "args": [
+                "winObj"
+              ],
+              "line": 1424
+            },
+            "duplicateWindow": {
+              "name": "duplicateWindow",
+              "args": [
+                "id"
+              ],
+              "line": 1446
+            },
+            "createDuplicateCatalogWindow": {
+              "name": "createDuplicateCatalogWindow",
+              "args": [
+                "catName"
+              ],
+              "line": 1475
+            },
+            "createDuplicatePortfolioWindow": {
+              "name": "createDuplicatePortfolioWindow",
+              "args": [],
+              "line": 1534
+            },
+            "createGenericDuplicateWindow": {
+              "name": "createGenericDuplicateWindow",
+              "args": [
+                "id"
+              ],
+              "line": 1573
+            },
+            "cascadeWindows": {
+              "name": "cascadeWindows",
+              "args": [],
+              "line": 1618
+            },
+            "tileHorizontal": {
+              "name": "tileHorizontal",
+              "args": [],
+              "line": 1634
+            },
+            "tileVertical": {
+              "name": "tileVertical",
+              "args": [],
+              "line": 1650
+            },
+            "closeAllWindows": {
+              "name": "closeAllWindows",
+              "args": [],
+              "line": 1666
+            },
+            "updateWindowMenu": {
+              "name": "updateWindowMenu",
+              "args": [],
+              "line": 1673
+            },
+            "getNextZIndex": {
+              "name": "getNextZIndex",
+              "args": [],
+              "line": 1712
+            },
+            "bringModalToFront": {
+              "name": "bringModalToFront",
+              "args": [
+                "modalEl",
+                "options = {}"
+              ],
+              "line": 1717
+            },
+            "createModalTaskbarTab": {
+              "name": "createModalTaskbarTab",
+              "args": [
+                "modalId",
+                "title",
+                "icon",
+                "closeFn"
+              ],
+              "line": 1725
+            },
+            "removeModalTaskbarTab": {
+              "name": "removeModalTaskbarTab",
+              "args": [
+                "modalId"
+              ],
+              "line": 1735
+            },
+            "getTopmostVisibleWindow": {
+              "name": "getTopmostVisibleWindow",
+              "args": [],
+              "line": 1740
+            },
+            "handleEscape": {
+              "name": "handleEscape",
+              "args": [],
+              "line": 1758
+            },
+            "handleConfirm": {
+              "name": "handleConfirm",
+              "args": [],
+              "line": 1898
+            },
+            "showToast": {
+              "name": "showToast",
+              "args": [
+                "msg"
+              ],
+              "line": 2068
+            },
+            "handleRefresh": {
+              "name": "handleRefresh",
+              "args": [],
+              "line": 2091
+            },
+            "handleSearch": {
+              "name": "handleSearch",
+              "args": [],
+              "line": 2287
+            },
+            "handleCancelSearch": {
+              "name": "handleCancelSearch",
+              "args": [],
+              "line": 2393
+            },
+            "bindGlobalEvents": {
+              "name": "bindGlobalEvents",
+              "args": [],
+              "line": 2485
+            }
+          }
+        },
+        "SnapLayoutHelper": {
+          "name": "SnapLayoutHelper",
+          "kind": "object_literal",
+          "start_line": 2574,
+          "methods": {
+            "init": {
+              "name": "init",
+              "args": [],
+              "line": 2580
+            },
+            "onMaxButtonHover": {
+              "name": "onMaxButtonHover",
+              "args": [
+                "winId",
+                "btnEl"
+              ],
+              "line": 2634
+            },
+            "show": {
+              "name": "show",
+              "args": [
+                "winId",
+                "btnEl"
+              ],
+              "line": 2644
+            },
+            "hide": {
+              "name": "hide",
+              "args": [],
+              "line": 2673
+            },
+            "scheduleHide": {
+              "name": "scheduleHide",
+              "args": [
+                "delay = 200"
+              ],
+              "line": 2682
+            },
+            "cancelHide": {
+              "name": "cancelHide",
+              "args": [],
+              "line": 2690
+            },
+            "applyRect": {
+              "name": "applyRect",
+              "args": [
+                "winObj",
+                "top",
+                "left",
+                "width",
+                "height"
+              ],
+              "line": 2697
+            },
+            "applySnap": {
+              "name": "applySnap",
+              "args": [
+                "layoutType",
+                "zoneIdx"
+              ],
+              "line": 2721
+            },
+            "quickAction": {
+              "name": "quickAction",
+              "args": [
+                "action"
+              ],
+              "line": 2831
+            }
+          }
+        }
+      },
+      "functions": {
+        "escapeHtml": {
+          "name": "escapeHtml",
+          "args": [
+            "str"
+          ],
+          "line": 34
+        },
+        "toggleMdiMenu": {
+          "name": "toggleMdiMenu",
+          "args": [
+            "e",
+            "menuId"
+          ],
+          "line": 2865
+        }
+      },
+      "api_calls": [],
+      "event_listeners": [],
+      "role_and_purpose": "1C Çoxsənədli Pəncərə İdarəedicisi (MdiManager): Veb daxilində pəncərələrin açılması, bağlanması, maksimizasiyası, aktiv tabların idarəsi."
+    },
+    "static/js/nomenclature_card.js": {
+      "file_path": "static/js/nomenclature_card.js",
+      "type": "frontend_javascript",
+      "total_lines": 344,
+      "objects": {
+        "NomenclatureCard": {
+          "name": "NomenclatureCard",
+          "kind": "object_literal",
+          "start_line": 6,
+          "methods": {}
+        }
+      },
+      "functions": {},
+      "api_calls": [
+        "/api/nomenclature/card"
+      ],
+      "event_listeners": []
+    },
+    "static/js/operation_type_modal.js": {
+      "file_path": "static/js/operation_type_modal.js",
+      "type": "frontend_javascript",
+      "total_lines": 198,
+      "objects": {
+        "OperationTypeSelector": {
+          "name": "OperationTypeSelector",
+          "kind": "object_literal",
+          "start_line": 28,
+          "methods": {
+            "open": {
+              "name": "open",
+              "args": [
+                "options = {}"
+              ],
+              "line": 34
+            },
+            "close": {
+              "name": "close",
+              "args": [],
+              "line": 69
+            },
+            "render": {
+              "name": "render",
+              "args": [],
+              "line": 80
+            },
+            "toggleItem": {
+              "name": "toggleItem",
+              "args": [
+                "name",
+                "checked"
+              ],
+              "line": 145
+            },
+            "checkAll": {
+              "name": "checkAll",
+              "args": [
+                "checked"
+              ],
+              "line": 151
+            },
+            "updateCount": {
+              "name": "updateCount",
+              "args": [],
+              "line": 159
+            },
+            "filter": {
+              "name": "filter",
+              "args": [
+                "val"
+              ],
+              "line": 166
+            },
+            "clearSearch": {
+              "name": "clearSearch",
+              "args": [],
+              "line": 171
+            },
+            "confirm": {
+              "name": "confirm",
+              "args": [],
+              "line": 178
+            },
+            "toggleMaximize": {
+              "name": "toggleMaximize",
+              "args": [],
+              "line": 188
+            }
+          }
+        }
+      },
+      "functions": {},
+      "api_calls": [],
+      "event_listeners": []
+    },
+    "static/js/period_picker.js": {
+      "file_path": "static/js/period_picker.js",
+      "type": "frontend_javascript",
+      "total_lines": 892,
+      "objects": {
+        "PeriodPicker": {
+          "name": "PeriodPicker",
+          "kind": "object_literal",
+          "start_line": 6,
+          "methods": {}
+        }
+      },
+      "functions": {},
+      "api_calls": [],
+      "event_listeners": []
+    },
+    "static/js/pogruzka_doc_editor.js": {
+      "file_path": "static/js/pogruzka_doc_editor.js",
+      "type": "frontend_javascript",
+      "total_lines": 649,
+      "objects": {
+        "PogruzkaDocEditor": {
+          "name": "PogruzkaDocEditor",
+          "kind": "object_literal",
+          "start_line": 6,
+          "methods": {}
+        },
+        "newItem": {
+          "name": "newItem",
+          "kind": "object_literal",
+          "start_line": 339,
+          "methods": {}
+        }
+      },
+      "functions": {},
+      "api_calls": [
+        "/api/documents/details"
+      ],
+      "event_listeners": []
+    },
+    "static/js/portfolio_catalog.js": {
+      "file_path": "static/js/portfolio_catalog.js",
+      "type": "frontend_javascript",
+      "total_lines": 1544,
+      "objects": {
+        "PortfolioCatalog": {
+          "name": "PortfolioCatalog",
+          "kind": "object_literal",
+          "start_line": 6,
+          "methods": {}
+        },
+        "payload": {
+          "name": "payload",
+          "kind": "object_literal",
+          "start_line": 1446,
+          "methods": {}
+        },
+        "colMap": {
+          "name": "colMap",
+          "kind": "object_literal",
+          "start_line": 1047,
+          "methods": {}
+        }
+      },
+      "functions": {
+        "openPortfolioReportWindow": {
+          "name": "openPortfolioReportWindow",
+          "args": [],
+          "line": 1530
+        }
+      },
+      "api_calls": [
+        "/api/portfolio_catalog/filters",
+        "/api/portfolio_catalog/items",
+        "/api/portfolio_catalog/export_excel"
+      ],
+      "event_listeners": []
+    },
+    "static/js/price_doc_editor.js": {
+      "file_path": "static/js/price_doc_editor.js",
+      "type": "frontend_javascript",
+      "total_lines": 2554,
+      "objects": {
+        "PriceDocEditor": {
+          "name": "PriceDocEditor",
+          "kind": "object_literal",
+          "start_line": 6,
+          "methods": {}
+        },
+        "newItm": {
+          "name": "newItm",
+          "kind": "object_literal",
+          "start_line": 506,
+          "methods": {}
+        },
+        "rowInfo": {
+          "name": "rowInfo",
+          "kind": "object_literal",
+          "start_line": 862,
+          "methods": {}
+        },
+        "newItem": {
+          "name": "newItem",
+          "kind": "object_literal",
+          "start_line": 1061,
+          "methods": {}
+        },
+        "payload": {
+          "name": "payload",
+          "kind": "object_literal",
+          "start_line": 1447,
+          "methods": {}
+        },
+        "draftRegistry": {
+          "name": "draftRegistry",
+          "kind": "object_literal",
+          "start_line": 1673,
+          "methods": {}
+        },
+        "cacheData": {
+          "name": "cacheData",
+          "kind": "object_literal",
+          "start_line": 1511,
+          "methods": {}
+        }
+      },
+      "functions": {},
+      "api_calls": [
+        "/api/documents/price_doc",
+        "/api/portfolio_catalog/items",
+        "/api/documents/parse_excel_file",
+        "/api/documents/resolve_nomenclature",
+        "/api/documents/save_price_doc",
+        "/api/documents/price_types",
+        "/api/documents/batch_item_prices",
+        "/api/documents/item_prices",
+        "/api/nomenclature/search"
+      ],
+      "event_listeners": []
+    },
+    "static/js/report_engine.js": {
+      "file_path": "static/js/report_engine.js",
+      "type": "frontend_javascript",
+      "total_lines": 771,
+      "objects": {
+        "ReportEngine": {
+          "name": "ReportEngine",
+          "kind": "object_literal",
+          "start_line": 18,
+          "methods": {
+            "formatNumber": {
+              "name": "formatNumber",
+              "args": [
+                "val"
+              ],
+              "line": 22
+            },
+            "getMonthRussianName": {
+              "name": "getMonthRussianName",
+              "args": [
+                "dateStr"
+              ],
+              "line": 30
+            },
+            "cancelReport": {
+              "name": "cancelReport",
+              "args": [],
+              "line": 46
+            },
+            "runReport": {
+              "name": "runReport",
+              "args": [],
+              "line": 68
+            }
+          }
+        },
+        "payload": {
+          "name": "payload",
+          "kind": "object_literal",
+          "start_line": 83,
+          "methods": {
+            "renderReport": {
+              "name": "renderReport",
+              "args": [
+                "data",
+                "config"
+              ],
+              "line": 133
+            },
+            "renderMetadataHeader": {
+              "name": "renderMetadataHeader",
+              "args": [
+                "data",
+                "config"
+              ],
+              "line": 159
+            },
+            "renderTable": {
+              "name": "renderTable",
+              "args": [
+                "data",
+                "config"
+              ],
+              "line": 224
+            },
+            "updateGutterLevels": {
+              "name": "updateGutterLevels",
+              "args": [
+                "data",
+                "config"
+              ],
+              "line": 494
+            },
+            "setGroupLevel": {
+              "name": "setGroupLevel",
+              "args": [
+                "targetLevel"
+              ],
+              "line": 508
+            },
+            "renderGutterTreeBrackets": {
+              "name": "renderGutterTreeBrackets",
+              "args": [],
+              "line": 566
+            },
+            "copyTableSelection": {
+              "name": "copyTableSelection",
+              "args": [],
+              "line": 629
+            },
+            "selectAllTable": {
+              "name": "selectAllTable",
+              "args": [],
+              "line": 639
+            }
+          }
+        }
+      },
+      "functions": {
+        "toggleReportRow": {
+          "name": "toggleReportRow",
+          "args": [
+            "btn",
+            "rowId"
+          ],
+          "line": 652
+        },
+        "hideDescendants": {
+          "name": "hideDescendants",
+          "args": [
+            "parentId"
+          ],
+          "line": 659
+        },
+        "openReportContextMenu": {
+          "name": "openReportContextMenu",
+          "args": [
+            "e"
+          ],
+          "line": 683
+        },
+        "closeReportContextMenu": {
+          "name": "closeReportContextMenu",
+          "args": [],
+          "line": 692
+        },
+        "onActionFormirovat": {
+          "name": "onActionFormirovat",
+          "args": [],
+          "line": 704
+        },
+        "exportReportToExcel": {
+          "name": "exportReportToExcel",
+          "args": [],
+          "line": 708
+        },
+        "printReportSheet": {
+          "name": "printReportSheet",
+          "args": [],
+          "line": 738
+        },
+        "show1CHelp": {
+          "name": "show1CHelp",
+          "args": [],
+          "line": 742
+        },
+        "toggleQuickFilters": {
+          "name": "toggleQuickFilters",
+          "args": [],
+          "line": 746
+        },
+        "resetToDefaultSettings": {
+          "name": "resetToDefaultSettings",
+          "args": [],
+          "line": 750
+        },
+        "saveSettingsPreset": {
+          "name": "saveSettingsPreset",
+          "args": [],
+          "line": 761
+        }
+      },
+      "api_calls": [
+        "/api/universal_report",
+        "/api/export_universal_report_excel"
+      ],
+      "event_listeners": [],
+      "role_and_purpose": "1C Hesabatlarının ekranda vizuallaşdırılması, cədvəl qrafikası və filtrlərin tətbiqi."
+    },
+    "static/js/sales_doc_editor.js": {
+      "file_path": "static/js/sales_doc_editor.js",
+      "type": "frontend_javascript",
+      "total_lines": 1343,
+      "objects": {
+        "SalesDocEditor": {
+          "name": "SalesDocEditor",
+          "kind": "object_literal",
+          "start_line": 6,
+          "methods": {}
+        },
+        "newItm": {
+          "name": "newItm",
+          "kind": "object_literal",
+          "start_line": 735,
+          "methods": {}
+        },
+        "tabBtns": {
+          "name": "tabBtns",
+          "kind": "object_literal",
+          "start_line": 1141,
+          "methods": {}
+        }
+      },
+      "functions": {},
+      "api_calls": [
+        "/api/documents/details"
+      ],
+      "event_listeners": []
+    },
+    "static/js/session.js": {
+      "file_path": "static/js/session.js",
+      "type": "frontend_javascript",
+      "total_lines": 549,
+      "objects": {
+        "SessionManager": {
+          "name": "SessionManager",
+          "kind": "object_literal",
+          "start_line": 6,
+          "methods": {
+            "init": {
+              "name": "init",
+              "args": [],
+              "line": 21
+            },
+            "save": {
+              "name": "save",
+              "args": [],
+              "line": 39
+            },
+            "getCredentials": {
+              "name": "getCredentials",
+              "args": [],
+              "line": 50
+            },
+            "setConnectionStatus": {
+              "name": "setConnectionStatus",
+              "args": [
+                "status",
+                "message"
+              ],
+              "line": 59
+            },
+            "warmupConnection": {
+              "name": "warmupConnection",
+              "args": [],
+              "line": 130
+            },
+            "updateUI": {
+              "name": "updateUI",
+              "args": [],
+              "line": 157
+            },
+            "loadBases": {
+              "name": "loadBases",
+              "args": [
+                "preferredBase"
+              ],
+              "line": 189
+            },
+            "syncInputs": {
+              "name": "syncInputs",
+              "args": [],
+              "line": 236
+            },
+            "loadUsers": {
+              "name": "loadUsers",
+              "args": [],
+              "line": 262
+            },
+            "authenticate": {
+              "name": "authenticate",
+              "args": [
+                "user",
+                "password",
+                "server",
+                "ref",
+                "title"
+              ],
+              "line": 304
+            }
+          }
+        }
+      },
+      "functions": {
+        "openLoginModal": {
+          "name": "openLoginModal",
+          "args": [],
+          "line": 343
+        },
+        "closeLoginModal": {
+          "name": "closeLoginModal",
+          "args": [],
+          "line": 373
+        },
+        "onModalBaseChange": {
+          "name": "onModalBaseChange",
+          "args": [],
+          "line": 384
+        },
+        "addCustomBase": {
+          "name": "addCustomBase",
+          "args": [],
+          "line": 414
+        },
+        "deleteCurrentBase": {
+          "name": "deleteCurrentBase",
+          "args": [],
+          "line": 453
+        },
+        "reloadModalUsersForCustomDb": {
+          "name": "reloadModalUsersForCustomDb",
+          "args": [],
+          "line": 488
+        },
+        "submitLoginModal": {
+          "name": "submitLoginModal",
+          "args": [],
+          "line": 511
+        }
+      },
+      "api_calls": [
+        "/api/ping_connection",
+        "/api/bases",
+        "/api/users",
+        "/api/login",
+        "/api/bases/set_active",
+        "/api/bases/add",
+        "/api/bases/delete"
+      ],
+      "event_listeners": []
+    },
+    "static/js/settings_modal.js": {
+      "file_path": "static/js/settings_modal.js",
+      "type": "frontend_javascript",
+      "total_lines": 1029,
+      "objects": {
+        "SettingsModal": {
+          "name": "SettingsModal",
+          "kind": "object_literal",
+          "start_line": 18,
+          "methods": {
+            "init": {
+              "name": "init",
+              "args": [],
+              "line": 25
+            },
+            "bindEvents": {
+              "name": "bindEvents",
+              "args": [],
+              "line": 31
+            },
+            "getConfig": {
+              "name": "getConfig",
+              "args": [],
+              "line": 41
+            }
+          }
+        },
+        "indicators": {
+          "name": "indicators",
+          "kind": "object_literal",
+          "start_line": 61,
+          "methods": {}
+        }
+      },
+      "functions": {
+        "toggleSettingsMaximize": {
+          "name": "toggleSettingsMaximize",
+          "args": [],
+          "line": 133
+        },
+        "toggleSettingsMinimize": {
+          "name": "toggleSettingsMinimize",
+          "args": [],
+          "line": 139
+        },
+        "openSettingsModal": {
+          "name": "openSettingsModal",
+          "args": [
+            "e"
+          ],
+          "line": 146
+        },
+        "closeSettingsModal": {
+          "name": "closeSettingsModal",
+          "args": [
+            "e"
+          ],
+          "line": 195
+        },
+        "loadPriceTypesList": {
+          "name": "loadPriceTypesList",
+          "args": [],
+          "line": 222
+        },
+        "togglePriceTypeDropdown": {
+          "name": "togglePriceTypeDropdown",
+          "args": [
+            "e"
+          ],
+          "line": 261
+        },
+        "filterPriceTypesList": {
+          "name": "filterPriceTypesList",
+          "args": [
+            "query"
+          ],
+          "line": 277
+        },
+        "selectAllPriceTypes": {
+          "name": "selectAllPriceTypes",
+          "args": [
+            "checked"
+          ],
+          "line": 288
+        },
+        "getSelectedPriceTypes": {
+          "name": "getSelectedPriceTypes",
+          "args": [],
+          "line": 301
+        },
+        "setSelectedPriceTypes": {
+          "name": "setSelectedPriceTypes",
+          "args": [
+            "typesArray"
+          ],
+          "line": 314
+        },
+        "onPriceTypeSelectionChange": {
+          "name": "onPriceTypeSelectionChange",
+          "args": [],
+          "line": 347
+        },
+        "updatePriceTypeSummary": {
+          "name": "updatePriceTypeSummary",
+          "args": [
+            "selected"
+          ],
+          "line": 352
+        },
+        "applySettingsAndClose": {
+          "name": "applySettingsAndClose",
+          "args": [],
+          "line": 382
+        },
+        "applySettingsAndGenerate": {
+          "name": "applySettingsAndGenerate",
+          "args": [],
+          "line": 390
+        },
+        "syncDateInputsFromTop": {
+          "name": "syncDateInputsFromTop",
+          "args": [],
+          "line": 400
+        },
+        "syncDateInputsFromDlg": {
+          "name": "syncDateInputsFromDlg",
+          "args": [],
+          "line": 410
+        },
+        "pickDate": {
+          "name": "pickDate",
+          "args": [
+            "inputId",
+            "btnEl = null"
+          ],
+          "line": 420
+        },
+        "openPeriodSelectDialog": {
+          "name": "openPeriodSelectDialog",
+          "args": [
+            "btnEl = null"
+          ],
+          "line": 427
+        },
+        "toggleTreeNode": {
+          "name": "toggleTreeNode",
+          "args": [
+            "headerEl"
+          ],
+          "line": 434
+        },
+        "checkAllIndicators": {
+          "name": "checkAllIndicators",
+          "args": [
+            "checked"
+          ],
+          "line": 446
+        },
+        "selectGroupingRow": {
+          "name": "selectGroupingRow",
+          "args": [
+            "tr"
+          ],
+          "line": 454
+        },
+        "openFieldSelectorForRowGrouping": {
+          "name": "openFieldSelectorForRowGrouping",
+          "args": [],
+          "line": 466
+        },
+        "editRowGroupingField": {
+          "name": "editRowGroupingField",
+          "args": [
+            "btn"
+          ],
+          "line": 475
+        },
+        "openFieldSelectorForColGrouping": {
+          "name": "openFieldSelectorForColGrouping",
+          "args": [],
+          "line": 486
+        },
+        "editColGroupingField": {
+          "name": "editColGroupingField",
+          "args": [
+            "btn"
+          ],
+          "line": 495
+        },
+        "createGroupingRowElement": {
+          "name": "createGroupingRowElement",
+          "args": [
+            "fieldName",
+            "typeVal = \"Элементы\"",
+            "isCol = false"
+          ],
+          "line": 506
+        },
+        "addRowGroupingPrompt": {
+          "name": "addRowGroupingPrompt",
+          "args": [],
+          "line": 532
+        },
+        "removeSelectedRowGrouping": {
+          "name": "removeSelectedRowGrouping",
+          "args": [],
+          "line": 536
+        },
+        "moveRowGroupingUp": {
+          "name": "moveRowGroupingUp",
+          "args": [],
+          "line": 547
+        },
+        "moveRowGroupingDown": {
+          "name": "moveRowGroupingDown",
+          "args": [],
+          "line": 554
+        },
+        "addColumnGroupingPrompt": {
+          "name": "addColumnGroupingPrompt",
+          "args": [],
+          "line": 561
+        },
+        "removeSelectedColGrouping": {
+          "name": "removeSelectedColGrouping",
+          "args": [],
+          "line": 572
+        },
+        "moveColGroupingUp": {
+          "name": "moveColGroupingUp",
+          "args": [],
+          "line": 578
+        },
+        "moveColGroupingDown": {
+          "name": "moveColGroupingDown",
+          "args": [],
+          "line": 585
+        },
+        "moveGroupingToColumns": {
+          "name": "moveGroupingToColumns",
+          "args": [],
+          "line": 592
+        },
+        "moveGroupingToRows": {
+          "name": "moveGroupingToRows",
+          "args": [],
+          "line": 607
+        },
+        "highlightFilterRow": {
+          "name": "highlightFilterRow",
+          "args": [
+            "tr"
+          ],
+          "line": 625
+        },
+        "addFilterRow": {
+          "name": "addFilterRow",
+          "args": [],
+          "line": 631
+        },
+        "removeSelectedFilterRow": {
+          "name": "removeSelectedFilterRow",
+          "args": [],
+          "line": 684
+        },
+        "clearAllFilters": {
+          "name": "clearAllFilters",
+          "args": [],
+          "line": 694
+        },
+        "saveFiltersPreset": {
+          "name": "saveFiltersPreset",
+          "args": [],
+          "line": 700
+        },
+        "onFilterFieldChange": {
+          "name": "onFilterFieldChange",
+          "args": [
+            "selectEl"
+          ],
+          "line": 704
+        },
+        "openCatalogForFilterRow": {
+          "name": "openCatalogForFilterRow",
+          "args": [
+            "btn"
+          ],
+          "line": 712
+        },
+        "openQualitySelect": {
+          "name": "openQualitySelect",
+          "args": [
+            "btn",
+            "isMulti = false"
+          ],
+          "line": 772
+        },
+        "openUserSelect": {
+          "name": "openUserSelect",
+          "args": [
+            "btn",
+            "isMulti = false"
+          ],
+          "line": 791
+        },
+        "setupAutocomplete": {
+          "name": "setupAutocomplete",
+          "args": [],
+          "line": 815
+        },
+        "hideAllAutocomplete": {
+          "name": "hideAllAutocomplete",
+          "args": [],
+          "line": 821
+        },
+        "bindAutocomplete": {
+          "name": "bindAutocomplete",
+          "args": [
+            "input"
+          ],
+          "line": 835
+        },
+        "renderAutocompleteItems": {
+          "name": "renderAutocompleteItems",
+          "args": [
+            "dropdown",
+            "input",
+            "folders",
+            "items"
+          ],
+          "line": 926
+        }
+      },
+      "api_calls": [
+        "/api/price_types",
+        "/api/catalog_data"
+      ],
+      "event_listeners": []
+    },
+    "static/js/settings_presets.js": {
+      "file_path": "static/js/settings_presets.js",
+      "type": "frontend_javascript",
+      "total_lines": 761,
+      "objects": {
+        "SettingsPresets": {
+          "name": "SettingsPresets",
+          "kind": "object_literal",
+          "start_line": 6,
+          "methods": {
+            "init": {
+              "name": "init",
+              "args": [],
+              "line": 12
+            },
+            "loadPresets": {
+              "name": "loadPresets",
+              "args": [],
+              "line": 17
+            },
+            "restoreSessionOrStartup": {
+              "name": "restoreSessionOrStartup",
+              "args": [],
+              "line": 32
+            }
+          }
+        },
+        "fakePreset": {
+          "name": "fakePreset",
+          "kind": "object_literal",
+          "start_line": 48,
+          "methods": {
+            "autoSaveCurrentSession": {
+              "name": "autoSaveCurrentSession",
+              "args": [],
+              "line": 64
+            },
+            "openRestoreModal": {
+              "name": "openRestoreModal",
+              "args": [],
+              "line": 83
+            },
+            "closeRestoreModal": {
+              "name": "closeRestoreModal",
+              "args": [],
+              "line": 99
+            },
+            "renderRestoreTable": {
+              "name": "renderRestoreTable",
+              "args": [],
+              "line": 107
+            },
+            "confirmApplyRestore": {
+              "name": "confirmApplyRestore",
+              "args": [],
+              "line": 191
+            },
+            "openSaveModal": {
+              "name": "openSaveModal",
+              "args": [],
+              "line": 212
+            },
+            "closeSaveModal": {
+              "name": "closeSaveModal",
+              "args": [],
+              "line": 233
+            },
+            "renderSaveTable": {
+              "name": "renderSaveTable",
+              "args": [],
+              "line": 241
+            },
+            "confirmSaveCurrent": {
+              "name": "confirmSaveCurrent",
+              "args": [],
+              "line": 310
+            },
+            "addNewPreset": {
+              "name": "addNewPreset",
+              "args": [],
+              "line": 343
+            },
+            "duplicatePreset": {
+              "name": "duplicatePreset",
+              "args": [],
+              "line": 368
+            },
+            "renamePreset": {
+              "name": "renamePreset",
+              "args": [],
+              "line": 381
+            },
+            "deletePreset": {
+              "name": "deletePreset",
+              "args": [],
+              "line": 389
+            },
+            "applyPreset": {
+              "name": "applyPreset",
+              "args": [
+                "preset"
+              ],
+              "line": 408
+            },
+            "resetToCleanDefault": {
+              "name": "resetToCleanDefault",
+              "args": [],
+              "line": 570
+            },
+            "updateWindowTitle": {
+              "name": "updateWindowTitle",
+              "args": [
+                "presetName"
+              ],
+              "line": 660
+            }
+          }
+        }
+      },
+      "functions": {
+        "openRestoreSettingsModal": {
+          "name": "openRestoreSettingsModal",
+          "args": [],
+          "line": 698
+        },
+        "closeRestoreSettingsModal": {
+          "name": "closeRestoreSettingsModal",
+          "args": [],
+          "line": 702
+        },
+        "confirmApplySelectedPreset": {
+          "name": "confirmApplySelectedPreset",
+          "args": [],
+          "line": 706
+        },
+        "toggleAllUsersPresets": {
+          "name": "toggleAllUsersPresets",
+          "args": [],
+          "line": 710
+        },
+        "openSaveSettingsModal": {
+          "name": "openSaveSettingsModal",
+          "args": [],
+          "line": 714
+        },
+        "closeSaveSettingsModal": {
+          "name": "closeSaveSettingsModal",
+          "args": [],
+          "line": 718
+        },
+        "confirmSaveCurrentPreset": {
+          "name": "confirmSaveCurrentPreset",
+          "args": [],
+          "line": 722
+        },
+        "addNewPresetPrompt": {
+          "name": "addNewPresetPrompt",
+          "args": [],
+          "line": 726
+        },
+        "duplicateSelectedPreset": {
+          "name": "duplicateSelectedPreset",
+          "args": [],
+          "line": 730
+        },
+        "renameSelectedPresetPrompt": {
+          "name": "renameSelectedPresetPrompt",
+          "args": [],
+          "line": 734
+        },
+        "deleteSelectedPresetPrompt": {
+          "name": "deleteSelectedPresetPrompt",
+          "args": [],
+          "line": 738
+        },
+        "resetToDefaultSettings": {
+          "name": "resetToDefaultSettings",
+          "args": [],
+          "line": 742
+        },
+        "togglePresetWindowMaximize": {
+          "name": "togglePresetWindowMaximize",
+          "args": [
+            "el"
+          ],
+          "line": 746
+        }
+      },
+      "api_calls": [
+        "/api/presets",
+        "/api/current_settings",
+        "/api/presets/set_startup",
+        "/api/presets/set_save_on_close",
+        "/api/presets/save",
+        "/api/presets/duplicate",
+        "/api/presets/delete"
+      ],
+      "event_listeners": []
+    },
+    "static/js/universal_journal.js": {
+      "file_path": "static/js/universal_journal.js",
+      "type": "frontend_javascript",
+      "total_lines": 5543,
+      "objects": {
+        "_UniversalJournalTarget": {
+          "name": "_UniversalJournalTarget",
+          "kind": "object_literal",
+          "start_line": 49,
+          "methods": {}
+        },
+        "metaMap": {
+          "name": "metaMap",
+          "kind": "object_literal",
+          "start_line": 442,
+          "methods": {}
+        },
+        "payload": {
+          "name": "payload",
+          "kind": "object_literal",
+          "start_line": 1154,
+          "methods": {}
+        },
+        "names": {
+          "name": "names",
+          "kind": "object_literal",
+          "start_line": 2171,
+          "methods": {}
+        },
+        "presetObj": {
+          "name": "presetObj",
+          "kind": "object_literal",
+          "start_line": 3472,
+          "methods": {}
+        },
+        "newCrit": {
+          "name": "newCrit",
+          "kind": "object_literal",
+          "start_line": 3740,
+          "methods": {}
+        },
+        "criterion": {
+          "name": "criterion",
+          "kind": "object_literal",
+          "start_line": 4740,
+          "methods": {
+            "get": {
+              "name": "get",
+              "args": [
+                "target",
+                "prop",
+                "receiver"
+              ],
+              "line": 5409
+            },
+            "set": {
+              "name": "set",
+              "args": [
+                "target",
+                "prop",
+                "value",
+                "receiver"
+              ],
+              "line": 5422
+            }
+          }
+        }
+      },
+      "functions": {
+        "JournalInstance": {
+          "name": "JournalInstance",
+          "args": [
+            "windowId",
+            "docType",
+            "options = {}"
+          ],
+          "line": 7
+        }
+      },
+      "api_calls": [
+        "/api/documents/list",
+        "/api/catalog_data",
+        "/api/documents/details",
+        "/api/catalog_card"
+      ],
+      "event_listeners": [],
+      "role_and_purpose": "1C Sənəd jurnallarının siyahısı, filtrlər, kolon nizamlamaları və dinamik axtarış."
+    },
+    "static/js/user_passwords.js": {
+      "file_path": "static/js/user_passwords.js",
+      "type": "frontend_javascript",
+      "total_lines": 83,
+      "objects": {
+        "UserPasswordManager": {
+          "name": "UserPasswordManager",
+          "kind": "object_literal",
+          "start_line": 1,
+          "methods": {
+            "escape": {
+              "name": "escape",
+              "args": [
+                "text"
+              ],
+              "line": 2
+            },
+            "close": {
+              "name": "close",
+              "args": [],
+              "line": 4
+            },
+            "open": {
+              "name": "open",
+              "args": [
+                "win"
+              ],
+              "line": 9
+            },
+            "submit": {
+              "name": "submit",
+              "args": [
+                "credentials"
+              ],
+              "line": 56
+            }
+          }
+        }
+      },
+      "functions": {},
+      "api_calls": [
+        "/api/users/accounts",
+        "/api/users/change_password"
+      ],
+      "event_listeners": []
+    },
+    "static/js/value_list_modal.js": {
+      "file_path": "static/js/value_list_modal.js",
+      "type": "frontend_javascript",
+      "total_lines": 1018,
+      "objects": {
+        "ValueListModal": {
+          "name": "ValueListModal",
+          "kind": "object_literal",
+          "start_line": 6,
+          "methods": {
+            "onMatchAllChange": {
+              "name": "onMatchAllChange",
+              "args": [
+                "checked"
+              ],
+              "line": 19
+            },
+            "onSearchScopeChange": {
+              "name": "onSearchScopeChange",
+              "args": [
+                "val"
+              ],
+              "line": 24
+            },
+            "cleanNomText": {
+              "name": "cleanNomText",
+              "args": [
+                "val"
+              ],
+              "line": 35
+            },
+            "open": {
+              "name": "open",
+              "args": [
+                "options = {}"
+              ],
+              "line": 48
+            },
+            "close": {
+              "name": "close",
+              "args": [],
+              "line": 977
+            },
+            "changeRowComp": {
+              "name": "changeRowComp",
+              "args": [
+                "idx",
+                "comp"
+              ],
+              "line": 189
+            },
+            "resolveMissingMetadata": {
+              "name": "resolveMissingMetadata",
+              "args": [],
+              "line": 199
+            },
+            "resolveSingleItemMetadata": {
+              "name": "resolveSingleItemMetadata",
+              "args": [
+                "idx"
+              ],
+              "line": 214
+            },
+            "render": {
+              "name": "render",
+              "args": [],
+              "line": 252
+            },
+            "renderSelectionOnly": {
+              "name": "renderSelectionOnly",
+              "args": [],
+              "line": 345
+            },
+            "addNewRow": {
+              "name": "addNewRow",
+              "args": [],
+              "line": 355
+            },
+            "startEdit": {
+              "name": "startEdit",
+              "args": [
+                "idx"
+              ],
+              "line": 372
+            },
+            "commitEdit": {
+              "name": "commitEdit",
+              "args": [
+                "idx",
+                "val"
+              ],
+              "line": 387
+            },
+            "cancelEdit": {
+              "name": "cancelEdit",
+              "args": [
+                "idx"
+              ],
+              "line": 400
+            },
+            "handleInputTyping": {
+              "name": "handleInputTyping",
+              "args": [
+                "e",
+                "idx"
+              ],
+              "line": 412
+            },
+            "fetchAndShowAutocomplete": {
+              "name": "fetchAndShowAutocomplete",
+              "args": [
+                "idx",
+                "query"
+              ],
+              "line": 417
+            },
+            "renderAutocompleteDropdown": {
+              "name": "renderAutocompleteDropdown",
+              "args": [
+                "idx",
+                "folders",
+                "items",
+                "query"
+              ],
+              "line": 448
+            },
+            "highlightSuggestion": {
+              "name": "highlightSuggestion",
+              "args": [
+                "sIdx"
+              ],
+              "line": 569
+            },
+            "selectSuggestion": {
+              "name": "selectSuggestion",
+              "args": [
+                "rowIdx",
+                "suggIdx"
+              ],
+              "line": 590
+            },
+            "hideAutocomplete": {
+              "name": "hideAutocomplete",
+              "args": [],
+              "line": 604
+            },
+            "handleInputBlur": {
+              "name": "handleInputBlur",
+              "args": [
+                "idx"
+              ],
+              "line": 615
+            },
+            "handleInputKeydown": {
+              "name": "handleInputKeydown",
+              "args": [
+                "e",
+                "idx"
+              ],
+              "line": 628
+            },
+            "handleKeydown": {
+              "name": "handleKeydown",
+              "args": [
+                "e"
+              ],
+              "line": 681
+            },
+            "addItem": {
+              "name": "addItem",
+              "args": [
+                "val",
+                "comp = \"equal\""
+              ],
+              "line": 708
+            },
+            "setItem": {
+              "name": "setItem",
+              "args": [
+                "idx",
+                "val",
+                "comp"
+              ],
+              "line": 738
+            },
+            "openCatalogForRow": {
+              "name": "openCatalogForRow",
+              "args": [
+                "idx"
+              ],
+              "line": 862
+            },
+            "editSelected": {
+              "name": "editSelected",
+              "args": [],
+              "line": 791
+            },
+            "openPodbor": {
+              "name": "openPodbor",
+              "args": [],
+              "line": 824
+            },
+            "duplicateSelected": {
+              "name": "duplicateSelected",
+              "args": [],
+              "line": 892
+            },
+            "removeSelected": {
+              "name": "removeSelected",
+              "args": [],
+              "line": 908
+            },
+            "clearAll": {
+              "name": "clearAll",
+              "args": [],
+              "line": 918
+            },
+            "applyAndClose": {
+              "name": "applyAndClose",
+              "args": [],
+              "line": 928
+            },
+            "toggleMaximize": {
+              "name": "toggleMaximize",
+              "args": [],
+              "line": 1002
+            }
+          }
+        }
+      },
+      "functions": {},
+      "api_calls": [
+        "/api/catalog_data"
+      ],
+      "event_listeners": []
+    },
+    "static/js/components/filter/filter_chips_bar.js": {
+      "file_path": "static/js/components/filter/filter_chips_bar.js",
+      "type": "frontend_javascript",
+      "total_lines": 106,
+      "objects": {
+        "FilterChipsBar": {
+          "name": "FilterChipsBar",
+          "kind": "object_literal",
+          "start_line": 14,
+          "methods": {}
+        }
+      },
+      "functions": {},
+      "api_calls": [],
+      "event_listeners": [],
+      "role_and_purpose": "Aktiv süzgəclərin çip kimi göstərilməsi və silinməsi."
+    },
+    "static/js/components/filter/filter_criteria_modal.js": {
+      "file_path": "static/js/components/filter/filter_criteria_modal.js",
+      "type": "frontend_javascript",
+      "total_lines": 225,
+      "objects": {
+        "FilterCriteriaModal": {
+          "name": "FilterCriteriaModal",
+          "kind": "object_literal",
+          "start_line": 15,
+          "methods": {}
+        }
+      },
+      "functions": {},
+      "api_calls": [],
+      "event_listeners": [],
+      "role_and_purpose": "1C standartında 'Bərabərdir', 'Daxildir', 'Siyahıda' süzgəc meyarları dialoqu."
+    },
+    "static/js/components/filter/filter_manager.js": {
+      "file_path": "static/js/components/filter/filter_manager.js",
+      "type": "frontend_javascript",
+      "total_lines": 198,
+      "objects": {
+        "FilterManager": {
+          "name": "FilterManager",
+          "kind": "object_literal",
+          "start_line": 17,
+          "methods": {}
+        },
+        "instance": {
+          "name": "instance",
+          "kind": "object_literal",
+          "start_line": 28,
+          "methods": {}
+        }
+      },
+      "functions": {},
+      "api_calls": [],
+      "event_listeners": [],
+      "role_and_purpose": "Axtarış və süzgəc sistemi: kriteriya dialoqları, çiplər, təmizləmə və tətbiq."
+    },
+    "static/js/components/filter/filter_search_box.js": {
+      "file_path": "static/js/components/filter/filter_search_box.js",
+      "type": "frontend_javascript",
+      "total_lines": 147,
+      "objects": {
+        "FilterSearchBox": {
+          "name": "FilterSearchBox",
+          "kind": "object_literal",
+          "start_line": 21,
+          "methods": {}
+        }
+      },
+      "functions": {},
+      "api_calls": [],
+      "event_listeners": []
+    },
+    "static/js/components/filter/filter_toolbar.js": {
+      "file_path": "static/js/components/filter/filter_toolbar.js",
+      "type": "frontend_javascript",
+      "total_lines": 147,
+      "objects": {
+        "FilterToolbar": {
+          "name": "FilterToolbar",
+          "kind": "object_literal",
+          "start_line": 18,
+          "methods": {}
+        }
+      },
+      "functions": {},
+      "api_calls": [],
+      "event_listeners": []
+    },
+    "static/js/components/picker/catalog_picker_manager.js": {
+      "file_path": "static/js/components/picker/catalog_picker_manager.js",
+      "type": "frontend_javascript",
+      "total_lines": 75,
+      "objects": {
+        "CatalogPickerManager": {
+          "name": "CatalogPickerManager",
+          "kind": "object_literal",
+          "start_line": 14,
+          "methods": {}
+        }
+      },
+      "functions": {},
+      "api_calls": [],
+      "event_listeners": [],
+      "role_and_purpose": "Sənəd və hesabat xanalarından kataloq pəncərəsinin açılması üçün menecer."
+    },
+    "static/js/components/picker/picker_generic.js": {
+      "file_path": "static/js/components/picker/picker_generic.js",
+      "type": "frontend_javascript",
+      "total_lines": 116,
+      "objects": {
+        "PickerGeneric": {
+          "name": "PickerGeneric",
+          "kind": "object_literal",
+          "start_line": 13,
+          "methods": {}
+        }
+      },
+      "functions": {},
+      "api_calls": [],
+      "event_listeners": []
+    },
+    "static/js/components/picker/picker_kontragent.js": {
+      "file_path": "static/js/components/picker/picker_kontragent.js",
+      "type": "frontend_javascript",
+      "total_lines": 70,
+      "objects": {
+        "PickerKontragent": {
+          "name": "PickerKontragent",
+          "kind": "object_literal",
+          "start_line": 14,
+          "methods": {}
+        }
+      },
+      "functions": {},
+      "api_calls": [],
+      "event_listeners": []
+    },
+    "static/js/components/picker/picker_nomenklatura.js": {
+      "file_path": "static/js/components/picker/picker_nomenklatura.js",
+      "type": "frontend_javascript",
+      "total_lines": 70,
+      "objects": {
+        "PickerNomenklatura": {
+          "name": "PickerNomenklatura",
+          "kind": "object_literal",
+          "start_line": 14,
+          "methods": {}
+        }
+      },
+      "functions": {},
+      "api_calls": [],
+      "event_listeners": []
+    },
+    "static/js/components/picker/picker_voditel.js": {
+      "file_path": "static/js/components/picker/picker_voditel.js",
+      "type": "frontend_javascript",
+      "total_lines": 49,
+      "objects": {
+        "PickerVoditel": {
+          "name": "PickerVoditel",
+          "kind": "object_literal",
+          "start_line": 13,
+          "methods": {}
+        }
+      },
+      "functions": {},
+      "api_calls": [],
+      "event_listeners": []
+    },
+    "static/js/components/picker/picker_warehouse.js": {
+      "file_path": "static/js/components/picker/picker_warehouse.js",
+      "type": "frontend_javascript",
+      "total_lines": 49,
+      "objects": {
+        "PickerWarehouse": {
+          "name": "PickerWarehouse",
+          "kind": "object_literal",
+          "start_line": 13,
+          "methods": {}
+        }
+      },
+      "functions": {},
+      "api_calls": [],
+      "event_listeners": []
+    },
+    "templates/index.html": {
+      "file_path": "templates/index.html",
+      "type": "html_template",
+      "size_bytes": 43922,
+      "role_and_purpose": "Əsas tətbiq interfeysi: MDI iş masası, menyu, alətlər paneli və bütün komponentlərin skript birləşmələri."
+    },
+    "templates/components/audit_journal_window.html": {
+      "file_path": "templates/components/audit_journal_window.html",
+      "type": "html_template",
+      "size_bytes": 36681
+    },
+    "templates/components/catalog_selector_modal.html": {
+      "file_path": "templates/components/catalog_selector_modal.html",
+      "type": "html_template",
+      "size_bytes": 11983
+    },
+    "templates/components/diagnostics_modal.html": {
+      "file_path": "templates/components/diagnostics_modal.html",
+      "type": "html_template",
+      "size_bytes": 3975
+    },
+    "templates/components/doc_version_diff_window.html": {
+      "file_path": "templates/components/doc_version_diff_window.html",
+      "type": "html_template",
+      "size_bytes": 12713
+    },
+    "templates/components/field_selector_modal.html": {
+      "file_path": "templates/components/field_selector_modal.html",
+      "type": "html_template",
+      "size_bytes": 14772
+    },
+    "templates/components/header_toolbar.html": {
+      "file_path": "templates/components/header_toolbar.html",
+      "type": "html_template",
+      "size_bytes": 8374
+    },
+    "templates/components/login_modal.html": {
+      "file_path": "templates/components/login_modal.html",
+      "type": "html_template",
+      "size_bytes": 5585
+    },
+    "templates/components/nomenclature_card_window.html": {
+      "file_path": "templates/components/nomenclature_card_window.html",
+      "type": "html_template",
+      "size_bytes": 24435
+    },
+    "templates/components/operation_type_modal.html": {
+      "file_path": "templates/components/operation_type_modal.html",
+      "type": "html_template",
+      "size_bytes": 3685
+    },
+    "templates/components/period_picker_modal.html": {
+      "file_path": "templates/components/period_picker_modal.html",
+      "type": "html_template",
+      "size_bytes": 11213
+    },
+    "templates/components/pogruzka_doc_editor_window.html": {
+      "file_path": "templates/components/pogruzka_doc_editor_window.html",
+      "type": "html_template",
+      "size_bytes": 18363
+    },
+    "templates/components/portfolio_catalog_window.html": {
+      "file_path": "templates/components/portfolio_catalog_window.html",
+      "type": "html_template",
+      "size_bytes": 25754
+    },
+    "templates/components/price_doc_editor_window.html": {
+      "file_path": "templates/components/price_doc_editor_window.html",
+      "type": "html_template",
+      "size_bytes": 62463
+    },
+    "templates/components/report_sheet.html": {
+      "file_path": "templates/components/report_sheet.html",
+      "type": "html_template",
+      "size_bytes": 8006
+    },
+    "templates/components/sales_doc_editor_window.html": {
+      "file_path": "templates/components/sales_doc_editor_window.html",
+      "type": "html_template",
+      "size_bytes": 29796
+    },
+    "templates/components/settings_dialog.html": {
+      "file_path": "templates/components/settings_dialog.html",
+      "type": "html_template",
+      "size_bytes": 34546
+    },
+    "templates/components/settings_restore_modal.html": {
+      "file_path": "templates/components/settings_restore_modal.html",
+      "type": "html_template",
+      "size_bytes": 3146
+    },
+    "templates/components/settings_save_modal.html": {
+      "file_path": "templates/components/settings_save_modal.html",
+      "type": "html_template",
+      "size_bytes": 4194
+    },
+    "templates/components/snap_layout_helper.html": {
+      "file_path": "templates/components/snap_layout_helper.html",
+      "type": "html_template",
+      "size_bytes": 5712
+    },
+    "templates/components/universal_journal_filter_window.html": {
+      "file_path": "templates/components/universal_journal_filter_window.html",
+      "type": "html_template",
+      "size_bytes": 16984
+    },
+    "templates/components/universal_journal_window.html": {
+      "file_path": "templates/components/universal_journal_window.html",
+      "type": "html_template",
+      "size_bytes": 21541
+    },
+    "templates/components/value_list_modal.html": {
+      "file_path": "templates/components/value_list_modal.html",
+      "type": "html_template",
+      "size_bytes": 9267
+    }
+  },
+  "api_endpoints": {
+    "/": {
+      "handler": "routes/base_routes.py:index",
+      "methods": [
+        "GET"
+      ],
+      "line": 87
+    },
+    "/api/bases": {
+      "handler": "routes/base_routes.py:get_bases",
+      "methods": [
+        "GET"
+      ],
+      "line": 91
+    },
+    "/api/bases/set_active": {
+      "handler": "routes/base_routes.py:set_active_base_endpoint",
+      "methods": [
+        "POST"
+      ],
+      "line": 107
+    },
+    "/api/bases/add": {
+      "handler": "routes/base_routes.py:add_base_endpoint",
+      "methods": [
+        "POST"
+      ],
+      "line": 123
+    },
+    "/api/bases/delete": {
+      "handler": "routes/base_routes.py:delete_base_endpoint",
+      "methods": [
+        "POST"
+      ],
+      "line": 142
+    },
+    "/api/ping_connection": {
+      "handler": "routes/base_routes.py:ping_connection_endpoint",
+      "methods": [
+        "GET",
+        "POST"
+      ],
+      "line": 162
+    },
+    "/api/login": {
+      "handler": "routes/base_routes.py:user_login",
+      "methods": [
+        "POST"
+      ],
+      "line": 184
+    },
+    "/api/presets": {
+      "handler": "routes/base_routes.py:get_presets_endpoint",
+      "methods": [
+        "GET"
+      ],
+      "line": 203
+    },
+    "/api/presets/save": {
+      "handler": "routes/base_routes.py:save_presets_endpoint",
+      "methods": [
+        "POST"
+      ],
+      "line": 212
+    },
+    "/api/presets/delete": {
+      "handler": "routes/base_routes.py:delete_preset_endpoint",
+      "methods": [
+        "POST"
+      ],
+      "line": 230
+    },
+    "/api/presets/rename": {
+      "handler": "routes/base_routes.py:rename_preset_endpoint",
+      "methods": [
+        "POST"
+      ],
+      "line": 242
+    },
+    "/api/presets/duplicate": {
+      "handler": "routes/base_routes.py:duplicate_preset_endpoint",
+      "methods": [
+        "POST"
+      ],
+      "line": 255
+    },
+    "/api/presets/set_startup": {
+      "handler": "routes/base_routes.py:set_startup_endpoint",
+      "methods": [
+        "POST"
+      ],
+      "line": 268
+    },
+    "/api/presets/set_save_on_close": {
+      "handler": "routes/base_routes.py:set_save_on_close_endpoint",
+      "methods": [
+        "POST"
+      ],
+      "line": 279
+    },
+    "/api/current_settings": {
+      "handler": "routes/base_routes.py:current_settings_endpoint",
+      "methods": [
+        "GET",
+        "POST"
+      ],
+      "line": 290
+    },
+    "/api/app/minimize": {
+      "handler": "routes/base_routes.py:app_minimize_endpoint",
+      "methods": [
+        "POST",
+        "GET"
+      ],
+      "line": 305
+    },
+    "/api/app/close": {
+      "handler": "routes/base_routes.py:app_close_endpoint",
+      "methods": [
+        "POST",
+        "GET"
+      ],
+      "line": 318
+    },
+    "/api/users/accounts": {
+      "handler": "routes/catalog_routes.py:user_accounts_endpoint",
+      "methods": [
+        "POST"
+      ],
+      "line": 17
+    },
+    "/api/users/change_password": {
+      "handler": "routes/catalog_routes.py:change_user_password_endpoint",
+      "methods": [
+        "POST"
+      ],
+      "line": 29
+    },
+    "/api/catalog_card": {
+      "handler": "routes/catalog_routes.py:catalog_card_endpoint",
+      "methods": [
+        "POST"
+      ],
+      "line": 42
+    },
+    "/api/users": {
+      "handler": "routes/catalog_routes.py:get_users",
+      "methods": [
+        "POST"
+      ],
+      "line": 50
+    },
+    "/api/portfolios": {
+      "handler": "routes/catalog_routes.py:get_portfolios",
+      "methods": [
+        "POST"
+      ],
+      "line": 60
+    },
+    "/api/agents": {
+      "handler": "routes/catalog_routes.py:get_agents",
+      "methods": [
+        "POST"
+      ],
+      "line": 70
+    },
+    "/api/search_kontragents": {
+      "handler": "routes/catalog_routes.py:search_kontragents",
+      "methods": [
+        "POST"
+      ],
+      "line": 80
+    },
+    "/api/search_nomenklatura": {
+      "handler": "routes/catalog_routes.py:search_nomenklatura",
+      "methods": [
+        "POST"
+      ],
+      "line": 90
+    },
+    "/api/documents/price_types": {
+      "handler": "routes/catalog_routes.py:get_price_types_endpoint",
+      "methods": [
+        "GET",
+        "POST"
+      ],
+      "line": 101
+    },
+    "/api/catalog_data": {
+      "handler": "routes/catalog_routes.py:catalog_data_endpoint",
+      "methods": [
+        "POST"
+      ],
+      "line": 115
+    },
+    "/api/portfolio_catalog/filters": {
+      "handler": "routes/catalog_routes.py:portfolio_catalog_filters_endpoint",
+      "methods": [
+        "GET",
+        "POST"
+      ],
+      "line": 125
+    },
+    "/api/portfolio_catalog/items": {
+      "handler": "routes/catalog_routes.py:portfolio_catalog_items_endpoint",
+      "methods": [
+        "POST"
+      ],
+      "line": 135
+    },
+    "/api/portfolio_catalog/export_excel": {
+      "handler": "routes/catalog_routes.py:portfolio_catalog_export_excel_endpoint",
+      "methods": [
+        "POST"
+      ],
+      "line": 152
+    },
+    "/api/portfolio_catalog/download_excel": {
+      "handler": "routes/catalog_routes.py:download_portfolio_catalog_excel",
+      "methods": [
+        "GET"
+      ],
+      "line": 165
+    },
+    "/api/documents/search_nomenclature": {
+      "handler": "routes/catalog_routes.py:search_nomenclature_endpoint",
+      "methods": [
+        "POST"
+      ],
+      "line": 173
+    },
+    "/api/documents/item_prices": {
+      "handler": "routes/catalog_routes.py:get_item_prices_endpoint",
+      "methods": [
+        "POST"
+      ],
+      "line": 187
+    },
+    "/api/documents/nomenclature_card": {
+      "handler": "routes/catalog_routes.py:get_nomenclature_card_endpoint",
+      "methods": [
+        "POST"
+      ],
+      "line": 201
+    },
+    "/api/documents/nomenclature_stock": {
+      "handler": "routes/catalog_routes.py:get_nomenclature_stock_endpoint",
+      "methods": [
+        "POST"
+      ],
+      "line": 215
+    },
+    "/api/documents/list": {
+      "handler": "routes/document_routes.py:documents_list_endpoint",
+      "methods": [
+        "POST"
+      ],
+      "line": 12
+    },
+    "/api/documents/details": {
+      "handler": "routes/document_routes.py:document_details_endpoint",
+      "methods": [
+        "POST"
+      ],
+      "line": 35
+    },
+    "/api/documents/find_pogruzka": {
+      "handler": "routes/document_routes.py:find_pogruzka_endpoint",
+      "methods": [
+        "POST"
+      ],
+      "line": 48
+    },
+    "/api/documents/price_doc": {
+      "handler": "routes/document_routes.py:get_price_doc_endpoint",
+      "methods": [
+        "POST"
+      ],
+      "line": 63
+    },
+    "/api/documents/save_price_doc": {
+      "handler": "routes/document_routes.py:save_price_doc_endpoint",
+      "methods": [
+        "POST"
+      ],
+      "line": 76
+    },
+    "/api/documents/resolve_nomenclature": {
+      "handler": "routes/document_routes.py:resolve_nomenclature_endpoint",
+      "methods": [
+        "POST"
+      ],
+      "line": 89
+    },
+    "/api/documents/batch_item_prices": {
+      "handler": "routes/document_routes.py:get_batch_item_prices_endpoint",
+      "methods": [
+        "POST"
+      ],
+      "line": 102
+    },
+    "/api/documents/download_excel_template": {
+      "handler": "routes/document_routes.py:download_excel_template_endpoint",
+      "methods": [
+        "GET"
+      ],
+      "line": 116
+    },
+    "/api/documents/parse_excel_file": {
+      "handler": "routes/document_routes.py:parse_excel_file_endpoint",
+      "methods": [
+        "POST"
+      ],
+      "line": 142
+    },
+    "/api/audit/list": {
+      "handler": "routes/document_routes.py:audit_list_endpoint",
+      "methods": [
+        "POST"
+      ],
+      "line": 281
+    },
+    "/api/audit/details": {
+      "handler": "routes/document_routes.py:audit_details_endpoint",
+      "methods": [
+        "POST"
+      ],
+      "line": 294
+    },
+    "/api/generate_report": {
+      "handler": "routes/report_routes.py:generate_report",
+      "methods": [
+        "POST"
+      ],
+      "line": 19
+    },
+    "/api/universal_sales": {
+      "handler": "routes/report_routes.py:universal_sales",
+      "methods": [
+        "POST"
+      ],
+      "line": 29
+    },
+    "/api/download_excel": {
+      "handler": "routes/report_routes.py:download_excel",
+      "methods": [
+        "GET"
+      ],
+      "line": 39
+    },
+    "/api/download_universal_excel": {
+      "handler": "routes/report_routes.py:download_universal_excel",
+      "methods": [
+        "GET"
+      ],
+      "line": 46
+    },
+    "/api/universal_report": {
+      "handler": "routes/report_routes.py:universal_report_endpoint",
+      "methods": [
+        "POST"
+      ],
+      "line": 53
+    },
+    "/api/download_universal_report_excel": {
+      "handler": "routes/report_routes.py:download_universal_report_excel",
+      "methods": [
+        "GET"
+      ],
+      "line": 86
+    },
+    "/api/export_universal_report_excel": {
+      "handler": "routes/report_routes.py:export_universal_report_excel_endpoint",
+      "methods": [
+        "POST"
+      ],
+      "line": 93
+    }
+  },
+  "frontend_components": {},
+  "relationships": {
+    "static/js/app.js": [
+      {
+        "calls_api": "/api/app/minimize",
+        "handled_by": "routes/base_routes.py:app_minimize_endpoint"
+      },
+      {
+        "calls_api": "/api/app/close",
+        "handled_by": "routes/base_routes.py:app_close_endpoint"
+      }
+    ],
+    "static/js/audit_journal.js": [
+      {
+        "calls_api": "/api/audit/list",
+        "handled_by": "routes/document_routes.py:audit_list_endpoint"
+      },
+      {
+        "calls_api": "/api/audit/details",
+        "handled_by": "routes/document_routes.py:audit_details_endpoint"
+      }
+    ],
+    "static/js/catalog_selector.js": [
+      {
+        "calls_api": "/api/catalog_data",
+        "handled_by": "routes/catalog_routes.py:catalog_data_endpoint"
+      }
+    ],
+    "static/js/pogruzka_doc_editor.js": [
+      {
+        "calls_api": "/api/documents/details",
+        "handled_by": "routes/document_routes.py:document_details_endpoint"
+      }
+    ],
+    "static/js/portfolio_catalog.js": [
+      {
+        "calls_api": "/api/portfolio_catalog/filters",
+        "handled_by": "routes/catalog_routes.py:portfolio_catalog_filters_endpoint"
+      },
+      {
+        "calls_api": "/api/portfolio_catalog/items",
+        "handled_by": "routes/catalog_routes.py:portfolio_catalog_items_endpoint"
+      },
+      {
+        "calls_api": "/api/portfolio_catalog/export_excel",
+        "handled_by": "routes/catalog_routes.py:portfolio_catalog_export_excel_endpoint"
+      }
+    ],
+    "static/js/price_doc_editor.js": [
+      {
+        "calls_api": "/api/documents/price_doc",
+        "handled_by": "routes/document_routes.py:get_price_doc_endpoint"
+      },
+      {
+        "calls_api": "/api/portfolio_catalog/items",
+        "handled_by": "routes/catalog_routes.py:portfolio_catalog_items_endpoint"
+      },
+      {
+        "calls_api": "/api/documents/parse_excel_file",
+        "handled_by": "routes/document_routes.py:parse_excel_file_endpoint"
+      },
+      {
+        "calls_api": "/api/documents/resolve_nomenclature",
+        "handled_by": "routes/document_routes.py:resolve_nomenclature_endpoint"
+      },
+      {
+        "calls_api": "/api/documents/save_price_doc",
+        "handled_by": "routes/document_routes.py:save_price_doc_endpoint"
+      },
+      {
+        "calls_api": "/api/documents/price_types",
+        "handled_by": "routes/catalog_routes.py:get_price_types_endpoint"
+      },
+      {
+        "calls_api": "/api/documents/batch_item_prices",
+        "handled_by": "routes/document_routes.py:get_batch_item_prices_endpoint"
+      },
+      {
+        "calls_api": "/api/documents/item_prices",
+        "handled_by": "routes/catalog_routes.py:get_item_prices_endpoint"
+      }
+    ],
+    "static/js/report_engine.js": [
+      {
+        "calls_api": "/api/universal_report",
+        "handled_by": "routes/report_routes.py:universal_report_endpoint"
+      },
+      {
+        "calls_api": "/api/export_universal_report_excel",
+        "handled_by": "routes/report_routes.py:export_universal_report_excel_endpoint"
+      }
+    ],
+    "static/js/sales_doc_editor.js": [
+      {
+        "calls_api": "/api/documents/details",
+        "handled_by": "routes/document_routes.py:document_details_endpoint"
+      }
+    ],
+    "static/js/session.js": [
+      {
+        "calls_api": "/api/ping_connection",
+        "handled_by": "routes/base_routes.py:ping_connection_endpoint"
+      },
+      {
+        "calls_api": "/api/bases",
+        "handled_by": "routes/base_routes.py:get_bases"
+      },
+      {
+        "calls_api": "/api/users",
+        "handled_by": "routes/catalog_routes.py:get_users"
+      },
+      {
+        "calls_api": "/api/login",
+        "handled_by": "routes/base_routes.py:user_login"
+      },
+      {
+        "calls_api": "/api/bases/set_active",
+        "handled_by": "routes/base_routes.py:set_active_base_endpoint"
+      },
+      {
+        "calls_api": "/api/bases/add",
+        "handled_by": "routes/base_routes.py:add_base_endpoint"
+      },
+      {
+        "calls_api": "/api/bases/delete",
+        "handled_by": "routes/base_routes.py:delete_base_endpoint"
+      }
+    ],
+    "static/js/settings_modal.js": [
+      {
+        "calls_api": "/api/catalog_data",
+        "handled_by": "routes/catalog_routes.py:catalog_data_endpoint"
+      }
+    ],
+    "static/js/settings_presets.js": [
+      {
+        "calls_api": "/api/presets",
+        "handled_by": "routes/base_routes.py:get_presets_endpoint"
+      },
+      {
+        "calls_api": "/api/current_settings",
+        "handled_by": "routes/base_routes.py:current_settings_endpoint"
+      },
+      {
+        "calls_api": "/api/presets/set_startup",
+        "handled_by": "routes/base_routes.py:set_startup_endpoint"
+      },
+      {
+        "calls_api": "/api/presets/set_save_on_close",
+        "handled_by": "routes/base_routes.py:set_save_on_close_endpoint"
+      },
+      {
+        "calls_api": "/api/presets/save",
+        "handled_by": "routes/base_routes.py:save_presets_endpoint"
+      },
+      {
+        "calls_api": "/api/presets/duplicate",
+        "handled_by": "routes/base_routes.py:duplicate_preset_endpoint"
+      },
+      {
+        "calls_api": "/api/presets/delete",
+        "handled_by": "routes/base_routes.py:delete_preset_endpoint"
+      }
+    ],
+    "static/js/universal_journal.js": [
+      {
+        "calls_api": "/api/documents/list",
+        "handled_by": "routes/document_routes.py:documents_list_endpoint"
+      },
+      {
+        "calls_api": "/api/catalog_data",
+        "handled_by": "routes/catalog_routes.py:catalog_data_endpoint"
+      },
+      {
+        "calls_api": "/api/documents/details",
+        "handled_by": "routes/document_routes.py:document_details_endpoint"
+      },
+      {
+        "calls_api": "/api/catalog_card",
+        "handled_by": "routes/catalog_routes.py:catalog_card_endpoint"
+      }
+    ],
+    "static/js/user_passwords.js": [
+      {
+        "calls_api": "/api/users/accounts",
+        "handled_by": "routes/catalog_routes.py:user_accounts_endpoint"
+      },
+      {
+        "calls_api": "/api/users/change_password",
+        "handled_by": "routes/catalog_routes.py:change_user_password_endpoint"
+      }
+    ],
+    "static/js/value_list_modal.js": [
+      {
+        "calls_api": "/api/catalog_data",
+        "handled_by": "routes/catalog_routes.py:catalog_data_endpoint"
+      }
+    ]
+  }
+}
