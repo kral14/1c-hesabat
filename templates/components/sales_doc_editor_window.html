@@ -118,6 +118,17 @@
 
     </div>
 
+    <!-- Global Duplicate Alert inside Realization Document Window -->
+    <div id="sdeGlobalDuplicateBanner" style="display: none; background: #fee2e2; border-bottom: 2px solid #ef4444; padding: 5px 12px; font-size: 11px; color: #991b1b; font-weight: bold; align-items: center; justify-content: space-between;">
+      <div style="display: flex; align-items: center; gap: 6px;">
+        <span style="font-size: 14px;">🚨</span>
+        <span>ВНИМАНИЕ: Накладная найдена в <span id="sdeGlobalDuplicateCount">2</span> активных документах «Погрузка машины» (Дубликат)!</span>
+      </div>
+      <button type="button" class="btn-1c" onclick="SalesDocEditor.switchTab('pogruzka')" style="height: 20px; padding: 0 8px; font-size: 10px; font-weight: bold; cursor: pointer; background: #ffffff; border: 1px solid #ef4444; color: #991b1b;">
+        Перейти к погрузке ➔
+      </button>
+    </div>
+
     <!-- 1C Tab Section Navigation Bar -->
     <div style="background: #e5e2cf; border-bottom: 1px solid #b0af9f; display: flex; align-items: flex-end; padding: 4px 10px 0 10px; gap: 2px;">
       <button type="button" class="sde-tab-btn active" id="sdeTabBtnTovary" onclick="SalesDocEditor.switchTab('tovary')" style="background: #f0eee3; border: 1px solid #b0af9f; border-bottom: 1px solid #f0eee3; font-weight: bold; color: #002060; padding: 4px 12px; cursor: pointer; border-top-left-radius: 3px; border-top-right-radius: 3px; font-size: 11px;">

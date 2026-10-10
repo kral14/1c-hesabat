@@ -1204,6 +1204,14 @@ const SalesDocEditor = {
       }
     }
 
+    // Global duplicate alert banner at the top of realization window
+    const globalBanner = win.querySelector("#sdeGlobalDuplicateBanner");
+    const globalCount = win.querySelector("#sdeGlobalDuplicateCount");
+    if (globalBanner) {
+      globalBanner.style.display = isDuplicate ? "flex" : "none";
+      if (globalCount) globalCount.textContent = String(activeCount);
+    }
+
     // 2. Alert boxes
     const dupAlert = win.querySelector("#sdePogruzkaDuplicateAlert");
     const normInfo = win.querySelector("#sdePogruzkaNormalInfo");

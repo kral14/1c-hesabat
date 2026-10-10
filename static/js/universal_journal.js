@@ -1505,12 +1505,6 @@ const _UniversalJournalTarget = {
       let cellCustomStyle = "";
       let cellInnerHtml = this.escapeHtml(cellText);
 
-      // Duplicate Pogruzka Route Highlight (Qırmızı xəbərdarlıq)
-      if (key === "pogruzka_marshrut" && row.pogruzka_duplicate) {
-        if (!isSelected) cellCustomStyle = "background: #fee2e2; color: #b91c1c; font-weight: bold;";
-        cellInnerHtml = `<span title="ВНИМАНИЕ: Накладная найдена в ${row.pogruzka_count || 2} документах погрузки (Дубликат!)" style="display: inline-flex; align-items: center; gap: 4px;"><span>🚨</span><span>${this.escapeHtml(cellText || 'Рейс')}</span><span style="background: #dc2626; color: #fff; border-radius: 8px; padding: 0 4px; font-size: 9px; font-weight: bold; line-height: 12px;">${row.pogruzka_count || 2}</span></span>`;
-      }
-
       cells.push(`<td class="${activeCell ? 'c1-cell-active' : ''}" data-col-key="${key}" style="${wStyle} ${cellCustomStyle} ${selectionStyle} padding: 2px 6px; text-align: ${align}; border: 1px solid #d4d0c8; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; user-select: text;" onclick="UniversalJournal.selectCell(${i}, '${key}', this, event)">${cellInnerHtml}</td>`);
     }
 
