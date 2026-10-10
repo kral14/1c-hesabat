@@ -373,11 +373,12 @@
   // Qlobal register
   window.OneCIcons = OneCIcons;
   window.OneCPeriodBar = OneCPeriodBar;
-  window.OneCFilterBar = OneCFilterBar;
+  window.OneCFilterBar = window.FilterManager || OneCFilterBar;
   window.OneCUI = {
     Icons: OneCIcons,
     PeriodBar: OneCPeriodBar,
-    FilterBar: OneCFilterBar
+    FilterBar: window.FilterManager || OneCFilterBar,
+    Picker: window.CatalogPickerManager || null
   };
 
 })(window);
