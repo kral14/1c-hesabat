@@ -520,7 +520,7 @@ const _UniversalJournalTarget = {
       tbody.innerHTML = "";
     }
     const loadingStateEl = this.getEl("ujLoadingState");
-    const loadingText = (loadingStateEl && loadingStateEl.querySelector) ? loadingStateEl.querySelector("div:nth-child(2)") : null;
+    const loadingText = (loadingStateEl && loadingStateEl.querySelector) ? (loadingStateEl.querySelector(".uj-loading-text") || loadingStateEl.querySelector("div:nth-child(2)")) : null;
     if (loadingText) {
       loadingText.textContent = `1C: Загрузка документов [${meta.title}]...`;
     }
@@ -899,7 +899,7 @@ const _UniversalJournalTarget = {
     if (emptyEl) emptyEl.style.display = "none";
 
     const loadingStateEl = this.getEl("ujLoadingState");
-    const loadingText = (loadingStateEl && loadingStateEl.querySelector) ? loadingStateEl.querySelector("div:nth-child(2)") : null;
+    const loadingText = (loadingStateEl && loadingStateEl.querySelector) ? (loadingStateEl.querySelector(".uj-loading-text") || loadingStateEl.querySelector("div:nth-child(2)")) : null;
     if (options.all) {
       this.updateStatus("Загрузка всех документов выбранного периода...");
       if (loadingText) loadingText.textContent = `1C: Загрузка всех документов [${this.docTitle || ''}]...`;

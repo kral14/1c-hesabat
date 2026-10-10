@@ -5884,7 +5884,7 @@
     "templates/index.html": {
       "file_path": "templates/index.html",
       "type": "html_template",
-      "size_bytes": 43922,
+      "size_bytes": 43923,
       "role_and_purpose": "Əsas tətbiq interfeysi: MDI iş masası, menyu, alətlər paneli və bütün komponentlərin skript birləşmələri."
     },
     "templates/components/audit_journal_window.html": {
@@ -5990,7 +5990,7 @@
     "templates/components/universal_journal_window.html": {
       "file_path": "templates/components/universal_journal_window.html",
       "type": "html_template",
-      "size_bytes": 21888
+      "size_bytes": 22134
     },
     "templates/components/value_list_modal.html": {
       "file_path": "templates/components/value_list_modal.html",
