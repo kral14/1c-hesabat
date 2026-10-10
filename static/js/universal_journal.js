@@ -2764,7 +2764,18 @@ const _UniversalJournalTarget = {
           });
         }
       } else {
-        if (window.CatalogSelector && typeof CatalogSelector.open === "function") {
+        if (window.OneCCatalogPicker && typeof OneCCatalogPicker.open === "function") {
+          OneCCatalogPicker.open(catalog, inputEl, {
+            onSelect: (selectedItem, valStr) => {
+              if (selectedItem) {
+                const name = valStr || selectedItem.name || selectedItem.Наименование || "";
+                if (inputEl) inputEl.value = name;
+                crit.value = name;
+                this.setCritEnabled(idx, true);
+              }
+            }
+          });
+        } else if (window.CatalogSelector && typeof CatalogSelector.open === "function") {
           CatalogSelector.open({
             catalog: catalog,
             targetInput: inputEl,
