@@ -9,7 +9,9 @@
       "docstring": "1C Reporter — Flask giriş nöqtəsi.\n\nStruktur:\n  services/common.py            - yol sabitləri, xəta loqu, keşlər (qovluq, barkod, qiymət növləri)\n  services/onec_service.py      - 1C STA COM işçi axını (OneCService) və əməliyyat dispetçeri\n  services/catalog_handlers.py  - kataloq, portfel, agent, istifadəçi əməliyyatları\n  services/report_handlers.py   - hesabat əməliyyatları (universal_report, universal_sales, generate)\n  services/document_handlers.py - sənəd jurnalı, sənəd redaktoru, qiymət əməliyyatları\n  routes/*.py                   - Flask Blueprint marşrutları",
       "imports": [
         "sys",
+        "gzip",
         "flask.Flask",
+        "flask.request",
         "database",
         "services.onec_service.one_c",
         "routes.base_routes.base_bp",
@@ -19,13 +21,13 @@
         "os"
       ],
       "functions": {
-        "add_header": {
-          "name": "add_header",
+        "compress_and_headers": {
+          "name": "compress_and_headers",
           "args": [
             "response"
           ],
-          "start_line": 42,
-          "end_line": 46,
+          "start_line": 43,
+          "end_line": 71,
           "docstring": "",
           "decorators": [
             "app.after_request"
@@ -1320,7 +1322,7 @@
             "field_map"
           ],
           "start_line": 76,
-          "end_line": 294,
+          "end_line": 297,
           "docstring": "Translates UI filter rules into 1C query conditions safely and accurately.\nfield_map: dict of UI field key -> 1C SQL expression (e.g. {'kontragent': 'Т.Контрагент.Наименование'})",
           "decorators": []
         }
@@ -1526,7 +1528,7 @@
             "payload"
           ],
           "start_line": 9,
-          "end_line": 259,
+          "end_line": 289,
           "docstring": "",
           "decorators": []
         },
@@ -1536,8 +1538,8 @@
             "conn",
             "payload"
           ],
-          "start_line": 262,
-          "end_line": 439,
+          "start_line": 292,
+          "end_line": 469,
           "docstring": "",
           "decorators": []
         }
@@ -1845,7 +1847,7 @@
           "name": "ping_connection_endpoint",
           "args": [],
           "start_line": 162,
-          "end_line": 181,
+          "end_line": 189,
           "docstring": "",
           "decorators": [],
           "endpoint": {
@@ -1859,8 +1861,8 @@
         "user_login": {
           "name": "user_login",
           "args": [],
-          "start_line": 184,
-          "end_line": 200,
+          "start_line": 192,
+          "end_line": 208,
           "docstring": "",
           "decorators": [],
           "endpoint": {
@@ -1873,8 +1875,8 @@
         "get_presets_endpoint": {
           "name": "get_presets_endpoint",
           "args": [],
-          "start_line": 203,
-          "end_line": 209,
+          "start_line": 211,
+          "end_line": 217,
           "docstring": "",
           "decorators": [],
           "endpoint": {
@@ -1887,8 +1889,8 @@
         "save_presets_endpoint": {
           "name": "save_presets_endpoint",
           "args": [],
-          "start_line": 212,
-          "end_line": 227,
+          "start_line": 220,
+          "end_line": 235,
           "docstring": "",
           "decorators": [],
           "endpoint": {
@@ -1901,8 +1903,8 @@
         "delete_preset_endpoint": {
           "name": "delete_preset_endpoint",
           "args": [],
-          "start_line": 230,
-          "end_line": 239,
+          "start_line": 238,
+          "end_line": 247,
           "docstring": "",
           "decorators": [],
           "endpoint": {
@@ -1915,8 +1917,8 @@
         "rename_preset_endpoint": {
           "name": "rename_preset_endpoint",
           "args": [],
-          "start_line": 242,
-          "end_line": 252,
+          "start_line": 250,
+          "end_line": 260,
           "docstring": "",
           "decorators": [],
           "endpoint": {
@@ -1929,8 +1931,8 @@
         "duplicate_preset_endpoint": {
           "name": "duplicate_preset_endpoint",
           "args": [],
-          "start_line": 255,
-          "end_line": 265,
+          "start_line": 263,
+          "end_line": 273,
           "docstring": "",
           "decorators": [],
           "endpoint": {
@@ -1943,8 +1945,8 @@
         "set_startup_endpoint": {
           "name": "set_startup_endpoint",
           "args": [],
-          "start_line": 268,
-          "end_line": 276,
+          "start_line": 276,
+          "end_line": 284,
           "docstring": "",
           "decorators": [],
           "endpoint": {
@@ -1957,8 +1959,8 @@
         "set_save_on_close_endpoint": {
           "name": "set_save_on_close_endpoint",
           "args": [],
-          "start_line": 279,
-          "end_line": 287,
+          "start_line": 287,
+          "end_line": 295,
           "docstring": "",
           "decorators": [],
           "endpoint": {
@@ -1971,8 +1973,8 @@
         "current_settings_endpoint": {
           "name": "current_settings_endpoint",
           "args": [],
-          "start_line": 290,
-          "end_line": 302,
+          "start_line": 298,
+          "end_line": 310,
           "docstring": "",
           "decorators": [],
           "endpoint": {
@@ -1986,8 +1988,8 @@
         "app_minimize_endpoint": {
           "name": "app_minimize_endpoint",
           "args": [],
-          "start_line": 305,
-          "end_line": 315,
+          "start_line": 313,
+          "end_line": 323,
           "docstring": "",
           "decorators": [],
           "endpoint": {
@@ -2001,8 +2003,8 @@
         "app_close_endpoint": {
           "name": "app_close_endpoint",
           "args": [],
-          "start_line": 318,
-          "end_line": 323,
+          "start_line": 326,
+          "end_line": 331,
           "docstring": "",
           "decorators": [],
           "endpoint": {
@@ -2071,7 +2073,7 @@
             "POST"
           ],
           "handler": "user_login",
-          "start_line": 184
+          "start_line": 192
         },
         {
           "url": "/api/presets",
@@ -2079,7 +2081,7 @@
             "GET"
           ],
           "handler": "get_presets_endpoint",
-          "start_line": 203
+          "start_line": 211
         },
         {
           "url": "/api/presets/save",
@@ -2087,7 +2089,7 @@
             "POST"
           ],
           "handler": "save_presets_endpoint",
-          "start_line": 212
+          "start_line": 220
         },
         {
           "url": "/api/presets/delete",
@@ -2095,7 +2097,7 @@
             "POST"
           ],
           "handler": "delete_preset_endpoint",
-          "start_line": 230
+          "start_line": 238
         },
         {
           "url": "/api/presets/rename",
@@ -2103,7 +2105,7 @@
             "POST"
           ],
           "handler": "rename_preset_endpoint",
-          "start_line": 242
+          "start_line": 250
         },
         {
           "url": "/api/presets/duplicate",
@@ -2111,7 +2113,7 @@
             "POST"
           ],
           "handler": "duplicate_preset_endpoint",
-          "start_line": 255
+          "start_line": 263
         },
         {
           "url": "/api/presets/set_startup",
@@ -2119,7 +2121,7 @@
             "POST"
           ],
           "handler": "set_startup_endpoint",
-          "start_line": 268
+          "start_line": 276
         },
         {
           "url": "/api/presets/set_save_on_close",
@@ -2127,7 +2129,7 @@
             "POST"
           ],
           "handler": "set_save_on_close_endpoint",
-          "start_line": 279
+          "start_line": 287
         },
         {
           "url": "/api/current_settings",
@@ -2136,7 +2138,7 @@
             "POST"
           ],
           "handler": "current_settings_endpoint",
-          "start_line": 290
+          "start_line": 298
         },
         {
           "url": "/api/app/minimize",
@@ -2145,7 +2147,7 @@
             "GET"
           ],
           "handler": "app_minimize_endpoint",
-          "start_line": 305
+          "start_line": 313
         },
         {
           "url": "/api/app/close",
@@ -2154,7 +2156,7 @@
             "GET"
           ],
           "handler": "app_close_endpoint",
-          "start_line": 318
+          "start_line": 326
         }
       ],
       "role_and_purpose": "Əsas səhifələr, autentifikasiya və sessiya marşrutları."
@@ -3156,6 +3158,36 @@
       "api_calls": [],
       "event_listeners": []
     },
+    "static/js/c1_filter_component.js": {
+      "file_path": "static/js/c1_filter_component.js",
+      "type": "frontend_javascript",
+      "total_lines": 2297,
+      "objects": {
+        "C1FilterComponent": {
+          "name": "C1FilterComponent",
+          "kind": "object_literal",
+          "start_line": 9,
+          "methods": {}
+        },
+        "names": {
+          "name": "names",
+          "kind": "object_literal",
+          "start_line": 170,
+          "methods": {}
+        },
+        "presetObj": {
+          "name": "presetObj",
+          "kind": "object_literal",
+          "start_line": 1727,
+          "methods": {}
+        }
+      },
+      "functions": {},
+      "api_calls": [
+        "/api/catalog_data"
+      ],
+      "event_listeners": []
+    },
     "static/js/c1_table_selection.js": {
       "file_path": "static/js/c1_table_selection.js",
       "type": "frontend_javascript",
@@ -3422,7 +3454,7 @@
     "static/js/catalog_selector.js": {
       "file_path": "static/js/catalog_selector.js",
       "type": "frontend_javascript",
-      "total_lines": 1439,
+      "total_lines": 1517,
       "objects": {
         "CatalogSelector": {
           "name": "CatalogSelector",
@@ -3441,88 +3473,88 @@
               "args": [
                 "e"
               ],
-              "line": 245
+              "line": 262
             },
             "toggleMaximize": {
               "name": "toggleMaximize",
               "args": [],
-              "line": 273
+              "line": 294
             },
             "toggleMinimize": {
               "name": "toggleMinimize",
               "args": [],
-              "line": 279
+              "line": 300
             },
             "getActiveWindow": {
               "name": "getActiveWindow",
               "args": [],
-              "line": 285
+              "line": 306
             },
             "cancel": {
               "name": "cancel",
               "args": [],
-              "line": 296
+              "line": 317
             },
             "loadCatalogData": {
               "name": "loadCatalogData",
               "args": [
                 "searchQuery = \"\""
               ],
-              "line": 308
+              "line": 329
             }
           }
         },
         "payload": {
           "name": "payload",
           "kind": "object_literal",
-          "start_line": 324,
+          "start_line": 345,
           "methods": {
             "navigateUpFolder": {
               "name": "navigateUpFolder",
               "args": [],
-              "line": 400
+              "line": 421
             },
             "getFolderChain": {
               "name": "getFolderChain",
               "args": [
                 "folderName"
               ],
-              "line": 409
+              "line": 430
             },
             "openFolderDirectly": {
               "name": "openFolderDirectly",
               "args": [
                 "folderName"
               ],
-              "line": 448
+              "line": 469
             },
             "getParentFolder": {
               "name": "getParentFolder",
               "args": [
                 "folderName"
               ],
-              "line": 472
+              "line": 493
             },
             "getFolderCode": {
               "name": "getFolderCode",
               "args": [
                 "folderName"
               ],
-              "line": 487
+              "line": 508
             },
             "renderFolders": {
               "name": "renderFolders",
               "args": [
                 "folders"
               ],
-              "line": 497
+              "line": 518
             },
             "buildFolderHierarchy": {
               "name": "buildFolderHierarchy",
               "args": [
                 "folders"
               ],
-              "line": 550
+              "line": 571
             },
             "expandPathToFolder": {
               "name": "expandPathToFolder",
@@ -3530,14 +3562,14 @@
                 "folderName",
                 "map"
               ],
-              "line": 572
+              "line": 593
             },
             "toggleFolderExpand": {
               "name": "toggleFolderExpand",
               "args": [
                 "folderName"
               ],
-              "line": 586
+              "line": 607
             },
             "renderTreeNode": {
               "name": "renderTreeNode",
@@ -3546,69 +3578,94 @@
                 "depth",
                 "map"
               ],
-              "line": 595
+              "line": 616
             },
             "toggleFolderInTable": {
               "name": "toggleFolderInTable",
               "args": [
                 "folderName"
               ],
-              "line": 630
+              "line": 651
             },
             "renderItems": {
               "name": "renderItems",
               "args": [
                 "items"
               ],
-              "line": 649
+              "line": 670
             }
           }
         },
         "orphanNode": {
           "name": "orphanNode",
           "kind": "object_literal",
-          "start_line": 716,
+          "start_line": 737,
           "methods": {
+            "selectFolder": {
+              "name": "selectFolder",
+              "args": [
+                "elOrName",
+                "folderName"
+              ],
+              "line": 875
+            },
+            "updateFolderButton": {
+              "name": "updateFolderButton",
+              "args": [],
+              "line": 902
+            },
+            "confirmCurrentFolder": {
+              "name": "confirmCurrentFolder",
+              "args": [],
+              "line": 921
+            },
+            "selectItemDirectly": {
+              "name": "selectItemDirectly",
+              "args": [
+                "item"
+              ],
+              "line": 927
+            },
             "highlightItem": {
               "name": "highlightItem",
               "args": [
                 "tr",
                 "item"
               ],
-              "line": 854
+              "line": 932
             },
             "initFilters": {
               "name": "initFilters",
               "args": [
                 "win"
               ],
-              "line": 916
+              "line": 994
             },
             "quickFilterSelected": {
               "name": "quickFilterSelected",
               "args": [
                 "win"
               ],
-              "line": 975
+              "line": 1053
             }
           }
         },
         "crit": {
           "name": "crit",
           "kind": "object_literal",
-          "start_line": 981,
+          "start_line": 1059,
           "methods": {
             "applyLocalFilters": {
               "name": "applyLocalFilters",
               "args": [
                 "winTarget"
               ],
-              "line": 997
+              "line": 1075
             },
             "toggleTreePane": {
               "name": "toggleTreePane",
               "args": [],
-              "line": 1033
+              "line": 1111
             },
             "loadStockData": {
               "name": "loadStockData",
@@ -3616,79 +3673,79 @@
                 "code",
                 "name"
               ],
-              "line": 1057
+              "line": 1135
             },
             "renderStockTable": {
               "name": "renderStockTable",
               "args": [
                 "warehouses"
               ],
-              "line": 1131
+              "line": 1209
             },
             "getSelectedPrice": {
               "name": "getSelectedPrice",
               "args": [],
-              "line": 1137
+              "line": 1215
             },
             "selectPriceType": {
               "name": "selectPriceType",
               "args": [
                 "idx"
               ],
-              "line": 1145
+              "line": 1223
             },
             "updateStockTableRows": {
               "name": "updateStockTableRows",
               "args": [],
-              "line": 1152
+              "line": 1230
             },
             "toggleWarehouseRow": {
               "name": "toggleWarehouseRow",
               "args": [
                 "idx"
               ],
-              "line": 1270
+              "line": 1348
             },
             "toggleSelectAllWarehouses": {
               "name": "toggleSelectAllWarehouses",
               "args": [
                 "checked"
               ],
-              "line": 1280
+              "line": 1358
             },
             "renderPricesList": {
               "name": "renderPricesList",
               "args": [],
-              "line": 1289
+              "line": 1367
             },
             "resetStockPane": {
               "name": "resetStockPane",
               "args": [
                 "item"
               ],
-              "line": 1318
+              "line": 1396
             },
             "confirmSelection": {
               "name": "confirmSelection",
               "args": [
                 "finishPodbor = false"
               ],
-              "line": 1345
+              "line": 1423
             },
             "search": {
               "name": "search",
               "args": [],
-              "line": 1401
+              "line": 1479
             },
             "clearSearch": {
               "name": "clearSearch",
               "args": [],
-              "line": 1407
+              "line": 1485
             },
             "reload": {
               "name": "reload",
               "args": [],
-              "line": 1413
+              "line": 1491
             }
           }
         }
@@ -3699,14 +3756,14 @@
           "args": [
             "obj"
           ],
-          "line": 1432
+          "line": 1510
         },
         "escapeAttr": {
           "name": "escapeAttr",
           "args": [
             "str"
           ],
-          "line": 1436
+          "line": 1514
         }
       },
       "api_calls": [
@@ -4668,7 +4725,7 @@
     "static/js/session.js": {
       "file_path": "static/js/session.js",
       "type": "frontend_javascript",
-      "total_lines": 549,
+      "total_lines": 561,
       "objects": {
         "SessionManager": {
           "name": "SessionManager",
@@ -4698,32 +4755,37 @@
               ],
               "line": 59
             },
+            "markConnected": {
+              "name": "markConnected",
+              "args": [],
+              "line": 130
+            },
             "warmupConnection": {
               "name": "warmupConnection",
               "args": [],
-              "line": 130
+              "line": 136
             },
             "updateUI": {
               "name": "updateUI",
               "args": [],
-              "line": 157
+              "line": 169
             },
             "loadBases": {
               "name": "loadBases",
               "args": [
                 "preferredBase"
               ],
-              "line": 189
+              "line": 201
             },
             "syncInputs": {
               "name": "syncInputs",
               "args": [],
-              "line": 236
+              "line": 248
             },
             "loadUsers": {
               "name": "loadUsers",
               "args": [],
-              "line": 262
+              "line": 274
             },
             "authenticate": {
               "name": "authenticate",
@@ -4734,7 +4796,7 @@
                 "ref",
                 "title"
               ],
-              "line": 304
+              "line": 316
             }
           }
         }
@@ -4743,37 +4805,37 @@
         "openLoginModal": {
           "name": "openLoginModal",
           "args": [],
-          "line": 343
+          "line": 355
         },
         "closeLoginModal": {
           "name": "closeLoginModal",
           "args": [],
-          "line": 373
+          "line": 385
         },
         "onModalBaseChange": {
           "name": "onModalBaseChange",
           "args": [],
-          "line": 384
+          "line": 396
         },
         "addCustomBase": {
           "name": "addCustomBase",
           "args": [],
-          "line": 414
+          "line": 426
         },
         "deleteCurrentBase": {
           "name": "deleteCurrentBase",
           "args": [],
-          "line": 453
+          "line": 465
         },
         "reloadModalUsersForCustomDb": {
           "name": "reloadModalUsersForCustomDb",
           "args": [],
-          "line": 488
+          "line": 500
         },
         "submitLoginModal": {
           "name": "submitLoginModal",
           "args": [],
-          "line": 511
+          "line": 523
         }
       },
       "api_calls": [
@@ -4790,7 +4852,7 @@
     "static/js/settings_modal.js": {
       "file_path": "static/js/settings_modal.js",
       "type": "frontend_javascript",
-      "total_lines": 1029,
+      "total_lines": 1035,
       "objects": {
         "SettingsModal": {
           "name": "SettingsModal",
@@ -5050,31 +5112,31 @@
         "removeSelectedFilterRow": {
           "name": "removeSelectedFilterRow",
           "args": [],
-          "line": 684
+          "line": 690
         },
         "clearAllFilters": {
           "name": "clearAllFilters",
           "args": [],
-          "line": 694
+          "line": 700
         },
         "saveFiltersPreset": {
           "name": "saveFiltersPreset",
           "args": [],
-          "line": 700
+          "line": 706
         },
         "onFilterFieldChange": {
           "name": "onFilterFieldChange",
           "args": [
             "selectEl"
           ],
-          "line": 704
+          "line": 710
         },
         "openCatalogForFilterRow": {
           "name": "openCatalogForFilterRow",
           "args": [
             "btn"
           ],
-          "line": 712
+          "line": 718
         },
         "openQualitySelect": {
           "name": "openQualitySelect",
@@ -5082,7 +5144,7 @@
             "btn",
             "isMulti = false"
           ],
-          "line": 772
+          "line": 778
         },
         "openUserSelect": {
           "name": "openUserSelect",
@@ -5090,24 +5152,24 @@
             "btn",
             "isMulti = false"
           ],
-          "line": 791
+          "line": 797
         },
         "setupAutocomplete": {
           "name": "setupAutocomplete",
           "args": [],
-          "line": 815
+          "line": 821
         },
         "hideAllAutocomplete": {
           "name": "hideAllAutocomplete",
           "args": [],
-          "line": 821
+          "line": 827
         },
         "bindAutocomplete": {
           "name": "bindAutocomplete",
           "args": [
             "input"
           ],
-          "line": 835
+          "line": 841
         },
         "renderAutocompleteItems": {
           "name": "renderAutocompleteItems",
@@ -5117,7 +5179,7 @@
             "folders",
             "items"
           ],
-          "line": 926
+          "line": 932
         }
       },
       "api_calls": [
@@ -5328,7 +5390,7 @@
     "static/js/universal_journal.js": {
       "file_path": "static/js/universal_journal.js",
       "type": "frontend_javascript",
-      "total_lines": 5569,
+      "total_lines": 4019,
       "objects": {
         "_UniversalJournalTarget": {
           "name": "_UniversalJournalTarget",
@@ -5339,37 +5401,25 @@
         "metaMap": {
           "name": "metaMap",
           "kind": "object_literal",
-          "start_line": 451,
+          "start_line": 455,
           "methods": {}
         },
         "payload": {
           "name": "payload",
           "kind": "object_literal",
-          "start_line": 1171,
-          "methods": {}
-        },
-        "names": {
-          "name": "names",
-          "kind": "object_literal",
-          "start_line": 2188,
-          "methods": {}
-        },
-        "presetObj": {
-          "name": "presetObj",
-          "kind": "object_literal",
-          "start_line": 3489,
+          "start_line": 1220,
           "methods": {}
         },
         "newCrit": {
           "name": "newCrit",
           "kind": "object_literal",
-          "start_line": 3757,
+          "start_line": 2493,
           "methods": {}
         },
         "criterion": {
           "name": "criterion",
           "kind": "object_literal",
-          "start_line": 4757,
+          "start_line": 3194,
           "methods": {
             "get": {
               "name": "get",
@@ -5378,7 +5428,7 @@
                 "prop",
                 "receiver"
               ],
-              "line": 5426
+              "line": 3876
             },
             "set": {
               "name": "set",
@@ -5388,7 +5438,7 @@
                 "value",
                 "receiver"
               ],
-              "line": 5439
+              "line": 3889
             }
           }
         }
@@ -5406,7 +5456,6 @@
       },
       "api_calls": [
         "/api/documents/list",
-        "/api/catalog_data",
         "/api/documents/details",
         "/api/catalog_card"
       ],
@@ -5787,7 +5836,7 @@
     "static/js/components/picker/catalog_picker_manager.js": {
       "file_path": "static/js/components/picker/catalog_picker_manager.js",
       "type": "frontend_javascript",
-      "total_lines": 75,
+      "total_lines": 78,
       "objects": {
         "CatalogPickerManager": {
           "name": "CatalogPickerManager",
@@ -5884,7 +5933,7 @@
     "templates/index.html": {
       "file_path": "templates/index.html",
       "type": "html_template",
-      "size_bytes": 43923,
+      "size_bytes": 43991,
       "role_and_purpose": "Əsas tətbiq interfeysi: MDI iş masası, menyu, alətlər paneli və bütün komponentlərin skript birləşmələri."
     },
     "templates/components/audit_journal_window.html": {
@@ -5900,7 +5949,7 @@
     "templates/components/diagnostics_modal.html": {
       "file_path": "templates/components/diagnostics_modal.html",
       "type": "html_template",
-      "size_bytes": 3975
+      "size_bytes": 4252
     },
     "templates/components/doc_version_diff_window.html": {
       "file_path": "templates/components/doc_version_diff_window.html",
@@ -5990,7 +6039,7 @@
     "templates/components/universal_journal_window.html": {
       "file_path": "templates/components/universal_journal_window.html",
       "type": "html_template",
-      "size_bytes": 22134
+      "size_bytes": 22491
     },
     "templates/components/value_list_modal.html": {
       "file_path": "templates/components/value_list_modal.html",
@@ -6047,56 +6096,56 @@
       "methods": [
         "POST"
       ],
-      "line": 184
+      "line": 192
     },
     "/api/presets": {
       "handler": "routes/base_routes.py:get_presets_endpoint",
       "methods": [
         "GET"
       ],
-      "line": 203
+      "line": 211
     },
     "/api/presets/save": {
       "handler": "routes/base_routes.py:save_presets_endpoint",
       "methods": [
         "POST"
       ],
-      "line": 212
+      "line": 220
     },
     "/api/presets/delete": {
       "handler": "routes/base_routes.py:delete_preset_endpoint",
       "methods": [
         "POST"
       ],
-      "line": 230
+      "line": 238
     },
     "/api/presets/rename": {
       "handler": "routes/base_routes.py:rename_preset_endpoint",
       "methods": [
         "POST"
       ],
-      "line": 242
+      "line": 250
     },
     "/api/presets/duplicate": {
       "handler": "routes/base_routes.py:duplicate_preset_endpoint",
       "methods": [
         "POST"
       ],
-      "line": 255
+      "line": 263
     },
     "/api/presets/set_startup": {
       "handler": "routes/base_routes.py:set_startup_endpoint",
       "methods": [
         "POST"
       ],
-      "line": 268
+      "line": 276
     },
     "/api/presets/set_save_on_close": {
       "handler": "routes/base_routes.py:set_save_on_close_endpoint",
       "methods": [
         "POST"
       ],
-      "line": 279
+      "line": 287
     },
     "/api/current_settings": {
       "handler": "routes/base_routes.py:current_settings_endpoint",
@@ -6104,7 +6153,7 @@
         "GET",
         "POST"
       ],
-      "line": 290
+      "line": 298
     },
     "/api/app/minimize": {
       "handler": "routes/base_routes.py:app_minimize_endpoint",
@@ -6112,7 +6161,7 @@
         "POST",
         "GET"
       ],
-      "line": 305
+      "line": 313
     },
     "/api/app/close": {
       "handler": "routes/base_routes.py:app_close_endpoint",
@@ -6120,7 +6169,7 @@
         "POST",
         "GET"
       ],
-      "line": 318
+      "line": 326
     },
     "/api/users/accounts": {
       "handler": "routes/catalog_routes.py:user_accounts_endpoint",
@@ -6399,6 +6448,12 @@
         "handled_by": "routes/document_routes.py:audit_details_endpoint"
       }
     ],
+    "static/js/c1_filter_component.js": [
+      {
+        "calls_api": "/api/catalog_data",
+        "handled_by": "routes/catalog_routes.py:catalog_data_endpoint"
+      }
+    ],
     "static/js/catalog_selector.js": [
       {
         "calls_api": "/api/catalog_data",
@@ -6545,10 +6600,6 @@
       {
         "calls_api": "/api/documents/list",
         "handled_by": "routes/document_routes.py:documents_list_endpoint"
-      },
-      {
-        "calls_api": "/api/catalog_data",
-        "handled_by": "routes/catalog_routes.py:catalog_data_endpoint"
       },
       {
         "calls_api": "/api/documents/details",

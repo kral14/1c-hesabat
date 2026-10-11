@@ -17,6 +17,8 @@ const CatalogSelector = {
 
   open(options = {}) {
     this.currentCatalog = options.catalog || "Номенклатура";
+    this.allFolders = [];
+    this.rawItems = [];
     this.targetInput = options.targetInput || null;
     this.onSelectCallback = options.onSelect || null;
     this.multiSelect = options.multiSelect || false;
@@ -25,7 +27,7 @@ const CatalogSelector = {
     this.currentFolder = options.folder || "";
     this.parentFolder = "";
     this.selectedItem = null;
-    this.expandedFolders = new Set(['', this.currentCatalog, "Номенклатура"]);
+    this.expandedFolders = new Set(['', this.currentCatalog]);
     if (this.currentFolder) {
       this.expandedFolders.add(this.currentFolder);
     }
@@ -160,6 +162,21 @@ const CatalogSelector = {
     if (rootLabel) rootLabel.textContent = this.currentCatalog;
     if (btnSelectFolder) btnSelectFolder.style.display = "none";
 
+    // Pəncərənin DOM-unu tam sıfırlayırıq ki, əvvəlki başqa kataloqdan qalan qovluq və sətirlər görünməsin
+    const treeList = win ? win.querySelector("#catalogTreeList") : document.getElementById("catalogTreeList");
+    if (treeList) {
+      treeList.innerHTML = `
+        <li class="catalog-tree-item selected" onclick="CatalogSelector.selectFolder(this, '')">
+          <span>📁</span>
+          <span id="catalogTreeRootLabel">${typeof escapeHtml === "function" ? escapeHtml(this.currentCatalog) : this.currentCatalog}</span>
+        </li>
+      `;
+    }
+    const itemsBody = win ? win.querySelector("#catalogItemsBody") : document.getElementById("catalogItemsBody");
+    if (itemsBody) {
+      itemsBody.innerHTML = `<tr><td colspan="6" style="text-align: center; color: #888; padding: 20px;">Məlumatlar yüklənir...</td></tr>`;
+    }
+
     if (banner) {
       banner.style.display = this.podborMode ? "flex" : "none";
       if (podborCountEl) podborCountEl.textContent = "Seçilən: 0";
@@ -251,6 +268,10 @@ const CatalogSelector = {
     console.log(`[CATALOG CLOSE] Closing catalog "${this.currentCatalog}" (#${winId})`);
     this.podborMode = false;
     this.podborCount = 0;
+    this.allFolders = [];
+    this.rawItems = [];
+    this.currentFolder = "";
+    this.parentFolder = "";
     this.locateCode = "";
     this.locateName = "";
     this.locateItem = "";
@@ -495,8 +516,8 @@ const CatalogSelector = {
   },
 
   renderFolders(folders) {
-    if (folders && folders.length > 0) {
-      this.allFolders = folders;
+    if (folders !== undefined) {
+      this.allFolders = Array.isArray(folders) ? folders : [];
     }
     const currentFoldersList = this.allFolders || [];
     const win = this.getActiveWindow();
@@ -762,7 +783,7 @@ const CatalogSelector = {
         this.highlightItem(fTr, { name: fNode.name, code: fNode.code, is_folder: true });
       };
       fTr.ondblclick = () => {
-        this.toggleFolderInTable(fNode.name);
+        this.openFolderDirectly(fNode.name);
       };
 
       const artikulCell = isNom ? `<td></td>` : "";
@@ -849,6 +870,63 @@ const CatalogSelector = {
       `;
       tbody.appendChild(itemTr);
     });
+  },
+
+  selectFolder(elOrName, folderName) {
+    let fName = "";
+    if (typeof elOrName === "string") {
+      fName = elOrName;
+    } else if (typeof folderName === "string") {
+      fName = folderName;
+    } else if (elOrName && elOrName.dataset && elOrName.dataset.folder !== undefined) {
+      fName = elOrName.dataset.folder;
+    }
+
+    this.currentFolder = (fName || "").trim();
+    this.selectedItem = this.currentFolder ? { name: this.currentFolder, is_folder: true, code: "" } : null;
+    this.updateFolderButton();
+
+    if (this.currentFolder) {
+      this.expandedFolders.add(this.currentFolder);
+    }
+
+    // Axtarış xanasını təmizləyirik ki, papkanın bütün elementləri gəlsin
+    const win = this.getActiveWindow();
+    const searchInput = win ? win.querySelector("#catalogSearchInput") : document.getElementById("catalogSearchInput");
+    if (searchInput) searchInput.value = "";
+
+    this.renderFolders();
+    this.loadCatalogData("");
+  },
+
+  updateFolderButton() {
+    const win = this.getActiveWindow();
+    const btnSelectFolder = win ? win.querySelector("#btnSelectCurrentFolder") : document.getElementById("btnSelectCurrentFolder");
+    const btnFolderText = win ? win.querySelector("#btnSelectCurrentFolderText") : document.getElementById("btnSelectCurrentFolderText");
+    const label = win ? win.querySelector("#catalogSelectedLabel") : document.getElementById("catalogSelectedLabel");
+    const curPathEl = win ? win.querySelector("#catalogCurrentFolderPath") : document.getElementById("catalogCurrentFolderPath");
+
+    if (this.currentFolder) {
+      if (btnSelectFolder) btnSelectFolder.style.display = "inline-flex";
+      if (btnFolderText) btnFolderText.textContent = `📁 Выбрать папку: ${this.currentFolder}`;
+      if (label) label.textContent = `📁 [Qrup]: ${this.currentFolder}`;
+      if (curPathEl) curPathEl.textContent = ` / ${this.currentFolder}`;
+    } else {
+      if (btnSelectFolder) btnSelectFolder.style.display = "none";
+      if (label) label.textContent = this.currentCatalog;
+      if (curPathEl) curPathEl.textContent = "";
+    }
+  },
+
+  confirmCurrentFolder() {
+    if (!this.currentFolder) return;
+    this.selectedItem = { name: this.currentFolder, is_folder: true, code: "" };
+    this.confirmSelection();
+  },
+
+  selectItemDirectly(item) {
+    this.selectedItem = item;
+    this.confirmSelection();
   },
 
   highlightItem(tr, item) {

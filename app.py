@@ -11,7 +11,8 @@ Struktur:
   routes/*.py                   - Flask Blueprint marşrutları
 """
 import sys
-from flask import Flask
+import gzip
+from flask import Flask, request
 
 sys.stdout.reconfigure(encoding='utf-8')
 
@@ -39,10 +40,34 @@ app.config['TEMPLATES_AUTO_RELOAD'] = True
 app.config['SEND_FILE_MAX_AGE_DEFAULT'] = 0
 
 @app.after_request
-def add_header(response):
+def compress_and_headers(response):
     response.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, max-age=0'
     response.headers['Pragma'] = 'no-cache'
     response.headers['Expires'] = '0'
+
+    # 1C-dən gələn böyük JSON və mətn cavablarını GZIP ilə sıxırıq
+    accept_encoding = request.headers.get('Accept-Encoding', '')
+    if ('gzip' in accept_encoding.lower() and
+        response.status_code < 300 and
+        'gzip' not in response.headers.get('Content-Encoding', '')):
+        data = response.get_data()
+        orig_len = len(data)
+        if orig_len > 500:
+            content_type = response.headers.get('Content-Type', '')
+            if 'application/json' in content_type or 'text/' in content_type or 'javascript' in content_type:
+                compressed = gzip.compress(data)
+                comp_len = len(compressed)
+                ratio = (1.0 - (comp_len / orig_len)) * 100.0
+                
+                # Konsolda aydın sıxılma loqu
+                orig_kb = orig_len / 1024.0
+                comp_kb = comp_len / 1024.0
+                print(f"🗜️ [GZIP SIXILMA] {request.path}: {orig_kb:.1f} KB -> {comp_kb:.1f} KB ({ratio:.1f}% qənaət)", flush=True)
+
+                response.set_data(compressed)
+                response.headers['Content-Encoding'] = 'gzip'
+                response.headers['Content-Length'] = comp_len
+
     return response
 
 app.register_blueprint(base_bp)

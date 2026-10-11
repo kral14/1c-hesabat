@@ -18,6 +18,9 @@
     getWorker: function (catalogName = '') {
       const cat = String(catalogName || '').toLowerCase().trim();
 
+      if (cat.includes('договор')) {
+        return window.PickerGeneric;
+      }
       if (cat.includes('контрагент') || cat.includes('клиент') || cat.includes('покупател')) {
         return window.PickerKontragent || window.PickerGeneric;
       }

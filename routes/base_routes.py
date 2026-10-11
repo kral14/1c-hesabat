@@ -169,6 +169,14 @@ def ping_connection_endpoint():
             "user": data.get("user") or active.get("user") or "Nesib",
             "password": data.get("password") or active.get("password") or "15963"
         }
+        key = (payload["server"], payload["ref"], payload["user"])
+        if hasattr(one_c, "connections") and key in one_c.connections and one_c.connections[key] is not None:
+            return jsonify({
+                "success": True,
+                "connected": True,
+                "server": payload["server"],
+                "ref": payload["ref"]
+            })
         res = one_c.execute("ping", payload)
         return jsonify({
             "success": True,

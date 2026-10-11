@@ -199,6 +199,9 @@ def build_filter_conditions(filters, q_doc, where_parts, debug_params, field_map
             print(f"[FILTER WARNING] Field '{f_field}' not in mapping, skipping.")
             continue
 
+        if "ПРЕДСТАВЛЕНИЕ" in field_sql and "ПОДСТРОКА" not in field_sql:
+            field_sql = f"ПОДСТРОКА({field_sql}, 1, 150)"
+
         param_key = f"p_crit_{idx}"
 
         if f_op in ["Заполнено", "Не заполнено"]:
@@ -212,10 +215,10 @@ def build_filter_conditions(filters, q_doc, where_parts, debug_params, field_map
 
         if f_field in ["posted", "deleted"]:
             b_val = (val_str.lower() in ["true", "1", "да", "yes", "истина"])
-            q_doc.SetParameter(param_key, b_val)
+            if f_op == "Не равно":
+                b_val = not b_val
+            where_parts.append(f"{field_sql} = ИСТИНА" if b_val else f"{field_sql} = ЛОЖЬ")
             debug_params[param_key] = b_val
-            comparison = "<>" if f_op == "Не равно" else "="
-            where_parts.append(f"{field_sql} {comparison} &{param_key}")
             continue
 
         if f_field == "date":

@@ -1,28 +1,37 @@
 <!-- ========================================================
-     1C:ENTERPRISE - DIAGNOSTICS & DEBUG MODAL (ДИАГНОСТИКА)
+     1C:ENTERPRISE - DIAGNOSTICS & DEBUG MDI WINDOW (ДИАГНОСТИКА)
+     templates/components/diagnostics_modal.html
      ======================================================== -->
-<div id="ujDiagnosticsModalOverlay" class="modal-overlay-1c" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.4); z-index: 9999999; align-items: center; justify-content: center;" onclick="if(event.target === this) UniversalJournal.closeDebugDiagnosticsModal()">
-  <div class="window-1c" style="width: 780px; height: 560px; max-width: 96vw; max-height: 94vh; display: flex; flex-direction: column; background: #ece9d8; border: 2px solid #0055ea; box-shadow: 0 10px 30px rgba(0,0,0,0.5);" onclick="event.stopPropagation()">
-    
-    <!-- Titlebar -->
-    <div style="background: linear-gradient(to bottom, #0058ee, #3593ff 50%, #288eff 51%, #0053e6); color: #ffffff; padding: 4px 8px; font-weight: bold; font-size: 11px; display: flex; align-items: center; justify-content: space-between; user-select: none;">
-      <div style="display: flex; align-items: center; gap: 6px;">
-        <span style="font-size: 14px;">🩺</span>
-        <span style="letter-spacing: 0.3px;">Диагностика отбора и журнала документов (Отладчик)</span>
-      </div>
-      <button type="button" class="btn-1c" onclick="UniversalJournal.closeDebugDiagnosticsModal()" 
-              style="width: 18px; height: 18px; padding: 0; font-size: 11px; font-weight: bold; line-height: 14px; background: #d74435; color: #fff; border: 1px solid #900; cursor: pointer;" title="Закрыть">✕</button>
+
+<div class="mdi-window" id="ujDiagnosticsWindow" style="display: none; top: 55px; left: 100px; width: 820px; height: 560px; min-width: 580px; min-height: 380px; z-index: 140;" onmousedown="MdiManager.activateWindow('ujDiagnosticsWindow')">
+  
+  <!-- Window Titlebar (1C MDI Standard) -->
+  <div class="mdi-window-header" ondblclick="MdiManager.toggleMaximize('ujDiagnosticsWindow')">
+    <div class="mdi-win-title-left">
+      <span class="mdi-win-icon">🩺</span>
+      <span class="mdi-win-title-text" id="ujDiagnosticsWindowTitle">Диагностика отбора и журнала документов (Отладчик)</span>
     </div>
+    <div class="mdi-win-controls">
+      <button class="mdi-win-btn mdi-win-btn-min" title="Qatla" onclick="MdiManager.minimizeWindow('ujDiagnosticsWindow')" onmousedown="event.stopPropagation()">_</button>
+      <button class="mdi-win-btn mdi-win-btn-max" title="Böyüt / Bərpa et" onclick="MdiManager.toggleMaximize('ujDiagnosticsWindow')" onmousedown="event.stopPropagation()">□</button>
+      <button class="mdi-win-btn mdi-win-btn-close" title="Bağla" onclick="UniversalJournal.closeDebugDiagnosticsModal()" onmousedown="event.stopPropagation()">✕</button>
+    </div>
+  </div>
+
+  <!-- Window Body -->
+  <div class="mdi-window-body" style="background-color: #ece9d8; display: flex; flex-direction: column; height: 100%; overflow: hidden; font-family: Tahoma, 'MS Sans Serif', Arial, sans-serif; font-size: 11px;">
 
     <!-- Toolbar: Copy, Refresh, Quick Status -->
-    <div style="padding: 5px 8px; background: #f0eee3; border-bottom: 1px solid #b0af9f; display: flex; align-items: center; justify-content: space-between; gap: 8px;">
+    <div style="padding: 4px 8px; background: #f0eee3; border-bottom: 1px solid #b0af9f; display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-shrink: 0;">
       <div style="display: flex; align-items: center; gap: 6px;">
         <button type="button" class="btn-1c" onclick="UniversalJournal.copyDiagnosticsToClipboard()" 
-                style="height: 22px; padding: 0 10px; font-weight: bold; background: #ffe3a8; border: 1px solid #c99c47; color: #111; cursor: pointer; display: inline-flex; align-items: center; gap: 4px;">
+                style="height: 22px; padding: 0 10px; font-weight: bold; background: #ffe3a8; border: 1px solid #c99c47; color: #111; cursor: pointer; display: inline-flex; align-items: center; gap: 4px;"
+                title="Отчет в буфер обмена">
           <span>📋</span><span>Скопировать отчет</span>
         </button>
         <button type="button" class="btn-1c" onclick="UniversalJournal.executeSearchOrFilter(); setTimeout(() => UniversalJournal.renderDebugDiagnosticsContent(), 400);" 
-                style="height: 22px; padding: 0 8px; cursor: pointer; display: inline-flex; align-items: center; gap: 4px;">
+                style="height: 22px; padding: 0 8px; cursor: pointer; display: inline-flex; align-items: center; gap: 4px;"
+                title="Обновить данные и статус">
           <span>🔄</span><span>Обновить данные</span>
         </button>
       </div>
@@ -38,11 +47,11 @@
     </div>
 
     <!-- Footer -->
-    <div style="padding: 6px 10px; background: #e5e2cf; border-top: 1px solid #b0af9f; display: flex; justify-content: space-between; align-items: center;">
+    <div style="padding: 5px 10px; background: #e5e2cf; border-top: 1px solid #b0af9f; display: flex; justify-content: space-between; align-items: center; flex-shrink: 0;">
       <div style="font-size: 10px; color: #666;">
         <span>ℹ️ Этот отчет детально показывает, почему поиск пустой или возникла ошибка.</span>
       </div>
-      <button type="button" class="btn-1c" onclick="UniversalJournal.closeDebugDiagnosticsModal()" style="height: 23px; min-width: 80px; font-size: 11px;">
+      <button type="button" class="btn-1c" onclick="UniversalJournal.closeDebugDiagnosticsModal()" style="height: 22px; min-width: 75px; font-size: 11px; font-weight: bold; background: #ece9d8; border: 1px solid #7f9db9; cursor: pointer;">
         Закрыть
       </button>
     </div>

@@ -92,7 +92,7 @@ const MdiManager = {
 
   shouldBeMaximized(id, options = {}) {
     // Modal dialoqlar və kiçik popup-lar maximize olmur
-    if (options.isDialog || ["settingsWindowModal", "catalogWindowModal", "valueListModalOverlay", "fieldSelectorModalOverlay", "operationTypeModalOverlay", "settingsRestoreModalOverlay", "settingsSaveModalOverlay", "loginModalOverlay", "periodPickerModalOverlay", "ujFilterWindow"].includes(id)) {
+    if (["valueListModalOverlay", "fieldSelectorModalOverlay", "operationTypeModalOverlay", "settingsRestoreModalOverlay", "settingsSaveModalOverlay", "loginModalOverlay", "periodPickerModalOverlay"].includes(id)) {
       return false;
     }
 
@@ -501,7 +501,7 @@ const MdiManager = {
         icon: "📑",
         element: ujFilterWin,
         isDefault: true,
-        isDialog: true,
+        isDialog: false,
         startHidden: true,
         closeFn: () => {
           if (typeof UniversalJournal !== "undefined" && UniversalJournal.closeFilterModal) UniversalJournal.closeFilterModal();
@@ -2191,8 +2191,8 @@ const MdiManager = {
       return true;
     }
 
-    // Universal Journal Window
-    if (activeWinId === "universalJournalWindow") {
+    // Universal Journal Window (Bütün nüsxələr: universalJournalWindow, ujWin_...)
+    if (activeWinId === "universalJournalWindow" || (activeWinId && (activeWinId.startsWith("ujWin_") || activeWinId.startsWith("universalJournalWindow")))) {
       console.log("[HOTKEY F5] Refreshing Universal Journal document list...");
       this.showToast("Sənədlər jurnalı yenilənir (F5)...");
       if (typeof UniversalJournal !== "undefined" && UniversalJournal.refresh) {

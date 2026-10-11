@@ -21,7 +21,7 @@ OFFICE_SERVER_URL = os.environ.get("OFFICE_SERVER_URL", "http://172.16.1.63:5050
 LOCAL_SERVER_URL = "http://127.0.0.1:5050"
 PROXY_SERVER_URL = "http://127.0.0.1:5051"
 
-def is_url_active(url, timeout=1.2):
+def is_url_active(url, timeout=2.5):
     try:
         req = urllib.request.Request(f"{url}/api/bases")
         with urllib.request.urlopen(req, timeout=timeout) as resp:
@@ -30,11 +30,19 @@ def is_url_active(url, timeout=1.2):
         return False
 
 def is_server_running(url=LOCAL_SERVER_URL):
-    return is_url_active(url, timeout=0.8)
+    return is_url_active(url, timeout=1.0)
+
+def is_proxy_running():
+    try:
+        req = urllib.request.Request("http://127.0.0.1:5051/ping")
+        with urllib.request.urlopen(req, timeout=0.5) as resp:
+            return resp.status == 200
+    except Exception:
+        return False
 
 def ensure_proxy_server(office_url):
     """Ofis serveri üçün ev kompüterində lokal UI proxy başladır."""
-    if is_server_running(PROXY_SERVER_URL):
+    if is_proxy_running():
         print(f"✅ Lokal UI Proxy (127.0.0.1:5051) artıq işləyir -> {office_url}", flush=True)
         return True
 
@@ -45,13 +53,13 @@ def ensure_proxy_server(office_url):
         t.start()
         for _ in range(25):
             time.sleep(0.1)
-            if is_server_running(PROXY_SERVER_URL):
+            if is_proxy_running():
                 print(f"🟢 Lokal UI Proxy uğurla hazır oldu! (127.0.0.1:5051)", flush=True)
                 return True
     except Exception as e:
         print(f"⚠️ Proxy başladılarkən xəta: {e}", flush=True)
 
-    return False
+    return True
 
 def ensure_server(target_url):
     if is_server_running(LOCAL_SERVER_URL):
@@ -95,17 +103,29 @@ def open_electron(target_url):
         print(f"Electron xətası: {e}", flush=True)
 
 if __name__ == "__main__":
-    force_office = any(arg in sys.argv for arg in ["--office", "--warp", "--remote"])
+    force_local = any(arg in sys.argv for arg in ["--local", "--offline"])
     custom_url = next((arg for arg in sys.argv[1:] if arg.startswith("http://") or arg.startswith("https://")), None)
 
     if custom_url:
         target_server = custom_url
         print(f"🔗 Xüsusi server təyin edildi: {target_server}", flush=True)
         open_electron(target_server)
-    elif force_office or is_url_active(OFFICE_SERVER_URL, timeout=1.5):
-        print(f"🟢 [Cloudflare WARP] Ofis kompüteri ({OFFICE_SERVER_URL}) aşkar edildi!", flush=True)
-        ensure_proxy_server(OFFICE_SERVER_URL)
-        open_electron(PROXY_SERVER_URL)
-    else:
+    elif force_local:
+        print("🟡 Lokal / Oflayn rejim aktiv edildi (--local).", flush=True)
         ensure_server(LOCAL_SERVER_URL)
         open_electron(LOCAL_SERVER_URL)
+    else:
+        # Default: HƏMİŞƏ Ofis serverinə (Cloudflare WARP) qoşulur (Oflayn avtomatik keçid ləğv edildi)
+        print(f"🌐 [Ofis Rejimi] Hədəf ofis serveri: {OFFICE_SERVER_URL}", flush=True)
+        if is_url_active(OFFICE_SERVER_URL, timeout=2.0):
+            print(f"🟢 [Cloudflare WARP] Ofis kompüteri ({OFFICE_SERVER_URL}) aktivdir!", flush=True)
+        else:
+            print(f"⏳ [Cloudflare WARP] Şəbəkə yoxlanılır, ofis bağlantısı gözlənilir...", flush=True)
+            for attempt in range(1, 4):
+                time.sleep(1.0)
+                if is_url_active(OFFICE_SERVER_URL, timeout=2.5):
+                    print(f"🟢 [Cloudflare WARP] Ofis kompüteri ({OFFICE_SERVER_URL}) uğurla aşkar edildi!", flush=True)
+                    break
+
+        ensure_proxy_server(OFFICE_SERVER_URL)
+        open_electron(PROXY_SERVER_URL)

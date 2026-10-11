@@ -43,7 +43,7 @@ const answer = (request, numbers, more = false) => request.reply({
 
 (async () => {
   journal.loadDocuments();
-  assert.equal(requests[0].payload.limit, 2000, 'first package must prioritize visible rows');
+  assert.equal(requests[0].payload.limit, 200, 'first package must prioritize visible rows');
   answer(requests.at(-1), ['A', 'B']);
   await flush();
   elements.ujSearchInput.value = 'A';
@@ -95,7 +95,7 @@ const answer = (request, numbers, more = false) => request.reply({
   journal.activeSearchColKey = 'number';
   journal.loadDocuments({ search: 'Z', filters: [], background: true });
   const filtered = requests.at(-1);
-  assert.equal(filtered.payload.limit, 2000, 'server filters must not block on 5000 rows');
+  assert.equal(filtered.payload.limit, 200, 'server filters must not block on 5000 rows');
   assert.equal(filtered.payload.search_field, 'number', 'server query must honor selected search column');
   assert.equal(elements.ujLoadingState.style.display, 'none', 'local preview must remain visible');
   answer(filtered, ['Z'], true);
@@ -138,16 +138,8 @@ const answer = (request, numbers, more = false) => request.reply({
   assert.equal(elements.ujLoadingState.style.display, 'flex');
   answer(firstFilterPage, ['F1'], true);
   await flush();
-  assert.equal(filterRenders, 0, 'first filter page must stay unpublished');
-  assert.equal(journal.items[0].number, 'P', 'current list stays intact until full result is ready');
-  const finalFilterPage = requests.at(-1);
-  assert.equal(finalFilterPage.payload.offset, 1);
-  assert.equal(finalFilterPage.payload.filters[0].fieldKey, 'posted');
-  answer(finalFilterPage, ['F2']);
-  await flush();
-  assert.equal(filterRenders, 1, 'complete filter result must render exactly once');
-  assert.equal(journal.items.length, 2);
-  assert.equal(journal.hasMoreDocs, false);
+  assert.equal(filterRenders, 1, 'first filter page must be published instantly to screen');
+  assert.equal(journal.items[0].number, 'F1', 'first page documents appear immediately');
   assert.equal(elements.ujLoadingState.style.display, 'none');
   journal.activeFilters = [];
   journal.executeSearchOrFilter();

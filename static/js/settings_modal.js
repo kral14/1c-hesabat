@@ -633,7 +633,7 @@ function addFilterRow() {
   const tr = document.createElement("tr");
   tr.onclick = function() { highlightFilterRow(this); };
   tr.innerHTML = `
-    <td style="text-align: center;"><input type="checkbox" class="filter-chk" checked></td>
+    <td style="text-align: center;"><input type="checkbox" class="filter-chk"></td>
     <td>
       <select class="filter-field-sel" onchange="onFilterFieldChange(this)">
         <option value="Склад">Склад</option>
@@ -675,7 +675,13 @@ function addFilterRow() {
   tbody.appendChild(tr);
   highlightFilterRow(tr);
   const inp = tr.querySelector(".filter-val-input");
+  const chk = tr.querySelector(".filter-chk");
   if (inp) {
+    inp.addEventListener("input", function() {
+      if (this.value.trim().length > 0 && chk) {
+        chk.checked = true;
+      }
+    });
     bindAutocomplete(inp);
     inp.focus();
   }

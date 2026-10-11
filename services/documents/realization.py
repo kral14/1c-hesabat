@@ -80,7 +80,7 @@ def get_realization_list(conn, payload):
         "contract": "Т.ДоговорКонтрагента.Наименование",
         "contract_price_type": "Т.ДоговорКонтрагента.ТипЦен.Наименование",
         "portfolio": "Т.ДоговорКонтрагента.Портфель.Наименование",
-        "vms_status": "ПРЕДСТАВЛЕНИЕ(ВМС.СтатусВМС)",
+        "vms_status": "ПОДСТРОКА(ПРЕДСТАВЛЕНИЕ(ВМС.СтатусВМС), 1, 100)",
         "warehouse": "Т.Склад.Наименование",
         "responsible": "Т.Ответственный.Наименование"
     }
@@ -117,32 +117,62 @@ def get_realization_list(conn, payload):
         Т.ДоговорКонтрагента.Агент.Наименование КАК Agent,
         Т.СуммаДокумента КАК Amount,
         Т.Склад.Наименование КАК Warehouse,
+        Т.Сделка КАК DealRef,
         Т.Сделка.Номер КАК Deal,
         Т.ДоговорКонтрагента.Наименование КАК Contract,
         Т.ДоговорКонтрагента.ТипЦен.Наименование КАК ContractPriceType,
         Т.ДоговорКонтрагента.Портфель.Наименование КАК Portfolio,
         Т.Ответственный.Наименование КАК Responsible,
-        Т.Комментарий КАК Comment,
+        Т.Комментарий КАК Comment
+    ПОМЕСТИТЬ ВТ_ВыбранныеДокументы
+    ИЗ
+        Документ.РеализацияТоваровУслуг КАК Т
+    {where_sql}
+    УПОРЯДОЧИТЬ ПО
+        Т.Дата УБЫВ,
+        Т.Номер УБЫВ
+    ;
+
+    ВЫБРАТЬ
+        Т.Ref КАК Ref,
+        Т.Number КАК Number,
+        Т.Date КАК Date,
+        Т.Posted КАК Posted,
+        Т.DeletionMark КАК DeletionMark,
+        Т.DataVersion КАК DataVersion,
+        Т.Kontragent КАК Kontragent,
+        Т.KontragentCode КАК KontragentCode,
+        Т.GolovnoyKontragent КАК GolovnoyKontragent,
+        Т.Agent КАК Agent,
+        Т.Amount КАК Amount,
+        Т.Warehouse КАК Warehouse,
+        Т.Deal КАК Deal,
+        Т.Contract КАК Contract,
+        Т.ContractPriceType КАК ContractPriceType,
+        Т.Portfolio КАК Portfolio,
+        Т.Responsible КАК Responsible,
+        Т.Comment КАК Comment,
         ПРЕДСТАВЛЕНИЕ(ВМС.СтатусВМС) КАК StatusVMS,
         ОбрВложенный.Номер КАК ObrabotkaNumber
     ИЗ
-        Документ.РеализацияТоваровУслуг КАК Т
+        ВТ_ВыбранныеДокументы КАК Т
         ЛЕВОЕ СОЕДИНЕНИЕ (
             ВЫБРАТЬ
                 Обр.Заказ КАК Заказ,
                 МАКСИМУМ(Обр.Ссылка.Номер) КАК Номер
             ИЗ
                 Документ.ОбработкаЗаказов.ДанныеДляАнализа КАК Обр
-            СГРУППИРОВАТЬ ПО
+            ГДЕ
+                Обр.Заказ В (ВЫБРАТЬ РАЗЛИЧНЫЕ Т_Вн.DealRef ИЗ ВТ_ВыбранныеДокументы КАК Т_Вн)
+            СГРУPПИРОВАТЬ ПО
                 Обр.Заказ
         ) КАК ОбрВложенный
-        ПО Т.Сделка = ОбрВложенный.Заказ
-        ЛЕВОЕ СОЕДИНЕНИЕ РегистрСведений.СтатусВМС.СрезПоследних КАК ВМС
-        ПО Т.Ссылка = ВМС.Документ1С
-    {where_sql}
+        ПО Т.DealRef = ОбрВложенный.Заказ
+        ЛЕВОЕ СОЕДИНЕНИЕ РегистрСведений.СтатусВМС.СрезПоследних(, Документ1С В (ВЫБРАТЬ РАЗЛИЧНЫЕ Т_Вн.Ref ИЗ ВТ_ВыбранныеДокументы КАК Т_Вн)) КАК ВМС
+        ПО Т.Ref = ВМС.Документ1С
     УПОРЯДОЧИТЬ ПО
-        Т.Дата УБЫВ,
-        Т.Номер УБЫВ
+        Т.Date УБЫВ,
+        Т.Number УБЫВ
     """
 
     res_doc = q_doc.Execute().Choose()
@@ -159,21 +189,13 @@ def get_realization_list(conn, payload):
         d_num = str(res_doc.Number or "").strip()
         doc_refs.append(d_ref)
 
-        dv_str = ""
-        try:
-            dv = res_doc.DataVersion
-            if dv is not None:
-                dv_str = str(conn.Base64Строка(dv)).strip()
-        except Exception:
-            pass
-
         row_data = {
             "ref_key": str(d_num),
             "number": d_num,
             "date": format_1c_datetime(res_doc.Date),
             "posted": bool(res_doc.Posted),
             "deleted": bool(res_doc.DeletionMark),
-            "data_version": dv_str,
+            "data_version": "",
             "kontragent": str(res_doc.Kontragent or "").strip(),
             "kontragent_code": str(res_doc.KontragentCode or "").strip(),
             "golovnoy_kontragent": str(res_doc.GolovnoyKontragent or "").strip(),

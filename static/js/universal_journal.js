@@ -279,7 +279,11 @@ const _UniversalJournalTarget = {
     const sel = instance.getEl("ujDocTypeSelect");
     if (sel) sel.value = targetType;
 
-    // 7. Load documents
+    // 7. Initialize and load startup filters (⭐ По умолчанию / Active session)
+    instance.loadActiveFiltersFromStorage();
+    instance.updateActiveFilterBadgeUI();
+
+    // 8. Load documents
     instance.loadDocuments({ force: true });
     return winId;
   },
@@ -467,6 +471,44 @@ const _UniversalJournalTarget = {
     return this.openDirect(defaultDocType || this.activeDocType || "РеализацияТоваровУслуг");
   },
 
+  setLoadingState: function(isLoading, text) {
+    const loadingEls = [];
+    if (this.windowElement && this.windowElement.querySelectorAll) {
+      this.windowElement.querySelectorAll("#ujLoadingState, [data-uj='ujLoadingState']").forEach(el => loadingEls.push(el));
+    }
+    const mainLoading = this.getEl("ujLoadingState");
+    if (mainLoading && !loadingEls.includes(mainLoading)) loadingEls.push(mainLoading);
+    const globalLoading = (typeof document !== "undefined" && document.getElementById) ? document.getElementById("ujLoadingState") : null;
+    if (globalLoading && !loadingEls.includes(globalLoading)) loadingEls.push(globalLoading);
+
+    const wrapper = this.getEl("ujTableWrapper");
+    if (isLoading) {
+      if (wrapper && wrapper.style) {
+        wrapper.style.overflow = "hidden";
+        wrapper.style.pointerEvents = "none";
+      }
+      loadingEls.forEach(loadingEl => {
+        if (loadingEl && loadingEl.style) {
+          loadingEl.style.display = "flex";
+          if (text) {
+            const loadingText = (loadingEl.querySelector) ? (loadingEl.querySelector(".uj-loading-text") || loadingEl.querySelector("div:nth-child(2)")) : null;
+            if (loadingText) loadingText.textContent = text;
+          }
+        }
+      });
+    } else {
+      if (wrapper && wrapper.style) {
+        wrapper.style.overflow = "auto";
+        wrapper.style.pointerEvents = "";
+      }
+      loadingEls.forEach(loadingEl => {
+        if (loadingEl && loadingEl.style) {
+          loadingEl.style.display = "none";
+        }
+      });
+    }
+  },
+
   clearRenderAndState: function() {
     this.pauseLoading();
     this.clearPrefetchCache();
@@ -490,8 +532,7 @@ const _UniversalJournalTarget = {
     if (countEl) countEl.textContent = "0";
     const emptyEl = this.getEl("ujEmptyState");
     if (emptyEl) emptyEl.style.display = "none";
-    const loadingEl = this.getEl("ujLoadingState");
-    if (loadingEl) loadingEl.style.display = "none";
+    this.setLoadingState(false);
     this.updateEditButtonState();
   },
 
@@ -519,11 +560,7 @@ const _UniversalJournalTarget = {
     if (tbody) {
       tbody.innerHTML = "";
     }
-    const loadingStateEl = this.getEl("ujLoadingState");
-    const loadingText = (loadingStateEl && loadingStateEl.querySelector) ? (loadingStateEl.querySelector(".uj-loading-text") || loadingStateEl.querySelector("div:nth-child(2)")) : null;
-    if (loadingText) {
-      loadingText.textContent = `1C: Загрузка документов [${meta.title}]...`;
-    }
+    this.setLoadingState(true, `1C: Загрузка документов [${meta.title}]...`);
 
     const sel = this.getEl("ujDocTypeSelect");
     if (sel && sel.value !== targetType) {
@@ -713,7 +750,7 @@ const _UniversalJournalTarget = {
     return isNaN(parsed) ? null : parsed;
   },
 
-  initialChunkLimit: 2000,
+  initialChunkLimit: 200,
   backgroundChunkLimit: 2000,
   currentLoadSessionId: 0,
   isLoadingBackground: false,
@@ -736,13 +773,33 @@ const _UniversalJournalTarget = {
   },
 
   requestMoreDocuments: function(loadAll = false) {
-    if (!this.isJournalActive() || !this.hasMoreDocs) return;
-    if (loadAll) {
-      this.loadDocuments({ all: true, force: true });
+    if (!this.isJournalActive()) return;
+    if (!this.hasMoreDocs) {
+      if (loadAll) {
+        this.updateStatus(`Bütün sənədlər artıq yüklənib (${this.items.length} sənəd).`);
+        const wrapper = this.getEl("ujTableWrapper");
+        if (wrapper) wrapper.scrollTop = wrapper.scrollHeight;
+        if (this.items.length > 0) this.selectRowByIndex(this.items.length - 1);
+      }
       return;
     }
+
     this._paused = false;
-    if (!this._listAbortController || this._listAbortController.signal.aborted) this._listAbortController = new AbortController();
+    if (!this._listAbortController || this._listAbortController.signal.aborted) {
+      this._listAbortController = new AbortController();
+    }
+
+    if (loadAll) {
+      this._loadAllRemaining = true;
+      this.setFullLoadCursor(true);
+      this.updateBottomLoadingState(true);
+      this.updateStatus(`1C: Qalan bütün sənədlər yüklənir: ${this.items.length}...`);
+      if (!this.isLoadingBackground) {
+        this.fetchNextChunk(this.currentLoadSessionId);
+      }
+      return;
+    }
+
     if (this.isLoadingBackground) return;
     this._nextChunkRequested = true;
     this.scheduleBackgroundChunk(this.currentLoadSessionId);
@@ -783,8 +840,7 @@ const _UniversalJournalTarget = {
     this.isLoadingBackground = false;
     this._paused = true;
     this.updateBottomLoadingState(false);
-    const loading = this.getEl("ujLoadingState");
-    if (loading) loading.style.display = "none";
+    this.setLoadingState(false);
   },
 
   cancelLoad: function(reason) {
@@ -828,6 +884,7 @@ const _UniversalJournalTarget = {
   },
 
   loadDocuments: function(options = {}) {
+    this._loadStartTime = (typeof performance !== "undefined" && performance.now) ? performance.now() : Date.now();
     this._loadAllRemaining = Boolean(options.all);
     this._nextChunkRequested = false;
     this.setFullLoadCursor(Boolean(options.all));
@@ -879,8 +936,7 @@ const _UniversalJournalTarget = {
       this._listReady = true;
       const title = this.getEl("ujWindowTitle");
       if (title) title.textContent = `Журнал документов: ${this.docTitle}`;
-      const loading = this.getEl("ujLoadingState");
-      if (loading) loading.style.display = "none";
+      this.setLoadingState(false);
       const wrapper = this.getEl("ujTableWrapper");
       if (wrapper) wrapper.scrollTop = 0;
       this.applyFiltersAndSearch();
@@ -892,28 +948,26 @@ const _UniversalJournalTarget = {
       return;
     }
 
-    const loadingEl = this.getEl("ujLoadingState");
     const emptyEl = this.getEl("ujEmptyState");
-
-    if (loadingEl) loadingEl.style.display = !options.all && (keepTableVisible || options.background) ? "none" : "flex";
     if (emptyEl) emptyEl.style.display = "none";
 
-    const loadingStateEl = this.getEl("ujLoadingState");
-    const loadingText = (loadingStateEl && loadingStateEl.querySelector) ? (loadingStateEl.querySelector(".uj-loading-text") || loadingStateEl.querySelector("div:nth-child(2)")) : null;
+    const isShowLoading = !options.all && (keepTableVisible || options.background) ? false : true;
+    let loadingMsg = "";
     if (options.all) {
+      loadingMsg = `1C: Загрузка всех документов [${this.docTitle || ''}]...`;
       this.updateStatus("Загрузка всех документов выбранного периода...");
-      if (loadingText) loadingText.textContent = `1C: Загрузка всех документов [${this.docTitle || ''}]...`;
     } else if (isFilteredQuery) {
-      const msg = querySearch ? `1C: Прямой поиск: "${querySearch}"...` : `1C: Прямой отбор (${activeCrits.length} условий)...`;
-      this.updateStatus(msg);
-      if (loadingText) loadingText.textContent = msg;
+      loadingMsg = querySearch ? `1C: Прямой поиск: "${querySearch}"...` : `1C: Прямой отбор (${activeCrits.length} условий)...`;
+      this.updateStatus(loadingMsg);
     } else {
+      loadingMsg = `1C: Загрузка документов [${this.docTitle || ''}]...`;
       this.updateStatus("Загрузка списка документов из 1C...");
-      if (loadingText) loadingText.textContent = `1C: Загрузка документов [${this.docTitle || ''}]...`;
     }
+    this.setLoadingState(isShowLoading, loadingMsg);
 
     const hasNomFilter = activeCrits.some(c => c && c.fieldKey === "nomenclature" && c.enabled !== false);
     const creds = window.SessionManager ? SessionManager.getCredentials() : {};
+    const serverSafeFilters = activeCrits.filter(c => c && c.fieldKey !== "vms_status");
     const payload = {
       ...creds,
       doc_type: this.activeDocType,
@@ -922,9 +976,9 @@ const _UniversalJournalTarget = {
       search: querySearch,
       search_field: this._listQuery.search_field,
       search_mode: this._listQuery.search_mode,
-      filters: activeCrits,
+      filters: serverSafeFilters,
       include_nomenclatures: hasNomFilter || Boolean(options.include_nomenclatures),
-      limit: options.all ? 0 : this.initialChunkLimit,
+      limit: this.initialChunkLimit,
       offset: 0
     };
 
@@ -936,35 +990,21 @@ const _UniversalJournalTarget = {
     })
     .then(res => res.json())
     .then(async data => {
-      if (sessionId !== this.currentLoadSessionId || requestKey !== this.getListKey(querySearch, activeCrits)) return;
-      // Filters must publish one complete result, never successive partial lists.
-      if (activeCrits.length > 0 && data.success && data.has_more) {
-        const collected = [...(data.items || [])];
-        let page = data;
-        while (page.has_more) {
-          if (sessionId !== this.currentLoadSessionId || requestKey !== this.getListKey(querySearch, activeCrits)) return;
-          const response = await fetch("/api/documents/list", {
-            method: "POST", signal: this._listAbortController.signal,
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ ...payload, limit: this.backgroundChunkLimit,
-              offset: collected.length, last_date: "", last_number: "" })
-          });
-          page = await response.json();
-          if (sessionId !== this.currentLoadSessionId) return;
-          if (!page.success) throw new Error(page.error || "Не удалось загрузить полный отбор");
-          if (page.has_more && !(page.items || []).length) throw new Error("Пустая страница при загрузке отбора");
-          collected.push(...(page.items || []));
-          this.updateStatus(`Подготовка полного отбора: ${collected.length} документов...`);
-        }
-        data = { ...data, items: collected, has_more: false,
-          last_date: page.last_date, last_number: page.last_number };
+      if (sessionId !== this.currentLoadSessionId) {
+        this.setLoadingState(false);
+        return;
       }
-      if (sessionId !== this.currentLoadSessionId) return;
-      if (requestKey !== this.getListKey(querySearch, activeCrits)) return;
-      if (loadingEl) loadingEl.style.display = "none";
+      if (requestKey !== this.getListKey(querySearch, activeCrits)) {
+        this.setLoadingState(false);
+        return;
+      }
+      this.setLoadingState(false);
+      if (window.SessionManager && typeof window.SessionManager.markConnected === "function") {
+        window.SessionManager.markConnected();
+      }
       if (options.all) {
-        this._loadAllRemaining = false;
-        this.setFullLoadCursor(false);
+        this._loadAllRemaining = Boolean(data.has_more);
+        this.setFullLoadCursor(Boolean(data.has_more));
       }
 
       if (!data.success) {
@@ -1066,7 +1106,10 @@ const _UniversalJournalTarget = {
           }
         }
 
-        this.updateStatus(`Найдено: ${this.filteredItems.length} документов${this.hasMoreDocs ? " (загрузка остальных результатов...)" : ""}`);
+        const curTimeMs = (typeof performance !== "undefined" && performance.now) ? performance.now() : Date.now();
+        const durationSec = (((curTimeMs - (this._loadStartTime || curTimeMs))) / 1000).toFixed(2);
+        console.log(`⚡ [JOURNAL RENDER] ${this.filteredItems.length} sənəd ekranda göstərildi! Müddət: ${durationSec} san`);
+        this.updateStatus(`Найдено: ${this.filteredItems.length} документов (${durationSec} san)${this.hasMoreDocs ? " (загрузка остальных...)" : ""}`);
         this.updateCountBadge(`${this.hasMoreDocs ? "Загружено" : "Всего"}: ${this.filteredItems.length}`);
         this.updateActiveFilterBadgeUI();
         this.updateFilterButtonsState();
@@ -1087,14 +1130,18 @@ const _UniversalJournalTarget = {
       // Check and apply startup default filter or active session filter
       this.checkAndApplyStartupFilter();
 
+      const curTimeMs = (typeof performance !== "undefined" && performance.now) ? performance.now() : Date.now();
+      const durationSec = (((curTimeMs - (this._loadStartTime || curTimeMs))) / 1000).toFixed(2);
+      console.log(`⚡ [JOURNAL RENDER] ${this.items.length} sənəd ekranda göstərildi! Müddət: ${durationSec} san`);
+
       // Schedule background chunk loading if more documents exist
       if (this.hasMoreDocs) {
-        this.updateStatus(`Загружено ${this.items.length} документов. Продолжение при прокрутке.`);
+        this.updateStatus(`Загружено ${this.items.length} документов (${durationSec} san). Продолжение при прокрутке.`);
         this.updateBottomLoadingState(false);
         this.scheduleBackgroundChunk(sessionId);
       } else {
         this.updateBottomLoadingState(false);
-        this.updateStatus(`Загружено ${this.items.length} документов`);
+        this.updateStatus(`Загружено ${this.items.length} документов (${durationSec} san)`);
       }
       if (options.all) {
         const wrapper = this.getEl("ujTableWrapper");
@@ -1103,7 +1150,7 @@ const _UniversalJournalTarget = {
     })
     .catch(err => {
       if (sessionId !== this.currentLoadSessionId) return;
-      if (loadingEl) loadingEl.style.display = "none";
+      this.setLoadingState(false);
       this._loadAllRemaining = false;
       this.setFullLoadCursor(false);
       this.updateBottomLoadingState(false);
@@ -1142,7 +1189,7 @@ const _UniversalJournalTarget = {
     });
   },
 
-  scheduleBackgroundChunk: function(sessionId) {
+  scheduleBackgroundChunk: function(sessionId, delayMs = 120) {
     if (sessionId !== this.currentLoadSessionId) return;
     if (!this.isJournalActive()) return;
     if (!this.hasMoreDocs) return;
@@ -1151,7 +1198,7 @@ const _UniversalJournalTarget = {
     if (this._bgTimer) clearTimeout(this._bgTimer);
     this._bgTimer = setTimeout(() => {
       this.fetchNextChunk(sessionId);
-    }, 120);
+    }, delayMs);
   },
 
   fetchNextChunk: function(sessionId) {
@@ -1180,7 +1227,7 @@ const _UniversalJournalTarget = {
       search_mode: this._listQuery?.search_mode || "contains",
       filters: this._listQuery?.filters || [],
       include_nomenclatures: Boolean(this._listQuery?.include_nomenclatures),
-      limit: this.backgroundChunkLimit,
+      limit: this._loadAllRemaining ? 2500 : this.backgroundChunkLimit,
       offset: this.items.length
     };
     const requestKey = this.getListKey(payload.search, payload.filters);
@@ -1254,23 +1301,43 @@ const _UniversalJournalTarget = {
       this.saveListCache();
 
       if (this.hasMoreDocs) {
-        this.updateStatus(this._loadAllRemaining ? `Загрузка всех документов: ${this.items.length}...` : `Загружено ${this.items.length} документов. Продолжение при прокрутке.`);
+        this.updateStatus(this._loadAllRemaining ? `1C: Qalan bütün sənədlər yüklənir: ${this.items.length}...` : `Загружено ${this.items.length} документов. Продолжение при прокрутке.`);
         this.updateBottomLoadingState(this._loadAllRemaining);
-        this.scheduleBackgroundChunk(sessionId);
+        // Əgər istifadəçi qalan bütün sənədləri çəkirsə gecikmədən dərhal növbəti hissəni çəkirik
+        this.scheduleBackgroundChunk(sessionId, this._loadAllRemaining ? 0 : 120);
       } else {
         this._loadAllRemaining = false;
         this.setFullLoadCursor(false);
         this.updateBottomLoadingState(false);
-        this.updateStatus(`Все документы загружены (${this.items.length} документов)`);
+        this.updateStatus(`Bütün sənədlər uğurla yükləndi (${this.items.length} sənəd) ✅`);
+        const wrapper = this.getEl("ujTableWrapper");
+        if (wrapper && this._nextChunkRequested) wrapper.scrollTop = wrapper.scrollHeight;
       }
     })
     .catch(err => {
       if (sessionId !== this.currentLoadSessionId) return;
-      this._loadAllRemaining = false;
-      this.setFullLoadCursor(false);
       this.isLoadingBackground = false;
       this.updateBottomLoadingState(false);
       console.warn("[UNIVERSAL JOURNAL] Background chunk network error:", err);
+
+      // Şəbəkə kəsilməsi olduqda dərhal yıxılmamaq üçün 3 dəfəyə qədər avtomatik təkrar cəhd edir
+      if (this._loadAllRemaining) {
+        if (!this._netRetryCount) this._netRetryCount = 0;
+        if (this._netRetryCount < 3) {
+          this._netRetryCount++;
+          this.updateStatus(`⚠️ Şəbəkə gecikməsi. Təkrar cəhd edilir (${this._netRetryCount}/3)...`);
+          setTimeout(() => {
+            if (sessionId === this.currentLoadSessionId && this._loadAllRemaining) {
+              this.fetchNextChunk(sessionId);
+            }
+          }, 1200);
+          return;
+        }
+      }
+      this._netRetryCount = 0;
+      this._loadAllRemaining = false;
+      this.setFullLoadCursor(false);
+      this.updateStatus(`⚠️ Şəbəkə qırıldı. Mövcud yüklənmiş sənədlər: ${this.items.length}. Qalanını çəkmək üçün 'End' basın.`);
     });
   },
 
@@ -2089,1288 +2156,233 @@ const _UniversalJournalTarget = {
     return Array.from(set).sort((a, b) => a.localeCompare(b, "ru"));
   },
 
+  // ==========================================
+  // Filter Modal & Presets (Vahid C1FilterComponent Delegasiyası)
+  // ==========================================
   openFilterModal: function() {
-    this.tempFilterCriteria = JSON.parse(JSON.stringify(this.activeFilters || []));
-    this.tempFilterCriteria.forEach(c => {
-      if (c.enabled === undefined) {
-        c.enabled = Boolean(c.value || c.valueFrom || c.valueTo || c.structuredFilter);
+    C1FilterComponent.open({
+      contextKey: this.activeDocType,
+      docTitle: this.docTitle || this.activeDocType,
+      availableFields: this.getAvailableFields(),
+      activeFilters: this.activeFilters,
+      activePresetName: this.activePresetName,
+      isServerFiltered: Boolean(this.isServerFiltered),
+      items: this.items,
+      onApply: (appliedFilters, presetName) => {
+        this.activeFilters = appliedFilters;
+        this.activePresetName = presetName || "";
+        this.saveActiveFiltersToStorage();
+        this.executeSearchOrFilter();
+        this.updateFilterButtonsState();
+        this.updateActiveFilterBadgeUI();
       }
     });
-
-    // Ensure standard 1C boolean criteria (Пометка удаления and Проведен) exist as default rows
-    const hasDeleted = this.tempFilterCriteria.some(c => c.fieldKey === "deleted");
-    if (!hasDeleted) {
-      this.tempFilterCriteria.push({
-        id: "crit_default_deleted",
-        enabled: false,
-        fieldKey: "deleted",
-        fieldLabel: "Пометка удаления",
-        operator: "Равно",
-        value: "Нет"
-      });
-    }
-    const hasPosted = this.tempFilterCriteria.some(c => c.fieldKey === "posted");
-    if (!hasPosted) {
-      this.tempFilterCriteria.push({
-        id: "crit_default_posted",
-        enabled: false,
-        fieldKey: "posted",
-        fieldLabel: "Проведен",
-        operator: "Равно",
-        value: "Да"
-      });
-    }
-
-    this.filterSelectedCritIdx = 0;
-    this.activeFilterTab = "otbor";
-
-    const avail = this.getAvailableFields();
-    if (!this.filterSelectedFieldKey && avail.length > 0) {
-      this.filterSelectedFieldKey = avail[0].key;
-    }
-
-    const titleEl = document.getElementById("ujFilterWindowTitle");
-    if (titleEl) {
-      titleEl.textContent = `Настройка списка: ${this.docTitle || this.activeDocType}`;
-    }
-
-    this.switchFilterTab("otbor");
-    this.renderFilterAvailableFields();
-    this.renderFilterCriteriaRows();
-
-    // Open as authentic MDI Window
-    if (window.MdiManager) {
-      MdiManager.activateWindow("ujFilterWindow", {
-        title: "Настройка списка",
-        icon: "📑",
-        closeFn: () => {
-          this.closeFilterModal();
-        }
-      });
-    } else {
-      const win = document.getElementById("ujFilterWindow");
-      if (win) win.style.display = "flex";
-    }
   },
 
   closeFilterModal: function() {
-    this.hideFilterAutocomplete();
-    if (window.MdiManager) {
-      MdiManager.closeWindow("ujFilterWindow");
-    } else {
-      const win = document.getElementById("ujFilterWindow");
-      if (win) win.style.display = "none";
-    }
+    C1FilterComponent.close();
   },
 
   switchFilterTab: function(tabName) {
-    this.activeFilterTab = tabName;
-    const isOtbor = (tabName === "otbor");
-    const otborBody = document.getElementById("ujFilterTabBodyOtbor");
-    const otherBody = document.getElementById("ujFilterTabBodyOther");
-    const otherLabel = document.getElementById("ujFilterTabOtherLabel");
-
-    if (otborBody) otborBody.style.display = isOtbor ? "flex" : "none";
-    if (otherBody) otherBody.style.display = isOtbor ? "none" : "flex";
-
-    const tabs = ["osnovnye", "otbor", "sort", "style", "group"];
-    tabs.forEach(t => {
-      const btn = document.getElementById("ujTab" + t.charAt(0).toUpperCase() + t.slice(1));
-      if (!btn) return;
-      const isActive = (t === tabName);
-      btn.style.background = isActive ? "#f0eee3" : "#dfdcce";
-      btn.style.fontWeight = isActive ? "bold" : "normal";
-      btn.style.borderTop = isActive ? "2px solid #e28700" : "1px solid #b0af9f";
-      btn.style.borderBottom = isActive ? "none" : "1px solid #b0af9f";
-    });
-
-    if (otherLabel && !isOtbor) {
-      const names = {
-        osnovnye: "Основные",
-        sort: "Сортировка",
-        style: "Условное оформление",
-        group: "Группировка"
-      };
-      otherLabel.textContent = `Вкладка "${names[tabName] || tabName}" доступна через основную таблицу журнала.`;
-    }
+    C1FilterComponent.switchFilterTab(tabName);
   },
 
   renderFilterAvailableFields: function() {
-    const listEl = document.getElementById("ujFilterAvailFieldsList");
-    if (!listEl) return;
-
-    const availFields = this.getAvailableFields();
-    let html = "";
-    availFields.forEach(f => {
-      const isSelected = (f.key === this.filterSelectedFieldKey);
-      const bg = isSelected ? "#316ac5" : "#ffffff";
-      const fg = isSelected ? "#ffffff" : "#111111";
-      html += `
-        <div id="ujAvailField_${f.key}"
-             style="padding: 3px 6px; font-size: 11px; background: ${bg}; color: ${fg}; cursor: pointer; user-select: none; display: flex; align-items: center; gap: 5px; border-bottom: 1px dotted #e0dec8;"
-             onclick="UniversalJournal.selectAvailableField('${f.key}')"
-             ondblclick="UniversalJournal.addFilterCriterion('${f.key}')">
-          <span style="font-size: 10px; color: ${isSelected ? '#fff' : '#4a78c4'};">▬</span>
-          <span style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${this.escapeHtml(f.label)}</span>
-        </div>
-      `;
-    });
-    listEl.innerHTML = html;
+    C1FilterComponent.renderFilterAvailableFields();
   },
 
   selectAvailableField: function(key) {
-    this.filterSelectedFieldKey = key;
-    const listEl = document.getElementById("ujFilterAvailFieldsList");
-    if (listEl) {
-      const items = listEl.querySelectorAll("[id^='ujAvailField_']");
-      items.forEach(el => {
-        const isSel = (el.id === `ujAvailField_${key}`);
-        el.style.background = isSel ? "#316ac5" : "#ffffff";
-        el.style.color = isSel ? "#ffffff" : "#111111";
-        const icon = el.querySelector("span");
-        if (icon) icon.style.color = isSel ? "#ffffff" : "#4a78c4";
-      });
-    }
+    C1FilterComponent.selectAvailableField(key);
   },
 
   addFilterCriterion: function(fieldKey) {
-    const avail = this.getAvailableFields();
-    const fKey = fieldKey || this.filterSelectedFieldKey || (avail.length > 0 ? avail[0].key : "kontragent");
-    const fieldObj = avail.find(f => f.key === fKey) || { key: fKey, label: fKey, type: "text" };
-
-    let defVal = "";
-    if (fieldObj.type === "boolean") defVal = "Да";
-    else if (fieldObj.key === "vms_status") defVal = "Подтвержден WMS";
-
-    this.tempFilterCriteria.push({
-      id: "crit_" + Date.now() + "_" + Math.random().toString(36).substr(2, 4),
-      enabled: true,
-      fieldKey: fieldObj.key,
-      fieldLabel: fieldObj.label,
-      operator: "Равно",
-      value: defVal
-    });
-
-    this.filterSelectedCritIdx = this.tempFilterCriteria.length - 1;
-    this.renderFilterCriteriaRows();
-
-    setTimeout(() => {
-      const inp = document.getElementById(`ujFilterValInput_${this.filterSelectedCritIdx}`);
-      if (inp) inp.focus();
-    }, 50);
+    C1FilterComponent.addFilterCriterion(fieldKey);
   },
 
   removeFilterCriterion: function(idx) {
-    const targetIdx = (idx !== undefined) ? idx : this.filterSelectedCritIdx;
-    if (targetIdx >= 0 && targetIdx < this.tempFilterCriteria.length) {
-      this.tempFilterCriteria.splice(targetIdx, 1);
-      this.filterSelectedCritIdx = Math.max(0, targetIdx - 1);
-      this.hideFilterAutocomplete();
-      this.renderFilterCriteriaRows();
-    }
+    C1FilterComponent.removeFilterCriterion(idx);
   },
 
   moveFilterCriterionUp: function() {
-    const idx = this.filterSelectedCritIdx;
-    if (idx > 0 && idx < this.tempFilterCriteria.length) {
-      const [item] = this.tempFilterCriteria.splice(idx, 1);
-      this.tempFilterCriteria.splice(idx - 1, 0, item);
-      this.filterSelectedCritIdx = idx - 1;
-      this.renderFilterCriteriaRows();
-    }
+    C1FilterComponent.moveFilterCriterionUp();
   },
 
   moveFilterCriterionDown: function() {
-    const idx = this.filterSelectedCritIdx;
-    if (idx >= 0 && idx < this.tempFilterCriteria.length - 1) {
-      const [item] = this.tempFilterCriteria.splice(idx, 1);
-      this.tempFilterCriteria.splice(idx + 1, 0, item);
-      this.filterSelectedCritIdx = idx + 1;
-      this.renderFilterCriteriaRows();
-    }
+    C1FilterComponent.moveFilterCriterionDown();
   },
 
   selectFilterCritRow: function(idx) {
-    this.filterSelectedCritIdx = idx;
-    const tbody = document.getElementById("ujFilterCriteriaTbody");
-    if (tbody) {
-      const rows = tbody.querySelectorAll("tr");
-      rows.forEach((r, rIdx) => {
-        const isSel = (rIdx === idx);
-        r.style.background = isSel ? "#e2eefb" : (rIdx % 2 === 1 ? "#f9f8f4" : "#ffffff");
-        r.querySelectorAll("input.input-1c").forEach(inp => {
-          inp.style.setProperty("background", "#ffffff", "important");
-          inp.style.setProperty("background-color", "#ffffff", "important");
-          inp.style.setProperty("color", "#111111", "important");
-        });
-      });
-    }
+    C1FilterComponent.selectFilterCritRow(idx);
   },
 
   toggleFilterCritEnabled: function(idx, checked) {
-    if (this.tempFilterCriteria[idx]) {
-      this.tempFilterCriteria[idx].enabled = checked;
-    }
-    this.updateHeaderCheckAllState();
-  },
-
-  setCritEnabled: function(idx, enabled = true) {
-    if (this.tempFilterCriteria[idx]) {
-      this.tempFilterCriteria[idx].enabled = enabled;
-      const chk = document.getElementById(`ujCritEnabled_${idx}`);
-      if (chk) {
-        chk.checked = enabled;
-      }
-      this.updateHeaderCheckAllState();
-    }
-  },
-
-  updateHeaderCheckAllState: function() {
-    const chkAll = document.querySelector("#ujFilterTableContainer thead input[type='checkbox']");
-    if (chkAll && this.tempFilterCriteria && this.tempFilterCriteria.length > 0) {
-      const allEnabled = this.tempFilterCriteria.every(c => c.enabled !== false);
-      const someEnabled = this.tempFilterCriteria.some(c => c.enabled !== false);
-      chkAll.checked = allEnabled;
-      chkAll.indeterminate = (!allEnabled && someEnabled);
-    }
-  },
-
-  onFilterCritFieldChange: function(idx, newKey) {
-    const crit = this.tempFilterCriteria[idx];
-    if (!crit) return;
-    const avail = this.getAvailableFields();
-    const fieldObj = avail.find(f => f.key === newKey) || { key: newKey, label: newKey, type: "text" };
-    crit.fieldKey = fieldObj.key;
-    crit.fieldLabel = fieldObj.label;
-    if (fieldObj.type === "boolean") crit.value = "Да";
-    else if (fieldObj.key === "vms_status") crit.value = "Подтвержден WMS";
-    else crit.value = "";
-    this.renderFilterCriteriaRows();
-  },
-
-  onFilterCritOpChange: function(idx, newOp) {
-    if (this.tempFilterCriteria[idx]) {
-      const crit = this.tempFilterCriteria[idx];
-      crit.operator = newOp;
-      if (newOp.startsWith("Интервал")) {
-        if (!crit.valueFrom && !crit.valueTo && crit.value) {
-          const parts = String(crit.value).split(/\s*(?:\.\.\.|—|-)\s*/);
-          crit.valueFrom = parts[0] || "";
-          crit.valueTo = parts[1] || "";
-        }
-      }
-      if (newOp === "Заполнено" || newOp === "Не заполнено" || (crit.value && String(crit.value).trim().length > 0)) {
-        crit.enabled = true;
-      }
-      this.renderFilterCriteriaRows();
-    }
-  },
-
-  clearAllFilterCriteria: function() {
-    this.tempFilterCriteria = [];
-    this.filterSelectedCritIdx = 0;
-    this.hideFilterAutocomplete();
-    this.renderFilterCriteriaRows();
+    C1FilterComponent.toggleFilterCritEnabled(idx, checked);
   },
 
   checkAllFilterCriteria: function(checked) {
-    this.tempFilterCriteria.forEach(c => c.enabled = checked);
-    const tbody = document.getElementById("ujFilterCriteriaTbody");
-    if (tbody) {
-      const checks = tbody.querySelectorAll("input[type='checkbox']");
-      checks.forEach(chk => chk.checked = checked);
-    }
-    this.updateHeaderCheckAllState();
+    C1FilterComponent.checkAllFilterCriteria(checked);
+  },
+
+  clearAllFilterCriteria: function() {
+    C1FilterComponent.clearAllFilterCriteria();
   },
 
   renderFilterCriteriaRows: function() {
-    const tbody = document.getElementById("ujFilterCriteriaTbody");
-    const countEl = document.getElementById("ujFilterCountSummary");
-    if (!tbody) return;
-
-    const crits = this.tempFilterCriteria;
-    const availFields = this.getAvailableFields();
-    const selCritIdx = Math.max(0, Math.min(this.filterSelectedCritIdx, crits.length - 1));
-
-    if (countEl) {
-      countEl.textContent = `${crits.length} элементов`;
-    }
-
-    if (crits.length === 0) {
-      tbody.innerHTML = `
-        <tr>
-          <td colspan="4" style="text-align: center; padding: 35px; color: #777; font-style: italic;">
-            Условия отбора не заданы.<br>
-            Выберите поле слева и дважды кликните или нажмите "Выбрать" / "➕ Добавить новый элемент".
-          </td>
-        </tr>
-      `;
-      return;
-    }
-
-    let rowsHtml = "";
-    crits.forEach((crit, idx) => {
-      const isSelected = (idx === selCritIdx);
-      const bg = isSelected ? "#e2eefb" : (idx % 2 === 1 ? "#f9f8f4" : "#ffffff");
-      const isChecked = (crit.enabled !== false);
-      const fieldObj = availFields.find(f => f.key === crit.fieldKey) || { key: crit.fieldKey, label: crit.fieldLabel || crit.fieldKey, type: "text" };
-      const isNoValueNeeded = (crit.operator === "Заполнено" || crit.operator === "Не заполнено");
-
-      const fieldOptionsHtml = availFields.map(f => `
-        <option value="${f.key}" ${f.key === crit.fieldKey ? 'selected' : ''} style="color: #111111 !important; background-color: #ffffff !important;">${this.escapeHtml(f.label)}</option>
-      `).join("");
-
-      const isBoolField = (fieldObj.type === "boolean");
-      const boolOps = ["Равно", "Не равно", "Заполнено", "Не заполнено"];
-      const opList = isBoolField ? boolOps : this.filterOperators;
-      if (isBoolField && !boolOps.includes(crit.operator)) {
-        crit.operator = "Равно";
-      }
-
-      const opOptionsHtml = opList.map(op => `
-        <option value="${op}" ${op === crit.operator ? 'selected' : ''} style="color: #111111 !important; background-color: #ffffff !important;">${op}</option>
-      `).join("");
-
-      let valueInputHtml = "";
-      if (isNoValueNeeded) {
-        valueInputHtml = `<span style="color: #888; font-style: italic; font-size: 10px;">(не требуется)</span>`;
-      } else if (fieldObj.type === "boolean") {
-        const valStr = (crit.value === "Да" || crit.value === true || crit.value === "true") ? "Да" : "Нет";
-        valueInputHtml = `
-          <select class="select-1c" style="width: 100%; height: 21px; font-size: 11px; background: #ffffff !important; color: #111111 !important; border: 1px solid #7f9db9;"
-                  onclick="event.stopPropagation()"
-                  onchange="UniversalJournal.tempFilterCriteria[${idx}].value = this.value; UniversalJournal.setCritEnabled(${idx}, true);">
-            <option value="Да" ${valStr === 'Да' ? 'selected' : ''} style="color: #111111 !important; background-color: #ffffff !important;">Да</option>
-            <option value="Нет" ${valStr === 'Нет' ? 'selected' : ''} style="color: #111111 !important; background-color: #ffffff !important;">Нет</option>
-          </select>
-        `;
-      } else {
-        const isInterval = crit.operator && crit.operator.startsWith("Интервал");
-        const structAttr = crit.structuredFilter ? `data-structured-list="${this.escapeHtml(JSON.stringify(crit.structuredFilter))}"` : '';
-
-        if (isInterval) {
-          let valFrom = (crit.valueFrom !== undefined) ? crit.valueFrom : "";
-          let valTo = (crit.valueTo !== undefined) ? crit.valueTo : "";
-          if (!valFrom && !valTo && crit.value) {
-            const parts = String(crit.value).split(/\s*(?:\.\.\.|—|-)\s*/);
-            valFrom = parts[0] || "";
-            valTo = parts[1] || "";
-          }
-
-          valueInputHtml = `
-            <div style="display: flex; align-items: center; width: 100%; gap: 4px; position: relative;">
-              <span style="font-size: 11px; font-weight: bold; color: #222222; white-space: nowrap; user-select: none;">Начало:</span>
-              <input type="text" id="ujFilterValInput_${idx}_from" class="input-1c uj-filter-from" ${structAttr}
-                     style="flex: 1; min-width: 0; height: 21px; font-size: 11px; padding: 1px 4px; outline: none; background: #ffffff !important; color: #111111 !important; border: 1px solid #7f9db9;"
-                     value="${this.escapeHtml(valFrom)}"
-                     placeholder="Начало"
-                     title="Начало периода"
-                     onclick="event.stopPropagation()"
-                     onfocus="UniversalJournal.selectFilterCritRow(${idx})"
-                     oninput="UniversalJournal.onFilterIntervalInput(${idx}, 'from', this)"
-                     onblur="UniversalJournal.onFilterIntervalBlur(${idx}, 'from', this)"
-                     onkeydown="UniversalJournal.onFilterIntervalKeydown(${idx}, 'from', this, event)">
-              <span style="font-size: 11px; font-weight: bold; color: #222222; white-space: nowrap; user-select: none; margin-left: 4px;">Конец:</span>
-              <input type="text" id="ujFilterValInput_${idx}_to" class="input-1c uj-filter-to" ${structAttr}
-                     style="flex: 1; min-width: 0; height: 21px; font-size: 11px; padding: 1px 4px; outline: none; background: #ffffff !important; color: #111111 !important; border: 1px solid #7f9db9;"
-                     value="${this.escapeHtml(valTo)}"
-                     placeholder="Конец"
-                     title="Конец периода"
-                     onclick="event.stopPropagation()"
-                     onfocus="UniversalJournal.selectFilterCritRow(${idx})"
-                     oninput="UniversalJournal.onFilterIntervalInput(${idx}, 'to', this)"
-                     onblur="UniversalJournal.onFilterIntervalBlur(${idx}, 'to', this)"
-                     onkeydown="UniversalJournal.onFilterIntervalKeydown(${idx}, 'to', this, event)">
-            </div>
-          `;
-        } else {
-          const isDateInput = (crit.fieldKey === "date");
-          const dateClass = isDateInput ? "uj-filter-date" : "";
-          const showPickBtn = !isDateInput;
-          valueInputHtml = `
-            <div style="display: flex; align-items: center; width: 100%; gap: 1px; position: relative;">
-              <input type="text" id="ujFilterValInput_${idx}" class="input-1c uj-filter-single ${dateClass}" ${structAttr}
-                     data-field-key="${crit.fieldKey || ''}"
-                     style="flex: 1; height: 21px; font-size: 11px; padding: 1px 4px; outline: none; background: #ffffff !important; color: #111111 !important; border: 1px solid #7f9db9;"
-                     value="${this.escapeHtml(crit.value !== undefined ? String(crit.value) : '')}"
-                     placeholder=""
-                     onclick="event.stopPropagation()"
-                     onfocus="UniversalJournal.selectFilterCritRow(${idx})"
-                     oninput="UniversalJournal.onFilterValueInput(${idx}, this, event)"
-                     onblur="UniversalJournal.onFilterSingleBlur(${idx}, this)"
-                     onkeydown="UniversalJournal.onFilterInputKeydown(${idx}, this, event)">
-              ${showPickBtn ? `
-                <button type="button" class="btn-1c filter-btn-pick" 
-                        style="height: 21px; width: 22px; padding: 0 4px; font-size: 11px; font-weight: bold; display: inline-flex; align-items: center; justify-content: center; cursor: pointer; flex-shrink: 0; background: #ece9d8; border: 1px solid #7f9db9; color: #111111;"
-                        onclick="event.stopPropagation(); UniversalJournal.openFilterFieldPicker(${idx})"
-                        title="Выбрать значение (...)">
-                  ...
-                </button>
-              ` : ''}
-            </div>
-          `;
-        }
-      }
-
-      rowsHtml += `
-        <tr id="ujCritRow_${idx}" style="background: ${bg}; height: 25px;" onclick="UniversalJournal.selectFilterCritRow(${idx})">
-          <td style="width: 28px; text-align: center; border: 1px solid #d4d0c8;">
-            <input type="checkbox" id="ujCritEnabled_${idx}" ${isChecked ? 'checked' : ''}
-                   onclick="event.stopPropagation(); UniversalJournal.toggleFilterCritEnabled(${idx}, this.checked)"
-                   style="cursor: pointer; vertical-align: middle;">
-          </td>
-          <td style="padding: 1px 4px; border: 1px solid #d4d0c8; width: 170px;">
-            <div style="display: flex; align-items: center; width: 100%; height: 21px; background: #ffffff; border: 1px solid #7f9db9; padding: 0 1px; box-sizing: border-box;">
-              <span style="flex: 1; min-width: 0; padding: 0 4px; font-size: 11px; color: #111111; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; user-select: none; cursor: pointer;"
-                    onclick="UniversalJournal.openFieldSelectModal(${idx})"
-                    ondblclick="UniversalJournal.openFieldSelectModal(${idx})"
-                    title="Нажмите для выбора поля (${this.escapeHtml(fieldObj.label)})">
-                ${this.escapeHtml(fieldObj.label)}
-              </span>
-              <button type="button" class="btn-1c filter-field-btn-pick"
-                      onclick="event.stopPropagation(); UniversalJournal.openFieldSelectModal(${idx})"
-                      title="Выбрать поле (...)"
-                      style="width: 20px; height: 19px; padding: 0; margin: 0; font-size: 11px; font-weight: bold; background: #ece9d8; border: 1px solid #7f9db9; border-radius: 1px; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; color: #111111;">
-                ...
-              </button>
-            </div>
-          </td>
-          <td style="padding: 1px 4px; border: 1px solid #d4d0c8; width: 140px;">
-            <select class="select-1c" style="width: 100%; height: 21px; font-size: 11px; border: 1px solid #7f9db9; background: #ffffff !important; color: #111111 !important; cursor: pointer; padding: 0 2px;"
-                    onclick="event.stopPropagation()"
-                    onchange="UniversalJournal.onFilterCritOpChange(${idx}, this.value)">
-              ${opOptionsHtml}
-            </select>
-          </td>
-          <td style="padding: 1px 4px; border: 1px solid #d4d0c8;">
-            ${valueInputHtml}
-          </td>
-        </tr>
-      `;
-    });
-
-    tbody.innerHTML = rowsHtml;
-    this.updateHeaderCheckAllState();
-
-    // 1C seqment seçimi: yalnız tarix xanaları üçün (məhsul və s. mətn xanalarına toxunulmur)
-    setTimeout(() => {
-      if (window.PeriodPicker && typeof PeriodPicker.attachSegmentSelection === "function") {
-        tbody.querySelectorAll("input.uj-filter-from, input.uj-filter-to, input.uj-filter-date").forEach(inp => {
-          PeriodPicker.attachSegmentSelection(inp);
-        });
-      }
-    }, 15);
+    C1FilterComponent.renderFilterCriteriaRows();
   },
 
-  // ==========================================
-  // 1C "Выбор поля" Modal Picker Engine (...)
-  // ==========================================
-  fieldSelectTargetIdx: null,
-  fieldSelectCurrentKey: null,
-
-  openFieldSelectModal: function(idx) {
-    this.fieldSelectTargetIdx = idx;
-    const crit = this.tempFilterCriteria[idx];
-    this.fieldSelectCurrentKey = crit ? crit.fieldKey : "";
-    this.renderFieldSelectModalList(this.fieldSelectCurrentKey, "");
-
-    const modal = document.getElementById("ujFieldSelectModalOverlay");
-    if (modal) {
-      modal.style.display = "flex";
-      modal.classList.add("active");
-      const searchInp = document.getElementById("ujFieldSelectSearchInput");
-      if (searchInp) {
-        searchInp.value = "";
-        setTimeout(() => searchInp.focus(), 50);
-      }
-    }
+  toggleOpDropdown: function(idx, triggerEl) {
+    C1FilterComponent.toggleOpDropdown(idx, triggerEl);
   },
 
-  closeFieldSelectModal: function() {
-    const modal = document.getElementById("ujFieldSelectModalOverlay");
-    if (modal) {
-      modal.classList.remove("active");
-      modal.style.display = "none";
-    }
+  openOpDropdown: function(idx, triggerEl) {
+    C1FilterComponent.openOpDropdown(idx, triggerEl);
   },
 
-  renderFieldSelectModalList: function(selectedKey, query) {
-    const listEl = document.getElementById("ujFieldSelectModalList");
-    if (!listEl) return;
-
-    let availFields = this.getAvailableFields();
-    if (query && query.trim()) {
-      const q = query.trim().toLowerCase();
-      availFields = availFields.filter(f => f.label.toLowerCase().includes(q) || f.key.toLowerCase().includes(q));
-    }
-
-    if (availFields.length === 0) {
-      listEl.innerHTML = `<div style="padding: 20px; text-align: center; color: #888; font-style: italic;">Поле не найдено</div>`;
-      return;
-    }
-
-    let html = "";
-    availFields.forEach(f => {
-      const isSel = (f.key === selectedKey);
-      const bg = isSel ? "#316ac5" : "#ffffff";
-      const fg = isSel ? "#ffffff" : "#111111";
-      html += `
-        <div id="ujFmItem_${f.key}" data-key="${f.key}"
-             style="padding: 3px 8px; font-size: 11px; background: ${bg}; color: ${fg}; cursor: pointer; user-select: none; display: flex; align-items: center; gap: 6px; border-bottom: 1px dotted #e0dec8;"
-             onclick="UniversalJournal.selectFieldModalItem('${f.key}')"
-             ondblclick="UniversalJournal.confirmModalFieldSelection('${f.key}')">
-          <span style="font-size: 10px; color: ${isSel ? '#ffffff' : '#4a78c4'};">▬</span>
-          <span style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-weight: ${isSel ? 'bold' : 'normal'};">${this.escapeHtml(f.label)}</span>
-        </div>
-      `;
-    });
-    listEl.innerHTML = html;
-
-    const activeEl = listEl.querySelector(`[id='ujFmItem_${selectedKey}']`);
-    if (activeEl) {
-      activeEl.scrollIntoView({ block: "nearest" });
-    }
+  selectOpDropdownItem: function(idx, op) {
+    C1FilterComponent.selectOpDropdownItem(idx, op);
   },
 
-  filterFieldSelectModalList: function(query) {
-    this.renderFieldSelectModalList(this.fieldSelectCurrentKey, query);
+  closeOpDropdown: function() {
+    C1FilterComponent.closeOpDropdown();
   },
 
-  selectFieldModalItem: function(key) {
-    this.fieldSelectCurrentKey = key;
-    const listEl = document.getElementById("ujFieldSelectModalList");
-    if (!listEl) return;
-    listEl.querySelectorAll("[id^='ujFmItem_']").forEach(el => {
-      const isSel = (el.getAttribute("data-key") === key);
-      el.style.background = isSel ? "#316ac5" : "#ffffff";
-      el.style.color = isSel ? "#ffffff" : "#111111";
-      const icon = el.querySelector("span:first-child");
-      if (icon) icon.style.color = isSel ? "#ffffff" : "#4a78c4";
-      const lbl = el.querySelector("span:last-child");
-      if (lbl) lbl.style.fontWeight = isSel ? "bold" : "normal";
-    });
+  onFilterCritOpChange: function(idx, newOp) {
+    C1FilterComponent.onFilterCritOpChange(idx, newOp);
   },
 
-  confirmModalFieldSelection: function(explicitKey) {
-    const key = explicitKey || this.fieldSelectCurrentKey;
-    const idx = this.fieldSelectTargetIdx;
-    if (idx !== undefined && idx !== null && key && this.tempFilterCriteria[idx]) {
-      this.onFilterCritFieldChange(idx, key);
-    }
-    this.closeFieldSelectModal();
-  },
-
-  onFieldSelectModalKeydown: function(e) {
-    if (e.key === "Escape") {
-      e.preventDefault();
-      this.closeFieldSelectModal();
-    } else if (e.key === "Enter") {
-      e.preventDefault();
-      this.confirmModalFieldSelection();
-    } else if (e.key === "ArrowDown" || e.key === "ArrowUp") {
-      e.preventDefault();
-      const listEl = document.getElementById("ujFieldSelectModalList");
-      if (!listEl) return;
-      const items = Array.from(listEl.querySelectorAll("[id^='ujFmItem_']"));
-      if (items.length === 0) return;
-      let curIdx = items.findIndex(el => el.getAttribute("data-key") === this.fieldSelectCurrentKey);
-      if (e.key === "ArrowDown") {
-        curIdx = (curIdx + 1) < items.length ? curIdx + 1 : 0;
-      } else {
-        curIdx = (curIdx - 1) >= 0 ? curIdx - 1 : items.length - 1;
-      }
-      const nextKey = items[curIdx].getAttribute("data-key");
-      this.selectFieldModalItem(nextKey);
-      items[curIdx].scrollIntoView({ block: "nearest" });
-    }
-  },
-
-  // 1C [...] Value List & Catalog Picker Engine (Screenshot 2 / 3 Tovarni Sklad)
-  openFilterFieldPicker: function(idx) {
-    const crit = this.tempFilterCriteria[idx];
-    if (!crit) return;
-    const inputEl = document.getElementById(`ujFilterValInput_${idx}`) || document.getElementById(`ujFilterValInput_${idx}_from`);
-
-    this.selectFilterCritRow(idx);
-    this.hideFilterAutocomplete();
-
-    const op = crit.operator || "Равно";
-    const isInterval = op.startsWith("Интервал");
-
-    // Tarix və ya interval üçün PeriodPicker modalını açırıq
-    if (crit.fieldKey === "date" || isInterval) {
-      if (window.PeriodPicker && typeof PeriodPicker.open === "function") {
-        let sStart = crit.valueFrom || "";
-        let sEnd = crit.valueTo || "";
-        if (!sStart && !sEnd) {
-          const curVal = (inputEl ? inputEl.value : (crit.value || "")) || "";
-          if (curVal.includes("...") || curVal.includes("—") || curVal.includes("-")) {
-            const parts = curVal.split(/\s*(?:\.\.\.|—|-)\s*/);
-            sStart = parts[0] || "";
-            sEnd = parts[1] || "";
-          } else {
-            sStart = curVal;
-            sEnd = curVal;
-          }
-        }
-        PeriodPicker.open({
-          startDate: sStart,
-          endDate: sEnd,
-          onSelect: (st, en) => {
-            if (isInterval) {
-              crit.valueFrom = st;
-              crit.valueTo = en;
-              crit.value = (st && en) ? `${st} ... ${en}` : (st || en || "");
-              const fromEl = document.getElementById(`ujFilterValInput_${idx}_from`);
-              const toEl = document.getElementById(`ujFilterValInput_${idx}_to`);
-              if (fromEl) fromEl.value = st;
-              if (toEl) toEl.value = en;
-            } else {
-              const res = st || en || "";
-              if (inputEl) inputEl.value = res;
-              crit.value = res;
-            }
-            if (st || en || crit.value) {
-              this.setCritEnabled(idx, true);
-            }
-          }
-        });
-        return;
-      }
-    }
-
-    const isMulti = (op === "В группе из списка" || op === "В списке" || op === "Не в списке");
-
-    let catalog = null;
-    if (crit.fieldKey === "contract_price_type") {
-      catalog = "ТипыЦенНоменклатуры";
-    } else if (crit.fieldKey === "contract") {
-      catalog = "ДоговорыКонтрагентов";
-    } else if (crit.fieldKey === "kontragent" || crit.fieldKey === "kontragent_code" || crit.fieldKey === "golovnoy_kontragent" || crit.fieldKey === "golovnoy_kontragent_code") {
-      catalog = "Контрагенты";
-    } else if (crit.fieldKey === "agent") {
-      catalog = "Агенты";
-    } else if (crit.fieldKey === "warehouse") {
-      catalog = "Склады";
-    } else if (crit.fieldKey === "responsible") {
-      catalog = "Пользователи";
-    } else if (crit.fieldKey === "pogruzka_voditel") {
-      catalog = "Водители";
-    } else if (crit.fieldKey === "portfolio") {
-      catalog = "Портфели";
-    } else if (crit.fieldKey === "nomenclature") {
-      catalog = "Номенклатура";
-    }
-
-    if (catalog) {
-      if (isMulti) {
-        if (window.ValueListModal && typeof ValueListModal.open === "function") {
-          ValueListModal.open({
-            targetInput: inputEl,
-            catalog: catalog,
-            structuredFilter: crit.structuredFilter,
-            onApply: (data) => {
-              crit.value = (data && data.displayStr) ? data.displayStr : (inputEl ? inputEl.value : "");
-              crit.structuredFilter = data;
-              if (inputEl) {
-                inputEl.value = crit.value;
-                inputEl.dataset.structuredList = JSON.stringify(data);
-              }
-              this.setCritEnabled(idx, true);
-            }
-          });
-        }
-      } else {
-        if (window.OneCCatalogPicker && typeof OneCCatalogPicker.open === "function") {
-          OneCCatalogPicker.open(catalog, inputEl, {
-            onSelect: (selectedItem, valStr) => {
-              if (selectedItem) {
-                const name = valStr || selectedItem.name || selectedItem.Наименование || "";
-                if (inputEl) inputEl.value = name;
-                crit.value = name;
-                this.setCritEnabled(idx, true);
-              }
-            }
-          });
-        } else if (window.CatalogSelector && typeof CatalogSelector.open === "function") {
-          CatalogSelector.open({
-            catalog: catalog,
-            targetInput: inputEl,
-            multiSelect: false,
-            onSelect: (selectedItem) => {
-              if (selectedItem) {
-                const name = selectedItem.name || selectedItem.Наименование || "";
-                if (inputEl) inputEl.value = name;
-                crit.value = name;
-                this.setCritEnabled(idx, true);
-              }
-            }
-          });
-        }
-      }
-      return;
-    }
-
-    if (crit.fieldKey === "vms_status") {
-      if (isMulti && window.ValueListModal) {
-        ValueListModal.open({
-          targetInput: inputEl,
-          catalog: "Статусы ВМС",
-          structuredFilter: crit.structuredFilter,
-          onApply: (data) => {
-            crit.value = (data && data.displayStr) ? data.displayStr : (inputEl ? inputEl.value : "");
-            crit.structuredFilter = data;
-            if (inputEl) {
-              inputEl.value = crit.value;
-              inputEl.dataset.structuredList = JSON.stringify(data);
-            }
-            this.setCritEnabled(idx, true);
-          }
-        });
-      } else {
-        const statuses = ["Подтвержден WMS", "Выгружен", "Новый", "В обработке", "Готов к отгрузке", "Отменен"];
-        const cur = inputEl.value || "";
-        const nextIdx = (statuses.indexOf(cur) + 1) % statuses.length;
-        inputEl.value = statuses[nextIdx];
-        crit.value = statuses[nextIdx];
-        this.setCritEnabled(idx, true);
-      }
-      return;
-    }
-
-    if (isMulti && window.ValueListModal) {
-      ValueListModal.open({
-        targetInput: inputEl,
-        catalog: crit.fieldLabel || crit.fieldKey,
-        structuredFilter: crit.structuredFilter,
-        onApply: (data) => {
-          crit.value = (data && data.displayStr) ? data.displayStr : (inputEl ? inputEl.value : "");
-          crit.structuredFilter = data;
-          if (inputEl) {
-            inputEl.value = crit.value;
-            inputEl.dataset.structuredList = JSON.stringify(data);
-          }
-          this.setCritEnabled(idx, true);
-        }
-      });
-    }
-  },
-
-  onFilterIntervalInput: function(idx, which, inputEl) {
-    const crit = this.tempFilterCriteria[idx];
-    if (!crit) return;
-    if (crit.fieldKey === "date") {
-      inputEl.value = inputEl.value.replace(/[^0-9.:\s\/\-,]/g, "");
-    }
-    if (which === "from") crit.valueFrom = inputEl.value;
-    else crit.valueTo = inputEl.value;
-    const vFrom = crit.valueFrom || "";
-    const vTo = crit.valueTo || "";
-    crit.value = (vFrom || vTo) ? `${vFrom} ... ${vTo}` : "";
-    if ((vFrom || vTo).trim().length > 0) {
-      this.setCritEnabled(idx, true);
-    }
-  },
-
-  onFilterIntervalBlur: function(idx, which, inputEl) {
-    const crit = this.tempFilterCriteria[idx];
-    if (!crit) return;
-    const val = inputEl.value.trim();
-    if (val && window.PeriodPicker && typeof PeriodPicker.autoCompleteDate === "function") {
-      const defTime = (which === "to") ? "23:59:59" : "00:00:00";
-      inputEl.value = PeriodPicker.autoCompleteDate(val, defTime);
-      if (which === "from") crit.valueFrom = inputEl.value;
-      else crit.valueTo = inputEl.value;
-    }
-    this.validateFilterInterval(idx, which);
-    const vFrom = crit.valueFrom || "";
-    const vTo = crit.valueTo || "";
-    crit.value = (vFrom || vTo) ? `${vFrom} ... ${vTo}` : "";
-    if ((vFrom || vTo).trim().length > 0) {
-      this.setCritEnabled(idx, true);
-    }
-  },
-
-  onFilterIntervalKeydown: function(idx, which, inputEl, event) {
-    const crit = this.tempFilterCriteria[idx];
-    const isDateField = crit && (crit.fieldKey === "date");
-
-    if (isDateField) {
-      if ([
-        "Backspace", "Delete", "Tab", "Enter", "Escape", 
-        "ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown", 
-        "Home", "End", "F4"
-      ].includes(event.key)) {
-        // funksional düymələrə icazə ver
-      } else if (event.ctrlKey || event.metaKey) {
-        // Ctrl+C, Ctrl+V və s.
-      } else if (event.key === "." || event.key === ":" || event.key === " ") {
-        // ayrıcılar
-      } else if (!/^\d$/.test(event.key)) {
-        // HƏRF VƏ DİGƏR SİMOLLAR QƏTİ QADAĞANDIR!
-        event.preventDefault();
-        return;
-      }
-    }
-
-    if (event.key === "Enter") {
-      event.preventDefault();
-      const val = inputEl.value.trim();
-      if (val && window.PeriodPicker && typeof PeriodPicker.autoCompleteDate === "function") {
-        const defTime = (which === "to") ? "23:59:59" : "00:00:00";
-        inputEl.value = PeriodPicker.autoCompleteDate(val, defTime);
-        if (crit) {
-          if (which === "from") crit.valueFrom = inputEl.value;
-          else crit.valueTo = inputEl.value;
-        }
-      }
-      this.validateFilterInterval(idx, which);
-      if (crit) {
-        const vFrom = crit.valueFrom || "";
-        const vTo = crit.valueTo || "";
-        crit.value = (vFrom || vTo) ? `${vFrom} ... ${vTo}` : "";
-      }
-
-      if (which === "from") {
-        const toEl = document.getElementById(`ujFilterValInput_${idx}_to`);
-        if (toEl) {
-          toEl.focus();
-          if (toEl.setSelectionRange) toEl.setSelectionRange(0, 2);
-        }
-      } else {
-        inputEl.blur();
-      }
-    }
-  },
-
-  validateFilterInterval: function(idx, which) {
-    const crit = this.tempFilterCriteria[idx];
-    if (!crit) return;
-    const fromEl = document.getElementById(`ujFilterValInput_${idx}_from`);
-    const toEl = document.getElementById(`ujFilterValInput_${idx}_to`);
-    const sFrom = fromEl ? fromEl.value.trim() : (crit.valueFrom || "");
-    const sTo = toEl ? toEl.value.trim() : (crit.valueTo || "");
-    if (!sFrom || !sTo) return;
-
-    if (window.PeriodPicker && typeof PeriodPicker.parseDateObj === "function") {
-      const dtFrom = PeriodPicker.parseDateObj(sFrom, false);
-      const dtTo = PeriodPicker.parseDateObj(sTo, true);
-      if (dtFrom && dtTo && dtFrom.getTime() > dtTo.getTime()) {
-        if (which === "from") {
-          const d = String(dtFrom.getDate()).padStart(2, "0");
-          const m = String(dtFrom.getMonth() + 1).padStart(2, "0");
-          const y = dtFrom.getFullYear();
-          const syncedTo = `${d}.${m}.${y} 23:59:59`;
-          crit.valueTo = syncedTo;
-          if (toEl) toEl.value = syncedTo;
-        } else if (which === "to") {
-          const d = String(dtTo.getDate()).padStart(2, "0");
-          const m = String(dtTo.getMonth() + 1).padStart(2, "0");
-          const y = dtTo.getFullYear();
-          const syncedFrom = `${d}.${m}.${y} 00:00:00`;
-          crit.valueFrom = syncedFrom;
-          if (fromEl) fromEl.value = syncedFrom;
-        }
-      }
-    }
+  onFilterValueInput: function(idx, inputEl, event) {
+    C1FilterComponent.onFilterValueInput(idx, inputEl, event);
   },
 
   onFilterSingleBlur: function(idx, inputEl) {
-    const crit = this.tempFilterCriteria[idx];
-    if (!crit) return;
-    const val = inputEl.value.trim();
-    if (val) {
-      this.setCritEnabled(idx, true);
-    }
-    if (crit.fieldKey === "date" && val && window.PeriodPicker && typeof PeriodPicker.autoCompleteDate === "function") {
-      inputEl.value = PeriodPicker.autoCompleteDate(val, "00:00:00");
-      crit.value = inputEl.value;
-    }
+    C1FilterComponent.onFilterSingleBlur(idx, inputEl);
   },
 
-  // Autocomplete Live Search Engine (Only triggered on user typing >= 1 char)
-  onFilterValueInput: function(idx, inputEl, event) {
-    if (this.tempFilterCriteria[idx]) {
-      const crit = this.tempFilterCriteria[idx];
-      if (crit.fieldKey === "date" || inputEl.classList.contains("uj-filter-date")) {
-        inputEl.value = inputEl.value.replace(/[^0-9.:\s\/\-,]/g, "");
-      }
-      crit.value = inputEl.value;
-      if (inputEl.value.trim().length > 0) {
-        this.setCritEnabled(idx, true);
-      }
-    }
-    this.showFilterAutocomplete(idx, inputEl);
+  onFilterIntervalInput: function(idx, which, inputEl) {
+    C1FilterComponent.onFilterIntervalInput(idx, which, inputEl);
   },
 
-  showFilterAutocomplete: function(idx, inputEl) {
-    const crit = this.tempFilterCriteria[idx];
-    if (!crit) return;
-    if (crit.operator === "Заполнено" || crit.operator === "Не заполнено") {
-      this.hideFilterAutocomplete();
-      return;
-    }
-
-    const curVal = inputEl.value || "";
-    let searchTerm = curVal.trim().toLowerCase();
-    const isListOp = (crit.operator === "В группе из списка" || crit.operator === "В списке" || crit.operator === "Не в списке");
-    if (isListOp && searchTerm.includes(";")) {
-      const parts = searchTerm.split(";");
-      searchTerm = parts[parts.length - 1].trim();
-    }
-
-    if (!searchTerm || searchTerm.length < 1) {
-      this.hideFilterAutocomplete();
-      return;
-    }
-
-    let catalog = null;
-    if (crit.fieldKey === "contract_price_type") catalog = "ТипыЦенНоменклатуры";
-    else if (crit.fieldKey === "contract") catalog = "ДоговорыКонтрагентов";
-    else if (crit.fieldKey === "kontragent" || crit.fieldKey === "kontragent_code") catalog = "Контрагенты";
-    else if (crit.fieldKey === "warehouse") catalog = "Склады";
-    else if (crit.fieldKey === "responsible") catalog = "Пользователи";
-    else if (crit.fieldKey === "pogruzka_voditel") catalog = "Водители";
-    else if (crit.fieldKey === "portfolio") catalog = "Портфели";
-    else if (crit.fieldKey === "nomenclature") catalog = "Номенклатура";
-
-    const values = this.getDistinctFieldValues(crit.fieldKey);
-    let filtered = [];
-
-    if (crit.fieldKey === "nomenclature") {
-      const foundMap = new Map();
-      (this.items || []).forEach(it => {
-        (it.nom_keys || []).forEach((k, i) => {
-          const parts = String(k).split("|");
-          const code = parts[0] || "";
-          const cleanCode = parts[1] || code.replace(/^0+/, "");
-          const art = parts[2] || "";
-          const name = parts[3] || (it.nomenclatures || [])[i] || parts[0] || "";
-          if (k.includes(searchTerm) || cleanCode.includes(searchTerm) || name.toLowerCase().includes(searchTerm) || art.toLowerCase().includes(searchTerm)) {
-            const displayLabel = cleanCode ? `[${cleanCode}] ${name}` : name;
-            foundMap.set(displayLabel, name);
-          }
-        });
-      });
-      if (foundMap.size > 0) {
-        filtered = Array.from(foundMap.keys()).sort((a, b) => a.localeCompare(b, "ru"));
-      } else {
-        filtered = (values || []).filter(v => v.toLowerCase().includes(searchTerm));
-      }
-    } else if (crit.fieldKey === "vms_status") {
-      const statuses = ["Подтвержден WMS", "Выгружен", "Новый", "В обработке", "Готов к отгрузке", "Отменен"];
-      filtered = statuses.filter(s => s.toLowerCase().includes(searchTerm));
-    } else {
-      filtered = (values || []).filter(v => v.toLowerCase().includes(searchTerm));
-    }
-
-    if (filtered.length > 0) {
-      this.renderFilterAutocompletePopup(idx, inputEl, filtered);
-    }
-
-    // Live catalog search if field maps to a 1C catalog and user typed >= 2 chars
-    if (catalog && searchTerm.length >= 2) {
-      clearTimeout(this._filterAutoLiveTimer);
-      this._filterAutoLiveTimer = setTimeout(async () => {
-        try {
-          const creds = (typeof SessionManager !== "undefined") ? SessionManager.getCredentials() : {};
-          const res = await fetch("/api/catalog_data", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              ...creds,
-              catalog: catalog,
-              search: searchTerm
-            })
-          });
-          const data = await res.json();
-          if (data.success && data.items && data.items.length) {
-            const mergedMap = new Map();
-            filtered.forEach(f => mergedMap.set(f, f));
-            data.items.forEach(it => {
-              const label = it.code ? `[${it.code}] ${it.name}` : it.name;
-              mergedMap.set(label, it.name);
-            });
-            const mergedList = Array.from(mergedMap.keys());
-            this.renderFilterAutocompletePopup(idx, inputEl, mergedList);
-          }
-        } catch (e) {}
-      }, 160);
-    } else if (filtered.length === 0) {
-      this.hideFilterAutocomplete();
-    }
+  onFilterIntervalBlur: function(idx, which, inputEl) {
+    C1FilterComponent.onFilterIntervalBlur(idx, which, inputEl);
   },
 
-  renderFilterAutocompletePopup: function(idx, inputEl, filtered) {
-    const popup = document.getElementById("ujFilterAutocompletePopup");
-    const container = document.getElementById("ujFilterTableContainer");
-    if (!popup || !container) return;
-
-    let itemsHtml = `<div style="padding: 2px 6px; background: #e5e2cf; border-bottom: 1px solid #b0af9f; font-size: 10px; color: #555; font-weight: bold;">Найдено: ${filtered.length}</div>`;
-    filtered.slice(0, 50).forEach((itemVal) => {
-      itemsHtml += `
-        <div class="uj-auto-item" data-val="${this.escapeHtml(itemVal)}"
-             style="padding: 3px 8px; cursor: pointer; user-select: none; border-bottom: 1px dotted #eee; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: #111111 !important; background: #ffffff !important;"
-             onmouseover="this.style.background='#316ac5'; this.style.color='#ffffff';"
-             onmouseout="this.style.background='#ffffff'; this.style.color='#111111';"
-             onmousedown="event.preventDefault(); UniversalJournal.selectAutocompleteSuggestion(${idx}, '${this.escapeHtml(itemVal)}');">
-          ${this.escapeHtml(itemVal)}
-        </div>
-      `;
-    });
-    popup.innerHTML = itemsHtml;
-
-    const inputRect = inputEl.getBoundingClientRect();
-    const containerRect = container.getBoundingClientRect();
-    popup.style.top = (inputRect.bottom - containerRect.top + container.scrollTop) + "px";
-    popup.style.left = (inputRect.left - containerRect.left + container.scrollLeft) + "px";
-    popup.style.width = Math.max(inputRect.width, 260) + "px";
-    popup.style.display = "block";
-    this.activeAutocompleteIdx = idx;
-    this.activeSuggestionIdx = -1;
+  onFilterIntervalKeydown: function(idx, which, inputEl, event) {
+    C1FilterComponent.onFilterIntervalKeydown(idx, which, inputEl, event);
   },
 
-  selectAutocompleteSuggestion: function(idx, val) {
-    const inputEl = document.getElementById(`ujFilterValInput_${idx}`);
-    const crit = this.tempFilterCriteria[idx];
-    if (!crit) return;
-
-    // If suggestion has "[code] Name", strip bracket prefix for cleaner search or keep it
-    const cleanVal = val.replace(/^\[[^\]]+\]\s*/, "");
-
-    const isListOp = (crit.operator === "В группе из списка" || crit.operator === "В списке");
-    if (isListOp && inputEl && inputEl.value.includes(";")) {
-      const parts = inputEl.value.split(";").map(s => s.trim()).filter(Boolean);
-      parts.pop();
-      parts.push(cleanVal);
-      const combined = parts.join("; ") + "; ";
-      crit.value = combined;
-      if (inputEl) inputEl.value = combined;
-    } else {
-      crit.value = cleanVal;
-      if (inputEl) inputEl.value = cleanVal;
-    }
-
-    this.setCritEnabled(idx, true);
-    this.hideFilterAutocomplete();
-    if (inputEl) inputEl.focus();
-  },
-
-  hideFilterAutocomplete: function() {
-    const popup = document.getElementById("ujFilterAutocompletePopup");
-    if (popup) popup.style.display = "none";
-    this.activeAutocompleteIdx = -1;
-    this.activeSuggestionIdx = -1;
+  validateFilterInterval: function(idx, which) {
+    C1FilterComponent.validateFilterInterval(idx, which);
   },
 
   onFilterInputKeydown: function(idx, inputEl, event) {
-    const crit = this.tempFilterCriteria[idx];
-    const isDateField = crit && (crit.fieldKey === "date");
-
-    if (isDateField) {
-      if ([
-        "Backspace", "Delete", "Tab", "Enter", "Escape", 
-        "ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown", 
-        "Home", "End", "F4"
-      ].includes(event.key)) {
-        // icazə ver
-      } else if (event.ctrlKey || event.metaKey) {
-        // icazə ver
-      } else if (event.key === "." || event.key === ":" || event.key === " ") {
-        // icazə ver
-      } else if (!/^\d$/.test(event.key)) {
-        // HƏRF VƏ YAD SİMVOL QADAĞANDIR!
-        event.preventDefault();
-        return;
-      }
-    }
-
-    const popup = document.getElementById("ujFilterAutocompletePopup");
-    if (!popup || popup.style.display !== "block") {
-      if (event.key === "Enter") {
-        event.preventDefault();
-        const val = inputEl.value.trim();
-        if (crit && crit.fieldKey === "date" && val && window.PeriodPicker && typeof PeriodPicker.autoCompleteDate === "function") {
-          inputEl.value = PeriodPicker.autoCompleteDate(val, "00:00:00");
-          crit.value = inputEl.value;
-        }
-        inputEl.blur();
-        return;
-      }
-      if (event.key === "ArrowDown" || event.key === "F4") {
-        event.preventDefault();
-        this.showFilterAutocomplete(idx, inputEl);
-      }
-      return;
-    }
-
-    const items = popup.querySelectorAll(".uj-auto-item");
-    if (items.length === 0) return;
-
-    if (event.key === "ArrowDown") {
-      event.preventDefault();
-      this.activeSuggestionIdx = Math.min(this.activeSuggestionIdx + 1, items.length - 1);
-      this.highlightActiveSuggestion(items);
-    } else if (event.key === "ArrowUp") {
-      event.preventDefault();
-      this.activeSuggestionIdx = Math.max(this.activeSuggestionIdx - 1, 0);
-      this.highlightActiveSuggestion(items);
-    } else if (event.key === "Enter") {
-      event.preventDefault();
-      if (this.activeSuggestionIdx >= 0 && items[this.activeSuggestionIdx]) {
-        const val = items[this.activeSuggestionIdx].getAttribute("data-val");
-        this.selectAutocompleteSuggestion(idx, val);
-      } else {
-        this.hideFilterAutocomplete();
-      }
-    } else if (event.key === "Escape") {
-      event.preventDefault();
-      this.hideFilterAutocomplete();
-    }
+    C1FilterComponent.onFilterInputKeydown(idx, inputEl, event);
   },
 
-  highlightActiveSuggestion: function(items) {
-    items.forEach((item, i) => {
-      const isSel = (i === this.activeSuggestionIdx);
-      item.style.background = isSel ? "#316ac5" : "#ffffff";
-      item.style.color = isSel ? "#ffffff" : "#111111";
-      if (isSel) {
-        item.scrollIntoView({ block: "nearest" });
-      }
-    });
+  showFilterAutocomplete: function(idx, inputEl) {
+    C1FilterComponent.showFilterAutocomplete(idx, inputEl);
+  },
+
+  getDistinctFieldValues: function(fieldKey) {
+    return C1FilterComponent.getDistinctFieldValues(fieldKey);
+  },
+
+  selectAutocompleteSuggestion: function(idx, val) {
+    C1FilterComponent.selectAutocompleteSuggestion(idx, val);
+  },
+
+  hideFilterAutocomplete: function() {
+    C1FilterComponent.hideFilterAutocomplete();
+  },
+
+  openFilterFieldPicker: function(idx) {
+    C1FilterComponent.openFilterFieldPicker(idx);
+  },
+
+  openFieldSelectModal: function(idx) {
+    C1FilterComponent.openFieldSelectModal(idx);
+  },
+
+  closeFieldSelectModal: function() {
+    C1FilterComponent.closeFieldSelectModal();
+  },
+
+  renderFieldSelectModalList: function(selectedKey, query) {
+    C1FilterComponent.renderFieldSelectModalList(selectedKey, query);
+  },
+
+  filterFieldSelectModalList: function(query) {
+    C1FilterComponent.filterFieldSelectModalList(query);
+  },
+
+  selectFieldModalItem: function(key) {
+    C1FilterComponent.selectFieldModalItem(key);
+  },
+
+  confirmModalFieldSelection: function(keyParam) {
+    C1FilterComponent.confirmModalFieldSelection(keyParam);
+  },
+
+  onFilterCritFieldChange: function(idx, newKey) {
+    C1FilterComponent.onFilterCritFieldChange(idx, newKey);
+  },
+
+  onFieldSelectSearchKeydown: function(e) {
+    C1FilterComponent.onFieldSelectSearchKeydown(e);
   },
 
   finishFilterEditing: function() {
-    this.hideFilterAutocomplete();
-
-    // Bütün cari inputların qiymətlərini topla, tamamla və dəqiqləşdir
-    for (let idx = 0; idx < this.tempFilterCriteria.length; idx++) {
-      const crit = this.tempFilterCriteria[idx];
-      if (!crit) continue;
-      const isInterval = crit.operator && crit.operator.startsWith("Интервал");
-
-      if (isInterval) {
-        const fromEl = document.getElementById(`ujFilterValInput_${idx}_from`);
-        const toEl = document.getElementById(`ujFilterValInput_${idx}_to`);
-
-        if (fromEl) {
-          fromEl.style.border = "1px solid #7f9db9";
-          if (fromEl.value.trim() && window.PeriodPicker && typeof PeriodPicker.autoCompleteDate === "function") {
-            fromEl.value = PeriodPicker.autoCompleteDate(fromEl.value.trim(), "00:00:00");
-          }
-          crit.valueFrom = fromEl.value.trim();
-        }
-        if (toEl) {
-          toEl.style.border = "1px solid #7f9db9";
-          if (toEl.value.trim() && window.PeriodPicker && typeof PeriodPicker.autoCompleteDate === "function") {
-            toEl.value = PeriodPicker.autoCompleteDate(toEl.value.trim(), "23:59:59");
-          }
-          crit.valueTo = toEl.value.trim();
-        }
-
-        // QƏTİ QADAĞA: НАЧАЛО HEÇ VAXT КОНЕЦ-DƏN BÖYÜK OLA BİLMƏZ!
-        if (crit.valueFrom && crit.valueTo && window.PeriodPicker && typeof PeriodPicker.parseDateObj === "function") {
-          const dtFrom = PeriodPicker.parseDateObj(crit.valueFrom, false);
-          const dtTo = PeriodPicker.parseDateObj(crit.valueTo, true);
-          if (dtFrom && dtTo && dtFrom.getTime() > dtTo.getTime()) {
-            if (fromEl) {
-              fromEl.style.border = "1px solid #cc0000";
-              fromEl.focus();
-            }
-            if (toEl) {
-              toEl.style.border = "1px solid #cc0000";
-            }
-            alert("Дата начала не может быть больше даты окончания!");
-            return; // İcazə verilmir, pəncərə bağlanmır!
-          }
-        }
-
-        crit.value = (crit.valueFrom || crit.valueTo) ? `${crit.valueFrom || ''} ... ${crit.valueTo || ''}` : '';
-      } else {
-        const singleEl = document.getElementById(`ujFilterValInput_${idx}`);
-        if (singleEl) {
-          if (crit.fieldKey === "date" && singleEl.value.trim() && window.PeriodPicker && typeof PeriodPicker.autoCompleteDate === "function") {
-            singleEl.value = PeriodPicker.autoCompleteDate(singleEl.value.trim(), "00:00:00");
-          }
-          crit.value = singleEl.value.trim();
-        }
-      }
-    }
-
-    this.activeFilters = JSON.parse(JSON.stringify(this.tempFilterCriteria));
-    if (this.activeFilters.length > 0 && !this.activePresetName) {
-      this.activePresetName = "Пользовательский";
-    } else if (this.activeFilters.length === 0) {
-      this.activePresetName = "";
-    }
-    this.saveActiveFiltersToStorage();
-    this.closeFilterModal();
-    this.executeSearchOrFilter();
-    this.updateStatus(this.activeFilters.length > 0 ? "Отбор применен" : "Отбор отключен");
+    C1FilterComponent.finishFilterEditing();
   },
 
-  // ==========================================
-  // Active Filters Persistence (Refresh F5 üçün)
-  // ==========================================
   getActiveFiltersStorageKey: function() {
-    return "uj_active_filters_" + (this.activeDocType || "default");
+    return C1FilterComponent.getActiveFiltersStorageKey();
   },
 
   loadActiveFiltersFromStorage: function() {
-    try {
-      const raw = localStorage.getItem(this.getActiveFiltersStorageKey());
-      if (raw) {
-        const parsed = JSON.parse(raw);
-        if (Array.isArray(parsed)) {
-          this.activeFilters = parsed;
-          return;
-        }
-      }
-    } catch(e) {}
-    this.activeFilters = [];
+    C1FilterComponent.contextKey = this.activeDocType || "default";
+    C1FilterComponent.loadActiveFiltersFromStorage();
+    this.activeFilters = C1FilterComponent.activeFilters;
+    this.activePresetName = C1FilterComponent.activePresetName;
   },
 
   saveActiveFiltersToStorage: function() {
-    try {
-      if (this.activeFilters && this.activeFilters.length > 0) {
-        localStorage.setItem(this.getActiveFiltersStorageKey(), JSON.stringify(this.activeFilters));
-      } else {
-        localStorage.removeItem(this.getActiveFiltersStorageKey());
-      }
-    } catch(e) {}
+    if (typeof C1FilterComponent !== "undefined") {
+      C1FilterComponent.contextKey = this.activeDocType || "default";
+      C1FilterComponent.activeFilters = this.activeFilters || [];
+      C1FilterComponent.activePresetName = this.activePresetName || "";
+      C1FilterComponent.saveActiveFiltersToStorage();
+    }
   },
 
-  // ==========================================
-  // Presets & Persistence Engine (💾⚙️ / 📁⚙️)
-  // ==========================================
+  syncTempFiltersToStorage: function() {
+    if (typeof C1FilterComponent !== "undefined") {
+      C1FilterComponent.syncTempFiltersToStorage();
+    }
+  },
+
   getPresetsStorageKey: function() {
-    return "uj_filter_presets_" + (this.activeDocType || "default");
+    if (typeof C1FilterComponent !== "undefined") {
+      return C1FilterComponent.getPresetsStorageKey();
+    }
+    return "";
   },
 
   getSavedPresets: function() {
-    try {
-      const raw = localStorage.getItem(this.getPresetsStorageKey());
-      if (raw) {
-        const parsed = JSON.parse(raw);
-        if (Array.isArray(parsed)) return parsed;
-      }
-    } catch (e) {
-      console.warn("Failed to read filter presets:", e);
+    if (typeof C1FilterComponent !== "undefined") {
+      C1FilterComponent.contextKey = this.activeDocType || "default";
+      return C1FilterComponent.getSavedPresets();
     }
-    return [];
+    return {};
   },
 
   savePresetsToStorage: function(presets) {
-    try {
-      localStorage.setItem(this.getPresetsStorageKey(), JSON.stringify(presets));
-    } catch (e) {
-      console.error("Failed to save filter presets:", e);
-    }
+    C1FilterComponent.savePresetsToStorage(presets);
   },
 
   getDefaultPreset: function() {
-    const list = this.getSavedPresets();
-    return list.find(p => p.isDefault === true) || null;
+    C1FilterComponent.contextKey = this.activeDocType || "default";
+    return C1FilterComponent.getDefaultPreset();
   },
 
   checkAndApplyStartupFilter: function() {
@@ -3390,314 +2402,56 @@ const _UniversalJournalTarget = {
       return;
     }
 
-    // 3. No filter active: standard view
-    this.filteredItems = [...this.items];
-    if (this.currentSortCol) this.applySort();
-    this.renderTable();
-    this.updateStatus(`Загружено ${this.items.length} документов`);
-    this.updateCountBadge(this.items.length);
-    this.updateActiveFilterBadgeUI();
+    // 3. No active filter - render list normally
+    this.applyFiltersAndSearch();
   },
 
-  // Modal: Save Preset (💾⚙️)
+  applyFilterCriteriaModal: function() {
+    C1FilterComponent.applyFilterCriteriaModal();
+  },
+
   openPresetSaveModal: function() {
-    let modal = document.getElementById("ujPresetSaveModal");
-    if (!modal) {
-      modal = document.createElement("div");
-      modal.id = "ujPresetSaveModal";
-      modal.className = "modal-overlay-1c";
-      modal.style.zIndex = "10000";
-      document.body.appendChild(modal);
-    }
+    C1FilterComponent.openPresetSaveModal();
+  },
 
-    const currentName = this.activePresetName || (this.activeFilters.length > 0 ? "Отбор " + new Date().toLocaleDateString("ru-RU") : "");
-    const defPreset = this.getDefaultPreset();
-    const isCurrentlyDefault = (defPreset && defPreset.name === currentName);
+  onPresetNameInputChanged: function(val) {
+    C1FilterComponent.onPresetNameInputChanged(val);
+  },
 
-    modal.innerHTML = `
-      <div class="modal-window-1c" style="width: 440px; background: #f0eee3; border: 1px solid #7f9db9; box-shadow: 0 4px 20px rgba(0,0,0,0.4); font-family: Tahoma, 'MS Sans Serif', Arial, sans-serif; font-size: 11px;">
-        
-        <div class="modal-header-1c" style="background: linear-gradient(to bottom, #fdfdfe, #d6d9e0); padding: 5px 8px; border-bottom: 1px solid #a0a0a0; display: flex; align-items: center; justify-content: space-between;">
-          <div style="font-weight: bold; color: #000; font-size: 11px; display: flex; align-items: center; gap: 6px;">
-            <span>💾</span>
-            <span>Сохранение настройки отбора</span>
-          </div>
-          <button type="button" class="window-btn-close" onclick="UniversalJournal.closePresetSaveModal()" style="width: 17px; height: 17px; border: 1px solid #7f9db9; background: #e5e2cf; cursor: pointer;">✕</button>
-        </div>
-
-        <div style="padding: 12px; display: flex; flex-direction: column; gap: 10px;">
-          <div>
-            <label style="display: block; font-weight: bold; margin-bottom: 4px;">Имя настройки:</label>
-            <input type="text" id="ujPresetSaveNameInput" class="input-1c" style="width: 100%; height: 24px; padding: 2px 6px; font-size: 12px;"
-                   value="${this.escapeHtml(currentName)}" placeholder="Например: Təsdiqlənmiş WMS və s.">
-          </div>
-
-          <div style="background: #fdfdf9; border: 1px solid #d4d0c8; padding: 8px; border-radius: 2px;">
-            <label style="display: flex; align-items: center; gap: 6px; cursor: pointer; font-weight: bold; color: #003366;">
-              <input type="checkbox" id="ujPresetSaveIsDefaultCheck" ${isCurrentlyDefault ? 'checked' : ''} style="cursor: pointer;">
-              <span>Использовать при открытии (Açılışda daimi açılsın)</span>
-            </label>
-            <div style="font-size: 10px; color: #666; margin-top: 4px; margin-left: 20px; line-height: 1.3;">
-              Если флажок установлен, данный фильтр будет автоматически применяться при каждом запуске этого журнала документов.
-            </div>
-          </div>
-
-          <div style="font-size: 11px; color: #555;">
-            Текущих условий в фильтре: <strong>${this.activeFilters.length}</strong>
-          </div>
-        </div>
-
-        <div style="padding: 6px 10px; background: #e5e2cf; border-top: 1px solid #b0af9f; display: flex; justify-content: flex-end; gap: 6px;">
-          <button type="button" class="btn-1c btn-1c-primary" onclick="UniversalJournal.saveCurrentFilterPreset()" style="height: 24px; padding: 0 16px; font-weight: bold;">
-            Сохранить
-          </button>
-          <button type="button" class="btn-1c" onclick="UniversalJournal.closePresetSaveModal()" style="height: 24px; padding: 0 12px;">
-            Отмена
-          </button>
-        </div>
-
-      </div>
-    `;
-
-    modal.style.display = "flex";
-    setTimeout(() => {
-      const inp = document.getElementById("ujPresetSaveNameInput");
-      if (inp) { inp.focus(); inp.select(); }
-    }, 50);
+  selectPresetSaveListItem: function(idx) {
+    C1FilterComponent.selectPresetSaveListItem(idx);
   },
 
   closePresetSaveModal: function() {
-    const modal = document.getElementById("ujPresetSaveModal");
-    if (modal) modal.style.display = "none";
+    C1FilterComponent.closePresetSaveModal();
   },
 
   saveCurrentFilterPreset: function() {
-    const inp = document.getElementById("ujPresetSaveNameInput");
-    const isDefCheck = document.getElementById("ujPresetSaveIsDefaultCheck");
-    const name = inp ? inp.value.trim() : "";
-    if (!name) {
-      alert("Пожалуйста, введите имя настройки.");
-      if (inp) inp.focus();
-      return;
-    }
-
-    const isDefault = isDefCheck ? Boolean(isDefCheck.checked) : false;
-    const presets = this.getSavedPresets();
-
-    // Check if updating existing by name
-    const existingIdx = presets.findIndex(p => p.name.toLowerCase() === name.toLowerCase());
-    const presetObj = {
-      id: existingIdx >= 0 ? presets[existingIdx].id : ("preset_" + Date.now()),
-      name: name,
-      isDefault: isDefault,
-      criteria: JSON.parse(JSON.stringify(this.activeFilters))
-    };
-
-    if (isDefault) {
-      presets.forEach(p => p.isDefault = false);
-    }
-
-    if (existingIdx >= 0) {
-      presets[existingIdx] = presetObj;
-    } else {
-      presets.push(presetObj);
-    }
-
-    this.savePresetsToStorage(presets);
-    this.activePresetName = name;
-    this.closePresetSaveModal();
-    this.updateActiveFilterBadgeUI();
-    this.updateStatus(`Настройка "${name}" успешно сохранена`);
+    C1FilterComponent.saveCurrentFilterPreset();
   },
 
-  // Modal: Restore / Manage Presets (📁⚙️)
   openPresetRestoreModal: function() {
-    let modal = document.getElementById("ujPresetRestoreModal");
-    if (!modal) {
-      modal = document.createElement("div");
-      modal.id = "ujPresetRestoreModal";
-      modal.className = "modal-overlay-1c";
-      modal.style.zIndex = "10000";
-      document.body.appendChild(modal);
-    }
-
-    this.renderPresetRestoreModalContent();
-    modal.style.display = "flex";
+    C1FilterComponent.openPresetRestoreModal();
   },
 
   closePresetRestoreModal: function() {
-    const modal = document.getElementById("ujPresetRestoreModal");
-    if (modal) modal.style.display = "none";
+    C1FilterComponent.closePresetRestoreModal();
   },
-
-  selectedPresetId: null,
 
   renderPresetRestoreModalContent: function() {
-    const modal = document.getElementById("ujPresetRestoreModal");
-    if (!modal) return;
-
-    const presets = this.getSavedPresets();
-    if (!this.selectedPresetId && presets.length > 0) {
-      this.selectedPresetId = presets[0].id;
-    }
-
-    let rowsHtml = "";
-    presets.forEach((p, idx) => {
-      const isSelected = (p.id === this.selectedPresetId);
-      const bg = isSelected ? "#316ac5" : (idx % 2 === 1 ? "#f9f8f4" : "#ffffff");
-      const fg = isSelected ? "#ffffff" : "#111111";
-
-      const summary = (p.criteria || []).map(c => {
-        const valStr = (c.operator === "Заполнено" || c.operator === "Не заполнено") ? "" : ` = ${c.value}`;
-        return `${c.fieldLabel || c.fieldKey}${valStr}`;
-      }).join("; ");
-
-      rowsHtml += `
-        <tr style="background: ${bg}; color: ${fg}; height: 24px; cursor: pointer; user-select: none;"
-            onclick="UniversalJournal.selectPresetRow('${p.id}')"
-            ondblclick="UniversalJournal.applyPresetById('${p.id}')">
-          <td style="width: 32px; text-align: center; border: 1px solid #d4d0c8; font-size: 13px;">
-            ${p.isDefault ? '⭐' : ''}
-          </td>
-          <td style="padding: 2px 6px; border: 1px solid #d4d0c8; font-weight: ${p.isDefault ? 'bold' : 'normal'}; width: 180px;">
-            ${this.escapeHtml(p.name)}
-          </td>
-          <td style="padding: 2px 6px; border: 1px solid #d4d0c8; font-size: 10px; color: ${isSelected ? '#e0f0ff' : '#555'}; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
-            ${this.escapeHtml(summary || "(без условий)")}
-          </td>
-          <td style="width: 140px; text-align: center; border: 1px solid #d4d0c8;">
-            <button type="button" class="btn-1c" style="height: 19px; padding: 0 4px; font-size: 10px;"
-                    onclick="event.stopPropagation(); UniversalJournal.togglePresetDefault('${p.id}')"
-                    title="${p.isDefault ? 'Снять признак по умолчанию' : 'Сделать открываемым по умолчанию при старте'}">
-              ${p.isDefault ? 'Снять ⭐' : '⭐ По умолчанию'}
-            </button>
-            <button type="button" class="btn-1c" style="height: 19px; padding: 0 4px; font-size: 10px; color: #a00; margin-left: 2px;"
-                    onclick="event.stopPropagation(); UniversalJournal.deletePresetById('${p.id}')"
-                    title="Удалить эту настройку">
-              ✕
-            </button>
-          </td>
-        </tr>
-      `;
-    });
-
-    modal.innerHTML = `
-      <div class="modal-window-1c" style="width: 650px; max-height: 80vh; display: flex; flex-direction: column; background: #f0eee3; border: 1px solid #7f9db9; box-shadow: 0 6px 25px rgba(0,0,0,0.4); font-family: Tahoma, 'MS Sans Serif', Arial, sans-serif; font-size: 11px;">
-        
-        <div class="modal-header-1c" style="background: linear-gradient(to bottom, #fdfdfe, #d6d9e0); padding: 5px 8px; border-bottom: 1px solid #a0a0a0; display: flex; align-items: center; justify-content: space-between;">
-          <div style="font-weight: bold; color: #000; font-size: 11px; display: flex; align-items: center; gap: 6px;">
-            <span>📁</span>
-            <span>Выбор настройки списка: ${this.escapeHtml(this.docTitle || this.activeDocType)}</span>
-          </div>
-          <button type="button" class="window-btn-close" onclick="UniversalJournal.closePresetRestoreModal()" style="width: 17px; height: 17px; border: 1px solid #7f9db9; background: #e5e2cf; cursor: pointer;">✕</button>
-        </div>
-
-        <div style="padding: 4px 8px; background: #e5e2cf; border-bottom: 1px solid #b0af9f; display: flex; align-items: center; gap: 4px;">
-          <button type="button" class="btn-1c btn-1c-primary" onclick="UniversalJournal.applySelectedPreset()" style="height: 23px; padding: 0 10px; font-weight: bold;">
-            Выбрать (Применить)
-          </button>
-          <button type="button" class="btn-1c" onclick="UniversalJournal.clearFilterAndCloseModal()" style="height: 23px; padding: 0 8px; color: #a00;">
-            Отключить отбор (Сбросить)
-          </button>
-        </div>
-
-        <div style="flex: 1; overflow: auto; background: #ffffff; min-height: 200px; max-height: 380px;">
-          <table style="width: 100%; border-collapse: collapse; table-layout: fixed; font-size: 11px;">
-            <thead>
-              <tr style="background: #e3dec9; border-bottom: 1px solid #b0af9f; height: 21px;">
-                <th style="width: 32px; text-align: center; border: 1px solid #d4d0c8;" title="По умолчанию на старте">⭐</th>
-                <th style="width: 180px; text-align: left; padding: 2px 6px; border: 1px solid #d4d0c8;">Наименование</th>
-                <th style="text-align: left; padding: 2px 6px; border: 1px solid #d4d0c8;">Условия</th>
-                <th style="width: 140px; text-align: center; border: 1px solid #d4d0c8;">Действия</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${presets.length === 0 ? `
-                <tr>
-                  <td colspan="4" style="text-align: center; padding: 30px; color: #777; font-style: italic;">
-                    Нет сохраненных настроек отбора для этого журнала.<br>
-                    Настройте отбор через [🔬] и нажмите [💾⚙️] для сохранения.
-                  </td>
-                </tr>
-              ` : rowsHtml}
-            </tbody>
-          </table>
-        </div>
-
-        <div style="padding: 6px 10px; background: #e5e2cf; border-top: 1px solid #b0af9f; display: flex; justify-content: space-between; align-items: center;">
-          <div style="font-size: 10px; color: #666;">
-            ⭐ — Открывается по умолчанию при каждом открытии этого журнала
-          </div>
-          <div style="display: flex; gap: 6px;">
-            <button type="button" class="btn-1c" onclick="UniversalJournal.closePresetRestoreModal()" style="height: 24px; padding: 0 14px;">
-              Закрыть
-            </button>
-          </div>
-        </div>
-
-      </div>
-    `;
+    C1FilterComponent.renderPresetRestoreModalContent();
   },
 
-  selectPresetRow: function(id) {
-    this.selectedPresetId = id;
-    this.renderPresetRestoreModalContent();
-  },
-
-  applySelectedPreset: function() {
-    if (this.selectedPresetId) {
-      this.applyPresetById(this.selectedPresetId);
-    }
+  selectPresetRestoreItem: function(id) {
+    C1FilterComponent.selectPresetRestoreItem(id);
   },
 
   applyPresetById: function(presetId) {
-    const presets = this.getSavedPresets();
-    const target = presets.find(p => p.id === presetId);
-    if (!target) return;
-
-    this.activeFilters = JSON.parse(JSON.stringify(target.criteria || []));
-    this.activePresetName = target.name || "";
-    this.closePresetRestoreModal();
-    this.executeSearchOrFilter();
-    this.updateStatus(`Применена настройка отбора: "${target.name}"`);
-  },
-
-  togglePresetDefault: function(presetId) {
-    const presets = this.getSavedPresets();
-    const target = presets.find(p => p.id === presetId);
-    if (!target) return;
-
-    const willBeDefault = !target.isDefault;
-    if (willBeDefault) {
-      presets.forEach(p => p.isDefault = false);
-      target.isDefault = true;
-    } else {
-      target.isDefault = false;
-    }
-
-    this.savePresetsToStorage(presets);
-    this.renderPresetRestoreModalContent();
-    this.updateStatus(`Настройка "${target.name}" ${target.isDefault ? 'установлена по умолчанию' : 'снята с по умолчанию'}`);
+    C1FilterComponent.applyPresetById(presetId);
   },
 
   deletePresetById: function(presetId) {
-    const presets = this.getSavedPresets();
-    const target = presets.find(p => p.id === presetId);
-    if (!target) return;
-
-    if (!confirm(`Удалить сохраненную настройку "${target.name}"?`)) return;
-
-    const filtered = presets.filter(p => p.id !== presetId);
-    this.savePresetsToStorage(filtered);
-    if (this.activePresetName === target.name) {
-      this.activePresetName = "";
-      this.updateActiveFilterBadgeUI();
-    }
-    if (this.selectedPresetId === presetId) {
-      this.selectedPresetId = filtered.length > 0 ? filtered[0].id : null;
-    }
-    this.renderPresetRestoreModalContent();
-    this.updateStatus(`Настройка "${target.name}" удалена`);
+    C1FilterComponent.deletePresetById(presetId);
   },
 
   clearFilter: function() {
@@ -3711,7 +2465,7 @@ const _UniversalJournalTarget = {
 
   clearFilterAndCloseModal: function() {
     this.clearFilter();
-    this.closePresetRestoreModal();
+    C1FilterComponent.closePresetRestoreModal();
   },
 
   filterByCurrentValue: function() {
@@ -3957,308 +2711,10 @@ const _UniversalJournalTarget = {
   },
 
   matchesCondition: function(item, crit) {
-    const key = crit.fieldKey;
-    let itemVal = item[key];
-    const targetVal = crit.value;
-    const op = crit.operator || "Равно";
-
-    if (itemVal === undefined || itemVal === null) itemVal = "";
-
-    // 1. Boolean operations (posted, deleted)
-    if (key === "posted" || key === "deleted") {
-      const bVal = Boolean(itemVal);
-      if (op === "Заполнено") return true;
-      if (op === "Не заполнено") return false;
-      const targetBool = (targetVal === "Да" || targetVal === "true" || targetVal === true);
-      if (op === "Равно") return bVal === targetBool;
-      if (op === "Не равно") return bVal !== targetBool;
-    }
-
-    // Special handling for Номенклатура (which can be a list of items for the document)
-    if (key === "nomenclature") {
-      let noms = [];
-      if (Array.isArray(item.nom_keys) && item.nom_keys.length) {
-        noms = item.nom_keys.map(n => String(n).toLowerCase());
-      } else if (Array.isArray(item.nomenclatures) && item.nomenclatures.length) {
-        noms = item.nomenclatures.map(n => String(n).trim().toLowerCase()).filter(Boolean);
-      } else if (item.nomenclature) {
-        noms = (String(item.nomenclature).includes(";") ? String(item.nomenclature).split(";") : [String(item.nomenclature)]).map(n => n.trim().toLowerCase()).filter(Boolean);
-      }
-
-      if (this.isServerFiltered && noms.length === 0) {
-        // Query was executed and matched on the 1C database server
-        return true;
-      }
-
-      if (op === "Заполнено") return noms.length > 0;
-      if (op === "Не заполнено") return noms.length === 0;
-
-      const targetRaw = String(targetVal !== undefined ? targetVal : "").trim();
-      if (!targetRaw) return true;
-
-      // Extract structured criteria and matchAll setting
-      let matchAll = false;
-      let criteriaList = [];
-
-      if (crit.structuredFilter && Array.isArray(crit.structuredFilter.items) && crit.structuredFilter.items.length) {
-        matchAll = Boolean(crit.structuredFilter.matchAll);
-        criteriaList = crit.structuredFilter.items;
-      } else {
-        let raw = targetRaw;
-        if (raw.startsWith("[И]")) {
-          matchAll = true;
-          raw = raw.replace(/^\[И\]\s*/, "");
-        }
-        const tokens = raw.split(";").map(s => s.trim()).filter(Boolean);
-        criteriaList = tokens.map(tok => {
-          if (/^содержит:\s*/i.test(tok)) {
-            return { comp: "contains", value: tok.replace(/^содержит:\s*/i, "").trim() };
-          }
-          return { comp: "equal", value: tok };
-        });
-      }
-
-      if (criteriaList.length === 0) return true;
-
-      // Smart matcher for an individual nom entry
-      const matchSingleNom = (entry, query, comp) => {
-        if (!entry || !query) return false;
-        const qRaw = query.toLowerCase().trim();
-        const q = qRaw.replace(/^\[[^\]]+\]\s*/, "").trim();
-        const qClean = q.replace(/^0+/, "");
-        const segments = entry.toLowerCase().split("|").map(s => s.trim());
-
-        if (comp === "equal") {
-          // Exact match on Code, Clean Code, Artikul, or Full Name
-          for (const seg of segments) {
-            if (!seg) continue;
-            const segClean = seg.replace(/^0+/, "");
-            if (seg === q || (qClean && segClean === qClean) || seg === qRaw) return true;
-            if (seg.length > 5 && q.length > 5 && (seg.includes(q) || q.includes(seg))) return true;
-          }
-          return entry === q || (qClean && entry.replace(/^0+/, "") === qClean) || (entry.length > 5 && q.length > 5 && entry.includes(q));
-        } else {
-          // Contains match: substring in code, artikul, or name
-          for (const seg of segments) {
-            if (!seg) continue;
-            const segClean = seg.replace(/^0+/, "");
-            if (seg.includes(q) || (qClean && segClean.includes(qClean)) || (qRaw && seg.includes(qRaw))) return true;
-          }
-          return entry.includes(q) || (qClean && entry.includes(qClean)) || (qRaw && entry.includes(qRaw));
-        }
-      };
-
-      // Evaluates whether the document has at least one item matching this criterion
-      const docHasCriterion = (c) => {
-        const val = c.value || "";
-        if (!val) return true;
-        const comp = c.comp || (op === "Содержит" ? "contains" : "equal");
-        const code = c.code ? c.code.toLowerCase().trim() : "";
-        const art = c.artikul ? c.artikul.toLowerCase().trim() : "";
-        const bc = c.barcode ? c.barcode.toLowerCase().trim() : "";
-        return noms.some(n => {
-          if (matchSingleNom(n, val, comp)) return true;
-          if (code && matchSingleNom(n, code, "equal")) return true;
-          if (art && matchSingleNom(n, art, "equal")) return true;
-          if (bc && matchSingleNom(n, bc, "equal")) return true;
-          return false;
-        });
-      };
-
-      let satisfies = false;
-      if (matchAll) {
-        // Every single criterion must be present in the document simultaneously ("И")
-        satisfies = criteriaList.every(c => docHasCriterion(c));
-      } else {
-        // At least one criterion present in the document ("ИЛИ")
-        satisfies = criteriaList.some(c => docHasCriterion(c));
-      }
-
-      if (op === "Не равно" || op === "Не в списке" || op === "Не содержит") {
-        return !satisfies;
-      }
-      return satisfies;
-    }
-
-    // 2. Filled / Not filled operators
-    if (op === "Заполнено") {
-      return String(itemVal).trim() !== "";
-    }
-    if (op === "Не заполнено") {
-      return String(itemVal).trim() === "";
-    }
-
-    // 3. List operators: ONLY semicolon separated (items may contain commas like 13,6 гр)
-    if (op === "В группе из списка" || op === "В списке") {
-      if (!targetVal) return true;
-      const parts = String(targetVal).split(";").map(s => s.trim().toLowerCase()).filter(Boolean);
-      const strVal = String(itemVal).trim().toLowerCase();
-      const codeVal = String(item[key + "_code"] || "").trim().toLowerCase();
-      const isCodeField = (key === "number" || key === "deal" || key === "obrabotka_number" || key === "kontragent_code");
-      const strClean = isCodeField ? strVal.replace(/^[a-zа-яё_]*0+/, "") : "";
-      return parts.some(p => {
-        let cleanP = p.replace(/^\[[^\]]+\]\s*/, "").trim();
-        let namePart = cleanP;
-        let codePart = "";
-        if (cleanP.includes(" - ")) {
-          const sub = cleanP.split(" - ");
-          namePart = sub[0].trim();
-          codePart = sub[sub.length - 1].trim();
-        }
-        const pClean = isCodeField ? cleanP.replace(/^[a-zа-яё_]*0+/, "") : "";
-        if (strVal === cleanP || strVal.includes(cleanP) || cleanP.includes(strVal)) return true;
-        if (namePart && (strVal === namePart || strVal.includes(namePart) || namePart.includes(strVal))) return true;
-        if (codePart && (codeVal === codePart || strVal.includes(codePart) || codeVal.includes(codePart))) return true;
-        if (isCodeField && strClean && pClean && strClean === pClean) return true;
-        return false;
-      });
-    }
-    if (op === "Не в списке") {
-      if (!targetVal) return true;
-      const parts = String(targetVal).split(";").map(s => s.trim().toLowerCase()).filter(Boolean);
-      const strVal = String(itemVal).trim().toLowerCase();
-      const codeVal = String(item[key + "_code"] || "").trim().toLowerCase();
-      const anyMatch = parts.some(p => {
-        let cleanP = p.replace(/^\[[^\]]+\]\s*/, "").trim();
-        let namePart = cleanP;
-        let codePart = "";
-        if (cleanP.includes(" - ")) {
-          const sub = cleanP.split(" - ");
-          namePart = sub[0].trim();
-          codePart = sub[sub.length - 1].trim();
-        }
-        if (strVal === cleanP || strVal.includes(cleanP) || cleanP.includes(strVal)) return true;
-        if (namePart && (strVal === namePart || strVal.includes(namePart) || namePart.includes(strVal))) return true;
-        if (codePart && (codeVal === codePart || strVal.includes(codePart) || codeVal.includes(codePart))) return true;
-        return false;
-      });
-      return !anyMatch;
-    }
-
-    // 4. Date comparisons (exact precision down to HH:MM:SS)
-    if (key === "date") {
-      const dtItem = this.parseFullDateTimeMs(itemVal, false);
-
-      if (op.startsWith("Интервал")) {
-        const sFrom = (crit.valueFrom !== undefined && crit.valueFrom !== "") ? String(crit.valueFrom) : (String(targetVal || "").split(/\s*(?:\.\.\.|—|-)\s*/)[0] || "");
-        const sTo = (crit.valueTo !== undefined && crit.valueTo !== "") ? String(crit.valueTo) : (String(targetVal || "").split(/\s*(?:\.\.\.|—|-)\s*/)[1] || sFrom);
-        const dtStart = this.parseFullDateTimeMs(sFrom, false);
-        const dtEnd = this.parseFullDateTimeMs(sTo, true);
-        if (dtItem === null || dtStart === null || dtEnd === null) return true;
-
-        if (op === "Интервал (>, <)") return dtItem > dtStart && dtItem < dtEnd;
-        if (op === "Интервал (>=, <=)") return dtItem >= dtStart && dtItem <= dtEnd;
-        if (op === "Интервал (>=, <)") return dtItem >= dtStart && dtItem < dtEnd;
-        if (op === "Интервал (>, <=)") return dtItem > dtStart && dtItem <= dtEnd;
-      }
-
-      const isEndOp = (op === "Меньше или равно" || op === "Меньше");
-      const dtTarget = this.parseFullDateTimeMs(targetVal, isEndOp);
-
-      if (dtItem !== null && dtTarget !== null) {
-        const sItemDate = String(itemVal).trim().toLowerCase();
-        const sTargetDate = String(targetVal).trim().toLowerCase();
-        if (op === "Равно") return sItemDate.startsWith(sTargetDate) || sItemDate.includes(sTargetDate) || (dtItem === dtTarget);
-        if (op === "Не равно") return !sItemDate.startsWith(sTargetDate) && dtItem !== dtTarget;
-        if (op === "Больше") return dtItem > dtTarget;
-        if (op === "Меньше") return dtItem < dtTarget;
-        if (op === "Больше или равно") return dtItem >= dtTarget;
-        if (op === "Меньше или равно") return dtItem <= dtTarget;
-      }
-    }
-
-    // 5. Interval comparisons for numbers or general text
-    if (op.startsWith("Интервал")) {
-      const sFrom = (crit.valueFrom !== undefined && crit.valueFrom !== "") ? String(crit.valueFrom) : (String(targetVal || "").split(/\s*(?:\.\.\.|—|-)\s*/)[0] || "");
-      const sTo = (crit.valueTo !== undefined && crit.valueTo !== "") ? String(crit.valueTo) : (String(targetVal || "").split(/\s*(?:\.\.\.|—|-)\s*/)[1] !== undefined ? String(targetVal || "").split(/\s*(?:\.\.\.|—|-)\s*/)[1] : sFrom);
-
-      const isStrictNumber = (str) => /^[-+]?\d+(\.\d+)?$/.test(str);
-      const isNum = !isNaN(parseFloat(itemVal)) && isStrictNumber(sFrom);
-      if (isNum) {
-        const numItem = parseFloat(itemVal);
-        const numStart = parseFloat(sFrom);
-        const numEnd = parseFloat(sTo);
-        if (op === "Интервал (>, <)") return numItem > numStart && numItem < numEnd;
-        if (op === "Интервал (>=, <=)") return numItem >= numStart && numItem <= numEnd;
-        if (op === "Интервал (>=, <)") return numItem >= numStart && numItem < numEnd;
-        if (op === "Интервал (>, <=)") return numItem > numStart && numItem <= numEnd;
-      } else {
-        const sItem = String(itemVal).toLowerCase().trim();
-        const sStart = sFrom.toLowerCase().trim();
-        const sEnd = sTo.toLowerCase().trim();
-        if (op === "Интервал (>, <)") return sItem > sStart && sItem < sEnd;
-        if (op === "Интервал (>=, <=)") return sItem >= sStart && sItem <= sEnd;
-        if (op === "Интервал (>=, <)") return sItem >= sStart && sItem < sEnd;
-        if (op === "Интервал (>, <=)") return sItem > sStart && sItem <= sEnd;
-      }
-      return true;
-    }
-
-    // 6. Numeric comparisons (Strictly for 'amount' or when BOTH itemVal and targetVal are strictly pure numbers)
-    const sItemRaw = String(itemVal !== undefined && itemVal !== null ? itemVal : "").trim();
-    const sTargetRaw = String(targetVal !== undefined && targetVal !== null ? targetVal : "").trim();
-
-    const isStrictNumber = (str) => /^[-+]?\d+(\.\d+)?$/.test(str);
-
-    const isNumericComp = (key === "amount")
-      ? (!isNaN(parseFloat(itemVal)) && isStrictNumber(sTargetRaw))
-      : (isStrictNumber(sItemRaw) && isStrictNumber(sTargetRaw));
-
-    if (isNumericComp) {
-      const numItem = parseFloat(itemVal);
-      const numTarget = parseFloat(targetVal);
-      if (op === "Равно") return numItem === numTarget;
-      if (op === "Не равно") return numItem !== numTarget;
-      if (op === "Больше") return numItem > numTarget;
-      if (op === "Меньше") return numItem < numTarget;
-      if (op === "Больше или равно") return numItem >= numTarget;
-      if (op === "Меньше или равно") return numItem <= numTarget;
-    }
-
-    // 6. String comparisons (Exact for "Равно", substring for "Содержит")
-    const sItem = sItemRaw.toLowerCase();
-    const sTarget = sTargetRaw.toLowerCase();
-
-    switch (op) {
-      case "Равно": {
-        if (sItem === sTarget) return true;
-        // Only strip leading zeroes for document numbers and codes (number, deal, obrabotka_number, kontragent_code)
-        if (key === "number" || key === "deal" || key === "obrabotka_number" || key === "kontragent_code") {
-          const sItemClean = sItem.replace(/^[a-zа-яё_]*0+/, "");
-          const sTargetClean = sTarget.replace(/^[a-zа-яё_]*0+/, "");
-          if (sItemClean && sTargetClean && sItemClean === sTargetClean) return true;
-        }
-        return false;
-      }
-      case "Не равно": {
-        if (sItem === sTarget) return false;
-        if (key === "number" || key === "deal" || key === "obrabotka_number" || key === "kontragent_code") {
-          const sItemClean = sItem.replace(/^[a-zа-яё_]*0+/, "");
-          const sTargetClean = sTarget.replace(/^[a-zа-яё_]*0+/, "");
-          if (sItemClean && sTargetClean && sItemClean === sTargetClean) return false;
-        }
-        return true;
-      }
-      case "Содержит":
-        return sItem.includes(sTarget);
-      case "Начинается с":
-        return sItem.startsWith(sTarget);
-      case "Не содержит":
-        return !sItem.includes(sTarget);
-      case "Больше":
-        return sItem > sTarget;
-      case "Меньше":
-        return sItem < sTarget;
-      case "Больше или равно":
-        return sItem >= sTarget;
-      case "Меньше или равно":
-        return sItem <= sTarget;
-      default:
-        return true;
-    }
+    return C1FilterComponent.matchesCondition(item, crit, this.isServerFiltered);
   },
 
-  selectedColKey: "number",
+    selectedColKey: "number",
 
   selectCell: function(idx, colKey, targetTd, event) {
     this._columnSelectedForFind = colKey !== "status";
@@ -4625,16 +3081,15 @@ const _UniversalJournalTarget = {
     }
     const activeCrits = (this.activeFilters || []).filter(c => c && c.enabled !== false);
 
-    this.saveListCache();
-    const baseKey = this.getListKey();
-    const base = this.listCache.get(baseKey);
-    const needsDetails = activeCrits.some(c => c.fieldKey === "nomenclature");
-    if (base && (activeCrits.length === 0 || (!base.hasMore && !needsDetails))) {
+    if (activeCrits.length > 0) {
+      if (this.listCache) {
+        this.listCache.clear();
+      }
+      this.loadDocuments({ search: "", filters: activeCrits, force: true });
+    } else {
+      if (this.showLoadedSearchPreview && this.showLoadedSearchPreview()) return;
       this.loadDocuments({ search: "", filters: [] });
-      return;
     }
-
-    this.loadDocuments({ search: "", filters: activeCrits });
   },
 
   showLoadedSearchPreview: function() {
@@ -5026,18 +3481,31 @@ const _UniversalJournalTarget = {
   lastDiagnostics: null,
 
   openDebugDiagnosticsModal: function() {
-    const overlay = document.getElementById("ujDiagnosticsModalOverlay");
-    if (!overlay) {
-      console.warn("Diagnostics modal element not found in DOM");
+    this.renderDebugDiagnosticsContent();
+    const win = document.getElementById("ujDiagnosticsWindow");
+    if (!win) {
+      console.warn("Diagnostics window element (#ujDiagnosticsWindow) not found in DOM");
       return;
     }
-    overlay.style.display = "flex";
-    this.renderDebugDiagnosticsContent();
+    if (window.MdiManager) {
+      MdiManager.activateWindow("ujDiagnosticsWindow", {
+        title: "Диагностика отбора (Отладчик)",
+        icon: "🩺"
+      });
+    } else {
+      win.style.display = "flex";
+      win.classList.remove("minimized");
+      win.classList.add("active");
+    }
   },
 
   closeDebugDiagnosticsModal: function() {
-    const overlay = document.getElementById("ujDiagnosticsModalOverlay");
-    if (overlay) overlay.style.display = "none";
+    if (window.MdiManager) {
+      MdiManager.closeWindow("ujDiagnosticsWindow");
+    } else {
+      const win = document.getElementById("ujDiagnosticsWindow");
+      if (win) win.style.display = "none";
+    }
   },
 
   renderDebugDiagnosticsContent: function() {
@@ -5488,9 +3956,16 @@ document.addEventListener("keydown", function(e) {
   }
   if (!activeInst || !activeInst.isJournalActive()) return;
   const isEditing = e.target.closest && e.target.closest('input,textarea,select,[contenteditable="true"]');
-  if (!isEditing && e.key === "End") {
+  if (!isEditing && (e.key === "End" || e.key === "Home")) {
     e.preventDefault();
     e.stopPropagation();
+    if (e.key === "Home") {
+      const wrapper = activeInst.getEl("ujTableWrapper");
+      if (wrapper) wrapper.scrollTop = 0;
+      if (activeInst.items && activeInst.items.length > 0) activeInst.selectRowByIndex(0);
+      return;
+    }
+    // "End" düyməsi basıldıqda: mövcud siyahını silmədən qalan bütün sənədləri arxada axınla çəkir və aşağı sürüşdürür
     activeInst.requestMoreDocuments(true);
     const wrapper = activeInst.getEl("ujTableWrapper");
     if (wrapper) wrapper.scrollTop = wrapper.scrollHeight;

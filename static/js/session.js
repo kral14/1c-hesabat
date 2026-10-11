@@ -31,8 +31,12 @@ const SessionManager = {
     }
     this.updateUI();
     this.loadBases().then(() => {
-      // Proactively connect to 1C on startup with spinning animation & live status
-      this.warmupConnection();
+      // Əgər 600ms ərzində sənəd sorğusu artıq 1C ilə əlaqə qurubsa, duplicate ping göndərmirik
+      setTimeout(() => {
+        if (this.connectionStatus !== "connected") {
+          this.warmupConnection();
+        }
+      }, 600);
     });
   },
 
@@ -127,10 +131,18 @@ const SessionManager = {
     }
   },
 
+  markConnected() {
+    if (this.connectionStatus !== "connected") {
+      this.setConnectionStatus("connected");
+    }
+  },
+
   async warmupConnection() {
     // Only show "connecting" spinner if ping takes longer than 250ms (avoids flicker on F5 reload)
     const showConnectingTimer = setTimeout(() => {
-      this.setConnectionStatus("connecting");
+      if (this.connectionStatus !== "connected") {
+        this.setConnectionStatus("connecting");
+      }
     }, 250);
 
     try {
@@ -144,13 +156,17 @@ const SessionManager = {
       if (data.success) {
         this.setConnectionStatus("connected");
       } else {
-        console.warn("1C warmup connection error:", data.error);
-        this.setConnectionStatus("error", data.error);
+        if (this.connectionStatus !== "connected") {
+          console.warn("1C warmup connection error:", data.error);
+          this.setConnectionStatus("error", data.error);
+        }
       }
     } catch (e) {
       clearTimeout(showConnectingTimer);
-      console.error("1C warmup connection network error:", e);
-      this.setConnectionStatus("error", e.message);
+      if (this.connectionStatus !== "connected") {
+        console.error("1C warmup connection network error:", e);
+        this.setConnectionStatus("error", e.message);
+      }
     }
   },
 
