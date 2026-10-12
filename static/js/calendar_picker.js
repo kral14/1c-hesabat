@@ -117,6 +117,9 @@ const OneCCalendar = {
     const div = document.createElement("div");
     div.id = "onecCalendarPopup";
     div.className = "onec-calendar-popup";
+    div.style.backgroundColor = "#f7f5ef";
+    div.style.border = "1px solid #7f9db9";
+    div.style.boxShadow = "2px 5px 16px rgba(0, 0, 0, 0.35)";
     document.body.appendChild(div);
     this.popupEl = div;
 

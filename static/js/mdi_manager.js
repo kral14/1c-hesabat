@@ -2073,6 +2073,24 @@ const MdiManager = {
       return true;
     }
 
+    // Topmost: Order Analysis Settings Dialog Window
+    if (topWin.id === "orderAnalysisSettingsModal") {
+      if (typeof OrderAnalysisSettings !== "undefined" && typeof OrderAnalysisSettings.applyAndGenerate === "function") {
+        OrderAnalysisSettings.applyAndGenerate();
+      } else if (typeof OrderAnalysisSettings !== "undefined" && typeof OrderAnalysisSettings.close === "function") {
+        OrderAnalysisSettings.close();
+      }
+      return true;
+    }
+
+    // Topmost: Order Analysis Report Window
+    if (topWin.id === "orderAnalysisWindow") {
+      if (typeof OrderAnalysisReport !== "undefined" && typeof OrderAnalysisReport.generate === "function") {
+        OrderAnalysisReport.generate();
+      }
+      return true;
+    }
+
     // Topmost: Period Picker Modal
     if (topWin.id === "periodPickerModalOverlay") {
       if (typeof PeriodPicker !== "undefined" && PeriodPicker.confirm) {

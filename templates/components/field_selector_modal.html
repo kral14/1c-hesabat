@@ -27,6 +27,76 @@
     <div class="settings-body" style="padding: 4px; overflow-y: auto; flex: 1; background: #fff;">
       <div id="fieldSelectorTree" class="field-picker-tree">
         
+        <!-- 0. Контрагент -->
+        <div class="fp-node">
+          <div class="fp-row" onclick="onFieldNodeClick(this, 'Контрагент')" ondblclick="confirmFieldSelection()">
+            <span class="fp-expander" onclick="toggleFieldNode(event, this)">+</span>
+            <span class="fp-icon fp-icon-folder">📁</span>
+            <span class="fp-label">Контрагент</span>
+          </div>
+          <div class="fp-children" style="display: none;">
+            <div class="fp-row fp-sub" onclick="onFieldNodeClick(this, 'Контрагент.Код')" ondblclick="confirmFieldSelection()">
+              <span class="fp-indent"></span>
+              <span class="fp-icon">📄</span>
+              <span class="fp-label">Код</span>
+            </div>
+            <div class="fp-row fp-sub" onclick="onFieldNodeClick(this, 'Контрагент.Наименование')" ondblclick="confirmFieldSelection()">
+              <span class="fp-indent"></span>
+              <span class="fp-icon">📄</span>
+              <span class="fp-label">Наименование</span>
+            </div>
+            <div class="fp-row fp-sub" onclick="onFieldNodeClick(this, 'Контрагент.ИНН')" ondblclick="confirmFieldSelection()">
+              <span class="fp-indent"></span>
+              <span class="fp-icon">📄</span>
+              <span class="fp-label">ИНН</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- 0b. Договор контрагента -->
+        <div class="fp-node">
+          <div class="fp-row" onclick="onFieldNodeClick(this, 'Договор контрагента')" ondblclick="confirmFieldSelection()">
+            <span class="fp-expander" onclick="toggleFieldNode(event, this)">+</span>
+            <span class="fp-icon fp-icon-folder">📁</span>
+            <span class="fp-label">Договор контрагента</span>
+          </div>
+          <div class="fp-children" style="display: none;">
+            <div class="fp-row fp-sub" onclick="onFieldNodeClick(this, 'Договор контрагента.Наименование')" ondblclick="confirmFieldSelection()">
+              <span class="fp-indent"></span>
+              <span class="fp-icon">📄</span>
+              <span class="fp-label">Наименование</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- 0c. Заказ покупателя -->
+        <div class="fp-node">
+          <div class="fp-row" onclick="onFieldNodeClick(this, 'Заказ покупателя')" ondblclick="confirmFieldSelection()">
+            <span class="fp-expander" onclick="toggleFieldNode(event, this)">+</span>
+            <span class="fp-icon fp-icon-doc">📝</span>
+            <span class="fp-label">Заказ покупателя</span>
+          </div>
+          <div class="fp-children" style="display: none;">
+            <div class="fp-row fp-sub" onclick="onFieldNodeClick(this, 'Заказ покупателя.Номер')" ondblclick="confirmFieldSelection()">
+              <span class="fp-indent"></span>
+              <span class="fp-icon">📄</span>
+              <span class="fp-label">Номер</span>
+            </div>
+            <div class="fp-row fp-sub" onclick="onFieldNodeClick(this, 'Заказ покупателя.Дата')" ondblclick="confirmFieldSelection()">
+              <span class="fp-indent"></span>
+              <span class="fp-icon">📅</span>
+              <span class="fp-label">Дата</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- 0d. Агент -->
+        <div class="fp-row" onclick="onFieldNodeClick(this, 'Агент')" ondblclick="confirmFieldSelection()">
+          <span class="fp-expander-blank"></span>
+          <span class="fp-icon">👤</span>
+          <span class="fp-label">Агент</span>
+        </div>
+
         <!-- 1. БазоваяЕдиницаИзмерения -->
         <div class="fp-node">
           <div class="fp-row" onclick="onFieldNodeClick(this, 'БазоваяЕдиницаИзмерения')" ondblclick="confirmFieldSelection()">

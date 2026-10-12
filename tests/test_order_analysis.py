@@ -68,6 +68,63 @@ class TestOrderAnalysisReport(unittest.TestCase):
         self.assertGreater(len(dl_resp.data), 1000, "Excel file should not be empty")
         print("✅ Excel faylı uğurla yaradıldı və endirildi.")
 
+    def test_02_zakaz_pokupatel_groupings(self):
+        print("\n--- TEST: 'Заказ покупателя', 'Контрагент', 'Номенклатура' Qruplaşması ---", flush=True)
+        payload = {
+            "start_date": "01.08.2026",
+            "end_date": "30.09.2026",
+            "groupings": ["Заказ покупателя", "Контрагент", "Номенклатура"],
+            "indicators": {
+                "qty_order": True,
+                "sum_order": True,
+                "qty_real": True,
+                "sum_real": True,
+                "qty_diff": True,
+                "qty_ret": True,
+                "sum_ret": True,
+                "qty_net": True,
+                "sum_net": True,
+                "show_code": True,
+                "show_article": True,
+                "show_barcode": True
+            },
+            "filters": [],
+            "posted_only": False
+        }
+
+        resp = self.client.post("/api/order_analysis/generate",
+                                data=json.dumps(payload),
+                                content_type="application/json")
+        self.assertEqual(resp.status_code, 200)
+        data = resp.get_json()
+        self.assertTrue(data.get("success"), f"Generation failed: {data.get('error')}")
+
+        rows = data.get("rows", [])
+        self.assertGreater(len(rows), 0, "Sətirlər boş olmamalıdır")
+
+        # Level 1 'Заказ покупателя' olmalıdır
+        level1_rows = [r for r in rows if r.get("level") == 1]
+        self.assertGreater(len(level1_rows), 0, "Level 1 sətirləri tapılmadı")
+        print(f"Level 1 ('Заказ покупателя') sətir sayı: {len(level1_rows)}")
+        print(f"Nümunə Level 1 adı: {level1_rows[0].get('name')}")
+        self.assertTrue(any("Заказ" in r.get("name", "") or "реализация" in r.get("name", "") for r in level1_rows))
+
+        # Level 2 'Контрагент' olmalıdır
+        level2_rows = [r for r in rows if r.get("level") == 2]
+        self.assertGreater(len(level2_rows), 0, "Level 2 sətirləri tapılmadı")
+        print(f"Level 2 ('Контрагент') sətir sayı: {len(level2_rows)}")
+        print(f"Nümunə Level 2 adı: {level2_rows[0].get('name')}")
+
+        # Level 3 'Номенклатура' olmalıdır
+        level3_rows = [r for r in rows if r.get("level") == 3]
+        self.assertGreater(len(level3_rows), 0, "Level 3 sətirləri tapılmadı")
+        print(f"Level 3 ('Номенклатура') sətir sayı: {len(level3_rows)}")
+        print(f"Nümunə Level 3 adı: {level3_rows[0].get('name')}")
+
+        totals = data.get("totals", {})
+        print(f"Grand Totals - Sifariş Sayı: {totals.get('qty_order')}, Satış Sayı: {totals.get('qty_real')}, Fərq: {totals.get('qty_diff')}")
+        print("✅ 'Заказ покупателя' qruplaşması 3 səviyyədə tam uğurla işləyir!")
+
 
 if __name__ == "__main__":
     unittest.main()

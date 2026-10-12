@@ -40,9 +40,17 @@
     const prevCells = tbody.querySelectorAll("td.c1-cell-active, td.uj-cell-active, td.sde-cell-active, td.pde-cell-active");
     prevCells.forEach(c => {
       c.classList.remove("c1-cell-active", "uj-cell-active", "sde-cell-active", "pde-cell-active");
-      c.style.removeProperty("background-color");
-      c.style.removeProperty("background");
-      c.style.removeProperty("color");
+      if (c.dataset.origBg !== undefined) {
+        c.style.backgroundColor = c.dataset.origBg;
+      } else {
+        c.style.removeProperty("background-color");
+        c.style.removeProperty("background");
+      }
+      if (c.dataset.origColor !== undefined) {
+        c.style.color = c.dataset.origColor;
+      } else {
+        c.style.removeProperty("color");
+      }
       const inp = c.querySelector("input:not([type='checkbox']):not([type='button']), textarea");
       if (inp) {
         inp.style.removeProperty("background-color");
@@ -54,27 +62,48 @@
     const prevRows = tbody.querySelectorAll("tr.c1-row-selected, tr.uj-row-selected, tr.sde-row-selected, tr.pde-row-selected");
     prevRows.forEach(r => {
       r.classList.remove("c1-row-selected", "uj-row-selected", "sde-row-selected", "pde-row-selected");
-      r.style.removeProperty("background-color");
-      r.style.removeProperty("background");
-      r.style.removeProperty("color");
+      if (r.dataset.origBg !== undefined) {
+        r.style.backgroundColor = r.dataset.origBg;
+      } else {
+        r.style.removeProperty("background-color");
+      }
       r.querySelectorAll("td").forEach(c => {
-        c.style.removeProperty("background-color");
-        c.style.removeProperty("background");
-        c.style.removeProperty("color");
+        if (c.dataset.origBg !== undefined) {
+          c.style.backgroundColor = c.dataset.origBg;
+        } else {
+          c.style.removeProperty("background-color");
+        }
+        if (c.dataset.origColor !== undefined) {
+          c.style.color = c.dataset.origColor;
+        }
       });
     });
 
     // 2. Highlight Row in Light Blue (#dceaf7)
+    // Sətir seçiləndə yalnız arxa fon dəyişir, xanaların xüsusi mətn rəngləri (Разница mavi/qırmızı) QORUNUR!
+    if (tr.dataset.origBg === undefined) {
+      tr.dataset.origBg = tr.style.backgroundColor || "";
+    }
     tr.classList.add("c1-row-selected");
     tr.style.backgroundColor = "#dceaf7";
-    tr.style.color = "#111111";
     tr.querySelectorAll("td").forEach(c => {
+      if (c.dataset.origBg === undefined) {
+        c.dataset.origBg = c.style.backgroundColor || "";
+      }
+      if (c.dataset.origColor === undefined) {
+        c.dataset.origColor = c.style.color || "";
+      }
       c.style.backgroundColor = "#dceaf7";
-      c.style.color = "#111111";
     });
 
     // 3. Highlight Clicked Cell in Solid 1C Blue (#316ac5) with White Text
     td.classList.add("c1-cell-active");
+    if (td.dataset.origBg === undefined) {
+      td.dataset.origBg = td.style.backgroundColor || "";
+    }
+    if (td.dataset.origColor === undefined) {
+      td.dataset.origColor = td.style.color || "";
+    }
     td.style.setProperty("background-color", "#316ac5", "important");
     td.style.setProperty("background", "#316ac5", "important");
     td.style.setProperty("color", "#ffffff", "important");

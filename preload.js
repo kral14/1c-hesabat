@@ -17,3 +17,10 @@ try {
   window.electronAPI = api;
 } catch (e) {}
 
+try {
+  window.prompt = function(message, defaultVal) {
+    console.warn("[Electron Polyfill] prompt() called:", message);
+    return defaultVal !== undefined ? defaultVal : "";
+  };
+} catch (e) {}
+

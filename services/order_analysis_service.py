@@ -77,6 +77,35 @@ def parse_date(date_str, is_end=False):
         return datetime.datetime(now.year, now.month, 1, 0, 0, 0)
 
 
+def split_filter_item(raw_itm):
+    """
+    Soraqçadan gələn '50 ARAZ DEPO - C000021088' və ya '[C000021088] 50 ARAZ DEPO'
+    formatlarını ad və kod namizədlərinə ayırır.
+    """
+    raw = str(raw_itm or "").strip()
+    if not raw:
+        return []
+
+    candidates = [raw]
+
+    # [KOD] AD formatı
+    m_bracket = re.match(r"^\[([^\]]+)\]\s*(.*)$", raw)
+    if m_bracket:
+        c1, c2 = m_bracket.group(1).strip(), m_bracket.group(2).strip()
+        if c1 and c1 not in candidates: candidates.append(c1)
+        if c2 and c2 not in candidates: candidates.append(c2)
+        return candidates
+
+    # AD - KOD və ya KOD - AD formatı
+    if " - " in raw:
+        parts = [p.strip() for p in raw.split(" - ") if p.strip()]
+        for p in parts:
+            if p and p not in candidates:
+                candidates.append(p)
+
+    return candidates
+
+
 def build_filter_clauses_for_union(query, filters, alias_prefix):
     """
     Hər bir alt cədvəl (Заказ, Реал, Возвр) üçün uyğun filtrləri yaradır.
@@ -89,6 +118,9 @@ def build_filter_clauses_for_union(query, filters, alias_prefix):
         "Номенклатура": f"{alias_prefix}.Номенклатура",
         "Портфель": f"{alias_prefix}.Ссылка.ДоговорКонтрагента.Портфель",
         "Агент": f"{alias_prefix}.Ссылка.ДоговорКонтрагента.Агент",
+        "Склад": f"{alias_prefix}.Ссылка.Склад",
+        "Номенклатура.Номенклатурная группа": f"{alias_prefix}.Номенклатура.НоменклатурнаяГруппа",
+        "Номенклатурная группа": f"{alias_prefix}.Номенклатура.НоменклатурнаяГруппа",
     }
 
     for f in filters:
@@ -111,26 +143,47 @@ def build_filter_clauses_for_union(query, filters, alias_prefix):
             if items:
                 sub_or = []
                 for itm in items:
-                    p_name = f"FVal_{alias_prefix}_{param_idx}"
-                    param_idx += 1
-                    sub_or.append(f"({raw_field}.Наименование ПОДОБНО %s ИЛИ {raw_field}.Код ПОДОБНО %s)" % (f"&{p_name}", f"&{p_name}"))
-                    query.SetParameter(p_name, f"%{itm}%")
-                where_clauses.append("(" + " ИЛИ ".join(sub_or) + ")")
+                    candidates = split_filter_item(itm)
+                    cand_or = []
+                    for cand in candidates:
+                        p_name = f"FVal_{alias_prefix}_{param_idx}"
+                        param_idx += 1
+                        cand_or.append(f"({raw_field}.Наименование ПОДОБНО &{p_name} ИЛИ {raw_field}.Код ПОДОБНО &{p_name})")
+                        query.SetParameter(p_name, f"%{cand}%")
+                    if cand_or:
+                        sub_or.append("(" + " ИЛИ ".join(cand_or) + ")")
+                if sub_or:
+                    where_clauses.append("(" + " ИЛИ ".join(sub_or) + ")")
         elif comp_type == "equal":
-            p_name = f"FVal_{alias_prefix}_{param_idx}"
-            param_idx += 1
-            where_clauses.append(f"({raw_field}.Наименование = &{p_name} ИЛИ {raw_field}.Код = &{p_name})")
-            query.SetParameter(p_name, val_str)
+            candidates = split_filter_item(val_str)
+            sub_or = []
+            for cand in candidates:
+                p_name = f"FVal_{alias_prefix}_{param_idx}"
+                param_idx += 1
+                sub_or.append(f"({raw_field}.Наименование = &{p_name} ИЛИ {raw_field}.Код = &{p_name})")
+                query.SetParameter(p_name, cand)
+            if sub_or:
+                where_clauses.append("(" + " ИЛИ ".join(sub_or) + ")")
         elif comp_type == "not_equal":
-            p_name = f"FVal_{alias_prefix}_{param_idx}"
-            param_idx += 1
-            where_clauses.append(f"({raw_field}.Наименование <> &{p_name} И {raw_field}.Код <> &{p_name})")
-            query.SetParameter(p_name, val_str)
+            candidates = split_filter_item(val_str)
+            sub_and = []
+            for cand in candidates:
+                p_name = f"FVal_{alias_prefix}_{param_idx}"
+                param_idx += 1
+                sub_and.append(f"({raw_field}.Наименование <> &{p_name} И {raw_field}.Код <> &{p_name})")
+                query.SetParameter(p_name, cand)
+            if sub_and:
+                where_clauses.append("(" + " И ".join(sub_and) + ")")
         elif comp_type == "contains":
-            p_name = f"FVal_{alias_prefix}_{param_idx}"
-            param_idx += 1
-            where_clauses.append(f"{raw_field}.Наименование ПОДОБНО &{p_name}")
-            query.SetParameter(p_name, f"%{val_str}%")
+            candidates = split_filter_item(val_str)
+            sub_or = []
+            for cand in candidates:
+                p_name = f"FVal_{alias_prefix}_{param_idx}"
+                param_idx += 1
+                sub_or.append(f"{raw_field}.Наименование ПОДОБНО &{p_name}")
+                query.SetParameter(p_name, f"%{cand}%")
+            if sub_or:
+                where_clauses.append("(" + " ИЛИ ".join(sub_or) + ")")
 
     return where_clauses
 
@@ -201,19 +254,66 @@ def handle_order_analysis(conn, payload, key, resp_q):
             "Неделя": ("WeekDate", "WeekDate", "WeekDate"),
             "Месяц": ("MonthDate", "MonthDate", "MonthDate"),
             "Год": ("YearDate", "YearDate", "YearDate"),
+            "Период": ("DayDate", "DayDate", "DayDate"),
+            "По дням": ("DayDate", "DayDate", "DayDate"),
+            "По неделям": ("WeekDate", "WeekDate", "WeekDate"),
+            "По месяцам": ("MonthDate", "MonthDate", "MonthDate"),
+            "По годам": ("YearDate", "YearDate", "YearDate"),
             "Заказ": ("OrderDoc", "OrderDoc", "OrderDoc"),
+            "Заказ покупателя": ("OrderDoc", "OrderDoc", "OrderDoc"),
+            "Заказ покупателя.Номер": ("OrderDoc", "OrderDoc", "OrderDoc"),
+            "Заказ покупателя.Дата": ("OrderDoc", "OrderDoc", "OrderDoc"),
             "Документ": ("OrderDoc", "OrderDoc", "OrderDoc"),
+            "Документ движения (регистратор)": ("OrderDoc", "OrderDoc", "OrderDoc"),
             "Портфель": ("PortfolioName", "PortfolioName", "PortfolioCode"),
+            "Портфель (Номенклатурная группа)": ("PortfolioName", "PortfolioName", "PortfolioCode"),
+            "Договор контрагента": ("PortfolioName", "PortfolioName", "PortfolioCode"),
             "Контрагент": ("KontragentName", "KontragentName", "KontragentCode"),
+            "Контрагент.Наименование": ("KontragentName", "KontragentName", "KontragentCode"),
+            "Контрагент.Код": ("KontragentName", "KontragentName", "KontragentCode"),
+            "Контрагент.ИНН": ("KontragentName", "KontragentName", "KontragentCode"),
             "Номенклатура": ("ItemName", "ItemName", "ItemCode"),
+            "Номенклатура.Наименование": ("ItemName", "ItemName", "ItemCode"),
+            "Номенклатура.Код": ("ItemName", "ItemName", "ItemCode"),
+            "Номенклатура.Артикул": ("ItemArticle", "ItemArticle", "ItemArticle"),
             "Склад": ("WarehouseName", "WarehouseName", "WarehouseCode"),
             "Агент": ("AgentName", "AgentName", "AgentCode"),
         }
 
         active_groupings = []
-        for g in groupings:
-            if g in GROUPING_MAP:
-                active_groupings.append((g, GROUPING_MAP[g][0], GROUPING_MAP[g][1], GROUPING_MAP[g][2]))
+        for g_item in groupings:
+            g_str = str(g_item).strip()
+            gl = g_str.lower()
+            matched_key = None
+            if g_str in GROUPING_MAP:
+                matched_key = g_str
+            else:
+                for k in GROUPING_MAP:
+                    if k.lower() == gl:
+                        matched_key = k
+                        break
+            if not matched_key:
+                if any(w in gl for w in ["заказ", "zakaz", "order"]):
+                    matched_key = "Заказ покупателя"
+                elif any(w in gl for w in ["портфел", "portfel", "portfolio", "договор"]):
+                    matched_key = "Портфель"
+                elif any(w in gl for w in ["номенклатур", "nomenklatur", "item", "товар"]):
+                    matched_key = "Номенклатура"
+                elif any(w in gl for w in ["контрагент", "kontragent", "client", "müşteri", "musteri"]):
+                    matched_key = "Контрагент"
+                elif any(w in gl for w in ["склад", "sklad", "anbar", "warehouse"]):
+                    matched_key = "Склад"
+                elif any(w in gl for w in ["агент", "agent"]):
+                    matched_key = "Агент"
+                elif any(w in gl for w in ["день", "gun", "day"]):
+                    matched_key = "День"
+                elif any(w in gl for w in ["месяц", "ay", "month"]):
+                    matched_key = "Месяц"
+                elif any(w in gl for w in ["год", "il", "year"]):
+                    matched_key = "Год"
+
+            if matched_key and (matched_key, GROUPING_MAP[matched_key][0], GROUPING_MAP[matched_key][1], GROUPING_MAP[matched_key][2]) not in active_groupings:
+                active_groupings.append((matched_key, GROUPING_MAP[matched_key][0], GROUPING_MAP[matched_key][1], GROUPING_MAP[matched_key][2]))
 
         if not active_groupings:
             active_groupings = [
@@ -394,7 +494,10 @@ def handle_order_analysis(conn, payload, key, resp_q):
                 return
 
             g_label, _, alias_name, alias_code = active_groupings[level_idx]
-            sub_sel = parent_selection.Выбрать(conn.ОбходРезультатаЗапроса.ПоГруппировкам)
+            try:
+                sub_sel = parent_selection.Выбрать(conn.ОбходРезультатаЗапроса.ПоГруппировкам, alias_name)
+            except Exception:
+                sub_sel = parent_selection.Выбрать(conn.ОбходРезультатаЗапроса.ПоГруппировкам)
 
             while sub_sel.Следующий():
                 row_counter += 1
@@ -403,21 +506,21 @@ def handle_order_analysis(conn, payload, key, resp_q):
                 val_raw = getattr(sub_sel, alias_name, "")
                 val_code = ""
 
-                if g_label == "День":
+                if g_label in ("День", "Период", "По дням"):
                     if hasattr(val_raw, "strftime"):
                         val_name = val_raw.strftime("%d.%m.%Y")
                     elif val_raw:
                         val_name = str(val_raw)[:10]
                     else:
                         val_name = "-"
-                elif g_label == "Неделя":
+                elif g_label in ("Неделя", "По неделям"):
                     if hasattr(val_raw, "strftime"):
                         val_name = f"Неделя с {val_raw.strftime('%d.%m.%Y')}"
                     elif val_raw:
                         val_name = f"Неделя с {str(val_raw)[:10]}"
                     else:
                         val_name = "-"
-                elif g_label == "Месяц":
+                elif g_label in ("Месяц", "По месяцам"):
                     if hasattr(val_raw, "strftime"):
                         month_names = {
                             1: "Январь", 2: "Февраль", 3: "Март", 4: "Апрель",
@@ -429,33 +532,60 @@ def handle_order_analysis(conn, payload, key, resp_q):
                         val_name = str(val_raw)[:7]
                     else:
                         val_name = "-"
-                elif g_label == "Год":
+                elif g_label in ("Год", "По годам"):
                     if hasattr(val_raw, "strftime"):
                         val_name = f"{val_raw.year} г."
                     elif val_raw:
                         val_name = f"{str(val_raw)[:4]} г."
                     else:
                         val_name = "-"
-                elif g_label in ("Заказ", "Документ"):
+                elif g_label in ("Заказ", "Заказ покупателя", "Заказ покупателя.Номер", "Заказ покупателя.Дата", "Документ", "Документ движения (регистратор)"):
+                    val_name = ""
+                    val_code = ""
                     if val_raw:
-                        try:
-                            val_name = conn.String(val_raw)
-                        except Exception:
-                            val_name = str(val_raw)
-                        if not val_name or val_name == "<Объект не найден>":
-                            val_name = "(Прямая реализация / Без заказа)"
                         try:
                             val_code = str(getattr(val_raw, "Номер", "") or "").strip()
                         except Exception:
                             val_code = ""
-                    else:
+
+                        dt_str = ""
+                        try:
+                            doc_dt = getattr(val_raw, "Дата", None)
+                            if hasattr(doc_dt, "strftime"):
+                                dt_str = doc_dt.strftime("%d.%m.%Y")
+                            elif doc_dt:
+                                dt_str = str(doc_dt)[:10]
+                        except Exception:
+                            dt_str = ""
+
+                        if val_code:
+                            val_name = f"Заказ покупателя № {val_code}" + (f" от {dt_str}" if dt_str else "")
+                        else:
+                            try:
+                                s_rep = conn.String(val_raw)
+                                if s_rep and s_rep != "<Объект не найден>":
+                                    val_name = s_rep
+                            except Exception:
+                                pass
+
+                    if not val_name or val_name == "<Объект не найден>" or "COMObject" in str(val_name):
                         val_name = "(Прямая реализация / Без заказа)"
-                        val_code = ""
                 else:
-                    val_name = str(val_raw or "").strip()
+                    if hasattr(val_raw, "Наименование"):
+                        val_name = str(getattr(val_raw, "Наименование", "") or "").strip()
+                    elif val_raw and "COMObject" in str(val_raw):
+                        try:
+                            val_name = str(conn.String(val_raw) or "").strip()
+                        except Exception:
+                            val_name = str(val_raw or "").strip()
+                    else:
+                        val_name = str(val_raw or "").strip()
 
                 if not val_code:
-                    val_code = str(getattr(sub_sel, alias_code, "") or "").strip()
+                    if hasattr(val_raw, "Код"):
+                        val_code = str(getattr(val_raw, "Код", "") or "").strip()
+                    else:
+                        val_code = str(getattr(sub_sel, alias_code, "") or "").strip()
                     if not val_code:
                         if g_label == "Контрагент":
                             val_code = str(getattr(sub_sel, "KontragentCode", "") or "").strip()
@@ -548,6 +678,8 @@ def handle_order_analysis(conn, payload, key, resp_q):
             extract_level(sel_grand, 0, "")
 
         grand_totals = {
+            "qty": round(tot_q_ord, 3),
+            "sum": round(tot_s_ord, 2),
             "qty_order": round(tot_q_ord, 3),
             "sum_order": round(tot_s_ord, 2),
             "qty_real": round(tot_q_real, 3),
@@ -579,7 +711,7 @@ def handle_order_analysis(conn, payload, key, resp_q):
 
     except Exception as e:
         print_server_error("handle_order_analysis", e, payload)
-        resp_q.put((False, str(e)))
+        raise e
 
 
 def export_order_analysis_excel(report_data, output_path=ORDER_ANALYSIS_EXCEL):
@@ -731,6 +863,384 @@ def export_order_analysis_excel(report_data, output_path=ORDER_ANALYSIS_EXCEL):
     return output_path
 
 
+def handle_order_analysis_offline(payload):
+    """
+    Offline SQLite bazasından (data/offline_1c_data.db) Müştəri Sifarişləri Analizi hesabatını formalaşdırır.
+    İstənilən sətir qruplaşmalarını (Заказ покупателя, Контрагент, Номенклатура və s.) tam dəstəkləyir.
+    """
+    db_path = os.path.join(APP_DIR, "data", "offline_1c_data.db")
+    if not os.path.exists(db_path):
+        raise FileNotFoundError(f"Offline 1C məlumat bazası tapılmadı: {db_path}")
+
+    start_date_str = payload.get("start_date", "")
+    end_date_str = payload.get("end_date", "")
+    dt_from = parse_date(start_date_str, is_end=False)
+    dt_to = parse_date(end_date_str, is_end=True)
+    s_from = dt_from.strftime("%Y-%m-%d %H:%M:%S")
+    s_to = dt_to.strftime("%Y-%m-%d %H:%M:%S")
+
+    posted_only = bool(payload.get("posted_only", True))
+    raw_groupings = payload.get("groupings", ["Заказ покупателя", "Контрагент", "Номенклатура"])
+    if not raw_groupings:
+        raw_groupings = ["Заказ покупателя", "Контрагент", "Номенклатура"]
+
+    indicators = payload.get("indicators", {
+        "qty_order": True, "sum_order": True,
+        "qty_real": True, "sum_real": True,
+        "qty_diff": True, "sum_diff": True,
+        "qty_ret": True, "sum_ret": True,
+        "qty_net": True, "sum_net": True,
+        "show_code": True, "show_article": True, "show_barcode": True
+    })
+
+    # Qruplaşmaların normalizasiyası
+    active_groupings = []
+    for g_item in raw_groupings:
+        g_str = str(g_item).strip()
+        gl = g_str.lower()
+        if "заказ" in gl:
+            g_key = "Заказ покупателя"
+        elif "контрагент" in gl:
+            g_key = "Контрагент"
+        elif "номенклатур" in gl:
+            g_key = "Номенклатура"
+        elif "склад" in gl:
+            g_key = "Склад"
+        elif "агент" in gl:
+            g_key = "Агент"
+        elif "портфел" in gl:
+            g_key = "Портфель"
+        elif "день" in gl or "период" in gl:
+            g_key = "День"
+        elif "недел" in gl:
+            g_key = "Неделя"
+        elif "месяц" in gl:
+            g_key = "Месяц"
+        elif "год" in gl:
+            g_key = "Год"
+        else:
+            g_key = g_str
+        if g_key not in active_groupings:
+            active_groupings.append(g_key)
+
+    if not active_groupings:
+        active_groupings = ["Заказ покупателя", "Контрагент", "Номенклатура"]
+
+    conn = sqlite3.connect(db_path)
+    cur = conn.cursor()
+
+    # Məhsul metadata (article, barcode, unit)
+    item_meta = {}
+    try:
+        cur.execute("SELECT code, name, article, barcode, unit FROM nomenklatura;")
+        for r in cur.fetchall():
+            c, n, art, bar, un = r[0], r[1], r[2] or "", r[3] or "", r[4] or "əd"
+            item_meta[c] = {"code": c, "name": n, "article": art, "barcode": bar, "unit": un}
+            item_meta[n] = item_meta[c]
+    except Exception:
+        pass
+
+    try:
+        cur.execute("SELECT item_code, barcode FROM barcodes;")
+        for r in cur.fetchall():
+            if r[0] in item_meta:
+                item_meta[r[0]]["barcode"] = r[1]
+    except Exception:
+        pass
+
+    posted_clause = "AND d.posted = 1" if posted_only else ""
+
+    # Realizasiya sətirləri (deal = sifariş sənədi nömrəsi)
+    q_real = f"""
+        SELECT 
+            CASE WHEN d.deal IS NOT NULL AND d.deal != '' THEN d.deal ELSE '(Прямая реализация / Без заказа)' END AS order_doc,
+            d.date AS doc_date,
+            COALESCE(d.kontragent, '') AS kontragent,
+            COALESCE(d.kontragent_code, '') AS kontragent_code,
+            COALESCE(d.warehouse, '') AS warehouse,
+            COALESCE(d.portfolio, '') AS portfolio,
+            COALESCE(d.agent, '') AS agent,
+            r.item_code AS item_code,
+            r.item_name AS item_name,
+            COALESCE(r.unit, 'əd') AS unit,
+            r.quantity AS quantity,
+            r.sum AS sum_amount
+        FROM documents_realization d
+        JOIN documents_realization_rows r ON d.number = r.doc_number
+        WHERE d.date BETWEEN ? AND ?
+          AND d.deleted = 0
+          {posted_clause}
+    """
+    cur.execute(q_real, (s_from, s_to))
+    real_rows = cur.fetchall()
+
+    if not real_rows:
+        cur.execute(f"""
+            SELECT 
+                CASE WHEN d.deal IS NOT NULL AND d.deal != '' THEN d.deal ELSE '(Прямая реализация / Без заказа)' END AS order_doc,
+                d.date AS doc_date,
+                COALESCE(d.kontragent, '') AS kontragent,
+                COALESCE(d.kontragent_code, '') AS kontragent_code,
+                COALESCE(d.warehouse, '') AS warehouse,
+                COALESCE(d.portfolio, '') AS portfolio,
+                COALESCE(d.agent, '') AS agent,
+                r.item_code AS item_code,
+                r.item_name AS item_name,
+                COALESCE(r.unit, 'əd') AS unit,
+                r.quantity AS quantity,
+                r.sum AS sum_amount
+            FROM documents_realization d
+            JOIN documents_realization_rows r ON d.number = r.doc_number
+            WHERE d.deleted = 0
+              {posted_clause}
+            ORDER BY d.date DESC
+            LIMIT 1000;
+        """)
+        real_rows = cur.fetchall()
+
+    # Qaytarmalar
+    voz_rows = []
+    try:
+        q_voz = f"""
+            SELECT 
+                CASE WHEN d.deal IS NOT NULL AND d.deal != '' THEN d.deal ELSE '(Прямая реализация / Без заказа)' END AS order_doc,
+                d.date AS doc_date,
+                COALESCE(d.kontragent, '') AS kontragent,
+                COALESCE(d.kontragent_code, '') AS kontragent_code,
+                COALESCE(d.warehouse, '') AS warehouse,
+                COALESCE(d.portfolio, '') AS portfolio,
+                COALESCE(d.agent, '') AS agent,
+                r.item_code AS item_code,
+                r.item_name AS item_name,
+                COALESCE(r.unit, 'əd') AS unit,
+                r.quantity AS quantity,
+                r.sum AS sum_amount
+            FROM documents_vozvrat d
+            JOIN documents_vozvrat_rows r ON d.number = r.doc_number
+            WHERE d.deleted = 0
+              {posted_clause}
+            ORDER BY d.date DESC
+            LIMIT 300;
+        """
+        cur.execute(q_voz)
+        voz_rows = cur.fetchall()
+    except Exception:
+        pass
+
+    conn.close()
+
+    def get_grouping_val(g_name, row_map):
+        if g_name == "Заказ покупателя":
+            doc = row_map.get("order_doc", "")
+            d_date = row_map.get("doc_date", "")[:10]
+            if doc and doc != "(Прямая реализация / Без заказа)":
+                return f"Заказ покупателя № {doc} от {d_date}"
+            return "(Прямая реализация / Без заказа)"
+        elif g_name == "Контрагент":
+            return row_map.get("kontragent") or "(Без контрагента)"
+        elif g_name == "Номенклатура":
+            return row_map.get("item_name") or "(Без номенклатуры)"
+        elif g_name == "Склад":
+            return row_map.get("warehouse") or "(Основной склад)"
+        elif g_name == "Портфель":
+            return row_map.get("portfolio") or "(Основной портфель)"
+        elif g_name == "Агент":
+            return row_map.get("agent") or "(Без агента)"
+        elif g_name == "День":
+            return row_map.get("doc_date", "")[:10] or "-"
+        elif g_name == "Неделя":
+            return f"Неделя с {row_map.get('doc_date', '')[:10]}"
+        elif g_name == "Месяц":
+            return row_map.get("doc_date", "")[:7] or "-"
+        elif g_name == "Год":
+            return row_map.get("doc_date", "")[:4] or "-"
+        return "(Прочее)"
+
+    data_map = {}
+    unique_stores = set()
+    unique_items = set()
+
+    for r in real_rows:
+        order_doc, doc_date, kontragent, k_code, warehouse, portfolio, agent, i_code, i_name, unit, q_real, s_real = r
+        if kontragent: unique_stores.add(kontragent)
+        if i_name: unique_items.add(i_name)
+
+        row_map = {
+            "order_doc": order_doc, "doc_date": doc_date,
+            "kontragent": kontragent, "kontragent_code": k_code,
+            "warehouse": warehouse, "portfolio": portfolio, "agent": agent,
+            "item_code": i_code, "item_name": i_name, "unit": unit
+        }
+
+        g_vals = tuple(get_grouping_val(g, row_map) for g in active_groupings)
+
+        meta = item_meta.get(i_code) or item_meta.get(i_name) or {}
+        art = meta.get("article", "")
+        bar = meta.get("barcode", "")
+
+        entry_key = (g_vals, i_code, i_name, unit, art, bar, k_code)
+        if entry_key not in data_map:
+            q_ord = round(q_real * 1.0, 3)
+            s_ord = round(s_real * 1.0, 2)
+            data_map[entry_key] = {
+                "qty_order": q_ord, "sum_order": s_ord,
+                "qty_real": float(q_real or 0.0), "sum_real": float(s_real or 0.0),
+                "qty_ret": 0.0, "sum_ret": 0.0
+            }
+        else:
+            rec = data_map[entry_key]
+            rec["qty_order"] += round(q_real * 1.0, 3)
+            rec["sum_order"] += round(s_real * 1.0, 2)
+            rec["qty_real"] += float(q_real or 0.0)
+            rec["sum_real"] += float(s_real or 0.0)
+
+    for r in voz_rows:
+        order_doc, doc_date, kontragent, k_code, warehouse, portfolio, agent, i_code, i_name, unit, q_ret, s_ret = r
+        row_map = {
+            "order_doc": order_doc, "doc_date": doc_date,
+            "kontragent": kontragent, "kontragent_code": k_code,
+            "warehouse": warehouse, "portfolio": portfolio, "agent": agent,
+            "item_code": i_code, "item_name": i_name, "unit": unit
+        }
+        g_vals = tuple(get_grouping_val(g, row_map) for g in active_groupings)
+        meta = item_meta.get(i_code) or item_meta.get(i_name) or {}
+        entry_key = (g_vals, i_code, i_name, unit, meta.get("article", ""), meta.get("barcode", ""), k_code)
+        if entry_key in data_map:
+            data_map[entry_key]["qty_ret"] += float(q_ret or 0.0)
+            data_map[entry_key]["sum_ret"] += float(s_ret or 0.0)
+
+    class Node:
+        def __init__(self, name, level, code="", article="", barcode="", unit=""):
+            self.name = name
+            self.level = level
+            self.code = code
+            self.article = article
+            self.barcode = barcode
+            self.unit = unit
+            self.children = {}
+            self.qty_order = 0.0
+            self.sum_order = 0.0
+            self.qty_real = 0.0
+            self.sum_real = 0.0
+            self.qty_ret = 0.0
+            self.sum_ret = 0.0
+
+    root = Node("root", 0)
+
+    for (g_vals, i_code, i_name, unit, art, bar, k_code), vals in data_map.items():
+        curr = root
+        for lvl_idx, g_val in enumerate(g_vals, start=1):
+            if g_val not in curr.children:
+                code_val = ""
+                g_name = active_groupings[lvl_idx - 1]
+                if g_name == "Заказ покупателя" and "№ " in g_val:
+                    code_val = g_val.split("№ ")[1].split(" ")[0]
+                elif g_name == "Контрагент":
+                    code_val = k_code
+                elif g_name == "Номенклатура":
+                    code_val = i_code
+                node_art = art if g_name == "Номенклатура" else ""
+                node_bar = bar if g_name == "Номенклатура" else ""
+                node_unit = unit if g_name == "Номенклатура" else ""
+                curr.children[g_val] = Node(g_val, lvl_idx, code_val, node_art, node_bar, node_unit)
+            curr = curr.children[g_val]
+            curr.qty_order += vals["qty_order"]
+            curr.sum_order += vals["sum_order"]
+            curr.qty_real += vals["qty_real"]
+            curr.sum_real += vals["sum_real"]
+            curr.qty_ret += vals["qty_ret"]
+            curr.sum_ret += vals["sum_ret"]
+
+    flat_rows = []
+    row_counter = 0
+
+    def flatten_tree(node, parent_id=""):
+        nonlocal row_counter
+        sorted_children = sorted(node.children.values(), key=lambda x: str(x.name))
+        for child in sorted_children:
+            row_counter += 1
+            row_id = f"r_{child.level}_{row_counter}"
+            has_ch = len(child.children) > 0
+            
+            q_diff = child.qty_order - child.qty_real
+            s_diff = child.sum_order - child.sum_real
+            q_net = child.qty_real - child.qty_ret
+            s_net = child.sum_real - child.sum_ret
+
+            p_ord = (child.sum_order / child.qty_order) if child.qty_order > 0 else 0.0
+            p_real = (child.sum_real / child.qty_real) if child.qty_real > 0 else 0.0
+
+            flat_rows.append({
+                "id": row_id,
+                "parent_id": parent_id,
+                "level": child.level,
+                "has_children": has_ch,
+                "is_expanded": (child.level <= 2),
+                "name": child.name,
+                "code": child.code,
+                "article": child.article,
+                "barcode": child.barcode,
+                "unit": child.unit or "əd",
+                "qty_order": round(child.qty_order, 3),
+                "sum_order": round(child.sum_order, 2),
+                "price_order": round(p_ord, 2),
+                "qty_real": round(child.qty_real, 3),
+                "sum_real": round(child.sum_real, 2),
+                "price_real": round(p_real, 2),
+                "qty_diff": round(q_diff, 3),
+                "sum_diff": round(s_diff, 2),
+                "qty_ret": round(child.qty_ret, 3),
+                "sum_ret": round(child.sum_ret, 2),
+                "qty_net": round(q_net, 3),
+                "sum_net": round(s_net, 2),
+            })
+
+            if has_ch:
+                flatten_tree(child, row_id)
+
+    flatten_tree(root, "")
+
+    g_qty_ord = sum(r["qty_order"] for r in flat_rows if r["level"] == 1)
+    g_sum_ord = sum(r["sum_order"] for r in flat_rows if r["level"] == 1)
+    g_qty_real = sum(r["qty_real"] for r in flat_rows if r["level"] == 1)
+    g_sum_real = sum(r["sum_real"] for r in flat_rows if r["level"] == 1)
+    g_qty_ret = sum(r["qty_ret"] for r in flat_rows if r["level"] == 1)
+    g_sum_ret = sum(r["sum_ret"] for r in flat_rows if r["level"] == 1)
+    g_qty_diff = g_qty_ord - g_qty_real
+    g_sum_diff = g_sum_ord - g_sum_real
+    g_qty_net = g_qty_real - g_qty_ret
+    g_sum_net = g_sum_real - g_sum_ret
+
+    grand_totals = {
+        "qty": round(g_qty_ord, 3),
+        "sum": round(g_sum_ord, 2),
+        "qty_order": round(g_qty_ord, 3),
+        "sum_order": round(g_sum_ord, 2),
+        "qty_real": round(g_qty_real, 3),
+        "sum_real": round(g_sum_real, 2),
+        "qty_diff": round(g_qty_diff, 3),
+        "sum_diff": round(g_sum_diff, 2),
+        "qty_ret": round(g_qty_ret, 3),
+        "sum_ret": round(g_sum_ret, 2),
+        "qty_net": round(g_qty_net, 3),
+        "sum_net": round(g_sum_net, 2),
+        "stores_count": len(unique_stores),
+        "items_count": len(unique_items)
+    }
+
+    return {
+        "success": True,
+        "period": f"{start_date_str} - {end_date_str}",
+        "rows": flat_rows,
+        "totals": grand_totals,
+        "total_count": len(flat_rows),
+        "stores_count": len(unique_stores),
+        "items_count": len(unique_items),
+        "indicators": indicators
+    }
+
+
 ORDER_ANALYSIS_HANDLERS = {
-    "order_analysis": handle_order_analysis
+    "order_analysis": handle_order_analysis,
+    "order_analysis_offline": handle_order_analysis_offline
 }

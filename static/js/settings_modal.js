@@ -36,6 +36,21 @@ const SettingsModal = {
         menu.style.display = "none";
       }
     });
+
+    const win = document.getElementById("settingsWindowModal");
+    if (win) {
+      win.addEventListener("keydown", (e) => {
+        if (e.ctrlKey && e.key === "Enter") {
+          e.preventDefault();
+          e.stopPropagation();
+          applySettingsAndGenerate();
+        } else if (e.key === "Escape") {
+          e.preventDefault();
+          e.stopPropagation();
+          closeSettingsModal();
+        }
+      });
+    }
   },
 
   getConfig() {

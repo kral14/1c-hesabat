@@ -93,23 +93,14 @@
         </div>
       </div>
 
-      <!-- Right: Date Period Picker -->
+      <!-- Right: Unified 1C Period Selector (Realizasiya jurnalı ilə eyni vahid komponent) -->
       <div class="toolbar-right" style="display: flex; align-items: center; gap: 4px; flex-shrink: 0;">
-        <div class="period-control-group" style="display: flex; align-items: center; gap: 4px;">
-          <span class="period-label" style="font-size: 11px; font-weight: bold; color: #333;">Период с:</span>
-          <div class="period-input-wrapper" style="position: relative; display: flex; align-items: center;">
-            <input type="text" id="oaStartDateInput" class="period-input-1c" value="01.08.2026" onchange="syncOaDates()" style="width: 82px; height: 22px; font-size: 11px; text-align: center;">
-            <button class="period-cal-btn" onclick="pickDate('oaStartDateInput', this)" style="height: 22px; border: 1px solid #7f9db9; background: #fff; cursor: pointer;">📅</button>
-          </div>
-
-          <span class="period-label" style="font-size: 11px; font-weight: bold; color: #333;">по:</span>
-          <div class="period-input-wrapper" style="position: relative; display: flex; align-items: center;">
-            <input type="text" id="oaEndDateInput" class="period-input-1c" value="30.09.2026" onchange="syncOaDates()" style="width: 82px; height: 22px; font-size: 11px; text-align: center;">
-            <button class="period-cal-btn" onclick="pickDate('oaEndDateInput', this)" style="height: 22px; border: 1px solid #7f9db9; background: #fff; cursor: pointer;">📅</button>
-          </div>
-
-          <button class="period-more-btn" onclick="OrderAnalysisReport.openPeriodDialog(this)" title="Выбрать период" style="height: 22px; padding: 0 6px; cursor: pointer;">...</button>
-        </div>
+        <button type="button" class="btn-1c c1-period-btn" id="oaBtnPeriod" onclick="OrderAnalysisReport.openPeriodPicker()" title="Установить интервал дат (Выберите период)" style="height: 24px; display: inline-flex; align-items: center; gap: 5px; padding: 0 7px; cursor: pointer; background: #ffffff;">
+          <span style="font-size: 12px;">📅</span>
+          <span id="oaPeriodLabel" class="c1-period-label" style="font-size: 11px; font-weight: 500; color: #002060;">[ 01.08.2026 - 30.09.2026 ]</span>
+        </button>
+        <input type="hidden" id="oaStartDateInput" value="01.08.2026">
+        <input type="hidden" id="oaEndDateInput" value="30.09.2026">
       </div>
 
     </div>

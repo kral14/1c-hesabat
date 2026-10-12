@@ -3,18 +3,25 @@
    field_selector.js (Screenshot 3 - Выбор поля)
    ======================================================== */
 
-const FieldSelector = {
+window.FieldSelector = {
   currentCallback: null,
   selectedFieldName: "",
 
   open(currentValue, callback) {
-    this.currentCallback = callback;
-    this.selectedFieldName = currentValue || "";
+    if (typeof currentValue === "function") {
+      this.currentCallback = currentValue;
+      this.selectedFieldName = "";
+    } else {
+      this.currentCallback = callback;
+      this.selectedFieldName = (typeof currentValue === "string") ? currentValue.trim() : "";
+    }
 
     const overlay = document.getElementById("fieldSelectorModalOverlay");
     if (overlay) {
       overlay.style.display = "flex";
       overlay.classList.add("active");
+      const topZ = Math.max(100500, (window.MdiManager?.topZIndex || 100) + 500);
+      overlay.style.setProperty("z-index", String(topZ), "important");
       if (window.MdiManager && typeof MdiManager.bringModalToFront === "function") {
         MdiManager.bringModalToFront(overlay, {
           title: "Выбор поля",
@@ -22,6 +29,7 @@ const FieldSelector = {
           closeFn: () => FieldSelector.close()
         });
       }
+      overlay.style.setProperty("z-index", String(topZ), "important");
     }
 
     const tree = document.getElementById("fieldSelectorTree");
@@ -79,6 +87,7 @@ const FieldSelector = {
     this.close();
   }
 };
+var FieldSelector = window.FieldSelector;
 
 function toggleFieldNode(e, expander) {
   e.stopPropagation();

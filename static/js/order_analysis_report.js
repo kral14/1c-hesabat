@@ -68,6 +68,21 @@ window.OrderAnalysisReport = (function() {
 
     if (topStart && oaStart && (!oaStart.value || oaStart.value === "")) oaStart.value = topStart.value;
     if (topEnd && oaEnd && (!oaEnd.value || oaEnd.value === "")) oaEnd.value = topEnd.value;
+    updatePeriodLabel();
+  }
+
+  function updatePeriodLabel() {
+    const sInput = document.getElementById("oaStartDateInput");
+    const eInput = document.getElementById("oaEndDateInput");
+    const lbl = document.getElementById("oaPeriodLabel") || document.getElementById("oaTopPeriodLabel");
+    if (!lbl) return;
+    const s = sInput ? sInput.value.trim() : "";
+    const e = eInput ? eInput.value.trim() : "";
+    if (window.C1PeriodWidget && typeof C1PeriodWidget.formatLabel === "function") {
+      lbl.textContent = C1PeriodWidget.formatLabel(s, e);
+    } else {
+      lbl.textContent = (s && e) ? `[ ${s} - ${e} ]` : "(Весь период)";
+    }
   }
 
   function closeWindow() {
@@ -140,11 +155,14 @@ window.OrderAnalysisReport = (function() {
     isGenerating = true;
     abortController = new AbortController();
 
-    const overlay = document.getElementById("loadingOverlay");
-    const loadText = document.getElementById("loadingText");
-    if (overlay) {
-      overlay.style.display = "flex";
-      if (loadText) loadText.textContent = "1C: Müştəri sifarişləri analizi hesablanır...";
+    const globalLoading = document.getElementById("loadingOverlay");
+    const globalText = document.getElementById("loadingText");
+
+    if (globalLoading) {
+      globalLoading.style.setProperty("z-index", "999999", "important");
+      globalLoading.style.display = "flex";
+      globalLoading.classList.add("active");
+      if (globalText) globalText.textContent = "1С: Формирование отчета по заказам...";
     }
 
     const statusText = document.getElementById("oaStatusText");
@@ -167,6 +185,12 @@ window.OrderAnalysisReport = (function() {
       const res = await resp.json();
       if (!res.success) {
         throw new Error(res.error || "Hesabat formalaşdırılarkən xəta baş verdi.");
+      }
+
+      // Animasiyanın 1C standartında aydın görünməsi üçün qısa təbii fasilə
+      const elapsedReq = performance.now() - tStart;
+      if (elapsedReq < 350) {
+        await new Promise(r => setTimeout(r, 350 - elapsedReq));
       }
 
       const elapsed = ((performance.now() - tStart) / 1000).toFixed(2);
@@ -195,8 +219,23 @@ window.OrderAnalysisReport = (function() {
       }
     } finally {
       isGenerating = false;
-      if (overlay) overlay.style.display = "none";
+      if (globalLoading) {
+        globalLoading.classList.remove("active");
+        globalLoading.style.display = "none";
+      }
     }
+  }
+
+  function cancelReport() {
+    if (abortController) {
+      abortController.abort();
+    }
+    const globalLoading = document.getElementById("loadingOverlay");
+    if (globalLoading) {
+      globalLoading.classList.remove("active");
+      globalLoading.style.display = "none";
+    }
+    isGenerating = false;
   }
 
   function renderTable(data) {
@@ -298,7 +337,7 @@ window.OrderAnalysisReport = (function() {
     if (kpiRealEl) kpiRealEl.textContent = `${formatNumber(totals.qty_real, 3)} / ${formatNumber(totals.sum_real, 2)} ₼`;
     if (kpiDiffEl) {
       kpiDiffEl.textContent = `${formatNumber(totals.qty_diff, 3)} / ${formatNumber(totals.sum_diff, 2)} ₼`;
-      kpiDiffEl.style.color = totals.qty_diff > 0 ? "#b71c1c" : "#2e7d32";
+      kpiDiffEl.style.color = (totals.qty_diff < 0) ? "#b71c1c" : ((totals.qty_diff > 0) ? "#002060" : "#333333");
     }
     if (kpiRetEl) kpiRetEl.textContent = `${formatNumber(totals.qty_ret, 3)} / ${formatNumber(totals.sum_ret, 2)} ₼`;
     if (kpiNetEl) kpiNetEl.textContent = `${formatNumber(totals.sum_net, 2)} ₼ (${formatNumber(totals.qty_net, 3)} əd)`;
@@ -313,7 +352,14 @@ window.OrderAnalysisReport = (function() {
     setTotalVal("oaTotalCellSumOrder", totals.sum_order, 2);
     setTotalVal("oaTotalCellQtyReal", totals.qty_real, 3);
     setTotalVal("oaTotalCellSumReal", totals.sum_real, 2);
-    setTotalVal("oaTotalCellQtyDiff", totals.qty_diff, 3);
+
+    const totalDiffEl = document.getElementById("oaTotalCellQtyDiff");
+    if (totalDiffEl) {
+      totalDiffEl.textContent = formatNumber(totals.qty_diff, 3);
+      totalDiffEl.style.color = (totals.qty_diff < 0) ? "#b71c1c" : ((totals.qty_diff > 0) ? "#002060" : "#333333");
+      totalDiffEl.style.fontWeight = "bold";
+    }
+
     setTotalVal("oaTotalCellQtyRet", totals.qty_ret, 3);
     setTotalVal("oaTotalCellSumRet", totals.sum_ret, 2);
     setTotalVal("oaTotalCellQtyNet", totals.qty_net, 3);
@@ -356,9 +402,19 @@ window.OrderAnalysisReport = (function() {
         expandToggleHtml = `<button type="button" class="oa-exp-btn" onclick="OrderAnalysisReport.toggleRow('${r.id}', event)" style="display: inline-flex; align-items: center; justify-content: center; width: 13px; height: 13px; line-height: 11px; text-align: center; border: 1px solid #777; background: #fff; color: #000; font-size: 10px; cursor: pointer; margin-right: 6px; padding: 0; user-select: none; -webkit-user-select: none; vertical-align: middle;">${r.is_expanded ? '-' : '+'}</button>`;
       }
 
-      let diffColor = "#333";
-      if (r.qty_diff > 0) diffColor = "#b71c1c"; // unfulfilled / deficit
-      else if (r.qty_diff < 0) diffColor = "#1565c0"; // surplus / direct fulfillment
+      // Initial collapse/expand visibility based on level
+      if (r.level <= 2) {
+        tr.style.display = "";
+      } else {
+        tr.style.display = "none";
+      }
+
+      let diffColor = "#333333";
+      if (r.qty_diff < 0) {
+        diffColor = "#b71c1c"; // Mənfilər DAİMA QIRMIZI
+      } else if (r.qty_diff > 0) {
+        diffColor = "#002060"; // Digərləri (müsbətlər) DAİMA GÖY
+      }
 
       let rowHtml = `<td style="padding: 3px 6px; padding-left: ${indentPx}px; border: 1px solid #e0dfd5; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 440px;">${expandToggleHtml}<span class="oa-row-title" title="${escapeHtml(r.name)}" style="color: ${isLevel1 ? '#002060' : '#111'};">${escapeHtml(r.name)}</span></td>`;
 
@@ -375,35 +431,35 @@ window.OrderAnalysisReport = (function() {
       rowHtml += `<td style="text-align: center; padding: 3px 6px; border: 1px solid #e0dfd5; color: #555; font-size: 10px;">${escapeHtml(r.unit || '')}</td>`;
 
       if (showQtyOrder) {
-        rowHtml += `<td style="text-align: right; padding: 3px 6px; border: 1px solid #e0dfd5; color: #1b5e20; font-weight: ${isLevel1 ? 'bold' : 'normal'}; background: #fbfdf9;">${r.qty_order !== 0 ? formatNumber(r.qty_order, 3) : '-'}</td>`;
+        rowHtml += `<td data-orig-color="#1b5e20" data-orig-bg="#fbfdf9" style="text-align: right; padding: 3px 6px; border: 1px solid #e0dfd5; color: #1b5e20; font-weight: ${isLevel1 ? 'bold' : 'normal'}; background: #fbfdf9;">${r.qty_order !== 0 ? formatNumber(r.qty_order, 3) : '-'}</td>`;
       }
       if (showSumOrder) {
-        rowHtml += `<td style="text-align: right; padding: 3px 6px; border: 1px solid #e0dfd5; color: #1b5e20; font-weight: ${isLevel1 ? 'bold' : 'normal'}; background: #fbfdf9;">${r.sum_order !== 0 ? formatNumber(r.sum_order, 2) : '-'}</td>`;
+        rowHtml += `<td data-orig-color="#1b5e20" data-orig-bg="#fbfdf9" style="text-align: right; padding: 3px 6px; border: 1px solid #e0dfd5; color: #1b5e20; font-weight: ${isLevel1 ? 'bold' : 'normal'}; background: #fbfdf9;">${r.sum_order !== 0 ? formatNumber(r.sum_order, 2) : '-'}</td>`;
       }
 
       if (showQtyReal) {
-        rowHtml += `<td style="text-align: right; padding: 3px 6px; border: 1px solid #e0dfd5; color: #002060; font-weight: ${isLevel1 ? 'bold' : 'normal'}; background: #f7fafc;">${r.qty_real !== 0 ? formatNumber(r.qty_real, 3) : '-'}</td>`;
+        rowHtml += `<td data-orig-color="#002060" data-orig-bg="#f7fafc" style="text-align: right; padding: 3px 6px; border: 1px solid #e0dfd5; color: #002060; font-weight: ${isLevel1 ? 'bold' : 'normal'}; background: #f7fafc;">${r.qty_real !== 0 ? formatNumber(r.qty_real, 3) : '-'}</td>`;
       }
       if (showSumReal) {
-        rowHtml += `<td style="text-align: right; padding: 3px 6px; border: 1px solid #e0dfd5; color: #002060; font-weight: ${isLevel1 ? 'bold' : 'normal'}; background: #f7fafc;">${r.sum_real !== 0 ? formatNumber(r.sum_real, 2) : '-'}</td>`;
+        rowHtml += `<td data-orig-color="#002060" data-orig-bg="#f7fafc" style="text-align: right; padding: 3px 6px; border: 1px solid #e0dfd5; color: #002060; font-weight: ${isLevel1 ? 'bold' : 'normal'}; background: #f7fafc;">${r.sum_real !== 0 ? formatNumber(r.sum_real, 2) : '-'}</td>`;
       }
 
       if (showQtyDiff) {
-        rowHtml += `<td style="text-align: right; padding: 3px 6px; border: 1px solid #e0dfd5; color: ${diffColor}; font-weight: bold; background: #fffcfc;">${r.qty_diff !== 0 ? formatNumber(r.qty_diff, 3) : '-'}</td>`;
+        rowHtml += `<td data-orig-color="${diffColor}" data-orig-bg="#fffcfc" style="text-align: right; padding: 3px 6px; border: 1px solid #e0dfd5; color: ${diffColor}; font-weight: bold; background: #fffcfc;">${r.qty_diff !== 0 ? formatNumber(r.qty_diff, 3) : '-'}</td>`;
       }
 
       if (showQtyRet) {
-        rowHtml += `<td style="text-align: right; padding: 3px 6px; border: 1px solid #e0dfd5; color: #e65100; font-weight: ${isLevel1 ? 'bold' : 'normal'}; background: #fffdfa;">${r.qty_ret !== 0 ? formatNumber(r.qty_ret, 3) : '-'}</td>`;
+        rowHtml += `<td data-orig-color="#e65100" data-orig-bg="#fffdfa" style="text-align: right; padding: 3px 6px; border: 1px solid #e0dfd5; color: #e65100; font-weight: ${isLevel1 ? 'bold' : 'normal'}; background: #fffdfa;">${r.qty_ret !== 0 ? formatNumber(r.qty_ret, 3) : '-'}</td>`;
       }
       if (showSumRet) {
-        rowHtml += `<td style="text-align: right; padding: 3px 6px; border: 1px solid #e0dfd5; color: #e65100; font-weight: ${isLevel1 ? 'bold' : 'normal'}; background: #fffdfa;">${r.sum_ret !== 0 ? formatNumber(r.sum_ret, 2) : '-'}</td>`;
+        rowHtml += `<td data-orig-color="#e65100" data-orig-bg="#fffdfa" style="text-align: right; padding: 3px 6px; border: 1px solid #e0dfd5; color: #e65100; font-weight: ${isLevel1 ? 'bold' : 'normal'}; background: #fffdfa;">${r.sum_ret !== 0 ? formatNumber(r.sum_ret, 2) : '-'}</td>`;
       }
 
       if (showQtyNet) {
-        rowHtml += `<td style="text-align: right; padding: 3px 6px; border: 1px solid #e0dfd5; color: #2e7d32; font-weight: ${isLevel1 ? 'bold' : 'normal'}; background: #f9fcf9;">${r.qty_net !== 0 ? formatNumber(r.qty_net, 3) : '-'}</td>`;
+        rowHtml += `<td data-orig-color="#2e7d32" data-orig-bg="#f9fcf9" style="text-align: right; padding: 3px 6px; border: 1px solid #e0dfd5; color: #2e7d32; font-weight: ${isLevel1 ? 'bold' : 'normal'}; background: #f9fcf9;">${r.qty_net !== 0 ? formatNumber(r.qty_net, 3) : '-'}</td>`;
       }
       if (showSumNet) {
-        rowHtml += `<td style="text-align: right; padding: 3px 6px; border: 1px solid #e0dfd5; color: #2e7d32; font-weight: ${isLevel1 ? 'bold' : 'normal'}; background: #f9fcf9;">${r.sum_net !== 0 ? formatNumber(r.sum_net, 2) : '-'}</td>`;
+        rowHtml += `<td data-orig-color="#2e7d32" data-orig-bg="#f9fcf9" style="text-align: right; padding: 3px 6px; border: 1px solid #e0dfd5; color: #2e7d32; font-weight: ${isLevel1 ? 'bold' : 'normal'}; background: #f9fcf9;">${r.sum_net !== 0 ? formatNumber(r.sum_net, 2) : '-'}</td>`;
       }
 
       tr.innerHTML = rowHtml;
@@ -516,32 +572,60 @@ window.OrderAnalysisReport = (function() {
     window.print();
   }
 
-  function openPeriodDialog(btn) {
+  function updatePeriodLabel() {
+    const sInput = document.getElementById("oaStartDateInput")?.value || "";
+    const eInput = document.getElementById("oaEndDateInput")?.value || "";
+    const lbl = document.getElementById("oaPeriodLabel");
+    if (lbl) {
+      if (window.C1PeriodWidget) {
+        lbl.textContent = C1PeriodWidget.formatLabel(sInput, eInput);
+      } else {
+        lbl.textContent = (sInput && eInput) ? `[ ${sInput} - ${eInput} ]` : "(Весь период)";
+      }
+      lbl.style.color = (lbl.textContent === "(Весь период)") ? "#555555" : "#002060";
+    }
+  }
+
+  function openPeriodPicker() {
     const sInput = document.getElementById("oaStartDateInput");
     const eInput = document.getElementById("oaEndDateInput");
     const currStart = sInput?.value || "01.08.2026";
     const currEnd = eInput?.value || "30.09.2026";
 
-    if (window.PeriodPicker && typeof PeriodPicker.open === "function") {
+    const handleSelect = (start, end) => {
+      if (sInput) sInput.value = start;
+      if (eInput) eInput.value = end;
+      updatePeriodLabel();
+      const topStart = document.getElementById("topStartDateInput");
+      const topEnd = document.getElementById("topEndDateInput");
+      if (topStart) topStart.value = start;
+      if (topEnd) topEnd.value = end;
+      const dlgStart = document.getElementById("oaDlgStartDate");
+      const dlgEnd = document.getElementById("oaDlgEndDate");
+      if (dlgStart) dlgStart.value = start;
+      if (dlgEnd) dlgEnd.value = end;
+      if (window.OrderAnalysisSettings && typeof OrderAnalysisSettings.updatePeriodLabel === "function") {
+        OrderAnalysisSettings.updatePeriodLabel();
+      }
+    };
+
+    if (window.C1PeriodWidget) {
+      C1PeriodWidget.open({
+        startDate: currStart,
+        endDate: currEnd,
+        onSelect: handleSelect
+      });
+    } else if (window.PeriodPicker && typeof PeriodPicker.open === "function") {
       PeriodPicker.open({
         startDate: currStart,
         endDate: currEnd,
-        onSelect: (start, end) => {
-          if (sInput) sInput.value = start;
-          if (eInput) eInput.value = end;
-          const topStart = document.getElementById("topStartDateInput");
-          const topEnd = document.getElementById("topEndDateInput");
-          if (topStart) topStart.value = start;
-          if (topEnd) topEnd.value = end;
-          const dlgStart = document.getElementById("oaDlgStartDate");
-          const dlgEnd = document.getElementById("oaDlgEndDate");
-          if (dlgStart) dlgStart.value = start;
-          if (dlgEnd) dlgEnd.value = end;
-        }
+        onSelect: handleSelect
       });
-    } else if (typeof openPeriodSelectDialog === "function") {
-      openPeriodSelectDialog(btn);
     }
+  }
+
+  function openPeriodDialog(btn) {
+    openPeriodPicker();
   }
 
   function syncOaDates() {
@@ -556,6 +640,10 @@ window.OrderAnalysisReport = (function() {
     if (dlgEnd && eInput) dlgEnd.value = eInput;
     if (topStart && sInput) topStart.value = sInput;
     if (topEnd && eInput) topEnd.value = eInput;
+    updatePeriodLabel();
+    if (window.OrderAnalysisSettings && typeof OrderAnalysisSettings.updatePeriodLabel === "function") {
+      OrderAnalysisSettings.updatePeriodLabel();
+    }
   }
 
   function escapeHtml(str) {
@@ -582,6 +670,7 @@ window.OrderAnalysisReport = (function() {
     openWindow,
     closeWindow,
     generate,
+    cancelReport,
     exportExcel,
     printReport,
     setLevel,
@@ -589,6 +678,8 @@ window.OrderAnalysisReport = (function() {
     toggleRow,
     toggleActionsMenu,
     openPeriodDialog,
+    openPeriodPicker,
+    updatePeriodLabel,
     syncOaDates
   };
 })();

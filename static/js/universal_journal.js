@@ -699,27 +699,32 @@ const _UniversalJournalTarget = {
     const lbl = this.getEl("ujPeriodLabel");
     if (!lbl) return;
 
-    const toDateOnly = (s) => {
-      if (!s) return "";
-      const m = String(s).trim().match(/^(\d{1,2}\.\d{1,2}\.\d{4})/);
-      return m ? m[1] : s.split(" ")[0];
-    };
-
-    const sDate = toDateOnly(this.startDateStr);
-    const eDate = toDateOnly(this.endDateStr);
-
-    if (sDate && eDate) {
-      lbl.textContent = `[ ${sDate} - ${eDate} ]`;
-      lbl.style.color = "#002060";
-    } else if (sDate && !eDate) {
-      lbl.textContent = `[ с ${sDate} ]`;
-      lbl.style.color = "#002060";
-    } else if (!sDate && eDate) {
-      lbl.textContent = `[ по ${eDate} ]`;
-      lbl.style.color = "#002060";
+    if (window.C1PeriodWidget) {
+      lbl.textContent = C1PeriodWidget.formatLabel(this.startDateStr, this.endDateStr);
+      lbl.style.color = (lbl.textContent === "(Весь период)") ? "#555" : "#002060";
     } else {
-      lbl.textContent = "(Весь период)";
-      lbl.style.color = "#555";
+      const toDateOnly = (s) => {
+        if (!s) return "";
+        const m = String(s).trim().match(/^(\d{1,2}\.\d{1,2}\.\d{4})/);
+        return m ? m[1] : s.split(" ")[0];
+      };
+
+      const sDate = toDateOnly(this.startDateStr);
+      const eDate = toDateOnly(this.endDateStr);
+
+      if (sDate && eDate) {
+        lbl.textContent = `[ ${sDate} - ${eDate} ]`;
+        lbl.style.color = "#002060";
+      } else if (sDate && !eDate) {
+        lbl.textContent = `[ с ${sDate} ]`;
+        lbl.style.color = "#002060";
+      } else if (!sDate && eDate) {
+        lbl.textContent = `[ по ${eDate} ]`;
+        lbl.style.color = "#002060";
+      } else {
+        lbl.textContent = "(Весь период)";
+        lbl.style.color = "#555";
+      }
     }
 
     if (this.startDateStr || this.endDateStr) {

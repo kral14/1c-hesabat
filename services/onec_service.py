@@ -135,6 +135,11 @@ class OneCService(threading.Thread):
                         resp_q.put((True, offline_service.universal_sales(payload)))
                     elif action == "universal_report":
                         resp_q.put((True, offline_service.universal_report(payload)))
+                    elif action == "order_analysis":
+                        import importlib
+                        import services.order_analysis_service
+                        importlib.reload(services.order_analysis_service)
+                        resp_q.put((True, services.order_analysis_service.handle_order_analysis_offline(payload)))
                     else:
                         resp_q.put((False, RuntimeError(f"Offline rejimdə '{action}' dəstəklənmir")))
                 except Exception as e_off:
@@ -249,7 +254,10 @@ class OneCService(threading.Thread):
                 raise result
             if attempt < retry and any(k in err_str for k in ["Сеанс отсутствует", "ClusterDistribImpl", "Соединение разорвано"]):
                 print(f"⚠️ [1C BİLDİRİŞ] 1C sessiyası qırıldı, avtomatik yenidən qoşulur və '{action}' təkrar icra edilir (cəhd {attempt + 1})...", flush=True)
-                time.sleep(0.5)
+                for old_k in list(self.connections.keys()):
+                    self.connections[old_k] = None
+                self.connections.clear()
+                time.sleep(1.0)
                 continue
             print_server_error(f"OneCService.execute [Action: {action}]", result, payload)
             if isinstance(result, BaseException):
