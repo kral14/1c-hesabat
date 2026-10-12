@@ -27,6 +27,7 @@ vm.runInContext(fs.readFileSync('static/js/universal_journal.js', 'utf8') + '\nt
 const journal = context.journal;
 const originalSortBy = journal.sortBy;
 const originalRenderRow = journal.renderRowHtml;
+const originalSelectRow = journal.selectRow;
 for (const method of ['updateStatus', 'updateCountBadge', 'updateActiveFilterBadgeUI',
   'updateFilterButtonsState', 'updateBottomLoadingState', 'updateHeaderSearchHighlights']) journal[method] = () => {};
 journal.loadColumnsConfig = columns => { journal.defaultColumns = columns; };
@@ -42,6 +43,9 @@ const answer = (request, numbers, more = false) => request.reply({
 });
 
 (async () => {
+  assert.equal(journal.normalizeFindCustomerQuery('ROYAL-Sagan - С000024890 - С000024890'),'ROYAL-Sagan');
+  assert.equal(journal.normalizeFindCustomerQuery('ROYAL-Sagan'),'ROYAL-Sagan');
+  assert.equal(journal.normalizeFindCustomerQuery('С000024890'),'С000024890');
   journal.loadDocuments();
   assert.equal(requests[0].payload.limit, 200, 'first package must prioritize visible rows');
   answer(requests.at(-1), ['A', 'B']);
@@ -153,17 +157,41 @@ const answer = (request, numbers, more = false) => request.reply({
   assert.equal(cursorClasses.has('uj-loading-all'), true, 'explicit full loading must show wait cursor');
   await new Promise(resolve => setTimeout(resolve, 160));
   const allPage = requests.at(-1);
-  assert.equal(allPage.payload.limit, 0, 'End must remove the server row limit');
-  assert.equal(allPage.payload.offset, 0, 'End must fetch the entire period in one request');
+  assert.equal(allPage.payload.limit, 10000, 'End/Home must use 10000-row batches');
+  const alreadyLoaded = journal.items.length;
+  assert.equal(allPage.payload.offset, alreadyLoaded, 'bulk loading must continue from the existing list');
   const duringRequestCount = requests.length;
   journal.requestMoreDocuments(true);
   assert.equal(requests.length, duringRequestCount, 'only one list request may run at a time');
-  answer(allPage, Array.from({ length: 87000 }, (_, i) => 'FULL' + i));
+  answer(allPage, Array.from({ length: 10000 }, (_, i) => 'FULL' + i), true);
   await flush();
-  assert.equal(journal.items.length, 87000, 'all 87000 results must become available together');
-  assert.equal(requests.length, duringRequestCount, 'full result must not trigger additional page requests');
+  assert.equal(journal.items.length, alreadyLoaded + 10000, 'bulk result must append to existing rows');
+  await new Promise(resolve => setTimeout(resolve, 160));
+  const finalPage = requests.at(-1);
+  assert.equal(requests.length, duringRequestCount + 1, 'bulk mode must continue until the period is complete');
+  assert.equal(finalPage.payload.limit, 10000, 'each continuation must retain the larger batch size');
+  assert.equal(finalPage.payload.offset, alreadyLoaded + 10000);
+  answer(finalPage, ['FULL_FINAL']);
+  await flush();
+  assert.equal(journal.items.length, alreadyLoaded + 10001);
   assert.equal(journal._loadAllRemaining, false);
   assert.equal(cursorClasses.has('uj-loading-all'), false, 'wait cursor must reset after the final page');
+  journal.hasMoreDocs = true;
+  vm.runInContext('JournalLoadSettings.change({value:"25000",setCustomValidity(){}})', context);
+  journal.requestMoreDocuments(true);
+  const repeatedPage = requests.at(-1);
+  assert.equal(repeatedPage.payload.limit, 25000, 'bulk request must use the user setting');
+  vm.runInContext('JournalLoadSettings.change({value:"-2",setCustomValidity(){}})', context);
+  assert.equal(stored.get('uj_bulk_chunk_size'), '25000', 'invalid edits must preserve the saved setting');
+  const repeatedCount = journal.items.length;
+  const requestsBeforeRepeat = requests.length;
+  answer(repeatedPage, ['FULL_FINAL'], true);
+  await flush();
+  await new Promise(resolve => setTimeout(resolve, 160));
+  assert.equal(journal.items.length, repeatedCount, 'a repeated page must not inflate the count');
+  assert.equal(requests.length, requestsBeforeRepeat, 'a repeated cursor must stop automatic loading');
+  assert.equal(journal._loadAllRemaining, false);
+  assert.equal(cursorClasses.has('uj-loading-all'), false);
   // A deep scroll from a large section must still render rows in a smaller list.
   elements.ujTableWrapper = { scrollTop: 220000, clientHeight: 500 };
   elements.ujTableBody = { innerHTML: '' };
@@ -236,6 +264,13 @@ const answer = (request, numbers, more = false) => request.reply({
     [{ key: 'number', width: 100 }, { key: 'kontragent', width: 100 }]);
   assert.equal((rowHtml.match(/class="c1-cell-active"/g) || []).length, 1, 'redrawing must mark exactly one active cell');
   assert.ok(rowHtml.includes('background: #dceaf7'), 'selected row must keep the light background');
+  const loadingCols = [{key:'pogruzka_marshrut',width:100}];
+  const normalLoading = originalRenderRow.call(journal,{number:'MIXED',pogruzka_marshrut:'R',
+    pogruzka_total_count:2,active_pogruzka_count:1,pogruzka_duplicate:false},0,loadingCols);
+  const redLoading = originalRenderRow.call(journal,{number:'ACTIVE',pogruzka_marshrut:'R',
+    pogruzka_total_count:2,active_pogruzka_count:2,pogruzka_duplicate:true},0,loadingCols);
+  assert.ok(!normalLoading.includes('color:#c00000'),'one active plus deleted must stay normal');
+  assert.ok(redLoading.includes('color:#c00000'),'two active loadings must be red');
   journal.closeFindModal();
   let endLoadsAll = false;
   journal.requestMoreDocuments = all => { endLoadsAll = all; };
@@ -244,5 +279,55 @@ const answer = (request, numbers, more = false) => request.reply({
     target: { closest: () => null }, preventDefault() {}, stopPropagation() {} });
   assert.equal(endLoadsAll, true, 'plain End must request the complete remaining list');
   assert.equal(elements.ujTableWrapper.scrollTop, 44000);
+  endLoadsAll = false;
+  journal.hasMoreDocs = true;
+  journal.updateEditButtonState = () => {};
+  journal.selectRow = originalSelectRow;
+  elements.ujTableBody.querySelectorAll = () => [];
+  keydownHandlers[0]({ key: 'Home', ctrlKey: false, metaKey: false, altKey: false,
+    target: { closest: () => null }, preventDefault() {}, stopPropagation() {} });
+  assert.equal(endLoadsAll, true, 'Home must also request bulk loading');
+  assert.equal(elements.ujTableWrapper.scrollTop, 0, 'Home must stay at the first row');
+  assert.equal(journal.selectedRow, journal.filteredItems[0], 'Home must select the actual first visible row');
+  journal.hasMoreDocs = false;
+  // Verify the real selection method used by edge navigation without a mock alias.
+  journal.selectRow(journal.filteredItems.length - 1);
+  assert.equal(journal.selectedRow, journal.filteredItems.at(-1));
+  const makeCell = key => ({style:{}, getAttribute:()=>key,
+    classList:{add(){},remove(){}}});
+  const redCell = makeCell('pogruzka_marshrut');
+  const normalCell = makeCell('pogruzka_marshrut');
+  const tableRows = [redCell,normalCell].map((cell,index)=>({style:{},
+    getAttribute:()=>String(index),querySelectorAll:()=>[cell]}));
+  journal.filteredItems = [{number:'RED',active_pogruzka_count:2,pogruzka_duplicate:true},
+    {number:'NORMAL',active_pogruzka_count:1,pogruzka_duplicate:false,pogruzka_total_count:2}];
+  elements.ujTableBody.querySelectorAll = () => tableRows;
+  journal.selectedColKey = 'number';
+  journal.selectRow(1);
+  assert.equal(redCell.style.color,'#c00000','selecting another filtered row must preserve duplicate red');
+  assert.equal(normalCell.style.color,'#111111','mixed active/deleted must remain normal');
+  journal.selectRow(0,'number');
+  assert.equal(redCell.style.color,'#c00000','selecting a duplicate row must preserve red in other cells');
+  elements.ujTableBody.querySelectorAll = () => [];
+  // Opening a window must initialize state, not merely reuse a copied period label.
+  context.window.PeriodPicker = true;
+  context.PeriodPicker = { getRememberedPeriod: () => ({startDate:'01.04.2026',endDate:'30.04.2026'}) };
+  context.MdiManager.registerWindow = () => {};
+  context.MdiManager.activateWindow = id => { context.MdiManager.activeWindowId = id; };
+  elements.universalJournalWindow.classList = { remove() {} };
+  journal.startDateStr = '';
+  journal.endDateStr = '';
+  journal.loadActiveFiltersFromStorage = () => {};
+  let openingPeriod;
+  journal.loadDocuments = function() { openingPeriod = [this.startDateStr, this.endDateStr]; };
+  journal.openDirect('РеализацияТоваровУслуг', {forceNew:true,windowId:'universalJournalWindow'});
+  assert.deepEqual(openingPeriod, ['01.04.2026','30.04.2026'], 'first load must receive the remembered period');
+  stored.set('uj_navigation_mode','edge');
+  let navigationOptions;
+  journal.loadDocuments = options => { navigationOptions = options; };
+  keydownHandlers[0]({key:'End',target:{closest:()=>null},preventDefault(){},stopPropagation(){}});
+  assert.equal(navigationOptions.edge,'end','edge mode End must request one last page');
+  keydownHandlers[0]({key:'Home',target:{closest:()=>null},preventDefault(){},stopPropagation(){}});
+  assert.equal(navigationOptions.edge,'home','edge mode Home must request one first page');
   console.log('Journal cache checks passed (mock requests; no database connection).');
 })().catch(error => { journal.pauseLoading(); console.error(error); process.exitCode = 1; });

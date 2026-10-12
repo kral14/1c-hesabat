@@ -148,6 +148,16 @@ function openSettingsModal(e) {
     if (typeof e.stopPropagation === "function") e.stopPropagation();
     if (typeof e.preventDefault === "function") e.preventDefault();
   }
+
+  // If user has switched to Customer Order Analysis, open its dedicated settings modal
+  const switcher = document.getElementById("mainReportSwitcher");
+  if (switcher && switcher.value === "ЗаказПокупателяАнализ") {
+    if (window.OrderAnalysisSettings) {
+      OrderAnalysisSettings.open();
+      return;
+    }
+  }
+
   console.log("[SETTINGS OPEN] Opening Settings dialog window");
   const win = document.getElementById("settingsWindowModal");
   if (!win) {
@@ -402,9 +412,17 @@ function syncDateInputsFromTop() {
   const topEnd = document.getElementById("topEndDateInput")?.value;
   const dlgStart = document.getElementById("dlgStartDateInput");
   const dlgEnd = document.getElementById("dlgEndDateInput");
+  const oaStart = document.getElementById("oaStartDateInput");
+  const oaEnd = document.getElementById("oaEndDateInput");
+  const oaDlgStart = document.getElementById("oaDlgStartDate");
+  const oaDlgEnd = document.getElementById("oaDlgEndDate");
 
   if (dlgStart && topStart) dlgStart.value = topStart;
   if (dlgEnd && topEnd) dlgEnd.value = topEnd;
+  if (oaStart && topStart) oaStart.value = topStart;
+  if (oaEnd && topEnd) oaEnd.value = topEnd;
+  if (oaDlgStart && topStart) oaDlgStart.value = topStart;
+  if (oaDlgEnd && topEnd) oaDlgEnd.value = topEnd;
 }
 
 function syncDateInputsFromDlg() {

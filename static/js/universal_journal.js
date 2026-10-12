@@ -4,6 +4,47 @@
  */
 
 
+const JournalLoadSettings = {
+  key: "uj_bulk_chunk_size",
+  mode: function() { try { return localStorage.getItem("uj_navigation_mode") === "edge" ? "edge" : "bulk"; } catch (_) { return "bulk"; } },
+  open: function() {
+    const dialog = document.getElementById("journalNavigationSettings");
+    document.getElementById("journalNavigationMode").value = this.mode();
+    document.getElementById("journalSettingsBulkSize").value = this.get();
+    dialog.showModal();
+  },
+  save: function() {
+    const previousMode = this.mode();
+    const input = document.getElementById("journalSettingsBulkSize");
+    this.change(input);
+    if (!input.reportValidity()) return;
+    try { localStorage.setItem("uj_navigation_mode", document.getElementById("journalNavigationMode").value); } catch (_) {}
+    document.getElementById("journalBulkSize").value = this.get();
+    document.getElementById("journalNavigationSettings").close();
+    Object.values(_UniversalJournalTarget.instances).forEach(inst => inst.pauseLoading());
+    if (previousMode !== this.mode()) Object.values(_UniversalJournalTarget.instances).forEach(inst => {
+      inst._edgeNavigation = null;
+      inst.listCache.clear();
+      if (inst.isJournalActive()) inst.loadDocuments({force:true});
+    });
+  },
+  get: function() {
+    try {
+      const value = Number(localStorage.getItem(this.key));
+      if (Number.isSafeInteger(value) && value > 0) return value;
+    } catch (_) {}
+    return 10000;
+  },
+  change: function(input) {
+    const value = Number(input.value);
+    const valid = Number.isSafeInteger(value) && value > 0;
+    input.setCustomValidity(valid ? "" : "Müsbət tam ədəd daxil edin.");
+    if (valid) {
+      try { localStorage.setItem(this.key, String(value)); } catch (_) {}
+    }
+  }
+};
+
 function JournalInstance(windowId, docType, options = {}) {
   this.windowId = windowId || "universalJournalWindow";
   this.windowElement = options.element || ((typeof document !== "undefined" && document.getElementById) ? document.getElementById(this.windowId) : null);
@@ -280,8 +321,8 @@ const _UniversalJournalTarget = {
     if (sel) sel.value = targetType;
 
     // 7. Initialize and load startup filters (⭐ По умолчанию / Active session)
-    instance.loadActiveFiltersFromStorage();
-    instance.updateActiveFilterBadgeUI();
+    // A cloned label is only presentation; initialize this instance's actual period.
+    instance.init();
 
     // 8. Load documents
     instance.loadDocuments({ force: true });
@@ -641,14 +682,15 @@ const _UniversalJournalTarget = {
   },
 
   openPeriodPicker: function() {
+    const inst = this.getActiveInstance();
     PeriodPicker.open({
-      startDate: this.startDateStr,
-      endDate: this.endDateStr,
+      startDate: inst.startDateStr,
+      endDate: inst.endDateStr,
       onSelect: (startStr, endStr) => {
-        this.startDateStr = startStr;
-        this.endDateStr = endStr;
-        this.updatePeriodLabel();
-        this.loadDocuments();
+        inst.startDateStr = startStr;
+        inst.endDateStr = endStr;
+        inst.updatePeriodLabel();
+        inst.loadDocuments({ force: true });
       }
     });
   },
@@ -774,12 +816,13 @@ const _UniversalJournalTarget = {
 
   requestMoreDocuments: function(loadAll = false) {
     if (!this.isJournalActive()) return;
+    if (this._edgeNavigation) { this.fetchEdgeMore(); return; }
     if (!this.hasMoreDocs) {
       if (loadAll) {
         this.updateStatus(`Bütün sənədlər artıq yüklənib (${this.items.length} sənəd).`);
         const wrapper = this.getEl("ujTableWrapper");
         if (wrapper) wrapper.scrollTop = wrapper.scrollHeight;
-        if (this.items.length > 0) this.selectRowByIndex(this.items.length - 1);
+        if (this.filteredItems.length > 0) this.selectRow(this.filteredItems.length - 1);
       }
       return;
     }
@@ -810,7 +853,8 @@ const _UniversalJournalTarget = {
     return JSON.stringify([creds.server, creds.ref, creds.user, this.activeDocType,
       this.startDateStr, this.endDateStr, search, filters,
       search ? (this.activeSearchColKey || this.selectedColKey || "") : "",
-      search ? this.searchMatchMode : ""]);
+      search ? this.searchMatchMode : "", this._edgeNavigation || "",
+      this._edgeNavigation ? this.currentSortCol : "", this._edgeNavigation ? this.currentSortAsc : "", this._appearance?.sort || []]);
   },
 
   saveListCache: function() {
@@ -884,6 +928,8 @@ const _UniversalJournalTarget = {
   },
 
   loadDocuments: function(options = {}) {
+    this._edgeNavigation = options.edge || (JournalLoadSettings.mode() === "edge" ? "home" : null);
+    if (this._edgeNavigation) options = {...options, force:true, all:false};
     this._loadStartTime = (typeof performance !== "undefined" && performance.now) ? performance.now() : Date.now();
     this._loadAllRemaining = Boolean(options.all);
     this._nextChunkRequested = false;
@@ -971,6 +1017,7 @@ const _UniversalJournalTarget = {
     const payload = {
       ...creds,
       doc_type: this.activeDocType,
+      profile: Boolean(options.profile),
       date_from: this.formatDateForBackend(this.startDateStr, false),
       date_to: this.formatDateForBackend(this.endDateStr, true),
       search: querySearch,
@@ -981,6 +1028,9 @@ const _UniversalJournalTarget = {
       limit: this.initialChunkLimit,
       offset: 0
     };
+    if (this._appearance?.sort?.some(r=>r.enabled!==false)) payload.sort_rules=this._appearance.sort.filter(r=>r.enabled!==false);
+    if (this._edgeNavigation) Object.assign(payload, {navigation_edge:this._edgeNavigation,
+      sort_field:this.currentSortCol, sort_ascending:this.currentSortAsc});
 
     fetch("/api/documents/list", {
       method: "POST",
@@ -1007,6 +1057,11 @@ const _UniversalJournalTarget = {
         this.setFullLoadCursor(Boolean(data.has_more));
       }
 
+      if (data.success && activeCrits.some(c => ['pogruzka_duplicate','pogruzka_active_duplicate'].includes(c.fieldKey)) &&
+          data.debug_info?.pogruzka_duplicate_scope !== "all_including_deleted") {
+        data.success = false;
+        data.error = "Dublikat filtri üçün arxa plan serveri köhnə kodla işləyir. Serveri yenidən başladın; yalnız pəncərəni bağlamaq kifayət deyil.";
+      }
       if (!data.success) {
         this.lastDiagnostics = {
           timestamp: new Date().toLocaleTimeString(),
@@ -1063,6 +1118,20 @@ const _UniversalJournalTarget = {
       this.filteredItems = rawItems;
       this.lastDocDate = data.last_date || null;
       this.lastDocNumber = data.last_number || null;
+
+      if (this._edgeNavigation) {
+        this.hasMoreDocs = Boolean(data.has_more);
+        this._listReady = false; // An edge page is not a complete-list cache.
+        this.applyFiltersAndSearch();
+        const wrapper = this.getEl("ujTableWrapper");
+        const atEnd = this._edgeNavigation === "end";
+        if (wrapper) { wrapper.scrollTop = atEnd ? wrapper.scrollHeight : 0; this.updateVirtualRows(); }
+        if (this.filteredItems.length) this.selectRow(atEnd ? this.filteredItems.length - 1 : 0);
+        this.updateStatus(`${atEnd ? "Son" : "İlk"} səhifə: ${this.items.length} sənəd. Qonşu səhifələr sürüşdürmə zamanı yüklənir.`);
+        this.updateCountBadge(`Yüklənib: ${this.items.length}`);
+        this.updateBottomLoadingState(false);
+        return;
+      }
 
       // Update Window Header
       const titleEl = this.getEl("ujWindowTitle");
@@ -1201,7 +1270,44 @@ const _UniversalJournalTarget = {
     }, delayMs);
   },
 
+  fetchEdgeMore: function() {
+    if (!this.hasMoreDocs || this.isLoadingBackground || !this.isJournalActive() || this._paused) return;
+    const session = this.currentLoadSessionId;
+    const edge = this._edgeNavigation;
+    const query = this._listQuery || {};
+    const payload = {...(window.SessionManager ? SessionManager.getCredentials() : {}),
+      doc_type:this.activeDocType, date_from:this.formatDateForBackend(this.startDateStr),
+      date_to:this.formatDateForBackend(this.endDateStr,true), search:query.search || "",
+      search_field:query.search_field || "", search_mode:query.search_mode || "contains", filters:query.filters || [],
+      navigation_edge:edge, sort_field:this.currentSortCol, sort_ascending:this.currentSortAsc,
+      limit:this.initialChunkLimit, offset:this.items.length};
+    const requestKey = this.getListKey(payload.search,payload.filters);
+    if (this._appearance?.sort?.some(r=>r.enabled!==false)) payload.sort_rules=this._appearance.sort.filter(r=>r.enabled!==false);
+    this.isLoadingBackground = true;
+    this.updateBottomLoadingState(true);
+    fetch("/api/documents/list", {method:"POST",signal:this._listAbortController.signal,
+      headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)})
+      .then(response=>response.json()).then(data=>{
+        if (session !== this.currentLoadSessionId || requestKey !== this.getListKey(payload.search,payload.filters)) return;
+        if (!data.success) throw new Error(data.error || "Səhifə yüklənmədi");
+        const existing = new Set(this.items.map(item=>item.number));
+        const fresh = (data.items || []).filter(item=>!existing.has(item.number));
+        const wrapper = this.getEl("ujTableWrapper");
+        const scroll = wrapper?.scrollTop || 0;
+        this.items = edge === "end" ? fresh.concat(this.items) : this.items.concat(fresh);
+        this.hasMoreDocs = Boolean(data.has_more) && fresh.length > 0;
+        this.applyFiltersAndSearch(true);
+        if (wrapper && edge === "end") { wrapper.scrollTop = scroll + fresh.length * this.rowHeight; this.updateVirtualRows(); }
+        this.updateCountBadge(`Yüklənib: ${this.items.length}`);
+      }).catch(error=>{
+        if (session === this.currentLoadSessionId && error.name !== "AbortError") this.updateStatus(error.message);
+      }).finally(()=>{
+        if (session === this.currentLoadSessionId) { this.isLoadingBackground=false; this.updateBottomLoadingState(false); }
+      });
+  },
+
   fetchNextChunk: function(sessionId) {
+    if (this._edgeNavigation) { this.fetchEdgeMore(); return; }
     if (sessionId !== this.currentLoadSessionId) return;
     if (!this.isJournalActive()) return;
     if (!this.hasMoreDocs) {
@@ -1227,10 +1333,13 @@ const _UniversalJournalTarget = {
       search_mode: this._listQuery?.search_mode || "contains",
       filters: this._listQuery?.filters || [],
       include_nomenclatures: Boolean(this._listQuery?.include_nomenclatures),
-      limit: this._loadAllRemaining ? 2500 : this.backgroundChunkLimit,
+      limit: this._loadAllRemaining ? JournalLoadSettings.get() : this.backgroundChunkLimit,
       offset: this.items.length
     };
     const requestKey = this.getListKey(payload.search, payload.filters);
+    if (this._appearance?.sort?.some(r=>r.enabled!==false)) payload.sort_rules=this._appearance.sort.filter(r=>r.enabled!==false);
+    const chunkStarted = Date.now();
+    console.log(`[JOURNAL PAGE REQUEST] ${this.windowId}: period=${payload.date_from}..${payload.date_to}, limit=${payload.limit}, offset=${payload.offset}, cursor=${payload.last_date}|${payload.last_number}`);
 
     fetch("/api/documents/list", {
       method: "POST",
@@ -1253,6 +1362,8 @@ const _UniversalJournalTarget = {
       }
 
       let newItems = data.items || [];
+      const previousCount = this.items.length;
+      const previousCursor = `${this.lastDocDate || ""}|${this.lastDocNumber || ""}`;
       const startMs = this.parseFullDateTimeMs(this.startDateStr, false);
       const endMs = this.parseFullDateTimeMs(this.endDateStr, true);
       if (startMs !== null || endMs !== null) {
@@ -1296,6 +1407,30 @@ const _UniversalJournalTarget = {
       }
 
       this.hasMoreDocs = Boolean(data.has_more);
+      // Stop a broken continuation instead of repeating the same page forever.
+      const nextCursor = `${data.last_date || ""}|${data.last_number || ""}`;
+      this.lastDiagnostics = {
+        ...(this.lastDiagnostics || {}),
+        pagination: {
+          period: { from: payload.date_from, to: payload.date_to },
+          limit: payload.limit, offset: payload.offset,
+          received: (data.items || []).length, acceptedInPeriod: newItems.length,
+          added: this.items.length - previousCount, loaded: this.items.length,
+          previousCursor, nextCursor, serverHasMore: this.hasMoreDocs
+        }
+      };
+      console.log(`[JOURNAL PAGE RESULT] ${this.windowId}: received=${(data.items || []).length}, inPeriod=${newItems.length}, added=${this.items.length - previousCount}, loaded=${this.items.length}, hasMore=${this.hasMoreDocs}, cursor=${nextCursor}, ms=${Date.now() - chunkStarted}`);
+      if (this.hasMoreDocs && (this.items.length === previousCount ||
+          (payload.last_date && nextCursor === previousCursor))) {
+        this.isLoadingBackground = false;
+        this._loadAllRemaining = false;
+        this._paused = true;
+        this.setFullLoadCursor(false);
+        this.updateBottomLoadingState(false);
+        this.updateStatus("⚠️ Yükləmə dayandırıldı: növbəti paketdə yeni sənəd yoxdur və ya davam göstəricisi dəyişməyib. Siyahını yeniləyin.");
+        this.saveListCache();
+        return;
+      }
       this.lastDocDate = data.last_date || null;
       this.lastDocNumber = data.last_number || null;
       this.saveListCache();
@@ -1483,7 +1618,13 @@ const _UniversalJournalTarget = {
           // Infinite scroll on scrollbar pull near bottom
           const scrollBottom = wrapper.scrollHeight - wrapper.scrollTop - wrapper.clientHeight;
           const movingDown = wrapper.scrollTop > lastScrollTop;
+          const movingUp = wrapper.scrollTop < lastScrollTop;
           lastScrollTop = wrapper.scrollTop;
+          if (this._edgeNavigation === "end") {
+            if (movingUp && wrapper.scrollTop < 600 && this.hasMoreDocs) this.fetchEdgeMore();
+            ticking = false;
+            return;
+          }
           if (movingDown && scrollBottom < Math.max(600, wrapper.clientHeight * 2) && this.hasMoreDocs) {
             this.requestMoreDocuments((draggingScrollbar || performance.now() - scrollbarReleasedAt < 200) && scrollBottom <= 8);
           }
@@ -1546,6 +1687,15 @@ const _UniversalJournalTarget = {
     tbody.innerHTML = chunks.join("");
   },
 
+  getCellTextColor: function(row, key) {
+    return row && (key === "pogruzka_marshrut" || key === "pogruzka_voditel") &&
+      (Number(row.active_pogruzka_count) > 1 || row.pogruzka_duplicate === true) ? "#c00000" : (this.getCellFormatting(row,key).color || "#111111");
+  },
+
+  getCellFormatting: function(row,key) {
+    return typeof ListAppearance !== "undefined" ? ListAppearance.formatting(row,key,this._appearance) : {};
+  },
+
   renderRowHtml: function(row, i, visibleCols) {
     if (!visibleCols) visibleCols = this.getVisibleColumns();
     const isSelected = this.selectedRow && this.selectedRow.number === row.number;
@@ -1565,7 +1715,7 @@ const _UniversalJournalTarget = {
       const col = visibleCols[c];
       const key = col.key;
       const activeCell = isSelected && key === this.selectedColKey;
-      const selectionStyle = activeCell ? "background:#316ac5;color:#ffffff;" : (isSelected ? "background:#dceaf7;color:#111111;" : "");
+      const selectionStyle = activeCell ? "background:#316ac5;color:#ffffff;" : (isSelected ? "background:#dceaf7;" : "");
       let val = row[key];
 
       const wStyle = col.autoWidth ? "" : `width: ${col.width}px; min-width: ${col.width}px; max-width: ${col.width}px;`;
@@ -1583,11 +1733,17 @@ const _UniversalJournalTarget = {
         val = this.formatDateTime(val);
       }
 
-      const align = col.align || "left";
+      const align = this.getCellFormatting(row,key).textAlign || col.align || "left";
       const cellText = (val !== undefined && val !== null) ? String(val) : "";
 
       let cellCustomStyle = "";
+      const formatting=this.getCellFormatting(row,key);
+      cellCustomStyle=Object.entries(formatting).filter(([property])=>property!=='text').map(([property,value])=>`${property.replace(/[A-Z]/g,c=>'-'+c.toLowerCase())}:${value};`).join('');
+      if (this.getCellTextColor(row, key) === "#c00000") {
+        cellCustomStyle += "color:#c00000;font-weight:bold;";
+      }
       let cellInnerHtml = this.escapeHtml(cellText);
+      if(formatting.text!==undefined)cellInnerHtml=this.escapeHtml(formatting.text);
 
       cells.push(`<td class="${activeCell ? 'c1-cell-active' : ''}" data-col-key="${key}" style="${wStyle} ${cellCustomStyle} ${selectionStyle} padding: 2px 6px; text-align: ${align}; border: 1px solid #d4d0c8; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; user-select: text;" onclick="UniversalJournal.selectCell(${i}, '${key}', this, event)">${cellInnerHtml}</td>`);
     }
@@ -2088,6 +2244,8 @@ const _UniversalJournalTarget = {
         { key: "contract", label: "Договор контрагента", type: "text" },
         { key: "contract_price_type", label: "Тип цен", type: "text" },
         { key: "pogruzka_marshrut", label: "Пагрузка маршрут", type: "text" },
+        { key: "pogruzka_duplicate", label: "Погрузка машины: есть дубликаты (включая удалённые)", type: "boolean" },
+        { key: "pogruzka_active_duplicate", label: "Погрузка машины: активные дубликаты (красные)", type: "boolean" },
         { key: "pogruzka_voditel", label: "Пагрузка водитель", type: "text" }
       );
     }
@@ -2168,7 +2326,8 @@ const _UniversalJournalTarget = {
       activePresetName: this.activePresetName,
       isServerFiltered: Boolean(this.isServerFiltered),
       items: this.items,
-      onApply: (appliedFilters, presetName) => {
+      onApply: (appliedFilters, presetName, appearance) => {
+        if (appearance) this._appearance=appearance;
         this.activeFilters = appliedFilters;
         this.activePresetName = presetName || "";
         this.saveActiveFiltersToStorage();
@@ -2750,8 +2909,9 @@ const _UniversalJournalTarget = {
           td.classList.add("c1-cell-active");
           this.copyAndSelectCellText(td);
         } else {
-          td.style.background = isSel ? "#dceaf7" : defaultBg;
-          td.style.color = "#111111";
+          const formatting=this.getCellFormatting(this.filteredItems[rowIdx],k);
+          td.style.background = isSel ? "#dceaf7" : (formatting.background || defaultBg);
+          td.style.color = this.getCellTextColor(this.filteredItems[rowIdx], k);
           td.classList.remove("c1-cell-active");
         }
       });
@@ -3198,6 +3358,7 @@ const _UniversalJournalTarget = {
   },
 
   closeFindModal: function() {
+    this.hideFindSuggestions();
     const modal = document.getElementById("ujFindModal");
     if (modal) modal.style.display = "none";
   },
@@ -3211,6 +3372,9 @@ const _UniversalJournalTarget = {
     const operator = definition?.type && definition.type !== "text" ? "Равно" : ({ exact: "Равно", starts: "Начинается с", contains: "Содержит" })[mode];
     const criterion = { fieldKey: field, fieldLabel: definition?.label || field,
       comparison: operator, operator, value, enabled: true };
+    if(mode==='exact' && this._findItem?.value===value && ['kontragent','golovnoy_kontragent'].includes(field)){
+      criterion.referenceCode=this._findItem.code;criterion.referenceName=value;
+    }
     this.selectedColKey = field;
     this.closeFindModal();
     this.commitColumnFilter(criterion);
@@ -3226,6 +3390,55 @@ const _UniversalJournalTarget = {
     this.updateActiveFilterBadgeUI();
     this.updateFilterButtonsState();
     this.executeSearchOrFilter();
+  },
+
+  normalizeFindCustomerQuery: function(value) {
+    return String(value||'').replace(/(?:\s*[-–—]\s*[CС]\d{6,})+\s*$/i,'').trim();
+  },
+  hideFindSuggestions: function() {
+    clearTimeout(this._findSuggestionTimer);this._findSuggestionRequest=(this._findSuggestionRequest||0)+1;
+    document.getElementById('ujFindSuggestions')?.remove();this._findSuggestions=[];
+  },
+  onFindTextInput: function() {
+    this._findItem=null;this.hideFindSuggestions();
+    const field=document.getElementById('ujFindColumn')?.value;
+    if(!['kontragent','golovnoy_kontragent','kontragent_code','golovnoy_kontragent_code'].includes(field))return;
+    const input=document.getElementById('ujFindText'),raw=input.value,query=this.normalizeFindCustomerQuery(raw);
+    if(query.length<2)return;
+    const version=this._findSuggestionRequest;
+    this._findSuggestionTimer=setTimeout(async()=>{
+      try{
+        const response=await fetch('/api/search_kontragents',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({...SessionManager.getCredentials(),query})});
+        const data=await response.json();
+        if(version!==this._findSuggestionRequest||input.value!==raw||document.getElementById('ujFindColumn')?.value!==field)return;
+        this._findSuggestions=data.success?(data.items||[]):[];this._findSuggestionIndex=0;this.renderFindSuggestions();
+      }catch(error){if(version===this._findSuggestionRequest)this.updateStatus('Kontragent axtarışı alınmadı: '+error.message);}
+    },180);
+  },
+  renderFindSuggestions: function() {
+    let popup=document.getElementById('ujFindSuggestions');
+    if(!popup){popup=document.createElement('div');popup.id='ujFindSuggestions';popup.setAttribute('role','listbox');document.body.appendChild(popup);}
+    const rect=document.getElementById('ujFindText').getBoundingClientRect();
+    popup.style.cssText=`position:fixed;z-index:2147483002;left:${rect.left}px;top:${rect.bottom}px;width:${rect.width}px;max-height:220px;overflow:auto;background:white;border:1px solid #7f9db9;box-shadow:0 3px 8px #0003;font:12px Tahoma`;
+    popup.innerHTML=this._findSuggestions.length?this._findSuggestions.map((item,i)=>{
+      const label=String(item.name||'').includes(item.code)?item.name:`${item.name} - ${item.code}`;
+      return `<button type="button" role="option" aria-selected="${i===this._findSuggestionIndex}" style="display:block;width:100%;text-align:left;padding:5px;border:0;background:${i===this._findSuggestionIndex?'#dceaf7':'white'};cursor:pointer" onmousedown="event.preventDefault()" onclick="UniversalJournal.chooseFindSuggestion(${i})">${this.escapeHtml(label)}</button>`;
+    }).join(''):'<div style="padding:6px">Uyğun kontragent tapılmadı</div>';
+  },
+  chooseFindSuggestion: function(index) {
+    const item=this._findSuggestions?.[index];if(!item)return;
+    const field=document.getElementById('ujFindColumn').value,value=field.endsWith('_code')?item.code:item.name;
+    document.getElementById('ujFindText').value=value;
+    this._findItem={catalog:'Контрагенты',code:item.code,name:item.name,value};
+    this.hideFindSuggestions();document.querySelector('input[name="ujFindMatch"][value="exact"]').checked=true;
+  },
+  onFindSuggestionKey: function(event) {
+    if(!this._findSuggestions?.length)return;
+    if(['ArrowDown','ArrowUp','Enter'].includes(event.key)){
+      event.preventDefault();event.stopPropagation();
+      if(event.key==='Enter')this.chooseFindSuggestion(this._findSuggestionIndex);
+      else{this._findSuggestionIndex=(this._findSuggestionIndex+(event.key==='ArrowDown'?1:-1)+this._findSuggestions.length)%this._findSuggestions.length;this.renderFindSuggestions();}
+    }
   },
 
   findCatalogForColumn: function(key) {
@@ -3246,6 +3459,7 @@ const _UniversalJournalTarget = {
   },
 
   updateFindReferenceButtons: function() {
+    this.hideFindSuggestions();this._findItem=null;
     const supported = Boolean(this.findCatalogForColumn(document.getElementById("ujFindColumn")?.value));
     for (const id of ["ujFindChoose", "ujFindInspect"]) {
       const button = document.getElementById(id);
@@ -3297,6 +3511,11 @@ const _UniversalJournalTarget = {
       this.currentSortCol = saved?.column || "date";
       this.currentSortAsc = saved ? saved.ascending === true : false;
     } catch (_) { this.currentSortCol = "date"; this.currentSortAsc = false; }
+    if (typeof ListAppearance !== "undefined") {
+      this._appearance=ListAppearance.load(this.activeDocType);
+      const first=this._appearance.sort.find(r=>r.enabled!==false);
+      if(first){this.currentSortCol=first.field;this.currentSortAsc=first.ascending===true;}
+    }
   },
 
   clearSearch: function() {
@@ -3333,11 +3552,15 @@ const _UniversalJournalTarget = {
       this.currentSortAsc = true;
     }
     try { localStorage.setItem("uj_sort_" + this.activeDocType, JSON.stringify({ column: this.currentSortCol, ascending: this.currentSortAsc })); } catch (_) {}
+    if(this._appearance){this._appearance.sort=[];try{localStorage.setItem('uj_appearance_'+this.activeDocType,JSON.stringify(this._appearance));}catch(_){} }
+    if (this._edgeNavigation || JournalLoadSettings.mode() === "edge") { this.loadDocuments({force:true,edge:"home"}); return; }
     this.applySort();
     this.renderTable();
   },
 
   applySort: function() {
+    // Multi-field ordering is already applied by 1C before paging.
+    if(this._appearance?.sort?.some(r=>r.enabled!==false)) return;
     if (!this.currentSortCol) return;
     const col = this.currentSortCol;
     const asc = this.currentSortAsc ? 1 : -1;
@@ -3959,10 +4182,15 @@ document.addEventListener("keydown", function(e) {
   if (!isEditing && (e.key === "End" || e.key === "Home")) {
     e.preventDefault();
     e.stopPropagation();
+    if (JournalLoadSettings.mode() === "edge") {
+      activeInst.loadDocuments({force:true,edge:e.key === "End" ? "end" : "home"});
+      return;
+    }
     if (e.key === "Home") {
       const wrapper = activeInst.getEl("ujTableWrapper");
       if (wrapper) wrapper.scrollTop = 0;
-      if (activeInst.items && activeInst.items.length > 0) activeInst.selectRowByIndex(0);
+      if (activeInst.filteredItems && activeInst.filteredItems.length > 0) activeInst.selectRow(0);
+      if (activeInst.hasMoreDocs) activeInst.requestMoreDocuments(true);
       return;
     }
     // "End" düyməsi basıldıqda: mövcud siyahını silmədən qalan bütün sənədləri arxada axınla çəkir və aşağı sürüşdürür
@@ -4034,6 +4262,8 @@ document.addEventListener("copy", function(e) {
 
 // DOM yükləndikdə ilkin inisializasiya və mövcud sahələrin render edilməsi
 document.addEventListener("DOMContentLoaded", function() {
+  const bulkInput = document.getElementById("journalBulkSize");
+  if (bulkInput) bulkInput.value = JournalLoadSettings.get();
   if (typeof UniversalJournal !== "undefined") {
     UniversalJournal.init();
     if (typeof UniversalJournal.renderFilterAvailableFields === "function") {

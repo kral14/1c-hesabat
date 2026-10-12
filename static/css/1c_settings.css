@@ -567,3 +567,10 @@ tr:hover .grouping-btn-pick {
   align-items: center;
   gap: 6px;
 }
+
+#ujFilterTabBodyOtbor { gap: 0 !important; }
+#ujFilterPaneSplitter { flex: 0 0 8px; cursor: col-resize; touch-action: none; background: #f0eee3; }
+#ujFilterPaneSplitter:hover, #ujFilterPaneSplitter:focus { background: #b8cbe4; outline: none; }
+#ujFieldSelectWindow { resize: both; overflow: hidden; min-width: 280px; min-height: 300px; }
+#ujFieldSelectTitlebar { cursor: move; touch-action: none; flex-shrink: 0; }
+#ujFieldSelectModalList { min-height: 0; }

@@ -1,0 +1,377 @@
+<!-- ========================================================
+     1C:ENTERPRISE CUSTOMER ORDER ANALYSIS - SETTINGS MODAL
+     templates/components/order_analysis_settings_modal.html
+     ======================================================== -->
+
+<div class="mdi-window" id="orderAnalysisSettingsModal" style="display: none; top: 35px; left: 60px; width: 900px; height: 580px; min-width: 620px; min-height: 420px; z-index: 120;" onmousedown="MdiManager.activateWindow('orderAnalysisSettingsModal')">
+  
+  <!-- Window Header with Maximize, Minimize, Close -->
+  <div class="mdi-window-header" ondblclick="MdiManager.toggleMaximize('orderAnalysisSettingsModal')">
+    <div class="mdi-win-title-left">
+      <span class="mdi-win-icon">⚙️</span>
+      <span class="mdi-win-title-text" id="oaSettingsTitle">Настройка: Заказы покупателей (Анализ)</span>
+    </div>
+    <div class="mdi-win-controls">
+      <button class="mdi-win-btn mdi-win-btn-min" title="Qatla" onclick="MdiManager.minimizeWindow('orderAnalysisSettingsModal')" onmousedown="event.stopPropagation()">_</button>
+      <button class="mdi-win-btn mdi-win-btn-max" title="Böyüt / Bərpa et" onclick="MdiManager.toggleMaximize('orderAnalysisSettingsModal')" onmousedown="event.stopPropagation()">□</button>
+      <button class="mdi-win-btn mdi-win-btn-close" title="Bağla" onclick="OrderAnalysisSettings.close()" onmousedown="event.stopPropagation()">✕</button>
+    </div>
+  </div>
+
+  <!-- Window Body -->
+  <div class="mdi-window-body" style="background-color: #f7f6f0; display: flex; flex-direction: column;">
+    <div class="settings-body" style="flex: 1; padding: 8px 10px; display: flex; flex-direction: column; gap: 8px; overflow-y: auto;">
+      
+      <!-- Top Section: Period & Parameters -->
+      <div class="settings-top-section">
+        
+        <!-- Period Row -->
+        <div class="settings-period-row" style="display: flex; align-items: center; gap: 6px;">
+          <span style="font-weight: bold; color: #333; font-size: 11px;">Период с:</span>
+          <div class="period-input-wrapper">
+            <input type="text" id="oaDlgStartDate" class="period-input-1c" value="01.08.2026">
+            <button class="period-cal-btn" onclick="pickDate('oaDlgStartDate', this)">📅</button>
+          </div>
+
+          <span style="font-weight: bold; color: #333; font-size: 11px;">по:</span>
+          <div class="period-input-wrapper">
+            <input type="text" id="oaDlgEndDate" class="period-input-1c" value="30.09.2026">
+            <button class="period-cal-btn" onclick="pickDate('oaDlgEndDate', this)">📅</button>
+          </div>
+
+          <button class="period-more-btn" onclick="OrderAnalysisSettings.openPeriodPicker(this)" title="Выбрать период">...</button>
+        </div>
+
+        <!-- Parameters Checkboxes -->
+        <div class="settings-params-row" style="margin-top: 6px; padding: 6px 8px; background: #fff; border: 1px solid #d0d0d0; border-radius: 2px;">
+          <div class="settings-params-title" style="font-size: 10px; font-weight: bold; color: #666; margin-bottom: 4px;">Параметры</div>
+          <div class="settings-checkboxes-group" style="display: flex; gap: 16px; flex-wrap: wrap; font-size: 11px;">
+            <label class="checkbox-1c-label" style="display: flex; align-items: center; gap: 4px; cursor: pointer;">
+              <input type="checkbox" id="oaChkPostedOnly" checked>
+              <span>Только проведенные заказы</span>
+            </label>
+
+            <label class="checkbox-1c-label" style="display: flex; align-items: center; gap: 4px; cursor: pointer;">
+              <input type="checkbox" id="oaChkShowTotals" checked>
+              <span>Выводить общие итоги</span>
+            </label>
+
+            <label class="checkbox-1c-label" style="display: flex; align-items: center; gap: 4px; cursor: pointer;">
+              <input type="checkbox" id="oaChkNegativeRed" checked>
+              <span>Отрицательное красным</span>
+            </label>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Middle 3-Column Section: Показатели | Группировки строк | Группировки колонок -->
+      <div class="settings-middle-grid" style="display: grid; grid-template-columns: 240px 1fr 180px; gap: 8px; min-height: 200px;">
+        
+        <!-- 1. Box: Показатели (Indicators) -->
+        <div class="settings-box" style="border: 1px solid #7f9db9; background: #fff; display: flex; flex-direction: column;">
+          <div class="settings-box-header" style="background: #e8e6d9; padding: 3px 6px; border-bottom: 1px solid #b0af9f; display: flex; align-items: center; justify-content: space-between;">
+            <span class="settings-box-title" style="font-weight: bold; font-size: 11px;">Показатели</span>
+            <div class="settings-box-toolbar" style="display: flex; gap: 2px;">
+              <button class="box-tool-btn" onclick="OrderAnalysisSettings.checkAllIndicators(true)" title="Все" style="height: 18px; padding: 0 4px; font-size: 10px;">➕</button>
+              <button class="box-tool-btn" onclick="OrderAnalysisSettings.checkAllIndicators(false)" title="Снять" style="height: 18px; padding: 0 4px; font-size: 10px;">✖</button>
+            </div>
+          </div>
+          <div class="settings-box-content" style="padding: 6px; overflow-y: auto; flex: 1;">
+            <ul class="indicators-tree" style="list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 4px; font-size: 11px;">
+              <li style="display: flex; align-items: center; gap: 6px;">
+                <input type="checkbox" id="oaIndQtyOrder" checked>
+                <label for="oaIndQtyOrder" style="cursor: pointer; font-weight: bold; color: #1b5e20;">Количество (Заказ)</label>
+              </li>
+              <li style="display: flex; align-items: center; gap: 6px;">
+                <input type="checkbox" id="oaIndSumOrder" checked>
+                <label for="oaIndSumOrder" style="cursor: pointer; font-weight: bold; color: #1b5e20;">Сумма (Заказ AZN)</label>
+              </li>
+              <li style="display: flex; align-items: center; gap: 6px;">
+                <input type="checkbox" id="oaIndQtyReal" checked>
+                <label for="oaIndQtyReal" style="cursor: pointer; font-weight: bold; color: #002060;">Количество (Реализация)</label>
+              </li>
+              <li style="display: flex; align-items: center; gap: 6px;">
+                <input type="checkbox" id="oaIndSumReal" checked>
+                <label for="oaIndSumReal" style="cursor: pointer; font-weight: bold; color: #002060;">Сумма (Реализация AZN)</label>
+              </li>
+              <li style="display: flex; align-items: center; gap: 6px;">
+                <input type="checkbox" id="oaIndQtyDiff" checked>
+                <label for="oaIndQtyDiff" style="cursor: pointer; font-weight: bold; color: #b71c1c;">Разница (Заказ - Реализ.)</label>
+              </li>
+              <li style="display: flex; align-items: center; gap: 6px;">
+                <input type="checkbox" id="oaIndQtyRet" checked>
+                <label for="oaIndQtyRet" style="cursor: pointer; font-weight: bold; color: #e65100;">Количество (Возврат)</label>
+              </li>
+              <li style="display: flex; align-items: center; gap: 6px;">
+                <input type="checkbox" id="oaIndSumRet" checked>
+                <label for="oaIndSumRet" style="cursor: pointer; font-weight: bold; color: #e65100;">Сумма (Возврат AZN)</label>
+              </li>
+              <li style="display: flex; align-items: center; gap: 6px;">
+                <input type="checkbox" id="oaIndQtyNet" checked>
+                <label for="oaIndQtyNet" style="cursor: pointer; font-weight: bold; color: #33691e;">Чистая продажа (Кол-во)</label>
+              </li>
+              <li style="display: flex; align-items: center; gap: 6px;">
+                <input type="checkbox" id="oaIndSumNet" checked>
+                <label for="oaIndSumNet" style="cursor: pointer; font-weight: bold; color: #33691e;">Чистая продажа (Сумма AZN)</label>
+              </li>
+              <li style="display: flex; align-items: center; gap: 6px; border-top: 1px dashed #ccc; padding-top: 4px; margin-top: 2px;">
+                <input type="checkbox" id="oaIndShowCode" checked>
+                <label for="oaIndShowCode" style="cursor: pointer;">Код (Контрагент / Товар)</label>
+              </li>
+              <li style="display: flex; align-items: center; gap: 6px;">
+                <input type="checkbox" id="oaIndShowArticle" checked>
+                <label for="oaIndShowArticle" style="cursor: pointer;">Артикул</label>
+              </li>
+              <li style="display: flex; align-items: center; gap: 6px;">
+                <input type="checkbox" id="oaIndShowBarcode" checked>
+                <label for="oaIndShowBarcode" style="cursor: pointer;">Штрихкод</label>
+              </li>
+            </ul>
+          </div>
+        </div>
+
+        <!-- 2. Box: Группировки строк (Row Groupings) -->
+        <div class="settings-box" style="border: 1px solid #7f9db9; background: #fff; display: flex; flex-direction: column;">
+          <div class="settings-box-header" style="background: #e8e6d9; padding: 3px 6px; border-bottom: 1px solid #b0af9f; display: flex; align-items: center; justify-content: space-between;">
+            <span class="settings-box-title" style="font-weight: bold; font-size: 11px;">Группировки строк</span>
+            <div class="settings-box-toolbar" style="display: flex; gap: 3px;">
+              <button class="box-tool-btn" onclick="OrderAnalysisSettings.addGroupingRow()" title="Добавить поле группировки" style="height: 18px; padding: 0 6px; font-weight: bold; color: #5c007a;">+</button>
+              <button class="box-tool-btn" onclick="OrderAnalysisSettings.removeSelectedGrouping()" title="Удалить" style="height: 18px; padding: 0 6px; color: #c62828;">✕</button>
+              <button class="box-tool-btn" onclick="OrderAnalysisSettings.moveGroupingUp()" title="Вверх" style="height: 18px; padding: 0 4px;">▲</button>
+              <button class="box-tool-btn" onclick="OrderAnalysisSettings.moveGroupingDown()" title="Вниз" style="height: 18px; padding: 0 4px;">▼</button>
+            </div>
+          </div>
+          <div class="settings-box-content" style="padding: 0; overflow-y: auto; flex: 1;">
+            <table class="groupings-table" id="oaGroupingsTable" style="width: 100%; border-collapse: collapse; font-size: 11px;">
+              <thead>
+                <tr style="background: #f2f2f2; height: 20px; border-bottom: 1px solid #ddd;">
+                  <th style="text-align: left; padding: 2px 6px; font-weight: bold;">Поле группировки</th>
+                  <th style="width: 100px; text-align: left; padding: 2px 6px; font-weight: bold;">Тип</th>
+                </tr>
+              </thead>
+              <tbody id="oaGroupingsBody">
+                <tr class="selected" onclick="OrderAnalysisSettings.selectGroupingRow(this)">
+                  <td style="padding: 3px 6px; border-bottom: 1px solid #eee;">
+                    <div style="display: flex; align-items: center; justify-content: space-between;">
+                      <span class="oa-grouping-name" style="font-weight: bold; color: #002060;">Контрагент</span>
+                      <select class="oa-grouping-select" onchange="OrderAnalysisSettings.onGroupingFieldChange(this)" style="font-size: 11px; height: 20px;">
+                        <option value="День">День (Дата)</option>
+                        <option value="Неделя">Неделя</option>
+                        <option value="Месяц">Месяц</option>
+                        <option value="Год">Год</option>
+                        <option value="Заказ">Заказ (Документ)</option>
+                        <option value="Контрагент" selected>Контрагент (Магазин)</option>
+                        <option value="Номенклатура">Номенклатура (Товар)</option>
+                        <option value="Портфель">Портфель</option>
+                        <option value="Склад">Склад</option>
+                        <option value="Агент">Агент</option>
+                      </select>
+                    </div>
+                  </td>
+                  <td style="padding: 3px 6px; border-bottom: 1px solid #eee;">
+                    <span style="color: #666;">Элементы</span>
+                  </td>
+                </tr>
+                <tr onclick="OrderAnalysisSettings.selectGroupingRow(this)">
+                  <td style="padding: 3px 6px; border-bottom: 1px solid #eee;">
+                    <div style="display: flex; align-items: center; justify-content: space-between;">
+                      <span class="oa-grouping-name" style="font-weight: bold; color: #002060;">Номенклатура</span>
+                      <select class="oa-grouping-select" onchange="OrderAnalysisSettings.onGroupingFieldChange(this)" style="font-size: 11px; height: 20px;">
+                        <option value="День">День (Дата)</option>
+                        <option value="Неделя">Неделя</option>
+                        <option value="Месяц">Месяц</option>
+                        <option value="Год">Год</option>
+                        <option value="Заказ">Заказ (Документ)</option>
+                        <option value="Контрагент">Контрагент (Магазин)</option>
+                        <option value="Номенклатура" selected>Номенклатура (Товар)</option>
+                        <option value="Портфель">Портфель</option>
+                        <option value="Склад">Склад</option>
+                        <option value="Агент">Агент</option>
+                      </select>
+                    </div>
+                  </td>
+                  <td style="padding: 3px 6px; border-bottom: 1px solid #eee;">
+                    <span style="color: #666;">Без групп</span>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- 3. Box: Группировки колонок -->
+        <div class="settings-box" style="border: 1px solid #7f9db9; background: #fff; display: flex; flex-direction: column;">
+          <div class="settings-box-header" style="background: #e8e6d9; padding: 3px 6px; border-bottom: 1px solid #b0af9f;">
+            <span class="settings-box-title" style="font-weight: bold; font-size: 11px;">Группировки колонок</span>
+          </div>
+          <div class="settings-box-content" style="padding: 8px; color: #777; font-size: 11px; flex: 1;">
+            (Отсутствуют)
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Bottom Section: Отборы (Filters Table) -->
+      <div class="settings-filters-section" style="border: 1px solid #7f9db9; background: #fff; display: flex; flex-direction: column; min-height: 160px;">
+        <div class="settings-box-header" style="background: #e8e6d9; padding: 3px 6px; border-bottom: 1px solid #b0af9f; display: flex; align-items: center; justify-content: space-between;">
+          <span class="settings-box-title" style="font-weight: bold; font-size: 11px;">Отборы (Фильтры)</span>
+          <div class="settings-box-toolbar" style="display: flex; gap: 3px;">
+            <button class="box-tool-btn" onclick="OrderAnalysisSettings.addFilterRow()" title="Добавить строку отбора" style="height: 18px; padding: 0 6px;">➕</button>
+            <button class="box-tool-btn" onclick="OrderAnalysisSettings.removeFilterRow()" title="Удалить строку" style="height: 18px; padding: 0 6px;">✖</button>
+            <button class="box-tool-btn" onclick="OrderAnalysisSettings.clearAllFilters()" title="Очистить все отборы" style="height: 18px; padding: 0 6px;">📄</button>
+          </div>
+        </div>
+
+        <div class="filters-table-container" style="overflow-y: auto; flex: 1;">
+          <table class="filters-table" id="oaFiltersTable" style="width: 100%; border-collapse: collapse; font-size: 11px;">
+            <thead>
+              <tr style="background: #f2f2f2; height: 22px; border-bottom: 1px solid #ccc;">
+                <th style="width: 32px; text-align: center; border-right: 1px solid #ddd;">✔</th>
+                <th style="width: 180px; text-align: left; padding: 2px 6px; border-right: 1px solid #ddd;">Поле</th>
+                <th style="width: 150px; text-align: left; padding: 2px 6px; border-right: 1px solid #ddd;">Тип сравнения</th>
+                <th style="text-align: left; padding: 2px 6px;">Значение</th>
+              </tr>
+            </thead>
+            <tbody id="oaFiltersBody">
+              
+              <!-- Filter Row 1: Контрагент -->
+              <tr onclick="OrderAnalysisSettings.selectFilterRow(this)">
+                <td style="text-align: center; border-bottom: 1px solid #eee;"><input type="checkbox" class="oa-filter-chk"></td>
+                <td style="padding: 2px 6px; border-bottom: 1px solid #eee;">
+                  <select class="oa-filter-field" style="width: 100%; height: 20px; font-size: 11px;">
+                    <option value="Контрагент" selected>Контрагент</option>
+                    <option value="Номенклатура">Номенклатура</option>
+                    <option value="Склад">Склад</option>
+                    <option value="Агент">Агент</option>
+                    <option value="Портфель">Портфель</option>
+                  </select>
+                </td>
+                <td style="padding: 2px 6px; border-bottom: 1px solid #eee;">
+                  <select class="oa-filter-comp" style="width: 100%; height: 20px; font-size: 11px;">
+                    <option value="in_list" selected>В группе из списка</option>
+                    <option value="equal">Равно</option>
+                    <option value="not_equal">Не равно</option>
+                    <option value="contains">Содержит</option>
+                  </select>
+                </td>
+                <td style="padding: 2px 6px; border-bottom: 1px solid #eee;">
+                  <div style="display: flex; align-items: center; gap: 2px;">
+                    <input type="text" class="oa-filter-val" placeholder="Выберите покупателя..." style="flex: 1; height: 20px; font-size: 11px; padding: 1px 4px; border: 1px solid #ccc;">
+                    <button type="button" onclick="OrderAnalysisSettings.pickCatalog(this, 'Контрагенты')" title="Выбрать..." style="height: 20px; width: 22px; cursor: pointer;">...</button>
+                  </div>
+                </td>
+              </tr>
+
+              <!-- Filter Row 2: Номенклатура -->
+              <tr onclick="OrderAnalysisSettings.selectFilterRow(this)">
+                <td style="text-align: center; border-bottom: 1px solid #eee;"><input type="checkbox" class="oa-filter-chk"></td>
+                <td style="padding: 2px 6px; border-bottom: 1px solid #eee;">
+                  <select class="oa-filter-field" style="width: 100%; height: 20px; font-size: 11px;">
+                    <option value="Контрагент">Контрагент</option>
+                    <option value="Номенклатура" selected>Номенклатура</option>
+                    <option value="Склад">Склад</option>
+                    <option value="Агент">Агент</option>
+                    <option value="Портфель">Портфель</option>
+                  </select>
+                </td>
+                <td style="padding: 2px 6px; border-bottom: 1px solid #eee;">
+                  <select class="oa-filter-comp" style="width: 100%; height: 20px; font-size: 11px;">
+                    <option value="in_list" selected>В группе из списка</option>
+                    <option value="equal">Равно</option>
+                    <option value="not_equal">Не равно</option>
+                    <option value="contains">Содержит</option>
+                  </select>
+                </td>
+                <td style="padding: 2px 6px; border-bottom: 1px solid #eee;">
+                  <div style="display: flex; align-items: center; gap: 2px;">
+                    <input type="text" class="oa-filter-val" placeholder="Выберите товар..." style="flex: 1; height: 20px; font-size: 11px; padding: 1px 4px; border: 1px solid #ccc;">
+                    <button type="button" onclick="OrderAnalysisSettings.pickCatalog(this, 'Номенклатура')" title="Выбрать..." style="height: 20px; width: 22px; cursor: pointer;">...</button>
+                  </div>
+                </td>
+              </tr>
+
+              <!-- Filter Row 3: Склад -->
+              <tr onclick="OrderAnalysisSettings.selectFilterRow(this)">
+                <td style="text-align: center; border-bottom: 1px solid #eee;"><input type="checkbox" class="oa-filter-chk"></td>
+                <td style="padding: 2px 6px; border-bottom: 1px solid #eee;">
+                  <select class="oa-filter-field" style="width: 100%; height: 20px; font-size: 11px;">
+                    <option value="Контрагент">Контрагент</option>
+                    <option value="Номенклатура">Номенклатура</option>
+                    <option value="Склад" selected>Склад</option>
+                    <option value="Агент">Агент</option>
+                    <option value="Портфель">Портфель</option>
+                  </select>
+                </td>
+                <td style="padding: 2px 6px; border-bottom: 1px solid #eee;">
+                  <select class="oa-filter-comp" style="width: 100%; height: 20px; font-size: 11px;">
+                    <option value="in_list" selected>В группе из списка</option>
+                    <option value="equal">Равно</option>
+                    <option value="not_equal">Не равно</option>
+                  </select>
+                </td>
+                <td style="padding: 2px 6px; border-bottom: 1px solid #eee;">
+                  <div style="display: flex; align-items: center; gap: 2px;">
+                    <input type="text" class="oa-filter-val" placeholder="Выберите склад..." style="flex: 1; height: 20px; font-size: 11px; padding: 1px 4px; border: 1px solid #ccc;">
+                    <button type="button" onclick="OrderAnalysisSettings.pickCatalog(this, 'Склады')" title="Выбрать..." style="height: 20px; width: 22px; cursor: pointer;">...</button>
+                  </div>
+                </td>
+              </tr>
+
+              <!-- Filter Row 4: Агент -->
+              <tr onclick="OrderAnalysisSettings.selectFilterRow(this)">
+                <td style="text-align: center; border-bottom: 1px solid #eee;"><input type="checkbox" class="oa-filter-chk"></td>
+                <td style="padding: 2px 6px; border-bottom: 1px solid #eee;">
+                  <select class="oa-filter-field" style="width: 100%; height: 20px; font-size: 11px;">
+                    <option value="Контрагент">Контрагент</option>
+                    <option value="Номенклатура">Номенклатура</option>
+                    <option value="Склад">Склад</option>
+                    <option value="Агент" selected>Агент</option>
+                    <option value="Портфель">Портфель</option>
+                  </select>
+                </td>
+                <td style="padding: 2px 6px; border-bottom: 1px solid #eee;">
+                  <select class="oa-filter-comp" style="width: 100%; height: 20px; font-size: 11px;">
+                    <option value="in_list" selected>В группе из списка</option>
+                    <option value="equal">Равно</option>
+                    <option value="not_equal">Не равно</option>
+                  </select>
+                </td>
+                <td style="padding: 2px 6px; border-bottom: 1px solid #eee;">
+                  <div style="display: flex; align-items: center; gap: 2px;">
+                    <input type="text" class="oa-filter-val" placeholder="Выберите агента..." style="flex: 1; height: 20px; font-size: 11px; padding: 1px 4px; border: 1px solid #ccc;">
+                    <button type="button" onclick="OrderAnalysisSettings.pickCatalog(this, 'Агенты')" title="Выбрать..." style="height: 20px; width: 22px; cursor: pointer;">...</button>
+                  </div>
+                </td>
+              </tr>
+
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Window Footer -->
+    <div class="settings-footer" style="padding: 6px 10px; background: #e5e2cf; border-top: 1px solid #b0af9f; display: flex; align-items: center; justify-content: space-between;">
+      <div class="settings-footer-left">
+        <button class="btn-1c" onclick="OrderAnalysisSettings.resetToDefaults()" style="font-size: 11px;">
+          <span>↺ Стандартные настройки</span>
+        </button>
+      </div>
+
+      <div class="settings-footer-right" style="display: flex; gap: 6px;">
+        <button class="btn-1c primary" onclick="OrderAnalysisSettings.applyAndGenerate()">
+          <span style="color: #107c10; font-size: 10px;">▶</span>
+          <span>Сформировать</span>
+        </button>
+        <button class="btn-1c" onclick="OrderAnalysisSettings.applyAndClose()" style="min-width: 60px;">
+          <span>OK</span>
+        </button>
+        <button class="btn-1c" onclick="OrderAnalysisSettings.close()" style="min-width: 60px;">
+          <span>Отмена</span>
+        </button>
+      </div>
+    </div>
+  </div>
+</div>

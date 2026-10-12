@@ -86,6 +86,7 @@ const MdiManager = {
     if (id.startsWith("nomenclatureCardWindow")) return "nomenclatureCard";
     if (id.startsWith("auditJournalWindow")) return "auditJournal";
     if (id.startsWith("portfolioCatalogWindow")) return "portfolioCatalog";
+    if (id.startsWith("orderAnalysisWindow")) return "orderAnalysis";
     if (id.startsWith("mdiWindow-")) return "reportWindow";
     return id;
   },
@@ -595,6 +596,37 @@ const MdiManager = {
         startHidden: true,
         closeFn: () => {
           if (typeof AuditJournal !== "undefined" && AuditJournal.closeDiff) AuditJournal.closeDiff();
+        }
+      });
+    }
+
+    // 18. Order Analysis Report Window (Заказ покупателя анализ - starts hidden)
+    const oaWin = document.getElementById("orderAnalysisWindow");
+    if (oaWin) {
+      this.registerWindow("orderAnalysisWindow", {
+        title: "Заказы покупателей (Анализ)",
+        icon: "🛒",
+        element: oaWin,
+        isDefault: true,
+        startHidden: true,
+        closeFn: () => {
+          if (typeof OrderAnalysisReport !== "undefined" && OrderAnalysisReport.closeWindow) OrderAnalysisReport.closeWindow();
+        }
+      });
+    }
+
+    // 19. Order Analysis Settings Modal (starts hidden)
+    const oasWin = document.getElementById("orderAnalysisSettingsModal");
+    if (oasWin) {
+      this.registerWindow("orderAnalysisSettingsModal", {
+        title: "Настройка: Заказы покупателей (Анализ)",
+        icon: "⚙️",
+        element: oasWin,
+        isDefault: true,
+        isDialog: true,
+        startHidden: true,
+        closeFn: () => {
+          if (typeof OrderAnalysisSettings !== "undefined" && OrderAnalysisSettings.close) OrderAnalysisSettings.close();
         }
       });
     }
@@ -1324,6 +1356,10 @@ const MdiManager = {
     this.updateWindowMenu();
     this.auditStack("closeWindow: " + id);
     this.saveOpenWindowsSession();
+  },
+
+  openWindow(id, options = {}) {
+    return this.activateWindow(id, options);
   },
 
   openOrRestoreReportWindow() {

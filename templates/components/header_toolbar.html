@@ -20,6 +20,17 @@
 <div class="toolbar-1c">
   <div class="toolbar-left">
     
+    <!-- Report Selector Combobox (Matching Document Journal) -->
+    <div style="display: flex; align-items: center; gap: 4px; margin-right: 4px;">
+      <span style="font-size: 11px; font-weight: bold; color: #222;">Отчет:</span>
+      <select id="mainReportSwitcher" class="select-1c" onchange="switchReportWindow(this.value)" style="height: 24px; font-size: 11px; min-width: 220px; font-weight: bold; background: #fff; cursor: pointer; color: #002060;">
+        <option value="ТоварыНаСкладах" selected>📦 Товары на складах</option>
+        <option value="ЗаказПокупателяАнализ">🛒 Заказы покупателей (Анализ)</option>
+      </select>
+    </div>
+
+    <div class="toolbar-separator"></div>
+
     <!-- "Действия" Dropdown Button -->
     <div style="position: relative;">
       <button class="btn-actions" id="btnActionsDropdown" onclick="toggleActionsMenu(event)">
@@ -29,10 +40,10 @@
 
       <!-- Dropdown Menu List -->
       <div id="actionsDropdownMenu" class="actions-dropdown">
-        <a href="javascript:void(0)" class="actions-dropdown-item" onclick="onActionFormirovat()">
+        <a href="javascript:void(0)" class="actions-dropdown-item" onclick="executeCurrentReport()">
           <span>▶</span> <span>Сформировать</span>
         </a>
-        <a href="javascript:void(0)" class="actions-dropdown-item" onclick="openSettingsModal(event)" onmousedown="event.stopPropagation()">
+        <a href="javascript:void(0)" class="actions-dropdown-item" onclick="openCurrentReportSettings(event)" onmousedown="event.stopPropagation()">
           <span>⚙️</span> <span>Настройка...</span>
         </a>
         <div class="actions-dropdown-separator"></div>
@@ -60,13 +71,13 @@
     </div>
 
     <!-- "▶ Сформировать" Button -->
-    <button class="btn-execute" id="btnMainFormirovat" onclick="onActionFormirovat()" title="Hesabatı formalaşdır (Ctrl+Enter)">
+    <button class="btn-execute" id="btnMainFormirovat" onclick="executeCurrentReport()" title="Hesabatı formalaşdır (Ctrl+Enter)">
       <span class="play-arrow">▶</span>
       <span>Сформировать</span>
     </button>
 
     <!-- "Настройка..." Button -->
-    <button class="btn-settings" id="btnMainNastroyka" onclick="openSettingsModal(event)" onmousedown="event.stopPropagation()" title="Hesabatın tənzimləmələri və süzgəcləri">
+    <button class="btn-settings" id="btnMainNastroyka" onclick="openCurrentReportSettings(event)" onmousedown="event.stopPropagation()" title="Hesabatın tənzimləmələri və süzgəcləri">
       <span>Настройка...</span>
     </button>
 

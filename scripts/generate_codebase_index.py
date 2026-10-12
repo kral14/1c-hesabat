@@ -3,7 +3,7 @@ import ast
 import re
 import json
 
-ROOT_DIR = r"d:\1c-hesabat"
+ROOT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 OUTPUT_FILE = os.path.join(ROOT_DIR, "codebase_index.json")
 
 index_data = {

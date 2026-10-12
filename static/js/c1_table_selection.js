@@ -95,11 +95,13 @@
         } catch (e) {}
       }, 10);
     } else {
-      cellText = td.innerText.trim();
+      const titleEl = td.querySelector(".oa-row-title, .c1-cell-text, .row-title");
+      const targetEl = titleEl || td;
+      cellText = (titleEl ? titleEl.textContent : td.innerText).trim();
       try {
         const sel = window.getSelection();
         const range = document.createRange();
-        range.selectNodeContents(td);
+        range.selectNodeContents(targetEl);
         sel.removeAllRanges();
         sel.addRange(range);
       } catch (e) {}
@@ -126,7 +128,8 @@
     const activeCell = document.querySelector("td.c1-cell-active");
     if (activeCell) {
       const inp = activeCell.querySelector("input:not([type='checkbox']), textarea");
-      const textToCopy = inp ? inp.value : (activeCell.innerText.trim() || window.lastActive1cCellText);
+      const titleEl = activeCell.querySelector(".oa-row-title, .c1-cell-text, .row-title");
+      const textToCopy = inp ? inp.value : (titleEl ? titleEl.textContent.trim() : (activeCell.innerText.trim() || window.lastActive1cCellText));
       if (textToCopy && e.clipboardData) {
         e.clipboardData.setData("text/plain", textToCopy);
         e.preventDefault();

@@ -107,6 +107,12 @@ def build_filter_conditions(filters, q_doc, where_parts, debug_params, field_map
         f_field = str(crit.get("field") or crit.get("fieldKey") or "").strip()
         f_op = str(crit.get("operator") or crit.get("comparison") or "Содержит").strip()
         f_val = crit.get("value", "")
+        if crit.get('referenceCode') and f_field in ('kontragent','golovnoy_kontragent') and f_op == 'Равно' and (crit.get('referenceName') is None or crit['referenceName'] == f_val):
+            expression='Т.Контрагент.Код' if f_field=='kontragent' else 'Т.Контрагент.ГоловнойКонтрагент.Код'
+            param_key=f'p_ref_{idx}'
+            q_doc.SetParameter(param_key,str(crit['referenceCode']).strip())
+            where_parts.append(f'{expression} = &{param_key}')
+            continue
 
         if f_field in ["nomenclature", "nomenklatura", "goods", "tovar"]:
             doc_table = mapping.get("__doc_table") or "Документ.РеализацияТоваровУслуг"

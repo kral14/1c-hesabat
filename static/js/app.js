@@ -148,6 +148,83 @@ function openReportDirect() {
 }
 window.openReportDirect = openReportDirect;
 
+function openOrderAnalysisDirect() {
+  const mdi = window.MdiManager || (typeof MdiManager !== "undefined" ? MdiManager : null);
+  if (mdi) {
+    const primaryWin = document.getElementById("mdiWindow-1");
+    if (primaryWin && primaryWin.style.display !== "none") {
+      mdi.minimizeWindow("mdiWindow-1");
+    }
+    mdi.activateWindow("orderAnalysisWindow", {
+      title: "Заказы покупателей (Анализ)",
+      icon: "🛒"
+    });
+  } else {
+    const win = document.getElementById("orderAnalysisWindow");
+    if (win) {
+      win.style.display = "flex";
+      win.classList.remove("minimized");
+      win.classList.add("active");
+    }
+  }
+
+  if (window.OrderAnalysisReport && typeof OrderAnalysisReport.openWindow === "function") {
+    OrderAnalysisReport.openWindow();
+  }
+}
+window.openOrderAnalysisDirect = openOrderAnalysisDirect;
+
+function switchReportWindow(reportKey) {
+  console.log(`[REPORT SWITCH] Switching to report: ${reportKey}`);
+  const mdi = window.MdiManager || (typeof MdiManager !== "undefined" ? MdiManager : null);
+
+  if (reportKey === "ЗаказПокупателяАнализ") {
+    openOrderAnalysisDirect();
+  } else if (reportKey === "ТоварыНаСкладах") {
+    const oaWin = document.getElementById("orderAnalysisWindow");
+    if (oaWin && oaWin.style.display !== "none") {
+      if (mdi) mdi.minimizeWindow("orderAnalysisWindow");
+      else oaWin.style.display = "none";
+    }
+    openReportDirect();
+  }
+
+  // Keep all switcher dropdowns in sync
+  const s1 = document.getElementById("mainReportSwitcher");
+  const s2 = document.getElementById("oaReportSwitcher");
+  if (s1) s1.value = reportKey;
+  if (s2) s2.value = reportKey;
+}
+window.switchReportWindow = switchReportWindow;
+
+function openCurrentReportSettings(e) {
+  const switcher = document.getElementById("mainReportSwitcher");
+  if (switcher && switcher.value === "ЗаказПокупателяАнализ") {
+    if (window.OrderAnalysisSettings) {
+      OrderAnalysisSettings.open();
+      return;
+    }
+  }
+  if (typeof openSettingsModal === "function") {
+    openSettingsModal(e);
+  }
+}
+window.openCurrentReportSettings = openCurrentReportSettings;
+
+function executeCurrentReport() {
+  const switcher = document.getElementById("mainReportSwitcher");
+  if (switcher && switcher.value === "ЗаказПокупателяАнализ") {
+    if (window.OrderAnalysisReport) {
+      OrderAnalysisReport.generate();
+      return;
+    }
+  }
+  if (typeof onActionFormirovat === "function") {
+    onActionFormirovat();
+  }
+}
+window.executeCurrentReport = executeCurrentReport;
+
 function openCatalogDirect(catalogName) {
   const catSafe = String(catalogName).replace(/[^a-zA-Z0-9_\u0400-\u04FF]/g, "_");
   const winId = `catalogWin_${catSafe}`;

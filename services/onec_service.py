@@ -14,6 +14,7 @@ from services.common import print_server_error
 from services.catalog_handlers import CATALOG_HANDLERS
 from services.report_handlers import REPORT_HANDLERS
 from services.document_handlers import DOCUMENT_HANDLERS
+from services.order_analysis_service import ORDER_ANALYSIS_HANDLERS
 
 class OneCService(threading.Thread):
     def __init__(self):
@@ -76,6 +77,8 @@ class OneCService(threading.Thread):
                     elif action == "get_all_price_types":
                         resp_q.put((True, offline_service.get_all_price_types()))
                     elif action == "get_documents_list":
+                        if payload.get("navigation_edge") or payload.get("sort_rules"):
+                            raise ValueError("Server sıralaması və sürətli Home/End offline rejimdə hələ dəstəklənmir. Sıralama qaydalarını söndürüb bütün məlumat rejimini seçin.")
                         resp_q.put((True, offline_service.get_documents_list(payload)))
                     elif action in ["get_price_document", "get_document_details"]:
                         resp_q.put((True, offline_service.get_document_details(payload)))
@@ -209,6 +212,11 @@ class OneCService(threading.Thread):
                             resp_q.put((True, services.audit_service.get_document_version_diff(conn, payload)))
                     else:
                         DOCUMENT_HANDLERS[action](conn, payload, key, resp_q)
+                elif action in ORDER_ANALYSIS_HANDLERS:
+                    import importlib
+                    import services.order_analysis_service
+                    importlib.reload(services.order_analysis_service)
+                    services.order_analysis_service.ORDER_ANALYSIS_HANDLERS[action](conn, payload, key, resp_q)
                 else:
                     raise ValueError(f"1C naməlum əməliyyat (Unknown Action): {action}")
 

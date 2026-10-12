@@ -2,6 +2,7 @@
 import os
 import io
 import csv
+from time import perf_counter
 from flask import Blueprint, request, jsonify, send_file
 from services.common import APP_DIR, print_server_error
 from services.onec_service import one_c
@@ -12,8 +13,11 @@ document_bp = Blueprint("document_bp", __name__)
 def documents_list_endpoint():
     data = request.json or {}
     try:
+        onec_start = perf_counter()
         res = one_c.execute("get_documents_list", data)
-        return jsonify({
+        onec_ms = (perf_counter() - onec_start) * 1000
+        serialization_start = perf_counter()
+        response = jsonify({
             "success": True,
             "doc_type": res.get("doc_type"),
             "doc_title": res.get("doc_title"),
@@ -27,6 +31,9 @@ def documents_list_endpoint():
             "last_number": res.get("last_number", ""),
             "debug_info": res.get("debug_info")
         })
+        if data.get('profile'):
+            response.headers['Server-Timing'] = f'onec;dur={onec_ms:.2f}, serialize;dur={(perf_counter()-serialization_start)*1000:.2f}'
+        return response
     except Exception as e:
         print_server_error("/api/documents/list", e, data)
         return jsonify({"success": False, "error": str(e)})

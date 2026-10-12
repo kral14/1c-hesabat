@@ -72,7 +72,7 @@
     <div id="ujFilterTabBodyOtbor" style="flex: 1; display: flex; overflow: hidden; padding: 6px; gap: 6px; background: #f0eee3; position: relative;">
 
       <!-- Left Pane: Доступные поля (Available Fields) -->
-      <div style="width: 235px; display: flex; flex-direction: column; background: #ffffff; border: 1px solid #7f9db9;">
+      <div id="ujFilterFieldsPane" style="width: 235px; flex-shrink: 0; display: flex; flex-direction: column; background: #ffffff; border: 1px solid #7f9db9;">
         
         <!-- Left Action Header: 'Выбрать' -->
         <div style="padding: 3px 6px; background: #f0eee3; border-bottom: 1px solid #d4d0c8; display: flex; align-items: center; justify-content: space-between;">
@@ -95,7 +95,8 @@
       </div>
 
       <!-- Right Pane: Отбор Criteria Table & Actions -->
-      <div style="flex: 1; display: flex; flex-direction: column; background: #ffffff; border: 1px solid #7f9db9; overflow: hidden; position: relative;">
+      <div id="ujFilterPaneSplitter" role="separator" aria-label="Изменить ширину доступных полей" aria-orientation="vertical" tabindex="0"></div>
+      <div style="flex: 1; min-width: 0; display: flex; flex-direction: column; background: #ffffff; border: 1px solid #7f9db9; overflow: hidden; position: relative;">
         
         <!-- Right Pane Toolbar (➕, ❌, ⇧, ⇩, Очистить) -->
         <div style="padding: 3px 6px; background: #f0eee3; border-bottom: 1px solid #d4d0c8; display: flex; align-items: center; gap: 4px;">
@@ -210,10 +211,10 @@
      1C:ENTERPRISE - ВЫБОР ПОЛЯ MODAL (3 NÖQTƏ MODALI)
      ======================================================== -->
 <div id="ujFieldSelectModalOverlay" class="modal-overlay-1c" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.35); z-index: 999999; align-items: center; justify-content: center;" onclick="if(event.target === this) UniversalJournal.closeFieldSelectModal()">
-  <div class="window-1c" style="width: 340px; height: 440px; max-width: 95vw; max-height: 90vh; display: flex; flex-direction: column; background: #ece9d8; border: 2px solid #0055ea; box-shadow: 0 8px 24px rgba(0,0,0,0.4);" onclick="event.stopPropagation()">
+  <div id="ujFieldSelectWindow" class="window-1c" role="dialog" aria-label="Выбор поля" style="width: 420px; height: 540px; max-width: 95vw; max-height: 90vh; display: flex; flex-direction: column; background: #ece9d8; border: 2px solid #0055ea; box-shadow: 0 8px 24px rgba(0,0,0,0.4);" onclick="event.stopPropagation()">
     
     <!-- Titlebar -->
-    <div style="background: linear-gradient(to bottom, #0058ee, #3593ff 50%, #288eff 51%, #0053e6); color: #ffffff; padding: 3px 6px; font-weight: bold; font-size: 11px; display: flex; align-items: center; justify-content: space-between; user-select: none;">
+    <div id="ujFieldSelectTitlebar" style="background: linear-gradient(to bottom, #0058ee, #3593ff 50%, #288eff 51%, #0053e6); color: #ffffff; padding: 3px 6px; font-weight: bold; font-size: 11px; display: flex; align-items: center; justify-content: space-between; user-select: none;">
       <div style="display: flex; align-items: center; gap: 4px;">
         <span>🏷️</span>
         <span>Выбор поля</span>

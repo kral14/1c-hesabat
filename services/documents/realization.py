@@ -5,8 +5,10 @@ Handler for 'РеализацияТоваровУслуг' (Sales Invoice) docum
 High-performance batch querying without full-table scans.
 """
 from services.documents.base import format_1c_datetime, parse_query_datetime, build_filter_conditions, narrow_search_to_column
+from time import perf_counter
 
 def get_realization_list(conn, payload):
+    timing_start = perf_counter()
     date_from = payload.get("date_from", "").strip()
     date_to = payload.get("date_to", "").strip()
     search_str = payload.get("search", "").strip()
@@ -85,7 +87,36 @@ def get_realization_list(conn, payload):
         "responsible": "Т.Ответственный.Наименование"
     }
     narrow_search_to_column(payload, where_parts, field_map, q_doc)
-    build_filter_conditions(filters, q_doc, where_parts, debug_params, field_map)
+    other_filters = []
+    for crit in filters:
+        if not isinstance(crit, dict) or (crit.get("fieldKey") or crit.get("field")) not in ("pogruzka_duplicate","pogruzka_active_duplicate"):
+            other_filters.append(crit)
+            continue
+        if crit.get("enabled") is False:
+            continue
+        value = str(crit.get("value", "")).strip().lower()
+        operator = crit.get("operator") or crit.get("comparison") or "Равно"
+        if operator in ("Заполнено", "Не заполнено"):
+            if operator == "Не заполнено":
+                where_parts.append("1 = 0")
+            continue  # Boolean fields are always populated.
+        if not value:
+            continue
+        wanted = value in ("да", "true", "1", "yes", "истина")
+        if operator == "Не равно":
+            wanted = not wanted
+        active_only = (crit.get('fieldKey') or crit.get('field')) == 'pogruzka_active_duplicate'
+        active_where = 'ГДЕ НЕ ПД.Ссылка.ПометкаУдаления' if active_only else ''
+        duplicate_condition = f"""Т.Ссылка В (
+            ВЫБРАТЬ ПД.Накладная
+            ИЗ Документ.ПогрузкиМашин.СписокРеализаций КАК ПД
+            {active_where}
+            СГРУППИРОВАТЬ ПО ПД.Накладная
+            ИМЕЮЩИЕ КОЛИЧЕСТВО(РАЗЛИЧНЫЕ ПД.Ссылка) > 1
+        )"""
+        where_parts.append(duplicate_condition if wanted else f"НЕ ({duplicate_condition})")
+        debug_params[crit.get('fieldKey') or crit.get('field')] = wanted
+    build_filter_conditions(other_filters, q_doc, where_parts, debug_params, field_map)
 
     # Keyset pagination when no filters
     if last_date and not search_str and not filters:
@@ -102,6 +133,7 @@ def get_realization_list(conn, payload):
     where_sql = ("ГДЕ " + " И ".join(where_parts)) if where_parts else ""
     fetch_total = (offset + limit_count + 1) if (limit_count and limit_count > 0) else 0
     first_clause = f"ПЕРВЫЕ {fetch_total}" if fetch_total > 0 else ""
+    selection_order = "УПОРЯДОЧИТЬ ПО Т.Дата УБЫВ, Т.Номер УБЫВ" if first_clause else ""
 
     q_doc.Text = f"""
     ВЫБРАТЬ {first_clause}
@@ -128,9 +160,7 @@ def get_realization_list(conn, payload):
     ИЗ
         Документ.РеализацияТоваровУслуг КАК Т
     {where_sql}
-    УПОРЯДОЧИТЬ ПО
-        Т.Дата УБЫВ,
-        Т.Номер УБЫВ
+    {selection_order}
     ;
 
     ВЫБРАТЬ
@@ -164,7 +194,7 @@ def get_realization_list(conn, payload):
                 Документ.ОбработкаЗаказов.ДанныеДляАнализа КАК Обр
             ГДЕ
                 Обр.Заказ В (ВЫБРАТЬ РАЗЛИЧНЫЕ Т_Вн.DealRef ИЗ ВТ_ВыбранныеДокументы КАК Т_Вн)
-            СГРУPПИРОВАТЬ ПО
+            СГРУППИРОВАТЬ ПО
                 Обр.Заказ
         ) КАК ОбрВложенный
         ПО Т.DealRef = ОбрВложенный.Заказ
@@ -175,7 +205,10 @@ def get_realization_list(conn, payload):
         Т.Number УБЫВ
     """
 
+    query_start = perf_counter()
     res_doc = q_doc.Execute().Choose()
+    query_ms = (perf_counter() - query_start) * 1000
+    rows_start = perf_counter()
     items = []
     doc_refs = []
     doc_ref_map = {}
@@ -213,6 +246,9 @@ def get_realization_list(conn, payload):
             "pogruzka_marshrut": "",
             "pogruzka_voditel": "",
             "pogruzka_count": 0,
+            "pogruzka_total_count": 0,
+            "active_pogruzka_count": 0,
+            "pogruzka_has_duplicates": False,
             "pogruzka_duplicate": False
         }
         items.append(row_data)
@@ -221,6 +257,8 @@ def get_realization_list(conn, payload):
         if limit_count and limit_count > 0 and len(items) >= limit_count:
             break
 
+    rows_ms = (perf_counter() - rows_start) * 1000
+    related_start = perf_counter()
     # LIGHTNING-FAST BATCH POGRUZKA LOOKUP ONLY FOR THE FETCHED PAGE
     if doc_refs:
         try:
@@ -255,6 +293,9 @@ def get_realization_list(conn, payload):
                 if target_row:
                     act_cnt = int(rp.ActivePogCount or 0)
                     tot_cnt = int(rp.TotalPogCount or 0)
+                    target_row["pogruzka_total_count"] = tot_cnt
+                    target_row["active_pogruzka_count"] = act_cnt
+                    target_row["pogruzka_has_duplicates"] = tot_cnt > 1
                     target_row["pogruzka_count"] = act_cnt if act_cnt > 0 else tot_cnt
                     target_row["pogruzka_duplicate"] = (act_cnt > 1)
                     act_m = str(rp.ActiveMarshrut or "").strip()
@@ -262,6 +303,9 @@ def get_realization_list(conn, payload):
                     act_v = str(rp.ActiveVoditel or "").strip()
                     target_row["pogruzka_voditel"] = act_v if act_v else str(rp.AnyVoditel or "").strip()
         except Exception as e_pog:
+            if any(isinstance(c, dict) and (c.get('fieldKey') or c.get('field')) in ('pogruzka_duplicate','pogruzka_active_duplicate')
+                   and c.get('enabled') is not False for c in filters):
+                raise RuntimeError('Paqruzka sayları alınmadı; dublikat filtrini tətbiq etmək mümkün deyil.') from e_pog
             print("Pogruzka batch lookup error:", e_pog)
 
     return {
@@ -273,10 +317,14 @@ def get_realization_list(conn, payload):
         "last_date": items[-1]["date"] if items else "",
         "last_number": items[-1]["number"] if items else "",
         "debug_info": {
+            "pogruzka_duplicate_scope": "all_including_deleted",
             "parameters": debug_params,
             "filters_count": len([c for c in filters if isinstance(c, dict) and c.get("enabled") is not False]),
             "search": search_str,
-            "total_fetched": len(items)
+            "total_fetched": len(items),
+            "timings_ms": {"primary_query": round(query_ms, 2), "row_decode": round(rows_ms, 2),
+                "related_lookup": round((perf_counter() - related_start) * 1000, 2),
+                "total": round((perf_counter() - timing_start) * 1000, 2)} if payload.get('profile') else None
         }
     }
 
@@ -456,6 +504,8 @@ def get_realization_details(conn, payload):
         "tovary": tovary,
         "pogruzki": pogruzki,
         "pogruzka_count": len(pogruzki),
+        "pogruzka_total_count": len(pogruzki),
+        "pogruzka_has_duplicates": len(pogruzki) > 1,
         "active_pogruzka_count": len(active_pogruzki),
         "pogruzka_duplicate": (len(active_pogruzki) > 1)
     }

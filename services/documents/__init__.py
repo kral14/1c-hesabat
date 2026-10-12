@@ -25,6 +25,12 @@ from services.documents.base import format_1c_datetime, parse_query_datetime
 
 
 def handle_get_documents_list(conn, payload, key, resp_q):
+    if payload.get('navigation_edge') in ('home', 'end') or payload.get('sort_rules'):
+        from services.documents.navigation import EdgeConnection
+        payload = dict(payload, last_date='', last_number='')
+        if payload.get('navigation_edge'):
+            payload['limit'] = min(max(int(payload.get('limit', 200)), 1), 2000)
+        conn = EdgeConnection(conn, payload)
     doc_type = payload.get("doc_type") or "РеализацияТоваровУслуг"
 
     if doc_type == "РеализацияТоваровУслуг":
@@ -36,6 +42,9 @@ def handle_get_documents_list(conn, payload, key, resp_q):
     else:
         res = get_generic_documents_list(conn, payload)
 
+    if payload.get('navigation_edge') == 'end':
+        res['items'].reverse()
+    res['navigation_edge'] = payload.get('navigation_edge')
     resp_q.put((True, res))
 
 

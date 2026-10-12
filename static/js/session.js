@@ -30,14 +30,9 @@ const SessionManager = {
       }
     }
     this.updateUI();
-    this.loadBases().then(() => {
-      // Əgər 600ms ərzində sənəd sorğusu artıq 1C ilə əlaqə qurubsa, duplicate ping göndərmirik
-      setTimeout(() => {
-        if (this.connectionStatus !== "connected") {
-          this.warmupConnection();
-        }
-      }, 600);
-    });
+    // Reload restores the UI only. 1C connections live in the server process;
+    // actual data requests reuse them, without a separate startup ping.
+    this.loadBases();
   },
 
   save() {

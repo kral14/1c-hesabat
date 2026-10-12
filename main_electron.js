@@ -138,10 +138,11 @@ function createWindow() {
   // Load URL directly without blocking cache manipulations
   const targetUrl = process.env.SERVER_URL || process.argv.find(arg => arg.startsWith('http://') || arg.startsWith('https://')) || 'http://127.0.0.1:5050';
   win.loadURL(targetUrl);
+  win.serverTargetUrl = targetUrl;
 
   win.webContents.on('did-fail-load', () => {
     setTimeout(() => {
-      win.loadURL(targetUrl);
+      win.loadURL(win.serverTargetUrl || targetUrl);
     }, 1200);
   });
 
@@ -154,8 +155,13 @@ if (!gotTheLock) {
 } else {
   let mainWin = null;
 
-  app.on('second-instance', () => {
+  app.on('second-instance', (event, commandLine) => {
     if (mainWin) {
+      const nextUrl = commandLine.find(arg => /^https?:\/\//.test(arg));
+      if (nextUrl && nextUrl !== mainWin.serverTargetUrl) {
+        mainWin.serverTargetUrl = nextUrl;
+        mainWin.loadURL(nextUrl);
+      }
       if (mainWin.isMinimized()) mainWin.restore();
       mainWin.focus();
     }

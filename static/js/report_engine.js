@@ -702,6 +702,13 @@ document.addEventListener("click", (e) => {
 
 // Global Toolbar Handlers
 function onActionFormirovat() {
+  const switcher = document.getElementById("mainReportSwitcher");
+  if (switcher && switcher.value === "ЗаказПокупателяАнализ") {
+    if (window.OrderAnalysisReport) {
+      OrderAnalysisReport.generate();
+      return;
+    }
+  }
   ReportEngine.runReport();
 }
 

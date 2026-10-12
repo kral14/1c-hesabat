@@ -136,7 +136,12 @@ const OneCCalendar = {
   },
 
   attachInputs() {
-    const inputIds = ["topStartDateInput", "topEndDateInput", "dlgStartDateInput", "dlgEndDateInput"];
+    const inputIds = [
+      "topStartDateInput", "topEndDateInput",
+      "dlgStartDateInput", "dlgEndDateInput",
+      "oaStartDateInput", "oaEndDateInput",
+      "oaDlgStartDate", "oaDlgEndDate"
+    ];
     inputIds.forEach(id => {
       const el = document.getElementById(id);
       if (!el) return;
@@ -166,6 +171,14 @@ const OneCCalendar = {
       input._prevVal = formatted;
       if (input.id.startsWith("top")) {
         if (typeof syncDateInputsFromTop === "function") syncDateInputsFromTop();
+      } else if (input.id.startsWith("oaDlg")) {
+        const other = document.getElementById(input.id.includes("Start") ? "oaStartDateInput" : "oaEndDateInput");
+        if (other) other.value = formatted;
+      } else if (input.id.startsWith("oa")) {
+        const other = document.getElementById(input.id.includes("Start") ? "oaDlgStartDate" : "oaDlgEndDate");
+        if (other) other.value = formatted;
+        const top = document.getElementById(input.id.includes("Start") ? "topStartDateInput" : "topEndDateInput");
+        if (top) top.value = formatted;
       } else {
         if (typeof syncDateInputsFromDlg === "function") syncDateInputsFromDlg();
       }
@@ -506,11 +519,19 @@ const OneCPeriodPicker = {
     const topEnd = document.getElementById("topEndDateInput");
     const dlgStart = document.getElementById("dlgStartDateInput");
     const dlgEnd = document.getElementById("dlgEndDateInput");
+    const oaStart = document.getElementById("oaStartDateInput");
+    const oaEnd = document.getElementById("oaEndDateInput");
+    const oaDlgStart = document.getElementById("oaDlgStartDate");
+    const oaDlgEnd = document.getElementById("oaDlgEndDate");
 
     if (topStart) { topStart.value = startDate; topStart._prevVal = startDate; }
     if (topEnd) { topEnd.value = endDate; topEnd._prevVal = endDate; }
     if (dlgStart) { dlgStart.value = startDate; dlgStart._prevVal = startDate; }
     if (dlgEnd) { dlgEnd.value = endDate; dlgEnd._prevVal = endDate; }
+    if (oaStart) { oaStart.value = startDate; oaStart._prevVal = startDate; }
+    if (oaEnd) { oaEnd.value = endDate; oaEnd._prevVal = endDate; }
+    if (oaDlgStart) { oaDlgStart.value = startDate; oaDlgStart._prevVal = startDate; }
+    if (oaDlgEnd) { oaDlgEnd.value = endDate; oaDlgEnd._prevVal = endDate; }
 
     if (typeof syncDateInputsFromTop === "function") syncDateInputsFromTop();
     this.close();

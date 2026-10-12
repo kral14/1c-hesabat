@@ -1,0 +1,230 @@
+<!-- ========================================================
+     1C:ENTERPRISE CUSTOMER ORDER ANALYSIS REPORT WINDOW
+     templates/components/order_analysis_window.html
+     ======================================================== -->
+
+<div class="mdi-window" id="orderAnalysisWindow" style="display: none; top: 20px; left: 25px; width: calc(100% - 50px); height: calc(100% - 40px); min-width: 850px; min-height: 480px; z-index: 104;" onmousedown="MdiManager.activateWindow('orderAnalysisWindow')">
+  
+  <!-- Window Header -->
+  <div class="mdi-window-header" ondblclick="MdiManager.toggleMaximize('orderAnalysisWindow')">
+    <div class="mdi-win-title-left">
+      <span class="mdi-win-icon">🛒</span>
+      <span class="mdi-win-title-text" id="oaWindowTitle">Заказы покупателей (Анализ)</span>
+    </div>
+    <div class="mdi-win-controls">
+      <button class="mdi-win-btn mdi-win-btn-min" title="Qatla" onclick="MdiManager.minimizeWindow('orderAnalysisWindow')" onmousedown="event.stopPropagation()">_</button>
+      <button class="mdi-win-btn mdi-win-btn-max" title="Böyüt / Bərpa et" onclick="MdiManager.toggleMaximize('orderAnalysisWindow')" onmousedown="event.stopPropagation()">□</button>
+      <button class="mdi-win-btn mdi-win-btn-close" title="Bağla" onclick="OrderAnalysisReport.closeWindow()" onmousedown="event.stopPropagation()">✕</button>
+    </div>
+  </div>
+
+  <!-- Window Body -->
+  <div class="mdi-window-body" style="background-color: #f0eee3; display: flex; flex-direction: column; height: 100%; overflow: hidden;">
+    
+    <!-- Action Toolbar (1C Style) -->
+    <div class="toolbar-1c" style="flex-shrink: 0; border-bottom: 1px solid #b0af9f; background: #ece9d8; padding: 3px 6px; display: flex; align-items: center; justify-content: space-between; gap: 8px;">
+      
+      <div class="toolbar-left" style="display: flex; align-items: center; gap: 4px; flex-wrap: wrap;">
+        
+        <!-- 1. Report Switcher (Identical to Universal Journal document switcher) -->
+        <div style="display: flex; align-items: center; gap: 4px; margin-right: 4px;">
+          <span style="font-size: 11px; font-weight: bold; color: #222;">Отчет:</span>
+          <select id="oaReportSwitcher" class="select-1c" onchange="switchReportWindow(this.value)" style="height: 24px; font-size: 11px; min-width: 220px; font-weight: bold; background: #fff; cursor: pointer; color: #002060;">
+            <option value="ТоварыНаСкладах">📦 Товары на складах</option>
+            <option value="ЗаказПокупателяАнализ" selected>🛒 Заказы покупателей (Анализ)</option>
+          </select>
+        </div>
+
+        <div class="toolbar-separator" style="height: 18px; width: 1px; background: #b0af9f; margin: 0 2px;"></div>
+
+        <!-- 2. "Действия" Dropdown -->
+        <div style="position: relative;">
+          <button class="btn-actions" id="oaBtnActions" onclick="OrderAnalysisReport.toggleActionsMenu(event)" style="height: 24px;">
+            <span>Действия</span>
+            <span style="font-size: 8px;">▼</span>
+          </button>
+          <div id="oaActionsDropdown" class="actions-dropdown" style="display: none; position: absolute; top: 25px; left: 0; z-index: 1200; background: #fff; border: 1px solid #7f9db9; box-shadow: 0 4px 10px rgba(0,0,0,0.25); min-width: 200px; padding: 4px 0;">
+            <a href="javascript:void(0)" class="actions-dropdown-item" onclick="OrderAnalysisReport.generate()">
+              <span>▶</span> <span>Сформировать</span>
+            </a>
+            <a href="javascript:void(0)" class="actions-dropdown-item" onclick="OrderAnalysisSettings.open()">
+              <span>⚙️</span> <span>Настройка...</span>
+            </a>
+            <div class="actions-dropdown-separator" style="height: 1px; background: #ddd; margin: 3px 0;"></div>
+            <a href="javascript:void(0)" class="actions-dropdown-item" onclick="OrderAnalysisReport.exportExcel()">
+              <span>📊</span> <span>Экспорт в Excel (.xlsx)</span>
+            </a>
+            <a href="javascript:void(0)" class="actions-dropdown-item" onclick="OrderAnalysisReport.printReport()">
+              <span>🖨️</span> <span>Печать...</span>
+            </a>
+          </div>
+        </div>
+
+        <!-- 3. "▶ Сформировать" Primary Button -->
+        <button class="btn-execute" id="oaBtnGenerate" onclick="OrderAnalysisReport.generate()" title="Сформировать отчет (Ctrl+Enter)" style="height: 24px; font-weight: bold;">
+          <span class="play-arrow" style="color: #2e7d32;">▶</span>
+          <span>Сформировать</span>
+        </button>
+
+        <!-- 4. "⚙️ Настройка..." Button -->
+        <button class="btn-settings" id="oaBtnSettings" onclick="OrderAnalysisSettings.open()" title="Настройка группировок, отборов и показателей" style="height: 24px;">
+          <span>Настройка...</span>
+        </button>
+
+        <div class="toolbar-separator" style="height: 18px; width: 1px; background: #b0af9f; margin: 0 2px;"></div>
+
+        <!-- 5. Quick Tools: Excel Export, Expand, Collapse -->
+        <button class="tool-icon-btn" onclick="OrderAnalysisReport.exportExcel()" title="Экспорт в Excel (.xlsx)" style="height: 24px; min-width: 24px; padding: 0 5px; cursor: pointer;">
+          <span style="font-size: 13px;">📊</span>
+        </button>
+        <button class="tool-icon-btn" onclick="OrderAnalysisReport.setLevel(1)" title="Уровень 1 (Только магазины / верхний уровень)" style="height: 24px; min-width: 24px; padding: 0 5px; cursor: pointer; font-size: 11px; font-weight: bold;">
+          <span>1</span>
+        </button>
+        <button class="tool-icon-btn" onclick="OrderAnalysisReport.setLevel(2)" title="Уровень 2 (Магазины и товары)" style="height: 24px; min-width: 24px; padding: 0 5px; cursor: pointer; font-size: 11px; font-weight: bold;">
+          <span>2</span>
+        </button>
+        <button class="tool-icon-btn" onclick="OrderAnalysisReport.expandAll()" title="Развернуть все уровни" style="height: 24px; min-width: 24px; padding: 0 5px; cursor: pointer; font-size: 11px; font-weight: bold;">
+          <span>Все</span>
+        </button>
+
+        <!-- Active Filter Badge -->
+        <div id="oaFilterBadge" style="display: none; align-items: center; gap: 4px; background: #e8f5e9; border: 1px solid #81c784; color: #1b5e20; padding: 1px 7px; border-radius: 2px; font-weight: bold; font-size: 11px;">
+          <span>🔍 Отбор активен</span>
+        </div>
+      </div>
+
+      <!-- Right: Date Period Picker -->
+      <div class="toolbar-right" style="display: flex; align-items: center; gap: 4px; flex-shrink: 0;">
+        <div class="period-control-group" style="display: flex; align-items: center; gap: 4px;">
+          <span class="period-label" style="font-size: 11px; font-weight: bold; color: #333;">Период с:</span>
+          <div class="period-input-wrapper" style="position: relative; display: flex; align-items: center;">
+            <input type="text" id="oaStartDateInput" class="period-input-1c" value="01.08.2026" onchange="syncOaDates()" style="width: 82px; height: 22px; font-size: 11px; text-align: center;">
+            <button class="period-cal-btn" onclick="pickDate('oaStartDateInput', this)" style="height: 22px; border: 1px solid #7f9db9; background: #fff; cursor: pointer;">📅</button>
+          </div>
+
+          <span class="period-label" style="font-size: 11px; font-weight: bold; color: #333;">по:</span>
+          <div class="period-input-wrapper" style="position: relative; display: flex; align-items: center;">
+            <input type="text" id="oaEndDateInput" class="period-input-1c" value="30.09.2026" onchange="syncOaDates()" style="width: 82px; height: 22px; font-size: 11px; text-align: center;">
+            <button class="period-cal-btn" onclick="pickDate('oaEndDateInput', this)" style="height: 22px; border: 1px solid #7f9db9; background: #fff; cursor: pointer;">📅</button>
+          </div>
+
+          <button class="period-more-btn" onclick="OrderAnalysisReport.openPeriodDialog(this)" title="Выбрать период" style="height: 22px; padding: 0 6px; cursor: pointer;">...</button>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Quick KPI Summary Strip -->
+    <div id="oaKpiStrip" style="display: none; background: #faf8ee; border-bottom: 1px solid #c7c4b4; padding: 4px 10px; font-size: 11px; display: flex; align-items: center; justify-content: space-between; color: #333; flex-shrink: 0; flex-wrap: wrap; gap: 8px;">
+      <div style="display: flex; align-items: center; gap: 14px; flex-wrap: wrap;">
+        <span>🏪 Магазинов: <strong id="oaKpiStoresCount" style="color: #002060;">0</strong></span>
+        <span>📦 Позиций: <strong id="oaKpiItemsCount" style="color: #002060;">0</strong></span>
+        <span>📊 Строк: <strong id="oaKpiRowsCount">0</strong></span>
+      </div>
+      <div style="display: flex; align-items: center; gap: 14px; font-weight: bold; flex-wrap: wrap;">
+        <span>🛒 Заказ: <span id="oaKpiTotalOrder" style="color: #1b5e20;">0</span></span>
+        <span>🚚 Реализ.: <span id="oaKpiTotalReal" style="color: #002060;">0</span></span>
+        <span>⚠️ Разница: <span id="oaKpiTotalDiff" style="color: #b71c1c;">0</span></span>
+        <span>↩️ Возврат: <span id="oaKpiTotalRet" style="color: #e65100;">0</span></span>
+        <span>💰 Чистая: <span id="oaKpiTotalNet" style="color: #33691e;">0.00 AZN</span></span>
+      </div>
+    </div>
+
+    <!-- Report Table Container -->
+    <div class="report-table-scroll-container" style="flex: 1; overflow: auto; background: #ffffff; position: relative;">
+      
+      <!-- Initial Placeholder State -->
+      <div id="oaEmptyState" style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; color: #666; text-align: center; padding: 40px;">
+        <div style="font-size: 40px; margin-bottom: 12px;">🛒</div>
+        <div style="font-size: 14px; font-weight: bold; color: #222; margin-bottom: 6px;">Отчет "Анализ заказов и реализации" не сформирован</div>
+        <div style="font-size: 12px; color: #555; max-width: 520px; margin-bottom: 16px;">
+          Выберите период и нажмите <strong>"Сформировать"</strong>. Вы увидите сравнение заказов, фактических отгрузок (реализаций), разницы (недопоставки) и возвратов по магазинам и товарам.
+        </div>
+        <button class="btn-1c primary" onclick="OrderAnalysisReport.generate()" style="padding: 6px 16px; font-size: 12px; cursor: pointer;">
+          ▶ Сформировать отчет
+        </button>
+      </div>
+
+      <!-- 1C Table View -->
+      <table id="oaReportTable" class="sheet-table" style="display: none; width: 100%; border-collapse: collapse; font-family: Tahoma, Arial, sans-serif; font-size: 11px;">
+        <thead style="position: sticky; top: 0; z-index: 10; background: #fff2cc;">
+          <tr style="height: 26px; border-bottom: 2px solid #b89c30; background: #fff2cc;">
+            <th style="min-width: 320px; text-align: left; padding: 4px 8px; border: 1px solid #d4c88a; font-weight: bold; color: #000;">
+              Группировка / Наименование
+            </th>
+            <th id="oaThCode" style="width: 90px; text-align: center; padding: 4px 6px; border: 1px solid #d4c88a; font-weight: bold; color: #000;">
+              Код
+            </th>
+            <th id="oaThArticle" style="width: 80px; text-align: center; padding: 4px 6px; border: 1px solid #d4c88a; font-weight: bold; color: #000;">
+              Артикул
+            </th>
+            <th id="oaThBarcode" style="width: 105px; text-align: center; padding: 4px 6px; border: 1px solid #d4c88a; font-weight: bold; color: #000;">
+              Штрихкод
+            </th>
+            <th id="oaThUnit" style="width: 50px; text-align: center; padding: 4px 6px; border: 1px solid #d4c88a; font-weight: bold; color: #000;">
+              Ед.
+            </th>
+            <th id="oaThQtyOrder" style="width: 95px; text-align: right; padding: 4px 6px; border: 1px solid #d4c88a; font-weight: bold; color: #1b5e20; background: #f1f8e9;">
+              Заказ (Кол)
+            </th>
+            <th id="oaThSumOrder" style="width: 105px; text-align: right; padding: 4px 6px; border: 1px solid #d4c88a; font-weight: bold; color: #1b5e20; background: #f1f8e9;">
+              Заказ (Сумма)
+            </th>
+            <th id="oaThQtyReal" style="width: 95px; text-align: right; padding: 4px 6px; border: 1px solid #d4c88a; font-weight: bold; color: #002060; background: #e3f2fd;">
+              Реализ (Кол)
+            </th>
+            <th id="oaThSumReal" style="width: 105px; text-align: right; padding: 4px 6px; border: 1px solid #d4c88a; font-weight: bold; color: #002060; background: #e3f2fd;">
+              Реализ (Сумма)
+            </th>
+            <th id="oaThQtyDiff" style="width: 95px; text-align: right; padding: 4px 6px; border: 1px solid #d4c88a; font-weight: bold; color: #b71c1c; background: #ffebee;">
+              Разница (Кол)
+            </th>
+            <th id="oaThQtyRet" style="width: 90px; text-align: right; padding: 4px 6px; border: 1px solid #d4c88a; font-weight: bold; color: #e65100; background: #fff3e0;">
+              Возврат (Кол)
+            </th>
+            <th id="oaThSumRet" style="width: 100px; text-align: right; padding: 4px 6px; border: 1px solid #d4c88a; font-weight: bold; color: #e65100; background: #fff3e0;">
+              Возврат (Сум)
+            </th>
+            <th id="oaThQtyNet" style="width: 95px; text-align: right; padding: 4px 6px; border: 1px solid #d4c88a; font-weight: bold; color: #2e7d32; background: #e8f5e9;">
+              Чистая (Кол)
+            </th>
+            <th id="oaThSumNet" style="width: 110px; text-align: right; padding: 4px 6px; border: 1px solid #d4c88a; font-weight: bold; color: #2e7d32; background: #e8f5e9;">
+              Чистая (Сумма)
+            </th>
+          </tr>
+          
+          <!-- Grand Total Row in Table Header -->
+          <tr id="oaGrandTotalsRow" style="height: 24px; background: #ffe599; border-bottom: 2px solid #888; font-weight: bold;">
+            <td style="padding: 3px 8px; border: 1px solid #d4c88a; color: #000;">
+              ИТОГО
+            </td>
+            <td id="oaTotalCellCode" style="border: 1px solid #d4c88a;"></td>
+            <td id="oaTotalCellArticle" style="border: 1px solid #d4c88a;"></td>
+            <td id="oaTotalCellBarcode" style="border: 1px solid #d4c88a;"></td>
+            <td id="oaTotalCellUnit" style="border: 1px solid #d4c88a;"></td>
+            <td id="oaTotalCellQtyOrder" style="text-align: right; padding: 3px 6px; border: 1px solid #d4c88a; color: #1b5e20;">0</td>
+            <td id="oaTotalCellSumOrder" style="text-align: right; padding: 3px 6px; border: 1px solid #d4c88a; color: #1b5e20;">0.00</td>
+            <td id="oaTotalCellQtyReal" style="text-align: right; padding: 3px 6px; border: 1px solid #d4c88a; color: #002060;">0</td>
+            <td id="oaTotalCellSumReal" style="text-align: right; padding: 3px 6px; border: 1px solid #d4c88a; color: #002060;">0.00</td>
+            <td id="oaTotalCellQtyDiff" style="text-align: right; padding: 3px 6px; border: 1px solid #d4c88a; color: #b71c1c;">0</td>
+            <td id="oaTotalCellQtyRet" style="text-align: right; padding: 3px 6px; border: 1px solid #d4c88a; color: #e65100;">0</td>
+            <td id="oaTotalCellSumRet" style="text-align: right; padding: 3px 6px; border: 1px solid #d4c88a; color: #e65100;">0.00</td>
+            <td id="oaTotalCellQtyNet" style="text-align: right; padding: 3px 6px; border: 1px solid #d4c88a; color: #2e7d32;">0</td>
+            <td id="oaTotalCellSumNet" style="text-align: right; padding: 3px 6px; border: 1px solid #d4c88a; color: #2e7d32;">0.00</td>
+          </tr>
+        </thead>
+        <tbody id="oaReportTableBody">
+          <!-- Dynamically populated with rows -->
+        </tbody>
+      </table>
+
+    </div>
+
+    <!-- Window Footer / Statusbar -->
+    <div class="mdi-window-footer" style="height: 22px; background: #e5e2cf; border-top: 1px solid #b0af9f; padding: 0 8px; display: flex; align-items: center; justify-content: space-between; font-size: 11px; color: #444; flex-shrink: 0;">
+      <div id="oaStatusText">Готов</div>
+      <div id="oaStatusTime" style="color: #666;">Aztrade Test Bazası</div>
+    </div>
+
+  </div>
+</div>

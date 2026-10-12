@@ -48,6 +48,10 @@ def add_header(response):
 def proxy_ping():
     return "pong"
 
+@proxy_app.route("/proxy-status")
+def proxy_status():
+    return {"office_url": OFFICE_SERVER_URL, "auto_reload": os.environ.get('REPORTER_AUTO_RELOAD') == '1'}
+
 @proxy_app.route("/")
 def index():
     return render_template("index.html")

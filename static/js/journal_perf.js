@@ -8,6 +8,18 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('journalPerfResults').style.cssText = 'max-height:220px;overflow:auto';
   let pending = null;
   const results = [];
+  const originalFetch = window.fetch.bind(window);
+  window.fetch = (...args) => {
+    const measurement = pending;
+    if (measurement && String(args[0]).includes('/api/documents/list')) {
+      measurement.requests = (measurement.requests || 0) + 1;
+      return originalFetch(...args).then(response => {
+        measurement.serverTiming = response.headers.get('Server-Timing');
+        return response;
+      });
+    }
+    return originalFetch(...args);
+  };
   panel.dataset.completed = '0';
   const publish = () => {
     panel.dataset.completed = String(results.length);
@@ -16,17 +28,24 @@ document.addEventListener('DOMContentLoaded', () => {
   };
   const originalRender = UniversalJournal.renderTable;
   UniversalJournal.renderTable = function(...args) {
+    const renderStart = performance.now();
     const result = originalRender.apply(this, args);
+    const renderMs = performance.now() - renderStart;
     if (pending && !pending.rendered) {
       const measurement = pending;
       measurement.rendered = performance.now();
-      const rows = document.querySelectorAll('#ujTableBody tr.uj-row').length;
+      const body = UniversalJournal.getEl ? UniversalJournal.getEl('ujTableBody') : document.getElementById('ujTableBody');
+      const rows = body ? body.querySelectorAll('tr.uj-row').length : 0;
       // The first rAF runs before paint; the next frame follows a paint opportunity.
       requestAnimationFrame(() => requestAnimationFrame(() => {
         if (pending !== measurement) return;
-        const win = document.getElementById('universalJournalWindow');
-        const loading = document.getElementById('ujLoadingState');
+        const win = UniversalJournal.getActiveInstance?.()?.windowElement || document.getElementById('universalJournalWindow');
+        const loading = UniversalJournal.getEl ? UniversalJournal.getEl('ujLoadingState') : document.getElementById('ujLoadingState');
         results.push({ action: measurement.action,
+          api_requests: measurement.requests || 0,
+          server_timing: measurement.serverTiming || null,
+          render_sync_ms: +renderMs.toFixed(1),
+          backend_timings_ms: measurement.requests ? (UniversalJournal.lastDiagnostics?.serverDebug?.timings_ms || null) : null,
           to_dom_ms: +(measurement.rendered - measurement.start).toFixed(1),
           to_paint_opportunity_ms: +(performance.now() - measurement.start).toFixed(1),
           loaded_rows: UniversalJournal.items.length, visible_dom_rows: rows,
@@ -72,6 +91,21 @@ document.addEventListener('DOMContentLoaded', () => {
   button('Cache reopen 2000', () => UniversalJournal.loadDocuments({ search: '', filters: [] }));
   button('Refresh 2000', () => UniversalJournal.refresh());
   button('Redraw table', () => UniversalJournal.renderTable());
+  for (const limit of [200, 2000]) {
+    button('Office load ' + limit, () => {
+      UniversalJournal._paused = false;
+      UniversalJournal.startDateStr = '01.04.2026';
+      UniversalJournal.endDateStr = '31.10.2026';
+      UniversalJournal.activeFilters = [];
+      const input = UniversalJournal.getEl('ujSearchInput');
+      if (input) input.value = '';
+      const oldLimit = UniversalJournal.initialChunkLimit;
+      UniversalJournal.initialChunkLimit = limit;
+      UniversalJournal.updatePeriodLabel();
+      UniversalJournal.loadDocuments({ force:true, search:'', filters:[], profile:true });
+      UniversalJournal.initialChunkLimit = oldLimit;
+    });
+  }
   for (const [name, type] of [
     ['Sales', 'РеализацияТоваровУслуг'], ['Loading', 'ПогрузкиМашин'],
     ['Returns', 'ВозвратТоваровОтПокупателя'], ['Prices', 'УстановкаЦенНоменклатуры'],

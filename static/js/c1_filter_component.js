@@ -43,6 +43,16 @@ const C1FilterComponent = {
     "Не заполнено"
   ],
 
+  getOperatorsForField: function(field) {
+    const key = field.key || field.fieldKey;
+    const type = ["posted", "deleted", "pogruzka_duplicate", "pogruzka_active_duplicate"].includes(key) ? "boolean" : (key === "date" ? "date" : field.type);
+    if (type === "boolean") return ["Равно", "Не равно"];
+    if (type === "date" || type === "number") return this.filterOperators.filter(op =>
+      ["Равно", "Не равно", "Меньше", "Меньше или равно", "Больше", "Больше или равно", "Заполнено", "Не заполнено"].includes(op) || op.startsWith("Интервал"));
+    if (type === "select") return ["Равно", "Не равно", "В списке", "Не в списке", "Заполнено", "Не заполнено"];
+    return ["Равно", "Не равно", "В списке", "Не в списке", "Содержит", "Не содержит", "Начинается с", "Заполнено", "Не заполнено"];
+  },
+
   // ==========================================
   // Public API: Open / Close Filter Modal
   // ==========================================
@@ -109,6 +119,8 @@ const C1FilterComponent = {
     this.renderFilterAvailableFields();
     this.renderFilterCriteriaRows();
 
+    this.initFilterWindowControls();
+
     if (window.MdiManager) {
       MdiManager.activateWindow("ujFilterWindow", {
         title: "Настройка списка",
@@ -122,6 +134,33 @@ const C1FilterComponent = {
       const win = document.getElementById("ujFilterWindow");
       if (win) win.style.display = "flex";
     }
+  },
+
+  initFilterWindowControls: function() {
+    const pane = document.getElementById('ujFilterFieldsPane');
+    const splitter = document.getElementById('ujFilterPaneSplitter');
+    if (!pane || !splitter || splitter.dataset.bound) return;
+    splitter.dataset.bound = '1';
+    const setWidth = width => {
+      const max = Math.max(120, pane.parentElement.clientWidth - 290);
+      pane.style.width = Math.min(max, Math.max(120, width)) + 'px';
+    };
+    try { const saved = Number(localStorage.getItem('uj_filter_pane_width')); if (saved > 0) pane.style.width = Math.max(120, saved) + 'px'; } catch (_) {}
+    const save = () => { try { localStorage.setItem('uj_filter_pane_width', parseFloat(pane.style.width)); } catch (_) {} };
+    splitter.onpointerdown = event => {
+      if (event.button !== 0) return;
+      event.preventDefault();
+      const start = event.clientX, width = pane.getBoundingClientRect().width;
+      splitter.setPointerCapture(event.pointerId);
+      splitter.onpointermove = e => setWidth(width + e.clientX - start);
+      const end = () => { splitter.onpointermove = null; save(); };
+      splitter.onpointerup = end;
+      splitter.onpointercancel = end;
+    };
+    splitter.onkeydown = e => {
+      if (!['ArrowLeft', 'ArrowRight'].includes(e.key)) return;
+      e.preventDefault(); setWidth(parseFloat(pane.style.width) + (e.key === 'ArrowRight' ? 10 : -10)); save();
+    };
   },
 
   close: function() {
@@ -154,6 +193,11 @@ const C1FilterComponent = {
 
     if (otborBody) otborBody.style.display = isOtbor ? "flex" : "none";
     if (otherBody) otherBody.style.display = isOtbor ? "none" : "flex";
+    if ((tabName === "sort" || tabName === "style") && typeof ListAppearance !== "undefined") {
+      ListAppearance.render(tabName);
+    } else if (!isOtbor && otherBody) {
+      otherBody.innerHTML='<div id="ujFilterTabOtherLabel"></div>';
+    }
 
     const tabs = ["osnovnye", "otbor", "sort", "style", "group"];
     tabs.forEach(t => {
@@ -166,39 +210,77 @@ const C1FilterComponent = {
       btn.style.borderBottom = isActive ? "none" : "1px solid #b0af9f";
     });
 
-    if (otherLabel && !isOtbor) {
+    const currentOtherLabel=document.getElementById("ujFilterTabOtherLabel");
+    if (currentOtherLabel && !isOtbor && !["sort","style"].includes(tabName)) {
       const names = {
         osnovnye: "Основные",
         sort: "Сортировка",
         style: "Условное оформление",
         group: "Группировка"
       };
-      otherLabel.textContent = `Вкладка "${names[tabName] || tabName}" доступна через основную таблицу.`;
+      currentOtherLabel.textContent = `Вкладка "${names[tabName] || tabName}" доступна через основную таблицу.`;
     }
   },
 
   // ==========================================
   // Left Side: Available Fields List
   // ==========================================
+  expandedFieldGroups: {},
+
+  getAvailableFieldTree: function() {
+    const groups = [
+      {id:"kontragent",label:"Контрагент",parent:"kontragent",keys:["kontragent","golovnoy_kontragent","kontragent_code","golovnoy_kontragent_code"]},
+      {id:"contract",label:"Договор контрагента",parent:"contract",keys:["contract","contract_price_type","portfolio","agent"]},
+      {id:"pogruzka",label:"Погрузка машины",keys:["pogruzka_marshrut","pogruzka_voditel","pogruzka_duplicate","pogruzka_active_duplicate"]}
+    ];
+    const emitted = new Set();
+    const nodes = [];
+    for (const field of this.availableFields) {
+      const group = groups.find(g=>g.keys.includes(field.key));
+      if (!group) { nodes.push({field}); continue; }
+      if (emitted.has(group.id)) continue;
+      emitted.add(group.id);
+      const parent = this.availableFields.find(f=>f.key===group.parent);
+      const children = this.availableFields.filter(f=>group.keys.includes(f.key) && f.key!==group.parent);
+      if (!children.length && parent) nodes.push({field:parent});
+      else nodes.push({id:group.id,label:group.label,field:parent,children});
+    }
+    return nodes;
+  },
+
+  toggleFieldGroup: function(id) {
+    this.expandedFieldGroups[id] = !this.expandedFieldGroups[id];
+    this.renderFilterAvailableFields();
+  },
+
   renderFilterAvailableFields: function() {
     const listEl = document.getElementById("ujFilterAvailFieldsList");
     if (!listEl) return;
 
-    let html = "";
-    this.availableFields.forEach(f => {
+    const renderField = (f, indented = false, toggle = "") => {
       const isSelected = (f.key === this.filterSelectedFieldKey);
       const bg = isSelected ? "#316ac5" : "#ffffff";
       const fg = isSelected ? "#ffffff" : "#111111";
-      html += `
+      return `
         <div id="ujAvailField_${f.key}"
              style="padding: 3px 6px; font-size: 11px; background: ${bg}; color: ${fg}; cursor: pointer; user-select: none; display: flex; align-items: center; gap: 5px; border-bottom: 1px dotted #e0dec8;"
              onclick="C1FilterComponent.selectAvailableField('${f.key}')"
              ondblclick="C1FilterComponent.addFilterCriterion('${f.key}')">
-          <span style="font-size: 10px; color: ${isSelected ? '#fff' : '#4a78c4'};">▬</span>
+          ${indented ? '<span style="width:17px;flex-shrink:0"></span>' : ''}
+          ${toggle || `<span style="font-size: 10px; color: ${isSelected ? '#fff' : '#4a78c4'};">▬</span>`}
           <span style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${this.escapeHtml(f.label)}</span>
         </div>
       `;
-    });
+    };
+    let html = "";
+    for (const node of this.getAvailableFieldTree()) {
+      if (!node.children) { html += renderField(node.field); continue; }
+      const expanded = Boolean(this.expandedFieldGroups[node.id]);
+      const toggle = `<button type="button" aria-label="${this.escapeHtml(node.label)}: ${expanded ? 'Bağla' : 'Aç'}" aria-expanded="${expanded}" style="width:16px;height:16px;padding:0;line-height:12px;flex-shrink:0;cursor:pointer" onclick="event.stopPropagation();C1FilterComponent.toggleFieldGroup('${node.id}')" ondblclick="event.stopPropagation()">${expanded ? '−' : '+'}</button>`;
+      if (node.field) html += renderField(node.field,false,toggle);
+      else html += `<div style="padding:3px 6px;font-size:11px;display:flex;gap:5px;align-items:center;border-bottom:1px dotted #e0dec8;cursor:pointer" onclick="C1FilterComponent.toggleFieldGroup('${node.id}')">${toggle}<span>${this.escapeHtml(node.label)}</span></div>`;
+      if (expanded) node.children.forEach(child=>{ html += renderField(child,true); });
+    }
     listEl.innerHTML = html;
   },
 
@@ -385,6 +467,14 @@ const C1FilterComponent = {
       const bg = isSelected ? "#e2eefb" : (idx % 2 === 1 ? "#f9f8f4" : "#ffffff");
       const isChecked = (crit.enabled !== false);
       const fieldObj = availFields.find(f => f.key === crit.fieldKey) || { key: crit.fieldKey, label: crit.fieldLabel || crit.fieldKey, type: "text" };
+      if (!this.getOperatorsForField(fieldObj).includes(crit.operator)) {
+        crit.operator = "Равно";
+        crit.value = "";
+        delete crit.valueFrom;
+        delete crit.valueTo;
+        delete crit.structuredFilter;
+        crit.enabled = false;
+      }
       const isNoValueNeeded = (crit.operator === "Заполнено" || crit.operator === "Не заполнено");
 
       let valueInputHtml = "";
@@ -546,10 +636,8 @@ const C1FilterComponent = {
     if (!crit) return;
 
     const avail = this.availableFields;
-    const fieldObj = avail.find(f => f.key === crit.fieldKey) || { type: "text" };
-    const isBoolField = (fieldObj.type === "boolean");
-    const boolOps = ["Равно", "Не равно", "Заполнено", "Не заполнено"];
-    const opList = isBoolField ? boolOps : this.filterOperators;
+    const fieldObj = avail.find(f => f.key === crit.fieldKey) || { key: crit.fieldKey, type: "text" };
+    const opList = this.getOperatorsForField(fieldObj);
 
     let popup = document.getElementById("ujOpDropdownPopup");
     if (!popup) {
@@ -636,6 +724,8 @@ const C1FilterComponent = {
   onFilterCritOpChange: function(idx, newOp) {
     if (this.tempFilterCriteria[idx]) {
       const crit = this.tempFilterCriteria[idx];
+      const field = this.availableFields.find(f => f.key === crit.fieldKey) || {key:crit.fieldKey,type:"text"};
+      if (!this.getOperatorsForField(field).includes(newOp)) return;
       crit.operator = newOp;
       if (newOp.startsWith("Интервал")) {
         if (!crit.valueFrom && !crit.valueTo && crit.value) {
@@ -1241,6 +1331,25 @@ const C1FilterComponent = {
     if (modal) {
       modal.style.display = "flex";
       modal.classList.add("active");
+      const win = document.getElementById('ujFieldSelectWindow');
+      const title = document.getElementById('ujFieldSelectTitlebar');
+      if (win && title && !title.dataset.bound) {
+        title.dataset.bound = '1';
+        title.onpointerdown = e => {
+          if (e.button !== 0 || e.target.closest('button')) return;
+          e.preventDefault();
+          const rect = win.getBoundingClientRect(), x = e.clientX, y = e.clientY;
+          win.style.position = 'fixed'; win.style.margin = '0';
+          win.style.left = rect.left + 'px'; win.style.top = rect.top + 'px';
+          title.setPointerCapture(e.pointerId);
+          title.onpointermove = ev => {
+            win.style.left = Math.max(0, Math.min(window.innerWidth - win.offsetWidth, rect.left + ev.clientX - x)) + 'px';
+            win.style.top = Math.max(0, Math.min(window.innerHeight - win.offsetHeight, rect.top + ev.clientY - y)) + 'px';
+          };
+          const end = () => { title.onpointermove = null; };
+          title.onpointerup = end; title.onpointercancel = end;
+        };
+      }
       const searchInp = document.getElementById("ujFieldSelectSearchInput");
       if (searchInp) {
         searchInp.value = "";
@@ -1994,13 +2103,24 @@ const C1FilterComponent = {
   matchesCondition: function(item, crit) {
     const key = crit.fieldKey;
     let itemVal = item[key];
+    if(key === 'pogruzka_active_duplicate')itemVal=item.active_pogruzka_count!==undefined?Number(item.active_pogruzka_count)>1:item.pogruzka_duplicate===true;
+    if (key === "pogruzka_duplicate" && item.pogruzka_has_duplicates !== undefined) {
+      itemVal = item.pogruzka_has_duplicates;
+    } else if (key === "pogruzka_duplicate" && item.pogruzka_total_count !== undefined) {
+      // Filtering includes deleted loading documents; the red marker still uses active duplicates.
+      itemVal = Number(item.pogruzka_total_count) > 1;
+    }
     const targetVal = crit.value;
+    if(crit.referenceCode && (crit.referenceName===undefined||crit.referenceName===targetVal) && (crit.operator||'Равно')==='Равно' && ['kontragent','golovnoy_kontragent'].includes(key)){
+      const code=item[key==='kontragent'?'kontragent_code':'golovnoy_kontragent_code'];
+      if(code!==undefined)return String(code).trim()===String(crit.referenceCode).trim();
+    }
     const op = crit.operator || "Равно";
 
     if (itemVal === undefined || itemVal === null) itemVal = "";
 
     // 1. Boolean operations (posted, deleted)
-    if (key === "posted" || key === "deleted") {
+    if (key === "posted" || key === "deleted" || key === "pogruzka_duplicate" || key === "pogruzka_active_duplicate") {
       const bVal = Boolean(itemVal);
       if (op === "Заполнено") return true;
       if (op === "Не заполнено") return false;
