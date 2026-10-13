@@ -315,6 +315,135 @@ tr:hover .grouping-btn-pick {
   border-color: #316ac5;
 }
 
+/* ========================================================
+   1C:ENTERPRISE STANDARD TEXTBOX & PICKER COMPONENT STYLING
+   ======================================================== */
+.c1-textbox-wrap,
+.filter-field-cell-wrap,
+.filter-value-cell-wrap {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  width: 100% !important;
+  height: 20px !important;
+  background: #ffffff !important;
+  border: 1px solid #7f9db9 !important;
+  box-sizing: border-box !important;
+  position: relative !important;
+  padding: 0 !important;
+  border-radius: 0 !important;
+}
+
+.c1-textbox-wrap:hover,
+.filter-field-cell-wrap:hover,
+.filter-value-cell-wrap:hover {
+  border-color: #316ac5 !important;
+}
+
+.c1-textbox-wrap:focus-within,
+.filter-field-cell-wrap:focus-within,
+.filter-value-cell-wrap:focus-within {
+  border-color: #316ac5 !important;
+  outline: 1px dotted #316ac5 !important;
+}
+
+.c1-textbox-input,
+.filter-field-name,
+.filter-val-input,
+.oa-filter-val {
+  flex: 1 1 auto !important;
+  min-width: 0 !important;
+  width: 0 !important;
+  height: 100% !important;
+  border: none !important;
+  outline: none !important;
+  background: #ffffff !important;
+  background-color: #ffffff !important;
+  padding: 0 4px !important;
+  margin: 0 !important;
+  font-family: var(--1c-font, Arial, sans-serif) !important;
+  font-size: 11px !important;
+  color: #111111 !important;
+  -webkit-text-fill-color: #111111 !important;
+  box-sizing: border-box !important;
+  line-height: 18px !important;
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+}
+
+.c1-textbox-input:focus,
+.c1-textbox-input:active,
+.filter-val-input:focus,
+.filter-val-input:active,
+.oa-filter-val:focus,
+.oa-filter-val:active {
+  background: #ffffff !important;
+  background-color: #ffffff !important;
+  color: #111111 !important;
+  -webkit-text-fill-color: #111111 !important;
+}
+
+.c1-textbox-input::selection,
+.filter-val-input::selection,
+.oa-filter-val::selection,
+.filter-field-name::selection {
+  background-color: #316ac5 !important;
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+}
+
+.c1-textbox-input[readonly],
+.filter-field-name {
+  cursor: default !important;
+  user-select: text !important;
+  background: #ffffff !important;
+  background-color: #ffffff !important;
+  color: #111111 !important;
+  -webkit-text-fill-color: #111111 !important;
+}
+
+.c1-textbox-btn,
+.filter-field-btn-pick,
+.filter-btn-pick {
+  flex: 0 0 19px !important;
+  width: 19px !important;
+  height: 100% !important;
+  min-height: 18px !important;
+  max-height: 20px !important;
+  background: #ece9d8 !important;
+  border: none !important;
+  border-left: 1px solid #7f9db9 !important;
+  font-family: Arial, Tahoma, sans-serif !important;
+  font-size: 10px !important;
+  font-weight: bold !important;
+  line-height: 1 !important;
+  cursor: pointer !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  color: #111111 !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  box-sizing: border-box !important;
+  border-radius: 0 !important;
+  user-select: none !important;
+}
+
+.c1-textbox-btn:hover,
+.filter-field-btn-pick:hover,
+.filter-btn-pick:hover {
+  background: #dfe6f2 !important;
+  color: #000000 !important;
+}
+
+.c1-textbox-btn:active,
+.filter-field-btn-pick:active,
+.filter-btn-pick:active {
+  background: #316ac5 !important;
+  color: #ffffff !important;
+}
+
 .grouping-type-sel {
   width: 100%;
   height: 18px;

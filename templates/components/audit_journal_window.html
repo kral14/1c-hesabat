@@ -375,6 +375,10 @@
 
         <div style="width: 1px; height: 18px; background: #b0af9f; margin: 0 2px;"></div>
 
+        <select id="ajPeriodField" aria-label="Dövrün tarixi" onchange="AuditJournal.markSettingsChanged()">
+          <option value="change_date">Dəyişiklik tarixi</option>
+          <option value="date">Sənəd tarixi</option>
+        </select>
         <!-- Period Picker -->
         <button type="button" class="btn-1c" onclick="AuditJournal.openPeriodPicker()" title="Dövrü seçin" style="height: 24px; padding: 0 8px; display: inline-flex; align-items: center; gap: 4px; border: 1px solid #7f9db9; background: #ffffff; cursor: pointer; border-radius: 2px;">
           <span>📅</span>
@@ -391,7 +395,7 @@
         <!-- Version Filter Filter -->
         <div style="display: flex; align-items: center; gap: 4px;">
           <span style="color: #444;">Filtr:</span>
-          <select id="ajFilterModeSelect" onchange="AuditJournal.applyFilterAndSort()" style="height: 24px; font-size: 11px; background: #fff; border: 1px solid #7f9db9; padding: 0 4px; border-radius: 2px; cursor: pointer;">
+          <select id="ajFilterModeSelect" onchange="AuditJournal.markSettingsChanged()" style="height: 24px; font-size: 11px; background: #fff; border: 1px solid #7f9db9; padding: 0 4px; border-radius: 2px; cursor: pointer;">
             <option value="all">Bütün sənədlər</option>
             <option value="modified_only">Yalnız dəyişdirilənlər (>1 versiya)</option>
             <option value="posted_only">Yalnız təsdiqlənənlər (✔ Provodka)</option>
@@ -399,10 +403,20 @@
           </select>
         </div>
 
-        <!-- Refresh Button -->
-        <button type="button" class="btn-1c" onclick="AuditJournal.loadDocuments()" title="Siyahını yenilə (F5)" style="height: 24px; padding: 0 9px; border: 1px solid #7f9db9; background: #ffffff; cursor: pointer; border-radius: 2px; display: inline-flex; align-items: center; gap: 4px;">
+        <button type="button" class="btn-1c" onclick="AuditJournal.openFilter()" title="Фильтр" aria-label="Фильтр" style="height: 24px; padding: 0 6px; display: inline-flex; align-items: center; justify-content: center;">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <rect x="2" y="3" width="8" height="11" rx="1" fill="#f8fafc" stroke="#78909c" stroke-width="1"/>
+          <line x1="4" y1="6" x2="8" y2="6" stroke="#90a4ae" stroke-width="0.8"/>
+          <line x1="4" y1="8" x2="8" y2="8" stroke="#90a4ae" stroke-width="0.8"/>
+          <line x1="4" y1="10" x2="7" y2="10" stroke="#90a4ae" stroke-width="0.8"/>
+          <path d="M5.5 2.5 L14.5 2.5 L10.8 7.5 L10.8 13 L8.8 14 L8.8 7.5 Z" fill="#cfd8dc" stroke="#546e7a" stroke-width="1" stroke-linejoin="round"/>
+          <path d="M13.5 10 L13.5 14 M11.5 12.5 L13.5 14.5 L15.5 12.5" stroke="#37474f" stroke-width="1" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        </button>
+        <!-- Generate Button -->
+        <button type="button" class="btn-1c" onclick="AuditJournal.generate()" title="Сформировать (Ctrl+Enter)" style="height: 24px; padding: 0 9px; border: 1px solid #7f9db9; background: #ffffff; cursor: pointer; border-radius: 2px; display: inline-flex; align-items: center; gap: 4px;">
           <span>🔄</span>
-          <span style="font-weight: 600;">Yenilə</span>
+          <span style="font-weight: 600;">Сформировать</span>
         </button>
 
       </div>
@@ -467,8 +481,8 @@
         <!-- Empty State -->
         <div id="ajEmptyState" style="display: none; padding: 60px 20px; text-align: center; color: #777;">
           <div style="font-size: 32px; margin-bottom: 8px;">📂</div>
-          <div style="font-weight: bold; font-size: 13px; color: #333;">Seçilmiş dövrdə və filtrlərdə sənəd tapılmadı</div>
-          <div style="font-size: 11px; color: #888; margin-top: 4px;">Dövr intervalını genişləndirin və ya axtarış filterini təmizləyin.</div>
+          <div class="aj-empty-title" style="font-weight: bold; font-size: 13px; color: #333;">Şərtləri seçin və Сформировать basın</div>
+          <div style="font-size: 11px; color: #888; margin-top: 4px;">Məlumat yalnız Сформировать və ya Ctrl+Enter ilə yüklənir.</div>
         </div>
 
         <!-- Loading State Overlay -->
@@ -569,7 +583,8 @@
     </div>
 
     <!-- TAB 1 CONTENT: TARİX VƏ SAATA GÖRƏ ARDICIL HADİSƏLƏR -->
-    <div id="ajTabContentTimeline" style="flex: 1; overflow-y: auto; padding: 12px; display: flex; flex-direction: column; gap: 8px; background: #fff;">
+    <div id="ajEventProgress" role="status" style="padding:4px 12px;color:#004080"></div>
+<div id="ajTabContentTimeline" style="flex: 1; overflow-y: auto; padding: 12px; display: flex; flex-direction: column; gap: 8px; background: #fff;">
       
       <div style="background: #fdfcee; border: 1px solid #e0dbba; padding: 8px 12px; border-radius: 4px; display: flex; justify-content: space-between; align-items: center;">
         <div>

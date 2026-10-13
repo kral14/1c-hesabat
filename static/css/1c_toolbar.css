@@ -8,17 +8,22 @@
   align-items: center;
   justify-content: space-between;
   height: 28px;
+  min-height: 28px;
+  max-height: 28px;
   background: #f0ede0;
   border-bottom: 1px solid var(--1c-border-dark);
   padding: 0 4px;
   gap: 4px;
-  overflow-x: auto;
+  overflow: hidden !important;
+  box-sizing: border-box;
 }
 
 .toolbar-left {
   display: flex;
   align-items: center;
   gap: 3px;
+  flex-wrap: nowrap;
+  overflow: hidden;
 }
 
 .toolbar-right {
@@ -27,6 +32,8 @@
   gap: 6px;
   margin-left: auto;
   padding-right: 4px;
+  flex-shrink: 0;
+  overflow: hidden;
 }
 
 .toolbar-separator {

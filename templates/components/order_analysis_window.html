@@ -19,12 +19,12 @@
   </div>
 
   <!-- Window Body -->
-  <div class="mdi-window-body" style="background-color: #f0eee3; display: flex; flex-direction: column; height: 100%; overflow: hidden;">
+  <div class="mdi-window-body" style="background-color: #f0eee3; display: flex; flex-direction: column; flex: 1; height: 100%; min-height: 0; overflow: hidden;">
     
     <!-- Action Toolbar (1C Style) -->
-    <div class="toolbar-1c" style="flex-shrink: 0; border-bottom: 1px solid #b0af9f; background: #ece9d8; padding: 3px 6px; display: flex; align-items: center; justify-content: space-between; gap: 8px;">
+    <div class="toolbar-1c" style="flex-shrink: 0; border-bottom: 1px solid #b0af9f; background: #ece9d8; padding: 2px 6px; display: flex; align-items: center; justify-content: space-between; gap: 8px; height: 28px; min-height: 28px; max-height: 28px; box-sizing: border-box; overflow: hidden;">
       
-      <div class="toolbar-left" style="display: flex; align-items: center; gap: 4px; flex-wrap: wrap;">
+      <div class="toolbar-left" style="display: flex; align-items: center; gap: 4px; flex-wrap: nowrap; overflow: hidden;">
         
         <!-- 1. Report Switcher (Identical to Universal Journal document switcher) -->
         <div style="display: flex; align-items: center; gap: 4px; margin-right: 4px;">
@@ -73,19 +73,21 @@
 
         <div class="toolbar-separator" style="height: 18px; width: 1px; background: #b0af9f; margin: 0 2px;"></div>
 
-        <!-- 5. Quick Tools: Excel Export, Expand, Collapse -->
+        <!-- 5. Quick Tools: Excel Export, Dynamic Level Buttons (1, 2, ... N, Все) -->
         <button class="tool-icon-btn" onclick="OrderAnalysisReport.exportExcel()" title="Экспорт в Excel (.xlsx)" style="height: 24px; min-width: 24px; padding: 0 5px; cursor: pointer;">
           <span style="font-size: 13px;">📊</span>
         </button>
-        <button class="tool-icon-btn" onclick="OrderAnalysisReport.setLevel(1)" title="Уровень 1 (Только магазины / верхний уровень)" style="height: 24px; min-width: 24px; padding: 0 5px; cursor: pointer; font-size: 11px; font-weight: bold;">
-          <span>1</span>
-        </button>
-        <button class="tool-icon-btn" onclick="OrderAnalysisReport.setLevel(2)" title="Уровень 2 (Магазины и товары)" style="height: 24px; min-width: 24px; padding: 0 5px; cursor: pointer; font-size: 11px; font-weight: bold;">
-          <span>2</span>
-        </button>
-        <button class="tool-icon-btn" onclick="OrderAnalysisReport.expandAll()" title="Развернуть все уровни" style="height: 24px; min-width: 24px; padding: 0 5px; cursor: pointer; font-size: 11px; font-weight: bold;">
-          <span>Все</span>
-        </button>
+        <div id="oaLevelButtonsContainer" style="display: inline-flex; align-items: center; gap: 2px;">
+          <button type="button" class="tool-icon-btn" data-level="1" onclick="OrderAnalysisReport.setLevel(1)" title="Уровень 1" style="height: 24px; min-width: 24px; padding: 0 5px; cursor: pointer; font-size: 11px; font-weight: bold;">
+            <span>1</span>
+          </button>
+          <button type="button" class="tool-icon-btn" data-level="2" onclick="OrderAnalysisReport.setLevel(2)" title="Уровень 2" style="height: 24px; min-width: 24px; padding: 0 5px; cursor: pointer; font-size: 11px; font-weight: bold;">
+            <span>2</span>
+          </button>
+          <button type="button" class="tool-icon-btn" data-level="all" onclick="OrderAnalysisReport.expandAll()" title="Развернуть все уровни" style="height: 24px; min-width: 24px; padding: 0 5px; cursor: pointer; font-size: 11px; font-weight: bold;">
+            <span>Все</span>
+          </button>
+        </div>
 
         <!-- Active Filter Badge -->
         <div id="oaFilterBadge" style="display: none; align-items: center; gap: 4px; background: #e8f5e9; border: 1px solid #81c784; color: #1b5e20; padding: 1px 7px; border-radius: 2px; font-weight: bold; font-size: 11px;">
@@ -94,10 +96,10 @@
       </div>
 
       <!-- Right: Unified 1C Period Selector (Realizasiya jurnalı ilə eyni vahid komponent) -->
-      <div class="toolbar-right" style="display: flex; align-items: center; gap: 4px; flex-shrink: 0;">
+      <div class="toolbar-right" style="display: flex; align-items: center; gap: 4px; flex-shrink: 0; overflow: hidden;">
         <button type="button" class="btn-1c c1-period-btn" id="oaBtnPeriod" onclick="OrderAnalysisReport.openPeriodPicker()" title="Установить интервал дат (Выберите период)" style="height: 24px; display: inline-flex; align-items: center; gap: 5px; padding: 0 7px; cursor: pointer; background: #ffffff;">
           <span style="font-size: 12px;">📅</span>
-          <span id="oaPeriodLabel" class="c1-period-label" style="font-size: 11px; font-weight: 500; color: #002060;">[ 01.08.2026 - 30.09.2026 ]</span>
+          <span id="oaPeriodLabel" class="c1-period-label" style="font-size: 11px; font-weight: 500; color: #002060; white-space: nowrap;">[ 01.08.2026 - 30.09.2026 ]</span>
         </button>
         <input type="hidden" id="oaStartDateInput" value="01.08.2026">
         <input type="hidden" id="oaEndDateInput" value="30.09.2026">

@@ -93,8 +93,6 @@ logs/
 tests/*.log
 tests/*.jpg
 tests/*.json
-tests/artifacts/
-run_mode.json
 
 # --- OS Specific Files ---
 .DS_Store

@@ -5,14 +5,29 @@
  * tamamilə müstəqil müştəri tərəfi (frontend) idarəedicisi.
  */
 
-window.OrderAnalysisReport = (function() {
+window.OrderAnalysisReport = (function () {
   let currentReportData = null;
   let isGenerating = false;
   let abortController = null;
 
   function init() {
     console.log("🛒 [ORDER ANALYSIS] Report controller initialized.");
-    
+
+    // Restore remembered period if available
+    if (window.PeriodPicker && typeof PeriodPicker.restoreSavedPeriod === "function") {
+      PeriodPicker.restoreSavedPeriod();
+    } else {
+      updatePeriodLabel();
+    }
+
+    // Initialize dynamic level buttons based on current settings
+    try {
+      const initialGroupings = window.OrderAnalysisSettings
+        ? OrderAnalysisSettings.getSettings().groupings
+        : ["Контрагент", "Номенклатура"];
+      updateLevelButtons(initialGroupings);
+    } catch (e) {}
+
     // Bind Enter on date inputs
     const dStart = document.getElementById("oaStartDateInput");
     const dEnd = document.getElementById("oaEndDateInput");
@@ -60,14 +75,22 @@ window.OrderAnalysisReport = (function() {
     if (s1) s1.value = "ЗаказПокупателяАнализ";
     if (s2) s2.value = "ЗаказПокупателяАнализ";
 
-    // Synchronize dates from top toolbar if empty
-    const topStart = document.getElementById("topStartDateInput");
-    const topEnd = document.getElementById("topEndDateInput");
+    // Restore remembered period if available
+    const rem = (window.PeriodPicker && typeof PeriodPicker.getRememberedPeriod === "function")
+      ? PeriodPicker.getRememberedPeriod()
+      : null;
     const oaStart = document.getElementById("oaStartDateInput");
     const oaEnd = document.getElementById("oaEndDateInput");
+    const topStart = document.getElementById("topStartDateInput");
+    const topEnd = document.getElementById("topEndDateInput");
 
-    if (topStart && oaStart && (!oaStart.value || oaStart.value === "")) oaStart.value = topStart.value;
-    if (topEnd && oaEnd && (!oaEnd.value || oaEnd.value === "")) oaEnd.value = topEnd.value;
+    if (rem && (rem.startDate || rem.endDate)) {
+      if (oaStart && rem.startDate) oaStart.value = rem.startDate;
+      if (oaEnd && rem.endDate) oaEnd.value = rem.endDate;
+    } else {
+      if (topStart && oaStart && (!oaStart.value || oaStart.value === "")) oaStart.value = topStart.value;
+      if (topEnd && oaEnd && (!oaEnd.value || oaEnd.value === "")) oaEnd.value = topEnd.value;
+    }
     updatePeriodLabel();
   }
 
@@ -121,6 +144,11 @@ window.OrderAnalysisReport = (function() {
     }
     if (!endDate) {
       endDate = (document.getElementById("topEndDateInput")?.value || "30.09.2026").trim();
+    }
+
+    // Always persist last generated period if remember period is active
+    if ((startDate || endDate) && window.PeriodPicker && typeof PeriodPicker.saveExplicitPeriod === "function") {
+      PeriodPicker.saveExplicitPeriod(startDate, endDate);
     }
 
     const settings = window.OrderAnalysisSettings ? OrderAnalysisSettings.getSettings() : {
@@ -365,6 +393,10 @@ window.OrderAnalysisReport = (function() {
     setTotalVal("oaTotalCellQtyNet", totals.qty_net, 3);
     setTotalVal("oaTotalCellSumNet", totals.sum_net, 2);
 
+    // Update Dynamic Level Buttons in Toolbar (1, 2, ... N, Все) based on active groupings
+    const activeGroupings = data.groupings || (window.OrderAnalysisSettings ? OrderAnalysisSettings.getSettings().groupings : ["Контрагент", "Номенклатура"]);
+    updateLevelButtons(activeGroupings);
+
     // Build Table Body
     tbody.innerHTML = "";
     const rows = data.rows || [];
@@ -388,7 +420,7 @@ window.OrderAnalysisReport = (function() {
         tr.style.backgroundColor = "#faf7eb";
         tr.style.fontWeight = "bold";
         tr.style.borderTop = "1px solid #d4c88a";
-      } else if (isLevel2 && r.has_children) {
+      } else if (r.has_children) {
         tr.style.backgroundColor = "#fdfcf5";
         tr.style.fontWeight = "bold";
       } else {
@@ -418,17 +450,24 @@ window.OrderAnalysisReport = (function() {
 
       let rowHtml = `<td style="padding: 3px 6px; padding-left: ${indentPx}px; border: 1px solid #e0dfd5; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 440px;">${expandToggleHtml}<span class="oa-row-title" title="${escapeHtml(r.name)}" style="color: ${isLevel1 ? '#002060' : '#111'};">${escapeHtml(r.name)}</span></td>`;
 
+      // Only items (Номенклатура) have article, barcode, and unit of measurement!
+      const isItem = (r.group_type === "Номенклатура" || r.group_type === "Товар");
+      const cleanCode = r.code || '';
+      const cleanArticle = isItem ? (r.article || '') : '';
+      const cleanBarcode = isItem ? (r.barcode || '') : '';
+      const cleanUnit = isItem ? (r.unit || '') : '';
+
       if (showCode) {
-        rowHtml += `<td style="text-align: center; padding: 3px 6px; border: 1px solid #e0dfd5; color: #555; font-size: 10px;">${escapeHtml(r.code || '')}</td>`;
+        rowHtml += `<td style="text-align: center; padding: 3px 6px; border: 1px solid #e0dfd5; color: #555; font-size: 10px;">${escapeHtml(cleanCode)}</td>`;
       }
       if (showArticle) {
-        rowHtml += `<td style="text-align: center; padding: 3px 6px; border: 1px solid #e0dfd5; color: #555; font-size: 10px;">${escapeHtml(r.article || '')}</td>`;
+        rowHtml += `<td style="text-align: center; padding: 3px 6px; border: 1px solid #e0dfd5; color: #555; font-size: 10px;">${escapeHtml(cleanArticle)}</td>`;
       }
       if (showBarcode) {
-        rowHtml += `<td style="text-align: center; padding: 3px 6px; border: 1px solid #e0dfd5; color: #555; font-size: 10px;">${escapeHtml(r.barcode || '')}</td>`;
+        rowHtml += `<td style="text-align: center; padding: 3px 6px; border: 1px solid #e0dfd5; color: #555; font-size: 10px;">${escapeHtml(cleanBarcode)}</td>`;
       }
 
-      rowHtml += `<td style="text-align: center; padding: 3px 6px; border: 1px solid #e0dfd5; color: #555; font-size: 10px;">${escapeHtml(r.unit || '')}</td>`;
+      rowHtml += `<td style="text-align: center; padding: 3px 6px; border: 1px solid #e0dfd5; color: #555; font-size: 10px;">${escapeHtml(cleanUnit)}</td>`;
 
       if (showQtyOrder) {
         rowHtml += `<td data-orig-color="#1b5e20" data-orig-bg="#fbfdf9" style="text-align: right; padding: 3px 6px; border: 1px solid #e0dfd5; color: #1b5e20; font-weight: ${isLevel1 ? 'bold' : 'normal'}; background: #fbfdf9;">${r.qty_order !== 0 ? formatNumber(r.qty_order, 3) : '-'}</td>`;
@@ -506,7 +545,37 @@ window.OrderAnalysisReport = (function() {
     });
   }
 
+  function updateLevelButtons(groupings) {
+    const container = document.getElementById("oaLevelButtonsContainer");
+    if (!container) return;
+
+    const list = Array.isArray(groupings) && groupings.length > 0 ? groupings : ["Контрагент", "Номенклатура"];
+    const count = Math.max(1, list.length);
+
+    let html = "";
+    for (let i = 1; i <= count; i++) {
+      const gName = list[i - 1] || `Уровень ${i}`;
+      html += `<button type="button" class="tool-icon-btn" data-level="${i}" onclick="OrderAnalysisReport.setLevel(${i})" title="Уровень ${i} (${escapeHtml(gName)})" style="height: 24px; min-width: 24px; padding: 0 5px; cursor: pointer; font-size: 11px; font-weight: bold;"><span>${i}</span></button>`;
+    }
+    html += `<button type="button" class="tool-icon-btn" data-level="all" onclick="OrderAnalysisReport.expandAll()" title="Развернуть все уровни" style="height: 24px; min-width: 24px; padding: 0 5px; cursor: pointer; font-size: 11px; font-weight: bold;"><span>Все</span></button>`;
+
+    container.innerHTML = html;
+  }
+
   function setLevel(maxLevel) {
+    const container = document.getElementById("oaLevelButtonsContainer");
+    if (container) {
+      container.querySelectorAll(".tool-icon-btn").forEach(btn => {
+        btn.style.background = "";
+        btn.style.borderColor = "";
+      });
+      const activeBtn = container.querySelector(`button[data-level="${maxLevel}"]`);
+      if (activeBtn) {
+        activeBtn.style.background = "#dbeafe";
+        activeBtn.style.borderColor = "#2563eb";
+      }
+    }
+
     const tbody = document.getElementById("oaReportTableBody");
     if (!tbody) return;
 
@@ -532,6 +601,19 @@ window.OrderAnalysisReport = (function() {
   }
 
   function expandAll() {
+    const container = document.getElementById("oaLevelButtonsContainer");
+    if (container) {
+      container.querySelectorAll(".tool-icon-btn").forEach(btn => {
+        btn.style.background = "";
+        btn.style.borderColor = "";
+      });
+      const allBtn = container.querySelector(`button[data-level="all"]`);
+      if (allBtn) {
+        allBtn.style.background = "#dbeafe";
+        allBtn.style.borderColor = "#2563eb";
+      }
+    }
+
     const tbody = document.getElementById("oaReportTableBody");
     if (!tbody) return;
 
@@ -589,8 +671,25 @@ window.OrderAnalysisReport = (function() {
   function openPeriodPicker() {
     const sInput = document.getElementById("oaStartDateInput");
     const eInput = document.getElementById("oaEndDateInput");
-    const currStart = sInput?.value || "01.08.2026";
-    const currEnd = eInput?.value || "30.09.2026";
+    let currStart = sInput?.value || "";
+    let currEnd = eInput?.value || "";
+
+    if (!currStart && !currEnd && window.PeriodPicker && typeof PeriodPicker.getRememberedPeriod === "function") {
+      const rem = PeriodPicker.getRememberedPeriod();
+      if (rem) {
+        currStart = rem.startDate || "";
+        currEnd = rem.endDate || "";
+      }
+    }
+    if (!currStart) currStart = "01.08.2026";
+    if (!currEnd) currEnd = "30.09.2026";
+
+    const toDateOnly = (val) => {
+      if (!val) return "";
+      const s = String(val).trim();
+      const m = s.match(/^(\d{1,2}\.\d{1,2}\.\d{4})/);
+      return m ? m[1] : s.split(" ")[0];
+    };
 
     const handleSelect = (start, end) => {
       if (sInput) sInput.value = start;
@@ -598,14 +697,19 @@ window.OrderAnalysisReport = (function() {
       updatePeriodLabel();
       const topStart = document.getElementById("topStartDateInput");
       const topEnd = document.getElementById("topEndDateInput");
-      if (topStart) topStart.value = start;
-      if (topEnd) topEnd.value = end;
+      const sOnly = toDateOnly(start);
+      const eOnly = toDateOnly(end);
+      if (topStart) topStart.value = sOnly || start;
+      if (topEnd) topEnd.value = eOnly || end;
       const dlgStart = document.getElementById("oaDlgStartDate");
       const dlgEnd = document.getElementById("oaDlgEndDate");
       if (dlgStart) dlgStart.value = start;
       if (dlgEnd) dlgEnd.value = end;
       if (window.OrderAnalysisSettings && typeof OrderAnalysisSettings.updatePeriodLabel === "function") {
         OrderAnalysisSettings.updatePeriodLabel();
+      }
+      if (window.PeriodPicker && typeof PeriodPicker.saveExplicitPeriod === "function") {
+        PeriodPicker.saveExplicitPeriod(start, end);
       }
     };
 
@@ -675,6 +779,7 @@ window.OrderAnalysisReport = (function() {
     printReport,
     setLevel,
     expandAll,
+    updateLevelButtons,
     toggleRow,
     toggleActionsMenu,
     openPeriodDialog,

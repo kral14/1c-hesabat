@@ -1993,6 +1993,8 @@ const MdiManager = {
       return false;
     }
 
+    if (window.FormAction && FormAction.confirm(topWin.id)) return true;
+
     console.log(`[HOTKEY CTRL+ENTER] Confirming topmost window #${topWin.id} ("${topWin.title}", z=${topWin.element.style.zIndex || 0})`);
 
     // Topmost: Portfolio Catalog Report Window

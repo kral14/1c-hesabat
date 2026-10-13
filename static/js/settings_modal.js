@@ -438,6 +438,13 @@ function syncDateInputsFromTop() {
   if (oaEnd && topEnd) oaEnd.value = topEnd;
   if (oaDlgStart && topStart) oaDlgStart.value = topStart;
   if (oaDlgEnd && topEnd) oaDlgEnd.value = topEnd;
+
+  if (window.OrderAnalysisReport && typeof OrderAnalysisReport.updatePeriodLabel === "function") {
+    OrderAnalysisReport.updatePeriodLabel();
+  }
+  if ((topStart || topEnd) && window.PeriodPicker && typeof PeriodPicker.saveExplicitPeriod === "function") {
+    PeriodPicker.saveExplicitPeriod(topStart, topEnd);
+  }
 }
 
 function syncDateInputsFromDlg() {

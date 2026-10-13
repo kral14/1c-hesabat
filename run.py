@@ -166,10 +166,26 @@ def load_settings():
     except (OSError, ValueError, TypeError):
         return {'mode': 'office', 'office_url': OFFICE_SERVER_URL}
 
-def prepare_mode(mode, office_url):
+def ensure_1c_connection(target_url, credentials=None):
+    """Verify the selected backend's 1C connection before opening Electron."""
+    print('🔗 1C bağlantısı hazırlanır və yoxlanılır...', flush=True)
+    req = urllib.request.Request(target_url.rstrip('/') + '/api/ping_connection',
+        data=json.dumps(credentials or {}).encode('utf-8'), headers={'Content-Type': 'application/json'}, method='POST')
+    try:
+        with urllib.request.urlopen(req, timeout=120) as response:
+            status = json.load(response)
+    except Exception as error:
+        raise RuntimeError('1C bağlantısı yoxlanmadı. Server/şəbəkə bağlantısını yoxlayın: ' + str(error)) from error
+    if not status.get('success') or not status.get('connected'):
+        raise RuntimeError('1C bağlantısı qurulmadı: ' + str(status.get('error') or 'Server 1C ilə bağlı deyil.'))
+    print('✅ 1C bağlantısı hazırdır: ' + str(status.get('server', '')) + ' / ' + str(status.get('ref', '')), flush=True)
+    return status
+
+def prepare_mode(mode, office_url, check_connection=True):
     if mode == 'office':
         if not ensure_server(LOCAL_SERVER_URL):
             raise RuntimeError('Lokal server başlamadı. Server loqunu və 5050 portunu yoxlayın.')
+        if check_connection: ensure_1c_connection(LOCAL_SERVER_URL)
         return LOCAL_SERVER_URL
     parsed = urlparse(office_url)
     if parsed.scheme not in ('http', 'https') or not parsed.hostname or parsed.username or parsed.password:
@@ -178,7 +194,18 @@ def prepare_mode(mode, office_url):
         raise RuntimeError('Ofis serveri əlçatan deyil. Cloudflare WARP bağlantısını və server ünvanını yoxlayın.')
     if not ensure_proxy_server(office_url):
         raise RuntimeError('Lokal proxy (5051) başlamadı. Tətbiq açılmadı.')
+    if check_connection: ensure_1c_connection(PROXY_SERVER_URL)
     return PROXY_SERVER_URL
+
+def manage_startup_sessions(target_url, parent=None):
+    from services.cluster_gui import open_cluster_gui
+    with urllib.request.urlopen(target_url.rstrip('/') + '/api/bases', timeout=15) as response:
+        active = json.load(response).get('active_base') or {}
+    server, ref = active.get('server'), active.get('ref')
+    if not server or not ref: raise RuntimeError('Sessiyalar üçün aktiv baza seçilməlidir.')
+    action = open_cluster_gui(server_agent=server + ':1540', target_base=ref,
+                              backend_url=target_url, parent=parent)
+    return action
 
 def show_mode_selector():
     import tkinter as tk
@@ -212,7 +239,7 @@ def show_mode_selector():
         for control in (office_choice, home_choice, entry): control.config(state='disabled')
         status.set('Bağlantı hazırlanır...')
         def worker():
-            try: events.put(('ready', (selected_mode, url, prepare_mode(selected_mode, url))))
+            try: events.put(('ready', (selected_mode, url, prepare_mode(selected_mode, url, check_connection=False))))
             except Exception as error: events.put(('error', str(error)))
         threading.Thread(target=worker, daemon=True).start()
     start = ttk.Button(controls, text='Başla', command=launch)
@@ -225,6 +252,21 @@ def show_mode_selector():
                 status.set(data)
                 start.config(state='normal')
                 for control in (office_choice, home_choice, entry): control.config(state='normal')
+            elif kind == 'ready':
+                selected_mode, url, target = data
+                action = manage_startup_sessions(target, parent=root)
+                if action is None:
+                    status.set('Sessiya seçimi ləğv edildi.')
+                    start.config(state='normal')
+                    for control in (office_choice, home_choice, entry): control.config(state='normal')
+                else:
+                    status.set('Mövcud bağlantı istifadə olunur...' if action == 'reuse' else '1C bağlantısı hazırlanır...')
+                    def connect_worker():
+                        try:
+                            if action != 'reuse': ensure_1c_connection(target)
+                            events.put(('connected', (selected_mode, url, target)))
+                        except Exception as error: events.put(('error', str(error)))
+                    threading.Thread(target=connect_worker, daemon=True).start()
             else:
                 selected_mode, url, target = data
                 with open(CONFIG_FILE, 'w', encoding='utf-8') as destination:
@@ -233,8 +275,8 @@ def show_mode_selector():
                 root.destroy()
                 return
         except queue.Empty: pass
-        except OSError as error:
-            status.set('Seçim yadda saxlanılmadı: ' + str(error))
+        except Exception as error:
+            status.set(str(error))
             start.config(state='normal')
             for control in (office_choice, home_choice, entry): control.config(state='normal')
         root.after(100, poll)
@@ -250,17 +292,22 @@ def main(argv=None):
     modes.add_argument('--office', '--local', '--ofis', '--offline', action='store_true')
     modes.add_argument('--home', '--ev', '--warp', '--remote', action='store_true')
     parser.add_argument('--office-url', default=OFFICE_SERVER_URL)
+    parser.add_argument('--no-session-gui', action='store_true')
     parser.add_argument('url', nargs='?')
     args = parser.parse_args(argv)
     if args.url:
         if urlparse(args.url).scheme not in ('http', 'https'): parser.error('URL http/https olmalıdır')
         target = args.url
     elif args.office or args.home:
-        target = prepare_mode('office' if args.office else 'home', args.office_url)
+        target = prepare_mode('office' if args.office else 'home', args.office_url, check_connection=False)
     else:
         selection = show_mode_selector()
         if selection is None: return 0
         _, target = selection
+    if args.url or args.office or args.home:
+        action = 'connect' if args.no_session_gui else manage_startup_sessions(target)
+        if action is None: return 0
+        if action != 'reuse': ensure_1c_connection(target)
     open_electron(target)
     return 0
 

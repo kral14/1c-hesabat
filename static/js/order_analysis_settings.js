@@ -34,25 +34,31 @@ window.OrderAnalysisSettings = (function() {
         },
         fieldCatalogMap: {
           "Контрагент": "Контрагенты",
-          "Номенклатура": "Номенклатура",
-          "Склад": "Склады",
-          "Портфель": "Портфели",
+          "Договор контрагента": "ДоговорыКонтрагентов",
+          "Заказ покупателя": "ЗаказыПокупателей",
           "Агент": "Агенты",
+          "Качество": "Качество",
+          "Номенклатура": "Номенклатура",
+          "Портфель": "Портфели",
+          "Склад": "Склады",
+          "Регистратор.Вид операции": "Вид операции",
+          "Документ движения (регистратор)": "Документы",
           "Номенклатура.Номенклатурная группа": "НоменклатурныеГруппы",
           "Номенклатурная группа": "НоменклатурныеГруппы",
-          "Качество": "Качество",
-          "Регистратор.Вид операции": "Вид операции",
           "Регистратор.Ответственный": "Пользователи"
         },
         fieldPlaceholderMap: {
           "Контрагент": "Müştəri seç...",
-          "Номенклатура": "Məhsul seç...",
-          "Склад": "Anbar seç...",
-          "Портфель": "Portfel seç...",
+          "Договор контрагента": "Müqavilə seç...",
+          "Заказ покупателя": "Sifariş seç...",
           "Агент": "Agent seç...",
-          "Номенклатура.Номенклатурная группа": "Qrup seç...",
           "Качество": "Keyfiyyət...",
+          "Номенклатура": "Məhsul seç...",
+          "Портфель": "Portfel seç...",
+          "Склад": "Anbar seç...",
           "Регистратор.Вид операции": "Əməliyyat növü...",
+          "Документ движения (регистратор)": "Sənəd seç...",
+          "Номенклатура.Номенклатурная группа": "Qrup seç...",
           "Регистратор.Ответственный": "Məsul şəxs..."
         },
         onGenerate: function(settings) {
@@ -207,6 +213,9 @@ window.OrderAnalysisSettings = (function() {
     try {
       s = getSettings();
       saveSettings(s);
+      if (window.OrderAnalysisReport && typeof OrderAnalysisReport.updateLevelButtons === "function" && s.groupings) {
+        OrderAnalysisReport.updateLevelButtons(s.groupings);
+      }
     } catch (e) {
       console.warn("getSettings error:", e);
     }
@@ -286,9 +295,23 @@ window.OrderAnalysisSettings = (function() {
     moveGroupingToRows: () => getEngine()?.moveGroupingToRows(),
 
     selectFilterRow: (tr) => getEngine()?.selectFilterRow(tr),
-    addFilterRow: (f, c, v) => getEngine()?.addFilterRow(f, c, v),
+    addFilterRow: (f, c, v) => {
+      const eng = getEngine();
+      if (!f && eng) {
+        if (window.FieldSelector && typeof FieldSelector.open === "function") {
+          FieldSelector.open((chosenField) => {
+            if (chosenField && chosenField.trim()) {
+              eng.addFilterRow(chosenField.trim(), c || "in_list", v || "");
+            }
+          });
+          return;
+        }
+      }
+      return eng?.addFilterRow(f, c, v);
+    },
     removeSelectedFilterRow: () => getEngine()?.removeSelectedFilterRow(),
     clearAllFilters: () => getEngine()?.clearAllFilters(),
+    editFilterField: (target) => UniversalReportSettings.editFilterField(target, "order_analysis"),
     saveFiltersPreset: () => alert("Süzgəclər cari sessiyada saxlanıldı.")
   };
 })();

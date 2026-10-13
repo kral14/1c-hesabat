@@ -106,7 +106,7 @@ def forward_api(path):
             params=request.args,
             cookies=request.cookies,
             allow_redirects=False,
-            timeout=(15.0, 300.0)
+            timeout=(3.0, 8.0) if path == "api/connection/status" else (15.0, 300.0)
         )
         duration = time.time() - t_start
         excluded_headers = ["content-encoding", "content-length", "transfer-encoding", "connection"]

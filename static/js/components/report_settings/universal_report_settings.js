@@ -20,10 +20,15 @@
 
   const FIELD_CATALOG_MAP = {
     "Контрагент": "Контрагенты",
-    "Номенклатура": "Номенклатура",
-    "Склад": "Склады",
-    "Портфель": "Портфели",
+    "Договор контрагента": "ДоговорыКонтрагентов",
+    "Заказ покупателя": "ЗаказыПокупателей",
     "Агент": "Агенты",
+    "Качество": "Качество",
+    "Номенклатура": "Номенклатура",
+    "Портфель": "Портфели",
+    "Склад": "Склады",
+    "Регистратор.Вид операции": "Вид операции",
+    "Документ движения (регистратор)": "Документы",
     "Номенклатура.Номенклатурная группа": "НоменклатурныеГруппы",
     "Номенклатурная группа": "НоменклатурныеГруппы",
     "Договор": "ДоговорыКонтрагентов",
@@ -36,17 +41,20 @@
 
   const FIELD_PLACEHOLDER_MAP = {
     "Контрагент": "Müştəri seç...",
-    "Номенклатура": "Məhsul seç...",
-    "Склад": "Anbar seç...",
-    "Портфель": "Portfel seç...",
+    "Договор контрагента": "Müqavilə seç...",
+    "Заказ покупателя": "Sifariş seç...",
     "Агент": "Agent seç...",
-    "Номенклатура.Номенклатурная группа": "Qrup seç...",
-    "Номенклатурная группа": "Qrup seç...",
     "Качество": "Keyfiyyət...",
+    "Номенклатура": "Məhsul seç...",
+    "Портфель": "Portfel seç...",
+    "Склад": "Anbar seç...",
     "Регистратор.Вид операции": "Əməliyyat növü...",
     "Вид операции": "Əməliyyat növü...",
+    "Документ движения (регистратор)": "Sənəd seç...",
     "Регистратор.Ответственный": "Məsul şəxs...",
     "Ответственный": "Məsul şəxs...",
+    "Номенклатура.Номенклатурная группа": "Qrup seç...",
+    "Номенклатурная группа": "Qrup seç...",
     "Пользователь": "İstifadəçi seç...",
     "Количество": "Say...",
     "Сумма": "Məbləğ..."
@@ -89,6 +97,7 @@
     }
 
     open() {
+      if (window.FormAction) FormAction.register(this.windowId, () => this.applyAndGenerate());
       this.syncDatesFromTop();
       this.updatePeriodLabel();
 
@@ -434,11 +443,12 @@
       this.activeFilterRow = tr;
     }
 
-    onFilterFieldChange(selectEl) {
-      const tr = selectEl.closest("tr");
+    onFilterFieldChange(target) {
+      const tr = target ? target.closest("tr") : null;
       if (!tr) return;
 
-      const field = selectEl.value;
+      const fieldEl = tr.querySelector(".filter-field-sel, .oa-filter-field, .filter-field-name");
+      const field = fieldEl ? ((fieldEl.tagName === "SELECT" ? fieldEl.value : (fieldEl.tagName === "INPUT" ? fieldEl.value : (fieldEl.getAttribute("data-field") || fieldEl.textContent || ""))).trim()) : "Контрагент";
       const input = tr.querySelector(".filter-val-input, .oa-filter-val");
       const placeholder = this.fieldPlaceholderMap[field] || "Dəyər daxil edin...";
 
@@ -452,10 +462,17 @@
       const tbody = this.getContainer()?.querySelector(this.selectors.tableFilters);
       if (!tbody) return;
       tbody.querySelectorAll("tr").forEach(tr => this.bindFilterRowEvents(tr));
+      if (window.C1TextBox && typeof C1TextBox.bind === "function") {
+        C1TextBox.bind(tbody);
+      }
     }
 
     bindFilterRowEvents(tr) {
-      if (!tr || tr._filterEventsBound) return;
+      if (!tr) return;
+      if (window.C1TextBox && typeof C1TextBox.bind === "function") {
+        C1TextBox.bind(tr);
+      }
+      if (tr._filterEventsBound) return;
       tr._filterEventsBound = true;
       const inp = tr.querySelector(".filter-val-input, .oa-filter-val");
       if (inp) {
@@ -474,17 +491,32 @@
       }
     }
 
-    addFilterRow(defaultField = "Контрагент", defaultComp = "in_list", defaultValue = "") {
+    addFilterRow(defaultField = null, defaultComp = "in_list", defaultValue = "") {
+      if (!defaultField) {
+        const fs = window.FieldSelector || (typeof FieldSelector !== "undefined" ? FieldSelector : null);
+        if (fs && typeof fs.open === "function") {
+          fs.open((chosenField) => {
+            if (chosenField && chosenField.trim()) {
+              this.insertFilterRow(chosenField.trim(), defaultComp, defaultValue);
+            }
+          });
+          return;
+        }
+        defaultField = "Контрагент";
+      }
+      this.insertFilterRow(defaultField, defaultComp, defaultValue);
+    }
+
+    insertFilterRow(defaultField = "Контрагент", defaultComp = "in_list", defaultValue = "") {
       const tbody = this.getContainer()?.querySelector(this.selectors.tableFilters);
       if (!tbody) return;
 
+      if (!this.fieldCatalogMap[defaultField]) {
+        this.fieldCatalogMap[defaultField] = defaultField;
+      }
+
       const tr = document.createElement("tr");
       tr.onclick = () => this.selectFilterRow(tr);
-
-      const fieldOptions = Object.keys(this.fieldCatalogMap).map(f => {
-        const sel = (f === defaultField) ? "selected" : "";
-        return `<option value="${escapeHtml(f)}" ${sel}>${escapeHtml(f)}</option>`;
-      }).join("");
 
       const placeholder = this.fieldPlaceholderMap[defaultField] || "Dəyər daxil edin...";
       const isChecked = Boolean(defaultValue && defaultValue.trim().length > 0);
@@ -492,9 +524,10 @@
       tr.innerHTML = `
         <td style="text-align: center;"><input type="checkbox" class="filter-chk oa-filter-chk" ${isChecked ? "checked" : ""}></td>
         <td>
-          <select class="filter-field-sel oa-filter-field" onchange="UniversalReportSettings.onFilterFieldChange(this, '${this.key}')" style="width: 100%; height: 20px; font-size: 11px;">
-            ${fieldOptions}
-          </select>
+          <div class="c1-textbox-wrap filter-field-cell-wrap" data-component="c1-textbox">
+            <input type="text" class="c1-textbox-input filter-field-name oa-filter-field" value="${escapeHtml(defaultField)}" data-field="${escapeHtml(defaultField)}" readonly title="${escapeHtml(defaultField)}">
+            <button type="button" class="c1-textbox-btn filter-field-btn-pick" onclick="UniversalReportSettings.editFilterField(this, '${this.key}')" title="Выбрать (F4)">...</button>
+          </div>
         </td>
         <td>
           <select class="filter-comp-sel oa-filter-comp" style="width: 100%; height: 20px; font-size: 11px;">
@@ -507,9 +540,9 @@
           </select>
         </td>
         <td>
-          <div class="filter-value-cell-wrap" style="display: flex; align-items: center; gap: 2px; position: relative;">
-            <input type="text" class="filter-val-input oa-filter-val" value="${escapeHtml(defaultValue)}" placeholder="${placeholder}" style="flex: 1; height: 20px; font-size: 11px; padding: 1px 4px; border: 1px solid #7f9db9;">
-            <button class="filter-btn-pick" onclick="UniversalReportSettings.openCatalogForFilterRow(this, '${this.key}')" title="Soraqçadan seç..." style="height: 20px; width: 22px; cursor: pointer; padding: 0;">...</button>
+          <div class="c1-textbox-wrap filter-value-cell-wrap" data-component="c1-textbox">
+            <input type="text" class="c1-textbox-input filter-val-input oa-filter-val" value="${escapeHtml(defaultValue)}" placeholder="${placeholder}" autocomplete="off" spellcheck="false">
+            <button type="button" class="c1-textbox-btn filter-btn-pick" onclick="UniversalReportSettings.openCatalogForFilterRow(this, '${this.key}')" title="Выбрать (F4)">...</button>
           </div>
         </td>
       `;
@@ -517,6 +550,9 @@
       tbody.appendChild(tr);
       this.selectFilterRow(tr);
       this.bindFilterRowEvents(tr);
+      if (window.C1TextBox && typeof C1TextBox.bind === "function") {
+        C1TextBox.bind(tr);
+      }
 
       const inp = tr.querySelector(".filter-val-input, .oa-filter-val");
       if (inp) {
@@ -550,11 +586,11 @@
       const tr = btn.closest("tr");
       if (!tr) return;
 
-      const fieldSel = tr.querySelector(".filter-field-sel, .oa-filter-field");
+      const fieldSel = tr.querySelector(".filter-field-sel, .oa-filter-field, .filter-field-name");
       const compSel = tr.querySelector(".filter-comp-sel, .oa-filter-comp");
       const valInput = tr.querySelector(".filter-val-input, .oa-filter-val");
 
-      const field = fieldSel ? fieldSel.value.trim() : "Контрагент";
+      const field = fieldSel ? ((fieldSel.tagName === "SELECT" ? fieldSel.value : (fieldSel.getAttribute("data-field") || fieldSel.textContent || "")).trim()) : "Контрагент";
       const comp = compSel ? compSel.value.trim() : "in_list";
       const isMulti = (comp === "in_list" || comp === "in_group_list" || comp === "in_list_exact");
 
@@ -592,6 +628,8 @@
       else if (field === "Агент") catalog = "Агенты";
       else if (field.includes("Номенклатурная группа")) catalog = "НоменклатурныеГруппы";
       else if (field.includes("Номенклатур")) catalog = "Номенклатура";
+      else if (field.includes("Договор")) catalog = "ДоговорыКонтрагентов";
+      else if (field.includes("Заказ")) catalog = "ЗаказыПокупателей";
 
       // 5. Open Modal
       if (isMulti) {
@@ -709,8 +747,8 @@
         }
 
         const tr = input.closest("tr");
-        const fieldSel = tr ? tr.querySelector(".filter-field-sel, .oa-filter-field") : null;
-        const field = fieldSel ? fieldSel.value.trim() : "Контрагент";
+        const fieldSel = tr ? tr.querySelector(".filter-field-sel, .oa-filter-field, .filter-field-name") : null;
+        const field = fieldSel ? ((fieldSel.tagName === "SELECT" ? fieldSel.value : (fieldSel.getAttribute("data-field") || fieldSel.textContent || "")).trim()) : "Контрагент";
         let catalog = this.fieldCatalogMap[field] || "Номенклатура";
 
         const parts = query.split(";");
@@ -844,14 +882,15 @@
       const filterRows = win.querySelectorAll(`${this.selectors.tableFilters} tr`);
       filterRows.forEach(tr => {
         const chk = tr.querySelector(".filter-chk, .oa-filter-chk");
-        const fSel = tr.querySelector(".filter-field-sel, .oa-filter-field");
+        const fSel = tr.querySelector(".filter-field-sel, .oa-filter-field, .filter-field-name");
         const cSel = tr.querySelector(".filter-comp-sel, .oa-filter-comp");
         const valInp = tr.querySelector(".filter-val-input, .oa-filter-val");
 
         if (chk && fSel && cSel && valInp) {
+          const fieldName = ((fSel.tagName === "SELECT" ? fSel.value : (fSel.tagName === "INPUT" ? fSel.value : (fSel.getAttribute("data-field") || fSel.textContent || ""))).trim());
           filters.push({
             active: chk.checked,
-            field: fSel.value.trim(),
+            field: fieldName,
             comp: cSel.value.trim(),
             value: valInp.value.trim()
           });
@@ -918,11 +957,16 @@
     }
 
     applyAndGenerate() {
+      if (window.FormAction) return FormAction.run({
+        key: this.windowId,
+        collect: () => { this.syncDatesToTop(); return this.collectSettings(); },
+        close: () => this.close(),
+        execute: settings => typeof this.onGenerate === 'function' ? this.onGenerate(settings) : undefined,
+        onError: error => alert(error.message)
+      });
       this.syncDatesToTop();
       this.close();
-      if (typeof this.onGenerate === "function") {
-        this.onGenerate(this.collectSettings());
-      }
+      if (typeof this.onGenerate === "function") this.onGenerate(this.collectSettings());
     }
 
     applyAndClose() {
@@ -985,13 +1029,40 @@
           if (selectedField && span) span.textContent = selectedField;
         });
       } else {
-        // Birbaşa DOM üzərindən açırıq
         const overlay = document.getElementById("fieldSelectorModalOverlay");
         if (overlay) {
           overlay.style.display = "flex";
           overlay.classList.add("active");
           overlay.style.setProperty("z-index", "100500", "important");
         }
+      }
+    },
+
+    editFilterField(target, key) {
+      const tr = target ? target.closest("tr") : null;
+      if (!tr) return;
+      const nameEl = tr.querySelector(".filter-field-name, .oa-filter-field");
+      const curVal = nameEl ? ((nameEl.tagName === "INPUT" ? nameEl.value : (nameEl.getAttribute("data-field") || nameEl.textContent || ""))).trim() : "";
+
+      const fs = window.FieldSelector || (typeof FieldSelector !== "undefined" ? FieldSelector : null);
+      if (fs && typeof fs.open === "function") {
+        fs.open(curVal, (selectedField) => {
+          if (!selectedField) return;
+          const cleanField = selectedField.trim();
+          if (nameEl) {
+            if (nameEl.tagName === "INPUT") {
+              nameEl.value = cleanField;
+            } else {
+              nameEl.textContent = cleanField;
+            }
+            nameEl.setAttribute("data-field", cleanField);
+            nameEl.title = cleanField;
+          }
+          const eng = registry[key] || (window.OrderAnalysisSettings && typeof OrderAnalysisSettings.getEngine === "function" ? OrderAnalysisSettings.getEngine() : null);
+          if (eng && typeof eng.onFilterFieldChange === "function") {
+            eng.onFilterFieldChange(nameEl || tr);
+          }
+        });
       }
     }
   };

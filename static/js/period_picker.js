@@ -854,6 +854,21 @@ const PeriodPicker = {
     }
   },
 
+  saveExplicitPeriod: function(startDate, endDate) {
+    try {
+      const isRememberActive = (localStorage.getItem("1c_remember_period_active") !== "false");
+      if (isRememberActive && (startDate || endDate)) {
+        localStorage.setItem("1c_remember_period_active", "true");
+        localStorage.setItem("1c_remembered_period", JSON.stringify({
+          startDate: startDate || "",
+          endDate: endDate || ""
+        }));
+      }
+    } catch (e) {
+      console.warn("Could not save explicit period to localStorage:", e);
+    }
+  },
+
   getRememberedPeriod: function() {
     try {
       const isActive = localStorage.getItem("1c_remember_period_active");
@@ -867,6 +882,76 @@ const PeriodPicker = {
       }
     } catch (e) {}
     return null;
+  },
+
+  restoreSavedPeriod: function() {
+    try {
+      const rem = this.getRememberedPeriod();
+      if (!rem || (!rem.startDate && !rem.endDate)) return false;
+
+      const toDateOnly = (val) => {
+        if (!val) return "";
+        const s = String(val).trim();
+        const m = s.match(/^(\d{1,2}\.\d{1,2}\.\d{4})/);
+        return m ? m[1] : s.split(" ")[0];
+      };
+
+      const startFull = rem.startDate || "";
+      const endFull = rem.endDate || "";
+      const startDateOnly = toDateOnly(startFull);
+      const endDateOnly = toDateOnly(endFull);
+
+      // 1. Order Analysis inputs & label
+      const oaStart = document.getElementById("oaStartDateInput");
+      const oaEnd = document.getElementById("oaEndDateInput");
+      if (oaStart && startFull) oaStart.value = startFull;
+      if (oaEnd && endFull) oaEnd.value = endFull;
+
+      const oaLabel = document.getElementById("oaPeriodLabel");
+      if (oaLabel) {
+        if (window.C1PeriodWidget && typeof C1PeriodWidget.formatLabel === "function") {
+          oaLabel.textContent = C1PeriodWidget.formatLabel(startFull, endFull);
+        } else {
+          oaLabel.textContent = (startDateOnly && endDateOnly) ? `[ ${startDateOnly} - ${endDateOnly} ]` : "(Весь период)";
+        }
+        oaLabel.style.color = "#002060";
+      }
+
+      // 2. Top Toolbar inputs
+      const topStart = document.getElementById("topStartDateInput");
+      const topEnd = document.getElementById("topEndDateInput");
+      if (topStart && startDateOnly) topStart.value = startDateOnly;
+      if (topEnd && endDateOnly) topEnd.value = endDateOnly;
+
+      // 3. Settings modal inputs
+      const dlgStart = document.getElementById("dlgStartDateInput");
+      const dlgEnd = document.getElementById("dlgEndDateInput");
+      if (dlgStart && startDateOnly) dlgStart.value = startDateOnly;
+      if (dlgEnd && endDateOnly) dlgEnd.value = endDateOnly;
+
+      const oaDlgStart = document.getElementById("oaDlgStartDate");
+      const oaDlgEnd = document.getElementById("oaDlgEndDate");
+      if (oaDlgStart && startFull) oaDlgStart.value = startFull;
+      if (oaDlgEnd && endFull) oaDlgEnd.value = endFull;
+      const oaDlgLabel = document.getElementById("oaDlgPeriodLabel");
+      if (oaDlgLabel && window.C1PeriodWidget) {
+        oaDlgLabel.textContent = C1PeriodWidget.formatLabel(startFull, endFull);
+      }
+
+      // 4. Universal Journal
+      if (window.UniversalJournal) {
+        UniversalJournal.startDateStr = startFull;
+        UniversalJournal.endDateStr = endFull;
+        if (typeof UniversalJournal.updatePeriodLabel === "function") {
+          UniversalJournal.updatePeriodLabel();
+        }
+      }
+
+      return true;
+    } catch (e) {
+      console.warn("[PeriodPicker] restoreSavedPeriod error:", e);
+      return false;
+    }
   },
 
   confirm: function() {
@@ -890,3 +975,14 @@ const PeriodPicker = {
 };
 
 window.PeriodPicker = PeriodPicker;
+
+// Auto-restore saved period as soon as DOM is ready
+if (typeof document !== "undefined") {
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", () => {
+      PeriodPicker.restoreSavedPeriod();
+    });
+  } else {
+    PeriodPicker.restoreSavedPeriod();
+  }
+}

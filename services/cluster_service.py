@@ -13,7 +13,7 @@ import win32com.client
 
 CLUSTER_HOST = "Test1C:1540"
 
-def get_cluster_sessions(server_agent="Test1C:1540", target_base="aztrade_test3"):
+def get_cluster_sessions(server_agent="Test1C:1540", target_base="aztrade_test3", raise_errors=False):
     """
     Returns list of active sessions in the specified infobase.
     Does not consume a 1C client license.
@@ -54,15 +54,17 @@ def get_cluster_sessions(server_agent="Test1C:1540", target_base="aztrade_test3"
                         "connection": conn_str
                     })
     except Exception as e:
+        if raise_errors: raise
         print(f"[CLUSTER SERVICE] Sessiyalari oxumaq alinmadi: {e}", flush=True)
     finally:
+        s = base = cluster = None
         agent = None
         connector = None
         gc.collect()
         pythoncom.CoUninitialize()
     return sessions
 
-def terminate_cluster_session(session_id, server_agent="Test1C:1540", target_base="aztrade_test3"):
+def terminate_cluster_session(session_id, server_agent="Test1C:1540", target_base="aztrade_test3", only_hanging=False):
     """
     Terminates a specific session by its session_id.
     """
@@ -84,6 +86,9 @@ def terminate_cluster_session(session_id, server_agent="Test1C:1540", target_bas
                     continue
                 for s in agent.GetInfoBaseSessions(cluster, base):
                     if str(getattr(s, "SessionID", "")).strip() == str(session_id).strip():
+                        if only_hanging and (str(getattr(s, 'AppID', '')) != 'COMConnection' or s.Connection is not None):
+                            error_msg = 'Sessiya artıq aktivdir və təmizlənmədi.'
+                            break
                         agent.TerminateSession(cluster, s)
                         print(f"[OK] [CLUSTER SERVICE] Sessiya {session_id} ugurla sonlandirildi.", flush=True)
                         success = True
@@ -98,6 +103,7 @@ def terminate_cluster_session(session_id, server_agent="Test1C:1540", target_bas
         error_msg = str(e)
         print(f"[ERROR] [CLUSTER SERVICE] Sessiya {session_id} sonlandirilarken xeta: {e}", flush=True)
     finally:
+        s = base = cluster = None
         agent = None
         connector = None
         gc.collect()
@@ -139,6 +145,7 @@ def auto_cleanup_hanging_sessions(server_agent="Test1C:1540", target_base="aztra
     except Exception as e:
         print(f"[CLUSTER SERVICE] Avto-temizleme xetasi: {e}", flush=True)
     finally:
+        s = base = cluster = None
         agent = None
         connector = None
         gc.collect()
@@ -176,6 +183,7 @@ def terminate_all_com_sessions(server_agent="Test1C:1540", target_base="aztrade_
     except Exception as e:
         print(f"[CLUSTER SERVICE] Toplu temizleme xetasi: {e}", flush=True)
     finally:
+        s = base = cluster = None
         agent = None
         connector = None
         gc.collect()

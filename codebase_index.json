@@ -731,11 +731,106 @@
       "classes": {},
       "endpoints": []
     },
+    "services/audit_filters.py": {
+      "file_path": "services/audit_filters.py",
+      "type": "backend_python",
+      "docstring": "Audit filters compiled before grouping and limiting results.",
+      "imports": [
+        "re",
+        "services.documents.base.build_filter_conditions",
+        "services.documents.base.parse_query_datetime"
+      ],
+      "functions": {
+        "date_condition": {
+          "name": "date_condition",
+          "args": [
+            "query",
+            "condition",
+            "expression",
+            "prefix"
+          ],
+          "start_line": 15,
+          "end_line": 40,
+          "docstring": "",
+          "decorators": []
+        },
+        "document_conditions": {
+          "name": "document_conditions",
+          "args": [
+            "query",
+            "payload",
+            "doc_type",
+            "prefix",
+            "field_map"
+          ],
+          "start_line": 42,
+          "end_line": 86,
+          "docstring": "",
+          "decorators": []
+        },
+        "version_conditions": {
+          "name": "version_conditions",
+          "args": [
+            "query",
+            "payload"
+          ],
+          "start_line": 88,
+          "end_line": 93,
+          "docstring": "",
+          "decorators": []
+        },
+        "audit_field_map": {
+          "name": "audit_field_map",
+          "args": [
+            "conn",
+            "doc_type"
+          ],
+          "start_line": 96,
+          "end_line": 100,
+          "docstring": "Use the document's own warehouse attribute; returns may use СкладОрдер.",
+          "decorators": []
+        }
+      },
+      "classes": {
+        "Parameters": {
+          "name": "Parameters",
+          "start_line": 9,
+          "end_line": 13,
+          "methods": {
+            "__init__": {
+              "name": "__init__",
+              "args": [
+                "self",
+                "query",
+                "prefix"
+              ],
+              "start_line": 10,
+              "end_line": 11
+            },
+            "SetParameter": {
+              "name": "SetParameter",
+              "args": [
+                "self",
+                "key",
+                "value"
+              ],
+              "start_line": 12,
+              "end_line": 13
+            }
+          }
+        }
+      },
+      "endpoints": []
+    },
     "services/audit_service.py": {
       "file_path": "services/audit_service.py",
       "type": "backend_python",
       "docstring": "services/audit_service.py\n1C:Enterprise Document Versioning & Change Audit Service.\nExtracts document versions from РегистрСведений.ВерсииОбъектов and event log\nto provide a complete audit trail of modifications, amounts, users, and line item diffs.",
       "imports": [
+        "services.audit_filters.DOCUMENT_TYPES",
+        "services.audit_filters.document_conditions",
+        "services.audit_filters.version_conditions",
+        "services.audit_filters.audit_field_map",
         "base64",
         "datetime",
         "xml.etree.ElementTree",
@@ -749,8 +844,8 @@
             "conn",
             "payload"
           ],
-          "start_line": 14,
-          "end_line": 278,
+          "start_line": 15,
+          "end_line": 281,
           "docstring": "Returns list of modified documents with version counts, last modified date, and last author.",
           "decorators": []
         },
@@ -762,8 +857,8 @@
             "guid_str",
             "cache"
           ],
-          "start_line": 281,
-          "end_line": 298,
+          "start_line": 284,
+          "end_line": 301,
           "docstring": "",
           "decorators": []
         },
@@ -775,8 +870,8 @@
             "guid_str",
             "cache"
           ],
-          "start_line": 301,
-          "end_line": 314,
+          "start_line": 304,
+          "end_line": 317,
           "docstring": "",
           "decorators": []
         },
@@ -788,8 +883,8 @@
             "guid_str",
             "cache"
           ],
-          "start_line": 317,
-          "end_line": 335,
+          "start_line": 320,
+          "end_line": 338,
           "docstring": "",
           "decorators": []
         },
@@ -800,8 +895,8 @@
             "guid_str",
             "cache"
           ],
-          "start_line": 338,
-          "end_line": 352,
+          "start_line": 341,
+          "end_line": 355,
           "docstring": "",
           "decorators": []
         },
@@ -810,8 +905,8 @@
           "args": [
             "raw_vat"
           ],
-          "start_line": 355,
-          "end_line": 372,
+          "start_line": 358,
+          "end_line": 375,
           "docstring": "",
           "decorators": []
         },
@@ -828,8 +923,8 @@
             "contract_cache",
             "acc_cache"
           ],
-          "start_line": 375,
-          "end_line": 713,
+          "start_line": 378,
+          "end_line": 716,
           "docstring": "Unpacks version object from 1C Storage.\nSupports both BinaryData (Base64 UTF-8 XML) and direct DocumentObject COM objects.\nExtracts line items with auto/manual discounts, VAT rates, and BU chart of accounts.",
           "decorators": []
         },
@@ -839,8 +934,8 @@
             "conn",
             "payload"
           ],
-          "start_line": 716,
-          "end_line": 1286,
+          "start_line": 719,
+          "end_line": 1289,
           "docstring": "Returns full chronological version history and granular line-by-line diff\nfor a specific document.",
           "decorators": []
         }
@@ -1447,7 +1542,7 @@
             "resp_q"
           ],
           "start_line": 191,
-          "end_line": 714,
+          "end_line": 748,
           "docstring": "1C-də Sifariş vs Realizasiya vs Qaytarma müqayisəli hesabatını icra edir.",
           "decorators": []
         },
@@ -1457,8 +1552,8 @@
             "report_data",
             "output_path"
           ],
-          "start_line": 717,
-          "end_line": 863,
+          "start_line": 751,
+          "end_line": 897,
           "docstring": "Müqayisəli hesabat nəticələrini 1C dizaynında tam detallı Excel faylına ixrac edir.",
           "decorators": []
         },
@@ -1467,8 +1562,8 @@
           "args": [
             "payload"
           ],
-          "start_line": 866,
-          "end_line": 1240,
+          "start_line": 900,
+          "end_line": 1278,
           "docstring": "Offline SQLite bazasından (data/offline_1c_data.db) Müştəri Sifarişləri Analizi hesabatını formalaşdırır.\nİstənilən sətir qruplaşmalarını (Заказ покупателя, Контрагент, Номенклатура və s.) tam dəstəkləyir.",
           "decorators": []
         }
@@ -3587,7 +3682,7 @@
     "static/js/app.js": {
       "file_path": "static/js/app.js",
       "type": "frontend_javascript",
-      "total_lines": 270,
+      "total_lines": 278,
       "objects": {},
       "functions": {
         "toggleActionsMenu": {
@@ -3595,75 +3690,75 @@
           "args": [
             "e"
           ],
-          "line": 73
+          "line": 81
         },
         "minimizeAppWindow": {
           "name": "minimizeAppWindow",
           "args": [],
-          "line": 81
+          "line": 89
         },
         "maximizeAppWindow": {
           "name": "maximizeAppWindow",
           "args": [],
-          "line": 96
+          "line": 104
         },
         "closeAppWindow": {
           "name": "closeAppWindow",
           "args": [],
-          "line": 115
+          "line": 123
         },
         "confirmCloseWindow": {
           "name": "confirmCloseWindow",
           "args": [],
-          "line": 132
+          "line": 140
         },
         "openReportDirect": {
           "name": "openReportDirect",
           "args": [],
-          "line": 136
+          "line": 144
         },
         "openOrderAnalysisDirect": {
           "name": "openOrderAnalysisDirect",
           "args": [],
-          "line": 151
+          "line": 159
         },
         "switchReportWindow": {
           "name": "switchReportWindow",
           "args": [
             "reportKey"
           ],
-          "line": 177
+          "line": 185
         },
         "openCurrentReportSettings": {
           "name": "openCurrentReportSettings",
           "args": [
             "e"
           ],
-          "line": 200
+          "line": 208
         },
         "executeCurrentReport": {
           "name": "executeCurrentReport",
           "args": [],
-          "line": 214
+          "line": 222
         },
         "openCatalogDirect": {
           "name": "openCatalogDirect",
           "args": [
             "catalogName"
           ],
-          "line": 228
+          "line": 236
         },
         "toggleFullScreenApp": {
           "name": "toggleFullScreenApp",
           "args": [],
-          "line": 258
+          "line": 266
         },
         "openJournalDirect": {
           "name": "openJournalDirect",
           "args": [
             "docType"
           ],
-          "line": 262
+          "line": 270
         }
       },
       "api_calls": [
@@ -3675,18 +3770,12 @@
     "static/js/audit_journal.js": {
       "file_path": "static/js/audit_journal.js",
       "type": "frontend_javascript",
-      "total_lines": 2436,
+      "total_lines": 2532,
       "objects": {
         "AuditJournal": {
           "name": "AuditJournal",
           "kind": "object_literal",
           "start_line": 7,
-          "methods": {}
-        },
-        "payload": {
-          "name": "payload",
-          "kind": "object_literal",
-          "start_line": 384,
           "methods": {}
         }
       },
@@ -3716,7 +3805,7 @@
     "static/js/c1_filter_component.js": {
       "file_path": "static/js/c1_filter_component.js",
       "type": "frontend_javascript",
-      "total_lines": 2417,
+      "total_lines": 2422,
       "objects": {
         "C1FilterComponent": {
           "name": "C1FilterComponent",
@@ -3727,13 +3816,13 @@
         "names": {
           "name": "names",
           "kind": "object_literal",
-          "start_line": 215,
+          "start_line": 220,
           "methods": {}
         },
         "presetObj": {
           "name": "presetObj",
           "kind": "object_literal",
-          "start_line": 1836,
+          "start_line": 1841,
           "methods": {}
         }
       },
@@ -3746,7 +3835,7 @@
     "static/js/c1_table_selection.js": {
       "file_path": "static/js/c1_table_selection.js",
       "type": "frontend_javascript",
-      "total_lines": 172,
+      "total_lines": 195,
       "objects": {},
       "functions": {
         "isInteractiveElement": {
@@ -3762,7 +3851,7 @@
             "td",
             "event"
           ],
-          "line": 30
+          "line": 41
         }
       },
       "api_calls": [],
@@ -4331,7 +4420,7 @@
     "static/js/field_selector.js": {
       "file_path": "static/js/field_selector.js",
       "type": "frontend_javascript",
-      "total_lines": 134,
+      "total_lines": 165,
       "objects": {},
       "functions": {
         "toggleFieldNode": {
@@ -4340,7 +4429,7 @@
             "e",
             "expander"
           ],
-          "line": 92
+          "line": 123
         },
         "onFieldNodeClick": {
           "name": "onFieldNodeClick",
@@ -4348,24 +4437,33 @@
             "rowEl",
             "fieldName"
           ],
-          "line": 108
+          "line": 139
         },
         "confirmFieldSelection": {
           "name": "confirmFieldSelection",
           "args": [],
-          "line": 117
+          "line": 148
         },
         "closeFieldSelectorModal": {
           "name": "closeFieldSelectorModal",
           "args": [],
-          "line": 121
+          "line": 152
         },
         "toggleFieldSelectorMaximize": {
           "name": "toggleFieldSelectorMaximize",
           "args": [],
-          "line": 125
+          "line": 156
         }
       },
+      "api_calls": [],
+      "event_listeners": []
+    },
+    "static/js/form_action.js": {
+      "file_path": "static/js/form_action.js",
+      "type": "frontend_javascript",
+      "total_lines": 27,
+      "objects": {},
+      "functions": {},
       "api_calls": [],
       "event_listeners": []
     },
@@ -4565,7 +4663,7 @@
     "static/js/mdi_manager.js": {
       "file_path": "static/js/mdi_manager.js",
       "type": "frontend_javascript",
-      "total_lines": 2959,
+      "total_lines": 2961,
       "objects": {
         "MdiManager": {
           "name": "MdiManager",
@@ -4877,39 +4975,39 @@
               "args": [
                 "msg"
               ],
-              "line": 2148
+              "line": 2150
             },
             "handleRefresh": {
               "name": "handleRefresh",
               "args": [],
-              "line": 2171
+              "line": 2173
             },
             "handleSearch": {
               "name": "handleSearch",
               "args": [],
-              "line": 2367
+              "line": 2369
             },
             "handleCancelSearch": {
               "name": "handleCancelSearch",
               "args": [],
-              "line": 2473
+              "line": 2475
             },
             "bindGlobalEvents": {
               "name": "bindGlobalEvents",
               "args": [],
-              "line": 2565
+              "line": 2567
             }
           }
         },
         "SnapLayoutHelper": {
           "name": "SnapLayoutHelper",
           "kind": "object_literal",
-          "start_line": 2654,
+          "start_line": 2656,
           "methods": {
             "init": {
               "name": "init",
               "args": [],
-              "line": 2660
+              "line": 2662
             },
             "onMaxButtonHover": {
               "name": "onMaxButtonHover",
@@ -4917,7 +5015,7 @@
                 "winId",
                 "btnEl"
               ],
-              "line": 2714
+              "line": 2716
             },
             "show": {
               "name": "show",
@@ -4925,24 +5023,24 @@
                 "winId",
                 "btnEl"
               ],
-              "line": 2724
+              "line": 2726
             },
             "hide": {
               "name": "hide",
               "args": [],
-              "line": 2753
+              "line": 2755
             },
             "scheduleHide": {
               "name": "scheduleHide",
               "args": [
                 "delay = 200"
               ],
-              "line": 2762
+              "line": 2764
             },
             "cancelHide": {
               "name": "cancelHide",
               "args": [],
-              "line": 2770
+              "line": 2772
             },
             "applyRect": {
               "name": "applyRect",
@@ -4953,7 +5051,7 @@
                 "width",
                 "height"
               ],
-              "line": 2777
+              "line": 2779
             },
             "applySnap": {
               "name": "applySnap",
@@ -4961,14 +5059,14 @@
                 "layoutType",
                 "zoneIdx"
               ],
-              "line": 2801
+              "line": 2803
             },
             "quickAction": {
               "name": "quickAction",
               "args": [
                 "action"
               ],
-              "line": 2911
+              "line": 2913
             }
           }
         }
@@ -4987,7 +5085,7 @@
             "e",
             "menuId"
           ],
-          "line": 2945
+          "line": 2947
         }
       },
       "api_calls": [],
@@ -5091,12 +5189,12 @@
     "static/js/order_analysis_report.js": {
       "file_path": "static/js/order_analysis_report.js",
       "type": "frontend_javascript",
-      "total_lines": 685,
+      "total_lines": 790,
       "objects": {
         "payload": {
           "name": "payload",
           "kind": "object_literal",
-          "start_line": 146,
+          "start_line": 174,
           "methods": {}
         }
       },
@@ -5109,24 +5207,24 @@
         "openWindow": {
           "name": "openWindow",
           "args": [],
-          "line": 42
+          "line": 57
         },
         "updatePeriodLabel": {
           "name": "updatePeriodLabel",
           "args": [],
-          "line": 575
+          "line": 657
         },
         "closeWindow": {
           "name": "closeWindow",
           "args": [],
-          "line": 88
+          "line": 111
         },
         "toggleActionsMenu": {
           "name": "toggleActionsMenu",
           "args": [
             "e"
           ],
-          "line": 97
+          "line": 120
         },
         "formatNumber": {
           "name": "formatNumber",
@@ -5134,24 +5232,24 @@
             "val",
             "decimals = 2"
           ],
-          "line": 105
+          "line": 128
         },
         "generate": {
           "name": "generate",
           "args": [],
-          "line": 113
+          "line": 136
         },
         "cancelReport": {
           "name": "cancelReport",
           "args": [],
-          "line": 229
+          "line": 257
         },
         "renderTable": {
           "name": "renderTable",
           "args": [
             "data"
           ],
-          "line": 241
+          "line": 269
         },
         "toggleRow": {
           "name": "toggleRow",
@@ -5159,7 +5257,7 @@
             "rowId",
             "event"
           ],
-          "line": 472
+          "line": 511
         },
         "setChildrenVisibility": {
           "name": "setChildrenVisibility",
@@ -5167,53 +5265,60 @@
             "parentId",
             "visible"
           ],
-          "line": 487
+          "line": 526
+        },
+        "updateLevelButtons": {
+          "name": "updateLevelButtons",
+          "args": [
+            "groupings"
+          ],
+          "line": 548
         },
         "setLevel": {
           "name": "setLevel",
           "args": [
             "maxLevel"
           ],
-          "line": 509
+          "line": 565
         },
         "expandAll": {
           "name": "expandAll",
           "args": [],
-          "line": 534
+          "line": 603
         },
         "exportExcel": {
           "name": "exportExcel",
           "args": [],
-          "line": 547
+          "line": 629
         },
         "printReport": {
           "name": "printReport",
           "args": [],
-          "line": 571
+          "line": 653
         },
         "openPeriodPicker": {
           "name": "openPeriodPicker",
           "args": [],
-          "line": 589
+          "line": 671
         },
         "openPeriodDialog": {
           "name": "openPeriodDialog",
           "args": [
             "btn"
           ],
-          "line": 627
+          "line": 731
         },
         "syncOaDates": {
           "name": "syncOaDates",
           "args": [],
-          "line": 631
+          "line": 735
         },
         "escapeHtml": {
           "name": "escapeHtml",
           "args": [
             "str"
           ],
-          "line": 649
+          "line": 753
         }
       },
       "api_calls": [
@@ -5225,12 +5330,12 @@
     "static/js/order_analysis_settings.js": {
       "file_path": "static/js/order_analysis_settings.js",
       "type": "frontend_javascript",
-      "total_lines": 294,
+      "total_lines": 317,
       "objects": {
         "indicators": {
           "name": "indicators",
           "kind": "object_literal",
-          "start_line": 108,
+          "start_line": 114,
           "methods": {}
         }
       },
@@ -5243,44 +5348,44 @@
         "init": {
           "name": "init",
           "args": [],
-          "line": 69
+          "line": 75
         },
         "open": {
           "name": "open",
           "args": [],
-          "line": 74
+          "line": 80
         },
         "close": {
           "name": "close",
           "args": [],
-          "line": 80
+          "line": 86
         },
         "getSettings": {
           "name": "getSettings",
           "args": [],
-          "line": 103
+          "line": 109
         },
         "saveSettings": {
           "name": "saveSettings",
           "args": [
             "settings"
           ],
-          "line": 157
+          "line": 163
         },
         "loadSavedSettings": {
           "name": "loadSavedSettings",
           "args": [],
-          "line": 163
+          "line": 169
         },
         "applyAndGenerate": {
           "name": "applyAndGenerate",
           "args": [],
-          "line": 205
+          "line": 211
         },
         "applyAndClose": {
           "name": "applyAndClose",
           "args": [],
-          "line": 234
+          "line": 243
         },
         "pickSingleDate": {
           "name": "pickSingleDate",
@@ -5288,7 +5393,7 @@
             "inputId",
             "btn"
           ],
-          "line": 238
+          "line": 247
         }
       },
       "api_calls": [],
@@ -5297,7 +5402,7 @@
     "static/js/period_picker.js": {
       "file_path": "static/js/period_picker.js",
       "type": "frontend_javascript",
-      "total_lines": 892,
+      "total_lines": 988,
       "objects": {
         "PeriodPicker": {
           "name": "PeriodPicker",
@@ -5763,7 +5868,7 @@
     "static/js/settings_modal.js": {
       "file_path": "static/js/settings_modal.js",
       "type": "frontend_javascript",
-      "total_lines": 1068,
+      "total_lines": 1075,
       "objects": {
         "SettingsModal": {
           "name": "SettingsModal",
@@ -5887,7 +5992,7 @@
         "syncDateInputsFromDlg": {
           "name": "syncDateInputsFromDlg",
           "args": [],
-          "line": 443
+          "line": 450
         },
         "pickDate": {
           "name": "pickDate",
@@ -5895,59 +6000,59 @@
             "inputId",
             "btnEl = null"
           ],
-          "line": 453
+          "line": 460
         },
         "openPeriodSelectDialog": {
           "name": "openPeriodSelectDialog",
           "args": [
             "btnEl = null"
           ],
-          "line": 460
+          "line": 467
         },
         "toggleTreeNode": {
           "name": "toggleTreeNode",
           "args": [
             "headerEl"
           ],
-          "line": 467
+          "line": 474
         },
         "checkAllIndicators": {
           "name": "checkAllIndicators",
           "args": [
             "checked"
           ],
-          "line": 479
+          "line": 486
         },
         "selectGroupingRow": {
           "name": "selectGroupingRow",
           "args": [
             "tr"
           ],
-          "line": 487
+          "line": 494
         },
         "openFieldSelectorForRowGrouping": {
           "name": "openFieldSelectorForRowGrouping",
           "args": [],
-          "line": 499
+          "line": 506
         },
         "editRowGroupingField": {
           "name": "editRowGroupingField",
           "args": [
             "btn"
           ],
-          "line": 508
+          "line": 515
         },
         "openFieldSelectorForColGrouping": {
           "name": "openFieldSelectorForColGrouping",
           "args": [],
-          "line": 519
+          "line": 526
         },
         "editColGroupingField": {
           "name": "editColGroupingField",
           "args": [
             "btn"
           ],
-          "line": 528
+          "line": 535
         },
         "createGroupingRowElement": {
           "name": "createGroupingRowElement",
@@ -5956,98 +6061,98 @@
             "typeVal = \"Элементы\"",
             "isCol = false"
           ],
-          "line": 539
+          "line": 546
         },
         "addRowGroupingPrompt": {
           "name": "addRowGroupingPrompt",
           "args": [],
-          "line": 565
+          "line": 572
         },
         "removeSelectedRowGrouping": {
           "name": "removeSelectedRowGrouping",
           "args": [],
-          "line": 569
+          "line": 576
         },
         "moveRowGroupingUp": {
           "name": "moveRowGroupingUp",
           "args": [],
-          "line": 580
+          "line": 587
         },
         "moveRowGroupingDown": {
           "name": "moveRowGroupingDown",
           "args": [],
-          "line": 587
+          "line": 594
         },
         "addColumnGroupingPrompt": {
           "name": "addColumnGroupingPrompt",
           "args": [],
-          "line": 594
+          "line": 601
         },
         "removeSelectedColGrouping": {
           "name": "removeSelectedColGrouping",
           "args": [],
-          "line": 605
+          "line": 612
         },
         "moveColGroupingUp": {
           "name": "moveColGroupingUp",
           "args": [],
-          "line": 611
+          "line": 618
         },
         "moveColGroupingDown": {
           "name": "moveColGroupingDown",
           "args": [],
-          "line": 618
+          "line": 625
         },
         "moveGroupingToColumns": {
           "name": "moveGroupingToColumns",
           "args": [],
-          "line": 625
+          "line": 632
         },
         "moveGroupingToRows": {
           "name": "moveGroupingToRows",
           "args": [],
-          "line": 640
+          "line": 647
         },
         "highlightFilterRow": {
           "name": "highlightFilterRow",
           "args": [
             "tr"
           ],
-          "line": 658
+          "line": 665
         },
         "addFilterRow": {
           "name": "addFilterRow",
           "args": [],
-          "line": 664
+          "line": 671
         },
         "removeSelectedFilterRow": {
           "name": "removeSelectedFilterRow",
           "args": [],
-          "line": 723
+          "line": 730
         },
         "clearAllFilters": {
           "name": "clearAllFilters",
           "args": [],
-          "line": 733
+          "line": 740
         },
         "saveFiltersPreset": {
           "name": "saveFiltersPreset",
           "args": [],
-          "line": 739
+          "line": 746
         },
         "onFilterFieldChange": {
           "name": "onFilterFieldChange",
           "args": [
             "selectEl"
           ],
-          "line": 743
+          "line": 750
         },
         "openCatalogForFilterRow": {
           "name": "openCatalogForFilterRow",
           "args": [
             "btn"
           ],
-          "line": 751
+          "line": 758
         },
         "openQualitySelect": {
           "name": "openQualitySelect",
@@ -6055,7 +6160,7 @@
             "btn",
             "isMulti = false"
           ],
-          "line": 811
+          "line": 818
         },
         "openUserSelect": {
           "name": "openUserSelect",
@@ -6063,24 +6168,24 @@
             "btn",
             "isMulti = false"
           ],
-          "line": 830
+          "line": 837
         },
         "setupAutocomplete": {
           "name": "setupAutocomplete",
           "args": [],
-          "line": 854
+          "line": 861
         },
         "hideAllAutocomplete": {
           "name": "hideAllAutocomplete",
           "args": [],
-          "line": 860
+          "line": 867
         },
         "bindAutocomplete": {
           "name": "bindAutocomplete",
           "args": [
             "input"
           ],
-          "line": 874
+          "line": 881
         },
         "renderAutocompleteItems": {
           "name": "renderAutocompleteItems",
@@ -6090,7 +6195,7 @@
             "folders",
             "items"
           ],
-          "line": 965
+          "line": 972
         }
       },
       "api_calls": [
@@ -6662,6 +6767,30 @@
       ],
       "event_listeners": []
     },
+    "static/js/components/c1_textbox.js": {
+      "file_path": "static/js/components/c1_textbox.js",
+      "type": "frontend_javascript",
+      "total_lines": 187,
+      "objects": {
+        "C1TextBox": {
+          "name": "C1TextBox",
+          "kind": "object_literal",
+          "start_line": 24,
+          "methods": {}
+        }
+      },
+      "functions": {
+        "escapeHtml": {
+          "name": "escapeHtml",
+          "args": [
+            "str"
+          ],
+          "line": 14
+        }
+      },
+      "api_calls": [],
+      "event_listeners": []
+    },
     "static/js/components/filter/filter_chips_bar.js": {
       "file_path": "static/js/components/filter/filter_chips_bar.js",
       "type": "frontend_javascript",
@@ -6875,7 +7004,7 @@
     "static/js/components/report_settings/universal_report_settings.js": {
       "file_path": "static/js/components/report_settings/universal_report_settings.js",
       "type": "frontend_javascript",
-      "total_lines": 998,
+      "total_lines": 1069,
       "objects": {
         "FIELD_CATALOG_MAP": {
           "name": "FIELD_CATALOG_MAP",
@@ -6886,83 +7015,83 @@
         "FIELD_PLACEHOLDER_MAP": {
           "name": "FIELD_PLACEHOLDER_MAP",
           "kind": "object_literal",
-          "start_line": 37,
+          "start_line": 42,
           "methods": {}
         },
         "UniversalReportSettingsEngine": {
           "name": "UniversalReportSettingsEngine",
           "kind": "class",
-          "start_line": 55,
+          "start_line": 63,
           "methods": {
             "constructor": {
               "name": "constructor",
               "args": [
                 "config = {}"
               ],
-              "line": 56
+              "line": 64
             },
             "getContainer": {
               "name": "getContainer",
               "args": [],
-              "line": 87
+              "line": 95
             },
             "open": {
               "name": "open",
               "args": [],
-              "line": 91
+              "line": 99
             },
             "bindKeyboardShortcuts": {
               "name": "bindKeyboardShortcuts",
               "args": [],
-              "line": 125
+              "line": 134
             },
             "close": {
               "name": "close",
               "args": [],
-              "line": 142
+              "line": 151
             },
             "syncDatesFromTop": {
               "name": "syncDatesFromTop",
               "args": [],
-              "line": 158
+              "line": 167
             },
             "syncDatesToTop": {
               "name": "syncDatesToTop",
               "args": [],
-              "line": 169
+              "line": 178
             },
             "updatePeriodLabel": {
               "name": "updatePeriodLabel",
               "args": [],
-              "line": 185
+              "line": 194
             },
             "openPeriodPicker": {
               "name": "openPeriodPicker",
               "args": [
                 "btn"
               ],
-              "line": 201
+              "line": 210
             },
             "toggleTreeNode": {
               "name": "toggleTreeNode",
               "args": [
                 "headerEl"
               ],
-              "line": 231
+              "line": 240
             },
             "checkAllIndicators": {
               "name": "checkAllIndicators",
               "args": [
                 "checked = true"
               ],
-              "line": 247
+              "line": 256
             },
             "selectGroupingRow": {
               "name": "selectGroupingRow",
               "args": [
                 "tr"
               ],
-              "line": 260
+              "line": 269
             },
             "addRowGrouping": {
               "name": "addRowGrouping",
@@ -6970,7 +7099,7 @@
                 "defaultField = null",
                 "defaultType = \"Элементы\""
               ],
-              "line": 269
+              "line": 278
             },
             "insertRowGroupingRow": {
               "name": "insertRowGroupingRow",
@@ -6978,22 +7107,22 @@
                 "fieldName",
                 "defaultType = \"Элементы\""
               ],
-              "line": 284
+              "line": 293
             },
             "removeSelectedRowGrouping": {
               "name": "removeSelectedRowGrouping",
               "args": [],
-              "line": 309
+              "line": 318
             },
             "moveRowGroupingUp": {
               "name": "moveRowGroupingUp",
               "args": [],
-              "line": 323
+              "line": 332
             },
             "moveRowGroupingDown": {
               "name": "moveRowGroupingDown",
               "args": [],
-              "line": 331
+              "line": 340
             },
             "addColGrouping": {
               "name": "addColGrouping",
@@ -7001,7 +7130,7 @@
                 "defaultField = null",
                 "defaultType = \"Элементы\""
               ],
-              "line": 339
+              "line": 348
             },
             "insertColGroupingRow": {
               "name": "insertColGroupingRow",
@@ -7009,91 +7138,100 @@
                 "fieldName",
                 "defaultType = \"Элементы\""
               ],
-              "line": 354
+              "line": 363
             },
             "removeSelectedColGrouping": {
               "name": "removeSelectedColGrouping",
               "args": [],
-              "line": 379
+              "line": 388
             },
             "moveColGroupingUp": {
               "name": "moveColGroupingUp",
               "args": [],
-              "line": 389
+              "line": 398
             },
             "moveColGroupingDown": {
               "name": "moveColGroupingDown",
               "args": [],
-              "line": 397
+              "line": 406
             },
             "moveGroupingToColumns": {
               "name": "moveGroupingToColumns",
               "args": [],
-              "line": 405
+              "line": 414
             },
             "moveGroupingToRows": {
               "name": "moveGroupingToRows",
               "args": [],
-              "line": 415
+              "line": 424
             },
             "selectFilterRow": {
               "name": "selectFilterRow",
               "args": [
                 "tr"
               ],
-              "line": 428
+              "line": 437
             },
             "onFilterFieldChange": {
               "name": "onFilterFieldChange",
               "args": [
-                "selectEl"
+                "target"
               ],
-              "line": 437
+              "line": 446
             },
             "bindAllFilterRows": {
               "name": "bindAllFilterRows",
               "args": [],
-              "line": 451
+              "line": 461
             },
             "bindFilterRowEvents": {
               "name": "bindFilterRowEvents",
               "args": [
                 "tr"
               ],
-              "line": 457
+              "line": 470
             },
             "updateFilterRowCheckbox": {
               "name": "updateFilterRowCheckbox",
               "args": [
                 "tr"
               ],
-              "line": 468
+              "line": 485
             },
             "addFilterRow": {
               "name": "addFilterRow",
+              "args": [
+                "defaultField = null",
+                "defaultComp = \"in_list\"",
+                "defaultValue = \"\""
+              ],
+              "line": 494
+            },
+            "insertFilterRow": {
+              "name": "insertFilterRow",
               "args": [
                 "defaultField = \"Контрагент\"",
                 "defaultComp = \"in_list\"",
                 "defaultValue = \"\""
               ],
-              "line": 477
+              "line": 510
             },
             "removeSelectedFilterRow": {
               "name": "removeSelectedFilterRow",
               "args": [],
-              "line": 528
+              "line": 564
             },
             "clearAllFilters": {
               "name": "clearAllFilters",
               "args": [],
-              "line": 539
+              "line": 575
             },
             "openCatalogForFilterRow": {
               "name": "openCatalogForFilterRow",
               "args": [
                 "btn"
               ],
-              "line": 549
+              "line": 585
             },
             "openQualitySelect": {
               "name": "openQualitySelect",
@@ -7101,7 +7239,7 @@
                 "inputEl",
                 "isMulti = false"
               ],
-              "line": 637
+              "line": 675
             },
             "openUserSelect": {
               "name": "openUserSelect",
@@ -7109,19 +7247,19 @@
                 "inputEl",
                 "isMulti = false"
               ],
-              "line": 655
+              "line": 693
             },
             "setupAutocomplete": {
               "name": "setupAutocomplete",
               "args": [],
-              "line": 677
+              "line": 715
             },
             "bindAutocomplete": {
               "name": "bindAutocomplete",
               "args": [
                 "input"
               ],
-              "line": 685
+              "line": 723
             },
             "renderAutocompleteItems": {
               "name": "renderAutocompleteItems",
@@ -7131,64 +7269,64 @@
                 "folders",
                 "items"
               ],
-              "line": 758
+              "line": 796
             },
             "collectSettings": {
               "name": "collectSettings",
               "args": [],
-              "line": 813
+              "line": 851
             },
             "restoreSettings": {
               "name": "restoreSettings",
               "args": [
                 "saved"
               ],
-              "line": 870
+              "line": 909
             },
             "applyAndGenerate": {
               "name": "applyAndGenerate",
               "args": [],
-              "line": 920
+              "line": 959
             },
             "applyAndClose": {
               "name": "applyAndClose",
               "args": [],
-              "line": 928
+              "line": 972
             }
           }
         },
         "registry": {
           "name": "registry",
           "kind": "object_literal",
-          "start_line": 934,
+          "start_line": 978,
           "methods": {
             "register": {
               "name": "register",
               "args": [
                 "config"
               ],
-              "line": 937
+              "line": 981
             },
             "get": {
               "name": "get",
               "args": [
                 "key"
               ],
-              "line": 943
+              "line": 987
             },
             "open": {
               "name": "open",
               "args": [
                 "key"
               ],
-              "line": 947
+              "line": 991
             },
             "close": {
               "name": "close",
               "args": [
                 "key"
               ],
-              "line": 951
+              "line": 995
             },
             "restore": {
               "name": "restore",
@@ -7196,7 +7334,7 @@
                 "key",
                 "saved"
               ],
-              "line": 955
+              "line": 999
             },
             "openCatalogForFilterRow": {
               "name": "openCatalogForFilterRow",
@@ -7204,7 +7342,7 @@
                 "btn",
                 "key"
               ],
-              "line": 959
+              "line": 1003
             },
             "onFilterFieldChange": {
               "name": "onFilterFieldChange",
@@ -7212,14 +7350,22 @@
                 "selectEl",
                 "key"
               ],
-              "line": 970
+              "line": 1014
             },
             "editGroupingField": {
               "name": "editGroupingField",
               "args": [
                 "btn"
               ],
-              "line": 976
+              "line": 1020
+            },
+            "editFilterField": {
+              "name": "editFilterField",
+              "args": [
+                "target",
+                "key"
+              ],
+              "line": 1041
             }
           }
         }
@@ -7233,13 +7379,13 @@
     "templates/index.html": {
       "file_path": "templates/index.html",
       "type": "html_template",
-      "size_bytes": 48108,
+      "size_bytes": 49189,
       "role_and_purpose": "Əsas tətbiq interfeysi: MDI iş masası, menyu, alətlər paneli və bütün komponentlərin skript birləşmələri."
     },
     "templates/components/audit_journal_window.html": {
       "file_path": "templates/components/audit_journal_window.html",
       "type": "html_template",
-      "size_bytes": 36681
+      "size_bytes": 37096
     },
     "templates/components/catalog_selector_modal.html": {
       "file_path": "templates/components/catalog_selector_modal.html",
@@ -7249,47 +7395,47 @@
     "templates/components/diagnostics_modal.html": {
       "file_path": "templates/components/diagnostics_modal.html",
       "type": "html_template",
-      "size_bytes": 4252
+      "size_bytes": 4312
     },
     "templates/components/doc_version_diff_window.html": {
       "file_path": "templates/components/doc_version_diff_window.html",
       "type": "html_template",
-      "size_bytes": 12713
+      "size_bytes": 12530
     },
     "templates/components/field_selector_modal.html": {
       "file_path": "templates/components/field_selector_modal.html",
       "type": "html_template",
-      "size_bytes": 18729
+      "size_bytes": 13594
     },
     "templates/components/header_toolbar.html": {
       "file_path": "templates/components/header_toolbar.html",
       "type": "html_template",
-      "size_bytes": 9182
+      "size_bytes": 9025
     },
     "templates/components/login_modal.html": {
       "file_path": "templates/components/login_modal.html",
       "type": "html_template",
-      "size_bytes": 5585
+      "size_bytes": 5480
     },
     "templates/components/nomenclature_card_window.html": {
       "file_path": "templates/components/nomenclature_card_window.html",
       "type": "html_template",
-      "size_bytes": 24435
+      "size_bytes": 24091
     },
     "templates/components/operation_type_modal.html": {
       "file_path": "templates/components/operation_type_modal.html",
       "type": "html_template",
-      "size_bytes": 3685
+      "size_bytes": 3625
     },
     "templates/components/order_analysis_settings_modal.html": {
       "file_path": "templates/components/order_analysis_settings_modal.html",
       "type": "html_template",
-      "size_bytes": 31994
+      "size_bytes": 30255
     },
     "templates/components/order_analysis_window.html": {
       "file_path": "templates/components/order_analysis_window.html",
       "type": "html_template",
-      "size_bytes": 16528
+      "size_bytes": 16859
     },
     "templates/components/period_picker_modal.html": {
       "file_path": "templates/components/period_picker_modal.html",
@@ -7299,22 +7445,22 @@
     "templates/components/pogruzka_doc_editor_window.html": {
       "file_path": "templates/components/pogruzka_doc_editor_window.html",
       "type": "html_template",
-      "size_bytes": 18363
+      "size_bytes": 18112
     },
     "templates/components/portfolio_catalog_window.html": {
       "file_path": "templates/components/portfolio_catalog_window.html",
       "type": "html_template",
-      "size_bytes": 25754
+      "size_bytes": 25431
     },
     "templates/components/price_doc_editor_window.html": {
       "file_path": "templates/components/price_doc_editor_window.html",
       "type": "html_template",
-      "size_bytes": 62463
+      "size_bytes": 61621
     },
     "templates/components/report_sheet.html": {
       "file_path": "templates/components/report_sheet.html",
       "type": "html_template",
-      "size_bytes": 8006
+      "size_bytes": 7879
     },
     "templates/components/sales_doc_editor_window.html": {
       "file_path": "templates/components/sales_doc_editor_window.html",
@@ -7329,22 +7475,22 @@
     "templates/components/settings_restore_modal.html": {
       "file_path": "templates/components/settings_restore_modal.html",
       "type": "html_template",
-      "size_bytes": 3146
+      "size_bytes": 3081
     },
     "templates/components/settings_save_modal.html": {
       "file_path": "templates/components/settings_save_modal.html",
       "type": "html_template",
-      "size_bytes": 4194
+      "size_bytes": 4115
     },
     "templates/components/snap_layout_helper.html": {
       "file_path": "templates/components/snap_layout_helper.html",
       "type": "html_template",
-      "size_bytes": 5712
+      "size_bytes": 5594
     },
     "templates/components/universal_journal_filter_window.html": {
       "file_path": "templates/components/universal_journal_filter_window.html",
       "type": "html_template",
-      "size_bytes": 17313
+      "size_bytes": 17340
     },
     "templates/components/universal_journal_window.html": {
       "file_path": "templates/components/universal_journal_window.html",

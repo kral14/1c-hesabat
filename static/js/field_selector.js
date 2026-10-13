@@ -35,28 +35,55 @@ window.FieldSelector = {
     const tree = document.getElementById("fieldSelectorTree");
     if (tree) {
       tree.querySelectorAll(".fp-row").forEach(r => r.classList.remove("selected"));
+      let targetRow = null;
       if (this.selectedFieldName) {
         const rows = tree.querySelectorAll(".fp-row");
         for (const r of rows) {
           const label = r.querySelector(".fp-label")?.textContent.trim();
           if (label === this.selectedFieldName) {
-            r.classList.add("selected");
-            // Expand any collapsed parent nodes
-            let p = r.parentElement;
-            while (p && p !== tree) {
-              if (p.classList.contains("fp-children")) {
-                p.style.display = "block";
-                const prev = p.previousElementSibling;
-                const exp = prev?.querySelector(".fp-expander");
-                if (exp) exp.textContent = "-";
-              }
-              p = p.parentElement;
-            }
-            r.scrollIntoView({ block: "nearest" });
+            targetRow = r;
             break;
           }
         }
       }
+      if (!targetRow) {
+        targetRow = tree.querySelector(".fp-row");
+        if (targetRow) {
+          const match = targetRow.getAttribute("onclick")?.match(/onFieldNodeClick\(this,\s*['"]([^'"]+)['"]\)/);
+          this.selectedFieldName = match ? match[1] : (targetRow.querySelector(".fp-label")?.textContent.trim() || "Контрагент");
+        }
+      }
+      if (targetRow) {
+        targetRow.classList.add("selected");
+        // Expand any collapsed parent nodes
+        let p = targetRow.parentElement;
+        while (p && p !== tree) {
+          if (p.classList.contains("fp-children")) {
+            p.style.display = "block";
+            const prev = p.previousElementSibling;
+            const exp = prev?.querySelector(".fp-expander");
+            if (exp) exp.textContent = "-";
+          }
+          p = p.parentElement;
+        }
+        targetRow.scrollIntoView({ block: "nearest" });
+      }
+    }
+
+    // Keyboard navigation (Enter / Escape)
+    if (!this._keyHandler) {
+      this._keyHandler = (e) => {
+        const ov = document.getElementById("fieldSelectorModalOverlay");
+        if (!ov || ov.style.display === "none") return;
+        if (e.key === "Enter") {
+          e.preventDefault();
+          FieldSelector.confirm();
+        } else if (e.key === "Escape") {
+          e.preventDefault();
+          FieldSelector.close();
+        }
+      };
+      document.addEventListener("keydown", this._keyHandler);
     }
   },
 
@@ -68,6 +95,10 @@ window.FieldSelector = {
     }
     if (window.MdiManager && typeof MdiManager.removeModalTaskbarTab === "function") {
       MdiManager.removeModalTaskbarTab("fieldSelectorModalOverlay");
+    }
+    if (this._keyHandler) {
+      document.removeEventListener("keydown", this._keyHandler);
+      this._keyHandler = null;
     }
     this.currentCallback = null;
   },

@@ -50,7 +50,7 @@ def catalog_card_endpoint():
 def get_users():
     data = request.json or {}
     try:
-        users = one_c.execute("get_users", data)
+        users = one_c.execute("get_users", data, retry=0, timeout=30)
         return jsonify({"success": True, "users": users})
     except Exception as e:
         print(f"⚠️ [/api/users fallback due to license/com error]: {e}")

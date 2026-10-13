@@ -569,7 +569,12 @@ def handle_order_analysis(conn, payload, key, resp_q):
                                 pass
 
                     if not val_name or val_name == "<Объект не найден>" or "COMObject" in str(val_name):
-                        val_name = "(Прямая реализация / Без заказа)"
+                        if q_ret > 0 and q_real == 0 and q_ord == 0:
+                            val_name = "(Возврат / Без заказа)"
+                        elif q_real > 0 and q_ret == 0 and q_ord == 0:
+                            val_name = "(Прямая реализация / Без заказа)"
+                        else:
+                            val_name = "(Без заказа)"
                 else:
                     if hasattr(val_raw, "Наименование"):
                         val_name = str(getattr(val_raw, "Наименование", "") or "").strip()
@@ -581,20 +586,49 @@ def handle_order_analysis(conn, payload, key, resp_q):
                     else:
                         val_name = str(val_raw or "").strip()
 
-                if not val_code:
-                    if hasattr(val_raw, "Код"):
-                        val_code = str(getattr(val_raw, "Код", "") or "").strip()
-                    else:
-                        val_code = str(getattr(sub_sel, alias_code, "") or "").strip()
+                # Code formatting based strictly on group type
+                if g_label in ("День", "Период", "По дням", "Неделя", "По неделям", "Месяц", "По месяцам", "Год", "По годам"):
+                    val_code = ""
+                elif g_label in ("Заказ", "Заказ покупателя", "Заказ покупателя.Номер", "Заказ покупателя.Дата", "Документ", "Документ движения (регистратор)"):
                     if not val_code:
-                        if g_label == "Контрагент":
+                        try:
+                            val_code = str(getattr(val_raw, "Номер", "") or "").strip()
+                        except Exception:
+                            val_code = ""
+                elif g_label == "Контрагент":
+                    if not val_code:
+                        if hasattr(val_raw, "Код"):
+                            val_code = str(getattr(val_raw, "Код", "") or "").strip()
+                        else:
                             val_code = str(getattr(sub_sel, "KontragentCode", "") or "").strip()
-                        elif g_label == "Номенклатура":
+                elif g_label in ("Номенклатура", "Товар"):
+                    if not val_code:
+                        if hasattr(val_raw, "Код"):
+                            val_code = str(getattr(val_raw, "Код", "") or "").strip()
+                        else:
                             val_code = str(getattr(sub_sel, "ItemCode", "") or "").strip()
+                elif g_label == "Склад":
+                    if not val_code:
+                        val_code = str(getattr(sub_sel, "WarehouseCode", "") or "").strip()
+                elif g_label == "Портфель":
+                    if not val_code:
+                        val_code = str(getattr(sub_sel, "PortfolioCode", "") or "").strip()
+                elif g_label == "Агент":
+                    if not val_code:
+                        val_code = str(getattr(sub_sel, "AgentCode", "") or "").strip()
+                else:
+                    if not val_code and hasattr(val_raw, "Код"):
+                        val_code = str(getattr(val_raw, "Код", "") or "").strip()
 
-                article = str(getattr(sub_sel, "ItemArticle", "") or "").strip()
-                barcode = str(getattr(sub_sel, "Barcode", "") or "").strip()
-                unit = str(getattr(sub_sel, "Unit", "") or "").strip()
+                # ONLY Items (Номенклатура) have article, barcode, and unit of measurement!
+                if g_label in ("Номенклатура", "Товар"):
+                    article = str(getattr(sub_sel, "ItemArticle", "") or "").strip()
+                    barcode = str(getattr(sub_sel, "Barcode", "") or "").strip()
+                    unit = str(getattr(sub_sel, "Unit", "") or "").strip()
+                else:
+                    article = ""
+                    barcode = ""
+                    unit = ""
 
                 q_ord = float(getattr(sub_sel, "QtyOrder", 0.0) or 0.0)
                 s_ord = float(getattr(sub_sel, "SumOrder", 0.0) or 0.0)
@@ -615,7 +649,7 @@ def handle_order_analysis(conn, payload, key, resp_q):
 
                 if g_label == "Контрагент":
                     unique_stores.add(val_name)
-                elif g_label == "Номенклатура":
+                elif g_label in ("Номенклатура", "Товар"):
                     unique_items.add(val_name)
 
                 has_children = (level_idx < len(active_groupings) - 1)
@@ -1003,7 +1037,7 @@ def handle_order_analysis_offline(payload):
     try:
         q_voz = f"""
             SELECT 
-                CASE WHEN d.deal IS NOT NULL AND d.deal != '' THEN d.deal ELSE '(Прямая реализация / Без заказа)' END AS order_doc,
+                CASE WHEN d.deal IS NOT NULL AND d.deal != '' THEN d.deal ELSE '(Возврат / Без заказа)' END AS order_doc,
                 d.date AS doc_date,
                 COALESCE(d.kontragent, '') AS kontragent,
                 COALESCE(d.kontragent_code, '') AS kontragent_code,
@@ -1030,12 +1064,16 @@ def handle_order_analysis_offline(payload):
     conn.close()
 
     def get_grouping_val(g_name, row_map):
-        if g_name == "Заказ покупателя":
+        if g_name in ("Заказ покупателя", "Заказ", "Документ"):
             doc = row_map.get("order_doc", "")
             d_date = row_map.get("doc_date", "")[:10]
-            if doc and doc != "(Прямая реализация / Без заказа)":
+            if doc and doc not in ("(Прямая реализация / Без заказа)", "(Возврат / Без заказа)", "(Без заказа)"):
                 return f"Заказ покупателя № {doc} от {d_date}"
-            return "(Прямая реализация / Без заказа)"
+            if row_map.get("qty_ret", 0) > 0 and row_map.get("quantity", 0) == 0:
+                return "(Возврат / Без заказа)"
+            if row_map.get("quantity", 0) > 0 and row_map.get("qty_ret", 0) == 0:
+                return "(Прямая реализация / Без заказа)"
+            return doc or "(Без заказа)"
         elif g_name == "Контрагент":
             return row_map.get("kontragent") or "(Без контрагента)"
         elif g_name == "Номенклатура":
@@ -1180,7 +1218,7 @@ def handle_order_analysis_offline(payload):
                 "code": child.code,
                 "article": child.article,
                 "barcode": child.barcode,
-                "unit": child.unit or "əd",
+                "unit": child.unit or "",
                 "qty_order": round(child.qty_order, 3),
                 "sum_order": round(child.sum_order, 2),
                 "price_order": round(p_ord, 2),

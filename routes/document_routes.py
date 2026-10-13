@@ -288,7 +288,7 @@ def parse_excel_file_endpoint():
 def audit_list_endpoint():
     data = request.json or {}
     try:
-        res = one_c.execute("get_audit_list", data)
+        res = one_c.execute("get_audit_list", data, retry=0, timeout=60)
         resp_data = {"success": True}
         if isinstance(res, dict):
             resp_data.update(res)
@@ -297,11 +297,19 @@ def audit_list_endpoint():
         print_server_error("/api/audit/list", e, data)
         return jsonify({"success": False, "error": str(e)})
 
+@document_bp.route('/api/audit/events',methods=['POST'])
+def audit_events_endpoint():
+    try:
+        data=one_c.execute('get_audit_events',request.json or {},retry=0,timeout=45)
+        return jsonify(success=True,**data)
+    except Exception as error:
+        return jsonify(success=False,error=str(error))
+
 @document_bp.route("/api/audit/details", methods=["POST"])
 def audit_details_endpoint():
     data = request.json or {}
     try:
-        res = one_c.execute("get_audit_diff", data)
+        res = one_c.execute("get_audit_diff", data, retry=0, timeout=90)
         resp_data = {"success": True}
         if isinstance(res, dict):
             resp_data.update(res)

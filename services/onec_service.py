@@ -21,6 +21,7 @@ class OneCService(threading.Thread):
         super().__init__(daemon=True)
         self.req_q = queue.Queue()
         self.connections = {}
+        self.busy = False
         self.start()
 
     def run(self):
@@ -40,7 +41,13 @@ class OneCService(threading.Thread):
                 print("❌ [OFFLINE BAZA YOXDUR] 'data/offline_1c_data.db' faylı tapılmadı.", flush=True)
 
         while True:
+            self.busy = False
             action, payload, resp_q = self.req_q.get()
+            self.busy = True
+            deadline = payload.pop('_queue_deadline', None)
+            if deadline is not None and time.monotonic() >= deadline:
+                resp_q.put((False, TimeoutError('Sorğu növbədə gözləyərkən vaxtı bitdi.')))
+                continue
             if action == "shutdown":
                 print("1C Worker shutting down: releasing COM sessions...", flush=True)
                 for k in list(self.connections.keys()):
@@ -62,7 +69,9 @@ class OneCService(threading.Thread):
 
             if use_offline and offline_service.is_offline_db_ready():
                 try:
-                    if action == "ping":
+                    if action == "connection_probe":
+                        resp_q.put((True, {"connected": True, "offline": True}))
+                    elif action == "ping":
                         resp_q.put((True, "pong"))
                     elif action == "get_users":
                         resp_q.put((True, offline_service.get_users()))
@@ -161,15 +170,39 @@ class OneCService(threading.Thread):
                     user = "Nesib"
                 key = f"{server.lower()}_{base.lower()}_{user.lower()}_{pwd}"
 
+                if payload.pop('_reset_connection', False):
+                    self.connections.pop(key, None)
                 conn = self.connections.get(key)
                 if conn is not None:
                     # Check connection liveness using valid COMConnector method String(1)
                     try:
-                        _ = conn.String(1)
+                        if action == 'ping' or payload.get('_login'):
+                            probe = conn.NewObject('Запрос')
+                            probe.Text = 'ВЫБРАТЬ 1 КАК Alive'
+                            try: probe.Execute()
+                            finally: probe = None
+                        else:
+                            _ = conn.String(1)
                     except Exception as e_hb:
                         print(f"🔄 [1C SESSIYA BƏRPASI] COM sessiyası qırılıb ({e_hb}), yenidən qoşulur...", flush=True)
                         self.connections.pop(key, None)
                         conn = None
+
+                if action == 'connection_probe':
+                    if conn is None:
+                        resp_q.put((True, {'connected': False, 'error': '1C sessiyası aktiv deyil. Yenidən qoşulun.'}))
+                        continue
+                    try:
+                        probe = conn.NewObject('Запрос')
+                        probe.Text = 'ВЫБРАТЬ 1 КАК Alive'
+                        probe.Execute()
+                    except Exception:
+                        self.connections.pop(key, None)
+                        raise
+                    finally:
+                        probe = None
+                    resp_q.put((True, {'connected': True}))
+                    continue
 
                 if conn is None:
                     # Release previous connection to prevent 1C license exhaustion (1 concurrent license limit)
@@ -188,7 +221,10 @@ class OneCService(threading.Thread):
                 # Dispatch Action
                 payload = dict(payload, _resolved_user=user)
                 if action == "ping":
-                    _ = conn.String(1)
+                    probe = conn.NewObject('Запрос')
+                    probe.Text = 'ВЫБРАТЬ 1 КАК Alive'
+                    probe.Execute()
+                    probe = None
                     resp_q.put((True, "pong"))
                 elif action in CATALOG_HANDLERS:
                     if action in ["user_accounts", "change_user_password"]:
@@ -207,12 +243,14 @@ class OneCService(threading.Thread):
                     else:
                         REPORT_HANDLERS[action](conn, payload, key, resp_q)
                 elif action in DOCUMENT_HANDLERS:
-                    if action in ["get_audit_list", "get_audit_diff"]:
+                    if action in ["get_audit_list", "get_audit_diff", "get_audit_events"]:
                         import importlib
                         import services.audit_service
                         importlib.reload(services.audit_service)
                         if action == "get_audit_list":
                             resp_q.put((True, services.audit_service.get_audit_list(conn, payload)))
+                        elif action == 'get_audit_events':
+                            resp_q.put((True, services.audit_service.get_audit_event_page(conn,payload)))
                         else:
                             resp_q.put((True, services.audit_service.get_document_version_diff(conn, payload)))
                     else:
@@ -237,11 +275,16 @@ class OneCService(threading.Thread):
                     print_server_error(f"OneCService.run [Action: {action}]", e, payload)
                 resp_q.put((False, e))
 
-    def execute(self, action, payload, retry=2):
+    def execute(self, action, payload, retry=2, timeout=None):
         for attempt in range(retry + 1):
             resp_q = queue.Queue()
-            self.req_q.put((action, payload, resp_q))
-            ok, result = resp_q.get()
+            queued_payload = dict(payload)
+            if timeout is not None: queued_payload['_queue_deadline'] = time.monotonic() + timeout
+            self.req_q.put((action, queued_payload, resp_q))
+            try:
+                ok, result = resp_q.get(timeout=timeout)
+            except queue.Empty:
+                raise TimeoutError('1C sorğusu vaxtında cavab vermədi. Serverdə davam edən sorğu bitdikdən sonra yenidən yoxlayın.')
             if ok:
                 return result
             err_str = str(result)
@@ -254,9 +297,8 @@ class OneCService(threading.Thread):
                 raise result
             if attempt < retry and any(k in err_str for k in ["Сеанс отсутствует", "ClusterDistribImpl", "Соединение разорвано"]):
                 print(f"⚠️ [1C BİLDİRİŞ] 1C sessiyası qırıldı, avtomatik yenidən qoşulur və '{action}' təkrar icra edilir (cəhd {attempt + 1})...", flush=True)
-                for old_k in list(self.connections.keys()):
-                    self.connections[old_k] = None
-                self.connections.clear()
+                # COM references must be released on the owning STA worker, not an HTTP thread.
+                payload = dict(payload, _reset_connection=True)
                 time.sleep(1.0)
                 continue
             print_server_error(f"OneCService.execute [Action: {action}]", result, payload)

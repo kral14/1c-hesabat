@@ -32,7 +32,68 @@ const SessionManager = {
     this.updateUI();
     // Reload restores the UI only. 1C connections live in the server process;
     // actual data requests reuse them, without a separate startup ping.
-    this.loadBases();
+    this.loadBases().finally(() => this.startConnectionMonitor());
+  },
+
+  startConnectionMonitor() {
+    clearTimeout(this._monitorTimer);
+    this._monitorTimer = setTimeout(() => this.checkConnection(), 15000);
+  },
+
+  showConnectionWarning(message) {
+    let banner = document.getElementById('connectionWarning');
+    if (!banner) {
+      banner = document.createElement('div');
+      banner.id = 'connectionWarning';
+      banner.setAttribute('role', 'alert');
+      banner.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:1000001;background:#fff1f0;color:#9c1717;border-bottom:2px solid #cc3333;padding:10px 16px;display:flex;align-items:center;gap:14px;font:13px Segoe UI,Arial;';
+      const text = document.createElement('span');
+      text.className = 'connection-warning-text';
+      text.style.flex = '1';
+      banner.appendChild(text);
+      const retry = document.createElement('button');
+      retry.textContent = 'Yenidən qoşul';
+      retry.onclick = () => this.warmupConnection();
+      banner.appendChild(retry);
+      document.body.appendChild(banner);
+    }
+    banner.querySelector('.connection-warning-text').textContent = 'Bağlantı kəsilib: ' + message;
+    banner.style.display = 'flex';
+  },
+
+  async checkConnection() {
+    if (this._checkingConnection || this._warmingConnection) { this.startConnectionMonitor(); return; }
+    this._checkingConnection = true;
+    const credentials = this.getCredentials();
+    const identity = JSON.stringify(credentials);
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 10000);
+    try {
+      const response = await fetch('/api/connection/status', {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body:identity, signal:controller.signal
+      });
+      const result = await response.json();
+      if (identity !== JSON.stringify(this.getCredentials())) return;
+      if (!response.ok || !result.success || result.connected === false) {
+        const message = result.error || 'Ofis serveri və ya 1C sessiyası əlçatan deyil.';
+        this.setConnectionStatus('error', message);
+        this.showConnectionWarning(message);
+      } else if (result.connected === true) {
+        this.setConnectionStatus('connected');
+      }
+      // A long-running report leaves the previous connection state intact.
+    } catch (error) {
+      if (identity === JSON.stringify(this.getCredentials())) {
+        const message = error.name === 'AbortError' ? 'Server vaxtında cavab vermədi.' : 'Serverə çıxış yoxdur.';
+        this.setConnectionStatus('error', message);
+        this.showConnectionWarning(message);
+      }
+    } finally {
+      clearTimeout(timeout);
+      this._checkingConnection = false;
+      this.startConnectionMonitor();
+    }
   },
 
   save() {
@@ -57,6 +118,10 @@ const SessionManager = {
 
   setConnectionStatus(status, message) {
     this.connectionStatus = status;
+    if (status === 'connected') {
+      const warning = document.getElementById('connectionWarning');
+      if (warning) warning.style.display = 'none';
+    }
     const basePill = document.getElementById("topBasePill");
     const baseDot = document.getElementById("topBaseDot");
     const baseName = document.getElementById("topBaseName");
@@ -133,6 +198,11 @@ const SessionManager = {
   },
 
   async warmupConnection() {
+    if (this._warmingConnection) return;
+    this._warmingConnection = true;
+    const identity = JSON.stringify(this.getCredentials());
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 120000);
     // Only show "connecting" spinner if ping takes longer than 250ms (avoids flicker on F5 reload)
     const showConnectingTimer = setTimeout(() => {
       if (this.connectionStatus !== "connected") {
@@ -144,24 +214,28 @@ const SessionManager = {
       const res = await fetch("/api/ping_connection", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(this.getCredentials())
+        body: identity, signal: controller.signal
       });
       clearTimeout(showConnectingTimer);
       const data = await res.json();
+      if (identity !== JSON.stringify(this.getCredentials())) return;
       if (data.success) {
         this.setConnectionStatus("connected");
       } else {
-        if (this.connectionStatus !== "connected") {
-          console.warn("1C warmup connection error:", data.error);
-          this.setConnectionStatus("error", data.error);
-        }
+        this.setConnectionStatus('error', data.error);
+        this.showConnectionWarning(data.error || '1C bağlantısı alınmadı.');
       }
     } catch (e) {
       clearTimeout(showConnectingTimer);
-      if (this.connectionStatus !== "connected") {
-        console.error("1C warmup connection network error:", e);
-        this.setConnectionStatus("error", e.message);
+      if (identity === JSON.stringify(this.getCredentials())) {
+        this.setConnectionStatus('error', e.message);
+        this.showConnectionWarning('Serverə çıxış yoxdur.');
       }
+    } finally {
+      clearTimeout(timeout);
+      clearTimeout(showConnectingTimer);
+      this._warmingConnection = false;
+      this.startConnectionMonitor();
     }
   },
 
@@ -211,6 +285,7 @@ const SessionManager = {
           this.state.ref = data.active_base.ref || this.state.ref;
           this.state.dbTitle = data.active_base.title || this.state.dbTitle;
           if (data.active_base.user) this.state.user = data.active_base.user;
+          if (data.active_base.password !== undefined) this.state.password = data.active_base.password;
           this.save();
         }
 
@@ -274,13 +349,16 @@ const SessionManager = {
     const select = document.getElementById("modalUserSelect");
     if (select) select.innerHTML = "<option value=''>İstifadəçilər yüklənir...</option>";
 
+    const controller = new AbortController();
+    const deadline = setTimeout(() => controller.abort(), 35000);
     try {
       const res = await fetch("/api/users", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(this.getCredentials())
+        body: JSON.stringify(this.getCredentials()), signal:controller.signal
       });
       const data = await res.json();
+      if (!data.success) throw new Error(data.error || "İstifadəçilər yüklənmədi");
       if (data.success && data.users) {
         if (!select) return;
         select.innerHTML = "";
@@ -308,11 +386,24 @@ const SessionManager = {
       }
     } catch (err) {
       console.error("Failed to load users:", err);
-      if (select) select.innerHTML = `<option value="Nesib" selected>Nesib (Aktiv)</option>`;
-    }
+      if (select) {
+        select.innerHTML = '';
+        const option = document.createElement('option');
+        option.value = this.state.user;
+        option.textContent = this.state.user + ' (siyahı yüklənmədi)';
+        select.appendChild(option);
+      }
+      const status = document.getElementById('modalConnStatus');
+      if (status) status.textContent = err.name === 'AbortError' ? '1C serveri vaxtında cavab vermədi.' : err.message;
+    } finally { clearTimeout(deadline); }
   },
 
   async authenticate(user, password, server, ref, title) {
+    if (this._authenticating) return false;
+    this._authenticating = true;
+    const controller = new AbortController();
+    const deadline = setTimeout(() => controller.abort(), 65000);
+    this.state.isAuthenticated = false;
     this.state.user = user || this.state.user;
     this.state.password = password !== undefined ? password : this.state.password;
     if (server) this.state.server = server;
@@ -327,7 +418,7 @@ const SessionManager = {
       const res = await fetch("/api/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(this.getCredentials())
+        body: JSON.stringify(this.getCredentials()), signal:controller.signal
       });
       const data = await res.json();
       if (data.success) {
@@ -344,10 +435,10 @@ const SessionManager = {
       }
     } catch (e) {
       this.setConnectionStatus("error", e.message);
-      alert("Şəbəkə xətası: " + e.message);
+      alert(e.name === "AbortError" ? "Giriş sorğusu vaxtında cavab vermədi. Serverin bağlantısını yoxlayın." : "Şəbəkə xətası: " + e.message);
       if (statusEl) statusEl.textContent = "Xəta";
       return false;
-    }
+    } finally { clearTimeout(deadline); this._authenticating = false; }
   }
 };
 

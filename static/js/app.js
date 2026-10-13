@@ -15,6 +15,14 @@ document.addEventListener("DOMContentLoaded", async () => {
   try { SessionManager.init(); } catch (e) { console.error("SessionManager init error:", e); }
   try { await SettingsModal.init(); } catch (e) { console.error("SettingsModal init error:", e); }
   try { await SettingsPresets.init(); } catch (e) { console.error("SettingsPresets init error:", e); }
+  try {
+    if (window.PeriodPicker && typeof PeriodPicker.restoreSavedPeriod === "function") {
+      PeriodPicker.restoreSavedPeriod();
+    }
+    if (window.OrderAnalysisReport && typeof OrderAnalysisReport.init === "function") {
+      OrderAnalysisReport.init();
+    }
+  } catch (e) { console.error("Period / OrderAnalysis init error:", e); }
 
   // 2. Global Hotkey bindings (F5: Formirovat, Ctrl+N: New Window, Pause/Break: Stop Loading)
   document.addEventListener("keydown", (e) => {

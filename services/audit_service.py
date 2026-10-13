@@ -5,6 +5,7 @@ services/audit_service.py
 Extracts document versions from РегистрСведений.ВерсииОбъектов and event log
 to provide a complete audit trail of modifications, amounts, users, and line item diffs.
 """
+from services.audit_filters import DOCUMENT_TYPES, document_conditions, version_conditions, audit_field_map
 import base64
 import datetime
 import xml.etree.ElementTree as ET
@@ -20,18 +21,17 @@ def get_audit_list(conn, payload):
     search_str = payload.get("search", "").strip()
     date_from = payload.get("date_from")
     date_to = payload.get("date_to")
-    limit_count = int(payload.get("limit") or 200)
+    limit_count = min(max(int(payload.get("limit") or 200), 1), 2000)
+    if doc_type_filter == 'ПогрузкаМашин': doc_type_filter = 'ПогрузкиМашин'
+    if doc_type_filter and doc_type_filter not in DOCUMENT_TYPES:
+        raise ValueError('Filtrləmə üçün sənəd növünü seçin')
 
     where_parts = []
     q = conn.NewObject("Запрос")
 
     # Document type restrictions
-    if doc_type_filter == "РеализацияТоваровУслуг":
-        where_parts.append("Т.Объект ССЫЛКА Документ.РеализацияТоваровУслуг")
-    elif doc_type_filter in ["ПогрузкиМашин", "ПогрузкаМашин"]:
-        where_parts.append("Т.Объект ССЫЛКА Документ.ПогрузкиМашин")
-    elif doc_type_filter == "ВозвратТоваровОтПокупателя":
-        where_parts.append("Т.Объект ССЫЛКА Документ.ВозвратТоваровОтПокупателя")
+    if doc_type_filter in DOCUMENT_TYPES:
+        where_parts.append(f"Т.Объект ССЫЛКА Документ.{doc_type_filter}")
     else:
         where_parts.append(
             "(Т.Объект ССЫЛКА Документ.РеализацияТоваровУслуг "
@@ -40,13 +40,13 @@ def get_audit_list(conn, payload):
         )
 
     # Date range filters on ДатаВерсии
-    if date_from:
+    if date_from and payload.get("period_field", "change_date") == "change_date":
         dt_f = parse_query_datetime(date_from, is_end=False)
         if dt_f:
             q.SetParameter("DateFrom", dt_f)
             where_parts.append("Т.ДатаВерсии >= &DateFrom")
 
-    if date_to:
+    if date_to and payload.get("period_field", "change_date") == "change_date":
         dt_t = parse_query_datetime(date_to, is_end=True)
         if dt_t:
             q.SetParameter("DateTo", dt_t)
@@ -56,20 +56,44 @@ def get_audit_list(conn, payload):
         q.SetParameter("AuthorLike", f"%{author_filter}%")
         where_parts.append("Т.АвторВерсии.Наименование ПОДОБНО &AuthorLike")
 
+    where_parts.extend(version_conditions(q, payload))
+    targets = [doc_type_filter] if doc_type_filter else list(DOCUMENT_TYPES[:3])
+    document_branches = []
+    for index, target in enumerate(targets):
+        doc_clauses = document_conditions(q, payload, target, 'af' + str(index) + '_', audit_field_map(conn, target))
+        if doc_clauses:
+            document_branches.append('Т.Объект В (ВЫБРАТЬ Т.Ссылка ИЗ Документ.' + target + ' КАК Т ГДЕ ' + ' И '.join(doc_clauses) + ')')
+    if document_branches: where_parts.append('(' + ' ИЛИ '.join(document_branches) + ')')
+    having = 'ИМЕЮЩИЕ КОЛИЧЕСТВО(РАЗЛИЧНЫЕ Т.НомерВерсии) > 1' if payload.get('filter_mode') == 'modified_only' else ''
     where_sql = ("ГДЕ " + " И ".join(where_parts)) if where_parts else ""
 
+    batch_headers = doc_type_filter in ('РеализацияТоваровУслуг', 'ВозвратТоваровОтПокупателя')
+    header_select = header_join = header_group = ''
+    if batch_headers:
+        warehouse = audit_field_map(conn, doc_type_filter)['warehouse'].replace('Т.', 'Д.') or '""'
+        header_fields = {
+            'Number':'Д.Номер', 'DocDate':'Д.Дата', 'Posted':'Д.Проведен',
+            'Deleted':'Д.ПометкаУдаления', 'Amount':'Д.СуммаДокумента',
+            'Kontragent':'Д.Контрагент.Наименование', 'Warehouse':warehouse,
+            'Contract':'Д.ДоговорКонтрагента.Наименование'
+        }
+        header_select = ', ' + ', '.join(f'{expression} КАК {name}' for name, expression in header_fields.items())
+        header_join = f'ЛЕВОЕ СОЕДИНЕНИЕ Документ.{doc_type_filter} КАК Д ПО Т.Объект = Д.Ссылка'
+        header_group = ', ' + ', '.join(header_fields.values())
     q.Text = f"""
-    ВЫБРАТЬ
+    ВЫБРАТЬ ПЕРВЫЕ {limit_count}
         Т.Объект КАК DocRef,
         МАКСИМУМ(Т.НомерВерсии) КАК MaxVersion,
         МАКСИМУМ(Т.ДатаВерсии) КАК LastDate,
         ПРЕДСТАВЛЕНИЕ(МАКСИМУМ(Т.АвторВерсии)) КАК LastAuthor,
-        КОЛИЧЕСТВО(РАЗЛИЧНЫЕ Т.НомерВерсии) КАК VersionCount
+        КОЛИЧЕСТВО(РАЗЛИЧНЫЕ Т.НомерВерсии) КАК VersionCount {header_select}
     ИЗ
         РегистрСведений.ВерсииОбъектов КАК Т
+    {header_join}
     {where_sql}
     СГРУППИРОВАТЬ ПО
-        Т.Объект
+        Т.Объект {header_group}
+    {having}
     УПОРЯДОЧИТЬ ПО
         LastDate УБЫВ
     """
@@ -82,7 +106,7 @@ def get_audit_list(conn, payload):
         if not doc_ref:
             continue
 
-        ref_str = conn.String(doc_ref)
+        ref_str = str(res.Number).strip() if batch_headers else conn.String(doc_ref)
         last_date_str = format_1c_datetime(res.LastDate)
         last_author = str(res.LastAuthor or "").strip()
         version_count = int(res.VersionCount or res.MaxVersion or 1)
@@ -96,45 +120,56 @@ def get_audit_list(conn, payload):
         deleted = False
         doc_type_name = "Документ"
 
-        try:
-            meta = doc_ref.Метаданные()
-            doc_type_name = str(meta.Имя)
-            doc_num = str(getattr(doc_ref, "Номер", "") or "").strip()
-            doc_date = format_1c_datetime(getattr(doc_ref, "Дата", None))
-            posted = bool(getattr(doc_ref, "Проведен", False))
-            deleted = bool(getattr(doc_ref, "ПометкаУдаления", False))
+        wh_name = contract_name = ''
+        if batch_headers:
+            doc_type_name = doc_type_filter
+            doc_num = str(res.Number or '').strip()
+            doc_date = format_1c_datetime(res.DocDate)
+            posted, deleted = bool(res.Posted), bool(res.Deleted)
+            amount = float(res.Amount or 0)
+            kontr_name = str(res.Kontragent or '').strip()
+            wh_name = str(res.Warehouse or '').strip()
+            contract_name = str(res.Contract or '').strip()
+        else:
+            try:
+                meta = doc_ref.Метаданные()
+                doc_type_name = str(meta.Имя)
+                doc_num = str(getattr(doc_ref, "Номер", "") or "").strip()
+                doc_date = format_1c_datetime(getattr(doc_ref, "Дата", None))
+                posted = bool(getattr(doc_ref, "Проведен", False))
+                deleted = bool(getattr(doc_ref, "ПометкаУдаления", False))
 
-            if hasattr(doc_ref, "Контрагент"):
-                k_obj = doc_ref.Контрагент
-                if k_obj:
-                    kontr_name = str(getattr(k_obj, "Наименование", "") or "").strip()
-            elif hasattr(doc_ref, "Водитель"):
-                v_obj = doc_ref.Водитель
-                if v_obj:
-                    kontr_name = f"Водитель: {str(getattr(v_obj, 'Наименование', '') or '').strip()}"
+                if hasattr(doc_ref, "Контрагент"):
+                    k_obj = doc_ref.Контрагент
+                    if k_obj:
+                        kontr_name = str(getattr(k_obj, "Наименование", "") or "").strip()
+                elif hasattr(doc_ref, "Водитель"):
+                    v_obj = doc_ref.Водитель
+                    if v_obj:
+                        kontr_name = f"Водитель: {str(getattr(v_obj, 'Наименование', '') or '').strip()}"
 
-            wh_name = ""
-            for w_attr in ["Склад", "СкладОрдер", "СкладКомпании"]:
-                if hasattr(doc_ref, w_attr):
-                    w_obj = getattr(doc_ref, w_attr)
-                    if w_obj:
-                        wh_name = str(getattr(w_obj, "Наименование", "") or "").strip()
-                        if wh_name:
-                            break
+                wh_name = ""
+                for w_attr in ["Склад", "СкладОрдер", "СкладКомпании"]:
+                    if hasattr(doc_ref, w_attr):
+                        w_obj = getattr(doc_ref, w_attr)
+                        if w_obj:
+                            wh_name = str(getattr(w_obj, "Наименование", "") or "").strip()
+                            if wh_name:
+                                break
 
-            contract_name = ""
-            for c_attr in ["ДоговорКонтрагента", "Договор"]:
-                if hasattr(doc_ref, c_attr):
-                    c_obj = getattr(doc_ref, c_attr)
-                    if c_obj:
-                        contract_name = str(getattr(c_obj, "Наименование", "") or "").strip()
-                        if contract_name:
-                            break
+                contract_name = ""
+                for c_attr in ["ДоговорКонтрагента", "Договор"]:
+                    if hasattr(doc_ref, c_attr):
+                        c_obj = getattr(doc_ref, c_attr)
+                        if c_obj:
+                            contract_name = str(getattr(c_obj, "Наименование", "") or "").strip()
+                            if contract_name:
+                                break
 
-            if hasattr(doc_ref, "СуммаДокумента"):
-                amount = float(getattr(doc_ref, "СуммаДокумента", 0) or 0)
-        except Exception:
-            pass
+                if hasattr(doc_ref, "СуммаДокумента"):
+                    amount = float(getattr(doc_ref, "СуммаДокумента", 0) or 0)
+            except Exception:
+                pass
 
         # Text search matching
         if search_str:
@@ -174,28 +209,19 @@ def get_audit_list(conn, payload):
             break
 
     # If no versions found in РегистрСведений.ВерсииОбъектов, fallback to querying documents directly
-    if not items:
+    has_change_filter = any(r.get('enabled') is not False and (r.get('fieldKey') or r.get('field')) == 'change_date' for r in payload.get('filters') or [])
+    # A document without versions has no change date; never substitute its document date.
+    can_fallback = payload.get('period_field', 'change_date') == 'date' and not has_change_filter and not author_filter and payload.get('filter_mode') != 'modified_only'
+    if not items and can_fallback:
         try:
             q_fallback = conn.NewObject("Запрос")
-            where_doc = []
-            if date_from:
-                dt_f = parse_query_datetime(date_from, is_end=False)
-                if dt_f:
-                    q_fallback.SetParameter("DateFrom", dt_f)
-                    where_doc.append("Т.Дата >= &DateFrom")
-            if date_to:
-                dt_t = parse_query_datetime(date_to, is_end=True)
-                if dt_t:
-                    q_fallback.SetParameter("DateTo", dt_t)
-                    where_doc.append("Т.Дата <= &DateTo")
-
-            where_clause = ("ГДЕ " + " И ".join(where_doc)) if where_doc else ""
-
             target_tables = []
             if doc_type_filter == "РеализацияТоваровУслуг":
                 target_tables.append(("Документ.РеализацияТоваровУслуг", "РеализацияТоваровУслуг", "Реализация товаров и услуг"))
             elif doc_type_filter in ["ПогрузкиМашин", "ПогрузкаМашин"]:
                 target_tables.append(("Документ.ПогрузкиМашин", "ПогрузкиМашин", "Погрузка машин"))
+            elif doc_type_filter == "УстановкаЦенНоменклатуры":
+                target_tables.append(("Документ.УстановкаЦенНоменклатуры", "УстановкаЦенНоменклатуры", "Установка цен"))
             elif doc_type_filter == "ВозвратТоваровОтПокупателя":
                 target_tables.append(("Документ.ВозвратТоваровОтПокупателя", "ВозвратТоваровОтПокупателя", "Возврат товаров от покупателя"))
             else:
@@ -206,6 +232,8 @@ def get_audit_list(conn, payload):
                 ]
 
             for table_name, dtype_name, d_title in target_tables:
+                conditions = document_conditions(q_fallback, payload, dtype_name, field_map=audit_field_map(conn, dtype_name))
+                where_clause = ('ГДЕ ' + ' И '.join(conditions)) if conditions else ''
                 q_fallback.Text = f"""
                 ВЫБРАТЬ ПЕРВЫЕ {limit_count}
                     Т.Ссылка КАК DocRef,
@@ -261,10 +289,10 @@ def get_audit_list(conn, payload):
                     if limit_count > 0 and len(items) >= limit_count:
                         break
         except Exception as e_fb:
-            print("Fallback audit list query error:", e_fb)
+            raise RuntimeError("Audit sənəd sorğusu alınmadı") from e_fb
 
     # Sort final items by last_date DESC
-    items.sort(key=lambda x: x.get("last_date") or x.get("date") or "", reverse=True)
+    items.sort(key=lambda x: parse_query_datetime(x.get("last_date") or x.get("date")) or datetime.datetime.min, reverse=True)
     if limit_count > 0:
         items = items[:limit_count]
 
@@ -712,6 +740,102 @@ def unpack_version_snapshot(conn, storage_cell, nom_cache, kontr_cache, wh_cache
         "items": items
     }
 
+
+def get_event_timeline(conn, doc_ref, payload):
+    event_timeline = []
+    tz = conn.NewObject("ТаблицаЗначений")
+    filt = conn.NewObject("Структура")
+    filt.Вставить("Данные", doc_ref)
+    # The selected document and user-selected event period define the scope.
+    date_from = parse_query_datetime(payload.get('date_from'), is_end=False)
+    date_to = parse_query_datetime(payload.get('date_to'), is_end=True)
+    if date_from and date_to and date_from > date_to:
+        raise ValueError('Başlanğıc tarix son tarixdən böyük ola bilməz.')
+    if date_from: filt.Вставить('ДатаНачала', date_from)
+    if date_to: filt.Вставить('ДатаОкончания', date_to)
+    conn.ВыгрузитьЖурналРегистрации(tz, filt, "", "")
+    for idx in range(tz.Количество()):
+        row = tz.Получить(idx)
+        ev_name = str(row.Событие or "")
+        ev_user = str(row.ИмяПользователя or "Пользователь 1С").strip()
+        ev_date = format_1c_datetime(row.Дата)
+        ev_comment = str(row.Комментарий or "").strip()
+
+        action = "Əməliyyat"
+        action_type = "Hərəkət"
+        badge_class = "blue"
+        doc_status = "Qaralama"
+        result_txt = ev_comment or "Sənədlə əməliyyat aparıldı"
+
+        if "_$Data$_.Post" in ev_name:
+            action = "Təsdiqləndi"
+            action_type = "Təsdiq"
+            badge_class = "green"
+            doc_status = "Təsdiqləndi"
+            result_txt = "Sənəd 1C-də təsdiqləndi (Provodka edildi)"
+        elif "_$Data$_.Unpost" in ev_name:
+            action = "Təsdiq ləğv edildi"
+            action_type = "Təsdiq ləğvi"
+            badge_class = "orange"
+            doc_status = "Qaralama"
+            result_txt = "Təsdiq ləğv edildi, sənəd qaralamaya qaytarıldı"
+        elif "_$Data$_.New" in ev_name:
+            action = "Yaradıldı"
+            action_type = "Yaradılma"
+            badge_class = "blue"
+            doc_status = "Qaralama"
+            result_txt = "Sənədin ilkin qeydiyyatı və yaradılması"
+        elif "_$Data$_.Update" in ev_name:
+            action = "Dəyişdirildi"
+            action_type = "Redaktə"
+            badge_class = "orange"
+            doc_status = "Təsdiqləndi"
+            result_txt = ev_comment or "Sənəd rekvizitləri və ya cədvəl hissəsi dəyişdirildi"
+        elif "_$Data$_.Delete" in ev_name:
+            action = "Silindi"
+            action_type = "Silinmə"
+            badge_class = "red"
+            doc_status = "Silindi"
+            result_txt = "Sənəd 1C-dən silindi"
+
+        event_timeline.append({
+            "order": idx + 1,
+            "date": ev_date,
+            "datetime": ev_date,
+            "user": ev_user,
+            "action": action,
+            "action_type": action_type,
+            "badge_class": badge_class,
+            "doc_status": doc_status,
+            "result": result_txt,
+            "event": ev_name,
+            "title": action,
+            "comment": ev_comment
+        })
+    return event_timeline
+
+def get_audit_event_page(conn, payload):
+    doc_type = payload.get('doc_type')
+    if doc_type not in DOCUMENT_TYPES: raise ValueError('Yanlış sənəd növü')
+    first = parse_query_datetime(payload.get('date_from'))
+    last = parse_query_datetime(payload.get('date_to'), is_end=True)
+    if not first or not last or first > last: raise ValueError('Tarix aralığını seçin.')
+    cursor = parse_query_datetime(payload.get('cursor')) or first
+    if cursor < first or cursor > last: raise ValueError('Yanlış davam tarixi')
+    end = min(last, cursor.replace(hour=23,minute=59,second=59,microsecond=0))
+    number = str(payload.get('number') or '').strip()
+    if not number: raise ValueError('Sənəd nömrəsi tələb olunur.')
+    query = conn.NewObject('Запрос')
+    query.SetParameter('N',number)
+    query.SetParameter('Alt',number.replace('C','С'))
+    query.Text = f'ВЫБРАТЬ Т.Ссылка КАК DocRef ИЗ Документ.{doc_type} КАК Т ГДЕ Т.Номер = &N ИЛИ Т.Номер = &Alt'
+    rows = query.Execute().Choose()
+    if not rows.Next(): raise ValueError('Sənəd tapılmadı.')
+    ref = rows.DocRef
+    if rows.Next(): raise ValueError('Sənəd nömrəsi unikal deyil.')
+    events = get_event_timeline(conn,ref,dict(payload,date_from=cursor,date_to=end))
+    following = end + datetime.timedelta(seconds=1)
+    return {'events':events,'next_cursor':following.strftime('%Y-%m-%d %H:%M:%S') if following <= last else '', 'scanned_to':end.strftime('%d.%m.%Y %H:%M:%S')}
 
 def get_document_version_diff(conn, payload):
     """
@@ -1171,73 +1295,7 @@ def get_document_version_diff(conn, payload):
             "total_items": cur_v["items_count"]
         })
 
-    # 4. Also fetch Event Log timeline for who posted/unposted/saved
-    event_timeline = []
-    try:
-        tz = conn.NewObject("ТаблицаЗначений")
-        filt = conn.NewObject("Структура")
-        filt.Вставить("Данные", doc_ref)
-        conn.ВыгрузитьЖурналРегистрации(tz, filt, "", "", 30)
-        for idx in range(tz.Количество()):
-            row = tz.Получить(idx)
-            ev_name = str(row.Событие or "")
-            ev_user = str(row.ИмяПользователя or "Пользователь 1С").strip()
-            ev_date = format_1c_datetime(row.Дата)
-            ev_comment = str(row.Комментарий or "").strip()
-
-            action = "Əməliyyat"
-            action_type = "Hərəkət"
-            badge_class = "blue"
-            doc_status = "Qaralama"
-            result_txt = ev_comment or "Sənədlə əməliyyat aparıldı"
-
-            if "_$Data$_.Post" in ev_name:
-                action = "Təsdiqləndi"
-                action_type = "Təsdiq"
-                badge_class = "green"
-                doc_status = "Təsdiqləndi"
-                result_txt = "Sənəd 1C-də təsdiqləndi (Provodka edildi)"
-            elif "_$Data$_.Unpost" in ev_name:
-                action = "Təsdiq ləğv edildi"
-                action_type = "Təsdiq ləğvi"
-                badge_class = "orange"
-                doc_status = "Qaralama"
-                result_txt = "Təsdiq ləğv edildi, sənəd qaralamaya qaytarıldı"
-            elif "_$Data$_.New" in ev_name:
-                action = "Yaradıldı"
-                action_type = "Yaradılma"
-                badge_class = "blue"
-                doc_status = "Qaralama"
-                result_txt = "Sənədin ilkin qeydiyyatı və yaradılması"
-            elif "_$Data$_.Update" in ev_name:
-                action = "Dəyişdirildi"
-                action_type = "Redaktə"
-                badge_class = "orange"
-                doc_status = "Təsdiqləndi"
-                result_txt = ev_comment or "Sənəd rekvizitləri və ya cədvəl hissəsi dəyişdirildi"
-            elif "_$Data$_.Delete" in ev_name:
-                action = "Silindi"
-                action_type = "Silinmə"
-                badge_class = "red"
-                doc_status = "Silindi"
-                result_txt = "Sənəd 1C-dən silindi"
-
-            event_timeline.append({
-                "order": idx + 1,
-                "date": ev_date,
-                "datetime": ev_date,
-                "user": ev_user,
-                "action": action,
-                "action_type": action_type,
-                "badge_class": badge_class,
-                "doc_status": doc_status,
-                "result": result_txt,
-                "event": ev_name,
-                "title": action,
-                "comment": ev_comment
-            })
-    except Exception as e_log:
-        print("Event log query skipped:", e_log)
+    event_timeline = [] if payload.get('include_events') is False else get_event_timeline(conn,doc_ref,payload)
 
     first_v = parsed_versions[0] if parsed_versions else {}
     last_v = parsed_versions[-1] if parsed_versions else {}

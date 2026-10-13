@@ -23,13 +23,36 @@
       target.closest(".window-btn-close") ||
       target.closest(".mdi-dropdown-entry") ||
       target.closest("#ujFilterWindow") ||
-      target.closest("#periodPickerModalOverlay")
+      target.closest("#orderAnalysisSettingsModal") ||
+      target.closest("#periodPickerModalOverlay") ||
+      target.closest(".settings-window") ||
+      target.closest(".modal-overlay-1c") ||
+      target.closest(".filters-table") ||
+      target.closest(".groupings-table") ||
+      target.closest(".settings-filters-section") ||
+      target.closest(".filters-table-container") ||
+      target.closest(".c1-textbox-wrap") ||
+      target.closest(".c1-textbox-input") ||
+      target.closest(".filter-field-cell-wrap") ||
+      target.closest(".filter-value-cell-wrap")
     );
   }
 
   function highlightAndSelectCell(td, event) {
     if (!td || isInteractiveElement(event ? event.target : null)) return;
-    if (td.closest("#ujFilterWindow") || td.closest("#periodPickerModalOverlay")) return;
+    if (
+      td.closest("#ujFilterWindow") ||
+      td.closest("#orderAnalysisSettingsModal") ||
+      td.closest("#periodPickerModalOverlay") ||
+      td.closest(".settings-window") ||
+      td.closest(".filters-table") ||
+      td.closest(".groupings-table") ||
+      td.closest(".settings-filters-section") ||
+      td.closest(".filters-table-container") ||
+      td.closest(".modal-overlay-1c") ||
+      td.closest(".c1-textbox-wrap") ||
+      td.querySelector(".c1-textbox-wrap, .c1-textbox-input, .filter-val-input, .oa-filter-val, .filter-field-name")
+    ) return;
 
     const tr = td.closest("tr");
     if (!tr) return;

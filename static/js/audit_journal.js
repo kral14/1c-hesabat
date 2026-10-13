@@ -17,6 +17,9 @@ const AuditJournal = {
   selectedVersionIdx: 0,
   activeTab: "diff",
   _currentAbortCtrl: null,
+  activeFilters: [],
+  _loadingList: false,
+  _hasGenerated: false,
 
   init: function() {
     ["auditJournalWindow", "auditProtocolWindow", "auditSnapshotWindow", "docVersionDiffWindow"].forEach(id => {
@@ -62,6 +65,8 @@ const AuditJournal = {
         closeFn: () => this.closeDiff()
       });
     }
+
+    FormAction.register('auditJournalWindow', () => this.generate());
 
     // Keyboard navigation: Up / Down arrow keys navigate documents
     const win = document.getElementById("auditJournalWindow");
@@ -130,7 +135,7 @@ const AuditJournal = {
               return;
             }
           }
-          this.loadDocuments();
+          this.generate();
         }
       });
     }
@@ -160,7 +165,9 @@ const AuditJournal = {
     try {
       localStorage.setItem("1c_audit_journal_period", JSON.stringify({
         startDate: this.startDateStr || "",
-        endDate: this.endDateStr || ""
+        endDate: this.endDateStr || "",
+        periodField: document.getElementById("ajPeriodField")?.value || "change_date",
+        filterMode: document.getElementById("ajFilterModeSelect")?.value || "all"
       }));
       if (this.activeDocType) {
         localStorage.setItem("1c_audit_journal_doctype", this.activeDocType);
@@ -173,7 +180,7 @@ const AuditJournal = {
   restoreRememberedState: function() {
     try {
       const savedDocType = localStorage.getItem("1c_audit_journal_doctype");
-      if (savedDocType && !this.activeDocType) {
+      if (savedDocType !== null) {
         this.activeDocType = savedDocType;
       }
       const sel = document.getElementById("ajDocTypeSelect");
@@ -181,12 +188,17 @@ const AuditJournal = {
         sel.value = this.activeDocType;
       }
 
+      try { this.activeFilters = JSON.parse(localStorage.getItem('uj_active_filters_audit_' + this.activeDocType) || '[]'); } catch (_) { this.activeFilters = []; }
       const savedPeriod = localStorage.getItem("1c_audit_journal_period");
       if (savedPeriod) {
         const parsed = JSON.parse(savedPeriod);
         if (parsed && typeof parsed === "object") {
           this.startDateStr = parsed.startDate || "";
           this.endDateStr = parsed.endDate || "";
+          const periodField = document.getElementById('ajPeriodField');
+          if (periodField) periodField.value = parsed.periodField || 'change_date';
+          const filterMode = document.getElementById('ajFilterModeSelect');
+          if (filterMode) filterMode.value = parsed.filterMode || 'all';
           return true;
         }
       }
@@ -225,7 +237,7 @@ const AuditJournal = {
     } else {
       this.restoreRememberedState();
       const sel = document.getElementById("ajDocTypeSelect");
-      if (sel && this.activeDocType) sel.value = this.activeDocType;
+      if (sel) sel.value = this.activeDocType;
     }
 
     const win = document.getElementById("auditJournalWindow");
@@ -237,9 +249,9 @@ const AuditJournal = {
       MdiManager.activateWindow("auditJournalWindow");
     }
 
-    // Son seçilmiş tarixi ekranda yenilə və sənədləri oxu
+    // Restore controls without issuing a data request.
     this.updatePeriodLabel();
-    this.loadDocuments();
+    this.markSettingsChanged();
   },
 
   isOpenAuditModal: function() {
@@ -291,6 +303,7 @@ const AuditJournal = {
   },
 
   close: function() {
+    if (this._listAbortCtrl) this._listAbortCtrl.abort();
     this.hideDiffPopover();
     const snapWin = document.getElementById("auditSnapshotWindow");
     if (snapWin && snapWin.style.display !== "none") {
@@ -311,7 +324,8 @@ const AuditJournal = {
     const sel = document.getElementById("ajDocTypeSelect");
     this.activeDocType = sel ? sel.value : "";
     this.saveRememberedState();
-    this.loadDocuments();
+    try { this.activeFilters = JSON.parse(localStorage.getItem('uj_active_filters_audit_' + this.activeDocType) || '[]'); } catch (_) { this.activeFilters = []; }
+    this.markSettingsChanged();
   },
 
   setQuickPeriod: function(preset) {
@@ -336,7 +350,7 @@ const AuditJournal = {
     }
     this.saveRememberedState();
     this.updatePeriodLabel();
-    this.loadDocuments();
+    this.markSettingsChanged();
   },
 
   openPeriodPicker: function() {
@@ -350,7 +364,7 @@ const AuditJournal = {
           this.endDateStr = clean(eStr);
           this.saveRememberedState();
           this.updatePeriodLabel();
-          this.loadDocuments();
+          this.markSettingsChanged();
         }
       });
     }
@@ -368,40 +382,124 @@ const AuditJournal = {
     }
   },
 
-  loadDocuments: function() {
-    this.setLoading(true);
+  markSettingsChanged: function() {
+    const status = document.getElementById('ajListStatusText');
+    if (status) status.textContent = 'Şərtləri seçin və Сформировать basın (Ctrl+Enter)';
+    const empty = document.getElementById('ajEmptyState');
+    if (empty && !this._hasGenerated) {
+      empty.style.display = 'block';
+      const title = empty.querySelector('.aj-empty-title');
+      if (title) title.textContent = 'Şərtləri seçin və Сформировать basın';
+    }
+  },
 
+  getFilterFields: function() {
+    const fields = [
+      {key:'number', label:'Номер документа', type:'text'},
+      {key:'date', label:'Дата документа', type:'date'},
+      {key:'change_date', label:'Дата изменения', type:'date'},
+      {key:'posted', label:'Проведен', type:'boolean'},
+      {key:'deleted', label:'Пометка удаления', type:'boolean'},
+      {key:'amount', label:'Сумма', type:'number'}
+    ];
+    if (!this.activeDocType || this.activeDocType === 'УстановкаЦенНоменклатуры') fields.splice(fields.findIndex(f => f.key === 'amount'), 1);
+    if (['РеализацияТоваровУслуг','ВозвратТоваровОтПокупателя'].includes(this.activeDocType)) fields.push(
+      {key:'kontragent', label:'Контрагент', type:'text'},
+      {key:'warehouse', label:'Склад', type:'text'},
+      {key:'agent', label:'Агент', type:'text'},
+      {key:'portfolio', label:'Портфель', type:'text'},
+      {key:'contract', label:'Договор контрагента', type:'text'}
+    );
+    return fields;
+  },
+
+  openFilter: function() {
+    C1FilterComponent.open({
+      contextKey: 'audit_' + this.activeDocType,
+      docTitle: 'Аудит документов',
+      availableFields: this.getFilterFields(),
+      activeFilters: this.activeFilters,
+      explicitGenerate: true,
+      isServerFiltered: true,
+      onApply: filters => this.generate(filters, true)
+    });
+  },
+
+  generate: function(filters, closeSettings = false) {
+    return FormAction.run({
+      key: 'audit-list',
+      collect: () => {
+        const selectedFilters = Array.isArray(filters) ? filters : this.activeFilters;
+        const parse = value => {
+          if (!value) return null;
+          const [d,m,y] = value.split('.').map(Number);
+          return new Date(y,m-1,d).getTime();
+        };
+        if (this.startDateStr && this.endDateStr && parse(this.startDateStr) > parse(this.endDateStr))
+          throw new Error('Başlanğıc tarix son tarixdən böyük ola bilməz.');
+        const fields = this.getFilterFields();
+        const allowed = new Set(fields.map(f => f.key));
+        const active = selectedFilters.filter(f => f.enabled !== false);
+        if (active.some(f => !allowed.has(f.fieldKey || f.field)))
+          throw new Error('Seçilmiş sənəd növünə uyğun olmayan filtr var. Filtri düzəldin.');
+        for (const rule of active) {
+          const field = fields.find(f => f.key === (rule.fieldKey || rule.field));
+          const operator = rule.operator || 'Равно';
+          if (!C1FilterComponent.getOperatorsForField(field).includes(operator))
+            throw new Error('Sahəyə uyğun müqayisə seçin: ' + field.label);
+          if (operator.startsWith('Интервал')) {
+            if (!rule.valueFrom && !rule.valueTo) throw new Error('Intervalı daxil edin: ' + field.label);
+          } else if (!['Заполнено','Не заполнено'].includes(operator) && !String(rule.value ?? '').trim()) {
+            throw new Error('Filtr dəyərini daxil edin: ' + field.label);
+          }
+        }
+        this.activeFilters = selectedFilters;
+        this.saveRememberedState();
+        return this.buildListPayload();
+      },
+      close: () => { if (closeSettings) C1FilterComponent.close(true); },
+      execute: payload => this.loadDocuments(payload),
+      onError: error => { this.markSettingsChanged(); alert(error.message); }
+    });
+  },
+
+  buildListPayload: function() {
     const creds = window.SessionManager ? SessionManager.getCredentials() : {};
-    const formatDateForBackend = (dStr, isEnd) => {
-      if (!dStr) return "";
-      const m = dStr.match(/^(\d{1,2})\.(\d{1,2})\.(\d{4})$/);
-      if (m) {
-        return `${m[3]}-${m[2].padStart(2, '0')}-${m[1].padStart(2, '0')} ${isEnd ? '23:59:59' : '00:00:00'}`;
-      }
-      return dStr;
+    const formatDateForBackend = (value, isEnd) => {
+      if (!value) return '';
+      const [d,m,y] = value.split('.');
+      return `${y}-${m}-${d} ${isEnd ? '23:59:59' : '00:00:00'}`;
     };
+    return {...creds, doc_type:this.activeDocType,
+      date_from:formatDateForBackend(this.startDateStr, false),
+      date_to:formatDateForBackend(this.endDateStr, true),
+      period_field:document.getElementById('ajPeriodField')?.value || 'change_date',
+      filters:this.activeFilters.filter(f => f.enabled !== false),
+      filter_mode:document.getElementById('ajFilterModeSelect')?.value || 'all', limit:300};
+  },
 
-    const payload = {
-      ...creds,
-      doc_type: this.activeDocType,
-      date_from: formatDateForBackend(this.startDateStr, false),
-      date_to: formatDateForBackend(this.endDateStr, true),
-      limit: 300
-    };
-
-    fetch("/api/audit/list", {
+  loadDocuments: function(payload) {
+    if (!payload) return this.generate();
+    if (this._loadingList) return Promise.resolve();
+    this._generatedFilterMode = payload.filter_mode;
+    this._loadingList = true;
+    const controller = new AbortController();
+    this._listAbortCtrl = controller;
+    const deadline = setTimeout(() => controller.abort(), 65000);
+    this.setLoading(true);
+    return fetch("/api/audit/list", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload)
+      body: JSON.stringify(payload), signal: controller.signal
     })
     .then(r => r.json())
     .then(data => {
       this.setLoading(false);
-      if (!data.success) {
-        console.warn("Audit list response warning:", data.error);
-      }
+      if (!data.success) throw new Error(data.error || "Audit sorğusu alınmadı");
+      this._hasGenerated = true;
 
       this.items = Array.isArray(data.items) ? data.items : [];
+      this.selectedIndex = -1;
       this.applyFilterAndSort();
 
       // Automatically select item if pending or first available
@@ -421,7 +519,9 @@ const AuditJournal = {
       console.error("Audit load error:", err);
       this.items = [];
       this.applyFilterAndSort();
-    });
+      throw err.name === 'AbortError' ? new Error('Audit sorğusu vaxtında cavab vermədi. Dövrü daraldın və yenidən yoxlayın.') : err;
+    })
+    .finally(() => { clearTimeout(deadline); this._listAbortCtrl = null; this._loadingList = false; this.setLoading(false); });
   },
 
   setLoading: function(show) {
@@ -447,7 +547,7 @@ const AuditJournal = {
     const searchInp = document.getElementById("ajSearchInput");
     const q = searchInp ? searchInp.value.trim().toLowerCase() : "";
     const filterSelect = document.getElementById("ajFilterModeSelect");
-    const filterMode = filterSelect ? filterSelect.value : "all";
+    const filterMode = this._generatedFilterMode || "all";
 
     let list = this.items.slice();
 
@@ -702,6 +802,7 @@ const AuditJournal = {
   },
 
   closeAuditModal: function() {
+    if(this._currentAbortCtrl)this._currentAbortCtrl.abort();
     this.hideDiffPopover();
     this.closeDocViewModal();
     if (window.MdiManager) {
@@ -737,6 +838,8 @@ const AuditJournal = {
   },
 
   loadDiff: function(docType, docNumber) {
+    if (this._loadingDetails) return this._detailsPromise;
+    this._loadingDetails = true;
     if (docType) this.currentDocType = docType;
     if (docNumber) this.currentDocNumber = docNumber;
 
@@ -745,28 +848,63 @@ const AuditJournal = {
     }
     this._currentAbortCtrl = new AbortController();
 
+    const requestController = this._currentAbortCtrl;
+    let timedOut = false;
+    const deadline = setTimeout(() => { timedOut = true; requestController.abort(); }, 95000);
     const creds = window.SessionManager ? SessionManager.getCredentials() : {};
-    fetch("/api/audit/details", {
+    const period = this.buildListPayload();
+    this._detailsPromise = fetch("/api/audit/details", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         ...creds,
         doc_type: docType,
-        number: docNumber
+        number: docNumber,
+        date_from: period.date_from,
+        include_events: false,
+        date_to: period.date_to
       }),
       signal: this._currentAbortCtrl.signal
     })
     .then(r => r.json())
     .then(data => {
       if (!data.success) {
-        console.warn("Audit details warning:", data.error);
+        throw new Error(data.error || "Audit detalları alınmadı");
       }
+      clearTimeout(deadline);
       this.populateDiffData(data);
+      return this.loadEventsPaged(data,{...creds,doc_type:docType,number:docNumber,date_from:period.date_from,date_to:period.date_to},requestController);
     })
     .catch(err => {
-      if (err.name === "AbortError") return;
+      if (err.name === "AbortError" && !timedOut) return;
       console.error("Diff fetch error:", err);
-    });
+      alert(timedOut ? 'Audit detalları vaxtında cavab vermədi. Yenidən yoxlayın.' : err.message);
+    })
+    .finally(() => { clearTimeout(deadline); this._loadingDetails = false; });
+    return this._detailsPromise;
+  },
+
+  loadEventsPaged: async function(data,payload,controller) {
+    let cursor='', events=[];
+    do {
+      let expired=false;
+      const timeout=setTimeout(()=>{expired=true;controller.abort();},50000);
+      let page;
+      try {
+        const response=await fetch('/api/audit/events',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({...payload,cursor}),signal:controller.signal});
+        page=await response.json();
+        if (!page.success) throw new Error(page.error || 'Hadisələr alınmadı.');
+      } catch(error) {
+        if(expired)throw new Error("Hadisələrin bu hissəsi vaxtında cavab vermədi. Aralığı daraldıb yenidən yoxlayın.");
+        throw error;
+      } finally {clearTimeout(timeout);}
+      if(controller.signal.aborted) return;
+      if(page.next_cursor && page.next_cursor===cursor) throw new Error('Davam tarixi dəyişmədi.');
+      events.push(...page.events);cursor=page.next_cursor;
+      this.populateDiffData({...data,event_timeline:events});
+      const status=document.getElementById('ajEventProgress');
+      if(status)status.textContent=cursor ? `Tarixçə yüklənir: ${page.scanned_to} — ${events.length} hadisə` : `Tarixçə hazırdır: ${events.length} hadisə`;
+    } while(cursor);
   },
 
   populateDiffData: function(data) {
@@ -935,7 +1073,7 @@ const AuditJournal = {
     }
 
     // Process Line Items with Deep Historical Diffing
-      const prevItems = (!isBase && prevV && prevV.items) ? prevV.items : [];
+      const prevItems = (!isBase && prevV && prevV.items) ? prevV.items.filter(it => it.statusType !== "removed" && !it.isDeleted) : [];
       const curRawList = rawV.items || [];
       const curItems = [];
       let addedCount = 0;
@@ -943,7 +1081,7 @@ const AuditJournal = {
       let replacedCount = 0;
       let modifiedCount = 0;
 
-      if (isBase || prevItems.length === 0) {
+      if (isBase) {
         // Base Version (v1)
         curRawList.forEach((it, lIdx) => {
           const itemLineNo = it.line_no || (lIdx + 1);
@@ -1354,6 +1492,26 @@ const AuditJournal = {
       });
     }
 
+    const creationEvents = (data.event_timeline || []).filter(event => String(event.event || '').includes('_$Data$_.New'));
+    const parseStamp = value => {
+      const match = String(value || '').match(/^(\d{2})\.(\d{2})\.(\d{4}) (\d{2}):(\d{2}):(\d{2})/);
+      return match ? new Date(+match[3], +match[2]-1, +match[1], +match[4], +match[5], +match[6]).getTime() : null;
+    };
+    creationEvents.sort((a,b) => (parseStamp(a.date || a.datetime) || 0) - (parseStamp(b.date || b.datetime) || 0));
+    const creation = creationEvents[0];
+    const createdAt = creation && parseStamp(creation.date || creation.datetime);
+    const firstSavedAt = parseStamp(normalizedVersions[0].changeDate);
+    const missingInitial = createdAt != null && firstSavedAt != null && createdAt < firstSavedAt;
+    this.currentDiffData.initialCreation = missingInitial ? {
+      verLabel:'Yaradılma hadisəsi', author:creation.user || '',
+      changeDate:creation.date || creation.datetime
+    } : null;
+    normalizedVersions.forEach((version,index) => {
+      version.isInitial = index === 0 && createdAt != null && firstSavedAt === createdAt;
+      version.missingInitial = index === 0 && missingInitial;
+      version.verLabel = version.isInitial ? `v${version.verNum} (İlkin əlavə)` :
+        (version.missingInitial ? `v${version.verNum} (Dəyişiklikdən sonrakı hal)` : (index === 0 && !creation ? `v${version.verNum} (İlk saxlanmış versiya)` : `v${version.verNum} (Dəyişiklik)`));
+    });
     this.currentDiffData.normalizedVersions = normalizedVersions;
     this.selectedVersionIdx = normalizedVersions.length - 1;
 
@@ -1368,11 +1526,11 @@ const AuditJournal = {
             order: 1,
             datetime: v.date,
             user: v.author,
-            action: "Yaradıldı",
-            action_type: "Yaradılma",
+            action: v.isInitial ? "Yaradıldı" : "İlk saxlanmış versiya",
+            action_type: v.isInitial ? "Yaradılma" : "Versiya",
             badge_class: "blue",
             doc_status: v.posted ? "Təsdiqləndi" : "Qaralama",
-            result: "Sənəd açıldı və sistemdə qeydiyyata alındı."
+            result: v.isInitial ? "Sənəd əlavə olundu." : "Yaradılma hadisəsi təsdiqlənməyib; ilk mövcud versiya göstərilir."
           });
           if (v.posted) {
             timeline.push({
@@ -1663,13 +1821,23 @@ const AuditJournal = {
     this.renderDocVersionWindow();
   },
 
+  getCleanFinalVersion: function(versions) {
+    const last = versions[versions.length - 1];
+    return {...last, verLabel:'Son halı', headerChanges:[],
+      addedCount:0, removedCount:0, replacedCount:0, modifiedCount:0,
+      items:(last.items || []).filter(it => it.statusType !== 'removed' && !it.isDeleted)
+        .map(it => ({...it, statusType:'unchanged', statusLabel:'Son halı', changedFields:[]}))};
+  },
+
   renderDocVersionWindow: function() {
     const doc = this.currentDoc || (this.filteredItems && this.filteredItems[this.selectedIndex]) || {};
     const vers = (this.currentDiffData && this.currentDiffData.normalizedVersions) ? this.currentDiffData.normalizedVersions : [];
     if (vers.length === 0) return;
 
-    const curVer = vers[this.selectedVersionIdx] || vers[0];
-    const isModifiedVer = curVer.verNum > 1;
+    const isFinalState = this.selectedVersionIdx === vers.length;
+    const isCreation = this.selectedVersionIdx === -1 && this.currentDiffData.initialCreation;
+    const curVer = isCreation || (isFinalState ? this.getCleanFinalVersion(vers) : (vers[this.selectedVersionIdx] || vers[0]));
+    const isModifiedVer = !isFinalState && !isCreation && (curVer.verNum > 1 || curVer.missingInitial);
 
     // Window Title
     const titleEl = document.getElementById("docWinHeaderTitle");
@@ -1679,6 +1847,9 @@ const AuditJournal = {
 
     // Version switcher buttons in modal toolbar
     let vButtonsHtml = `<span style="font-weight: bold; color: #002060;">Versiyalar:</span>`;
+    if (this.currentDiffData.initialCreation) {
+      vButtonsHtml += `<button type="button" class="v-btn ${isCreation ? 'active' : ''}" onclick="AuditJournal.selectDocWinVersion(-1)"><span>Yaradılma — ${this.escapeHtml(this.currentDiffData.initialCreation.author)}</span></button>`;
+    }
     vers.forEach((v, idx) => {
       const isAct = (idx === this.selectedVersionIdx);
       vButtonsHtml += `
@@ -1687,12 +1858,19 @@ const AuditJournal = {
         </button>
       `;
     });
+    vButtonsHtml += `<button type="button" class="v-btn ${isFinalState ? 'active' : ''}" onclick="AuditJournal.selectDocWinVersion(${vers.length})"><span>Son halı</span></button>`;
     const vBtnsContainer = document.getElementById("docWinVersionButtons");
     if (vBtnsContainer) vBtnsContainer.innerHTML = vButtonsHtml;
 
     const vMetaContainer = document.getElementById("docWinVersionMeta");
     if (vMetaContainer) {
       vMetaContainer.innerHTML = `Müəllif: <strong style="color: #002060;">${this.escapeHtml(curVer.author)}</strong> | Dəyişilmə Tarixi: <strong style="color: #002060;">${this.escapeHtml(curVer.changeDate || curVer.date)}</strong>`;
+    }
+
+    if (isCreation) {
+      const content = document.getElementById('docWinBodyContent');
+      if (content) content.innerHTML = `<div style="padding:24px;background:#f8fbfd;border:1px solid #b6d4fe"><h3>Sənəd yaradıldı</h3><p>Yaradan: <strong>${this.escapeHtml(curVer.author)}</strong></p><p>Yaradılma vaxtı: <strong>${this.escapeHtml(curVer.changeDate)}</strong></p><p>Bu qeyd hadisə jurnalından götürülüb. Həmin andakı mallar və faizlər saxlanmayıb; ilkin dəyərlər məlum deyil.</p></div>`;
+      return;
     }
 
     // Header changes for this version
@@ -1725,13 +1903,13 @@ const AuditJournal = {
         badgesSummaryHtml += `<span class="badge badge-blue">${headerChanges.length} Rekvizit Dəyişib</span>`;
       }
       if (!badgesSummaryHtml) {
-        badgesSummaryHtml = `<span class="badge badge-red">Redaktə Edilib</span>`;
+        badgesSummaryHtml = curVer.missingInitial ? `<span class="badge badge-gray">Əvvəlki hal yoxdur — fərq məlum deyil</span>` : `<span class="badge badge-gray">Müqayisə olunan sahələrdə fərq yoxdur</span>`;
       }
     } else {
-      badgesSummaryHtml = `<span class="badge badge-green">İlkin Vəziyyət (Baza)</span>`;
+      badgesSummaryHtml = `<span class="badge badge-green">${isFinalState ? "Son vəziyyət" : (curVer.isInitial ? "İlkin əlavə" : "İlk saxlanmış versiya")}</span>`;
     }
 
-    let statusCardHtml = `
+    let statusCardHtml = `${curVer.missingInitial ? '<div style="padding:8px;background:#fffbe6">Bu, yaradılmadan sonra saxlanmış ilk versiyadır. Əvvəlki dəyərlər saxlanmadığı üçün ilk dəyişikliyin fərqini hesablamaq olmur.</div>' : ''}
       <div style="background: ${isModifiedVer ? '#fff8f8' : '#f8fbfd'}; border: 1px solid ${isModifiedVer ? '#ffcdd2' : '#b6d4fe'}; padding: 8px 12px; border-radius: 4px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
         <div>
           <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
@@ -1926,9 +2104,9 @@ const AuditJournal = {
         }
 
         // Status Badge
-        let statusBadgeHtml = '<span class="badge badge-gray">Dəyişməyib</span>';
+        let statusBadgeHtml = isFinalState ? '<span class="badge badge-gray">Son halı</span>' : '<span class="badge badge-gray">Dəyişməyib</span>';
         if (it.statusType === "base") {
-          statusBadgeHtml = '<span class="badge badge-blue">İlkin Mal</span>';
+          statusBadgeHtml = `<span class="badge badge-blue">${curVer.isInitial ? 'İlkin Mal' : 'İlk saxlanmış hal'}</span>`;
         } else if (isAdded) {
           statusBadgeHtml = '<span class="badge badge-green" style="font-weight:bold; background:#e8f5e9; color:#1b5e20; border:1px solid #81c784;">+ Yeni Əlavə</span>';
         } else if (isRemoved) {

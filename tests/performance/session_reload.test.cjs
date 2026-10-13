@@ -5,7 +5,7 @@ const requests = [];
 const context = vm.createContext({console,window:{},
   localStorage:{getItem:()=>JSON.stringify({server:'Test1C',ref:'Aztrade_test3',user:'test'}),setItem(){}},
   document:{getElementById:()=>null},
-  setTimeout:()=>{throw new Error('Reload must not schedule a connection check');},
+  setTimeout:(fn,delay)=>{assert.equal(delay,15000,'reload only schedules the regular monitor');return 1;}, clearTimeout() {},
   fetch:async url=>{requests.push(url); return {json:async()=>({success:true,bases:[]})};}
 });
 vm.runInContext(fs.readFileSync('static/js/session.js','utf8')+'\nthis.session = SessionManager;',context);
@@ -14,5 +14,5 @@ setImmediate(()=>{
   assert.deepEqual(requests,['/api/bases']);
   assert.equal(context.session.state.ref,'Aztrade_test3');
   assert.equal(context.session.connectionStatus,'idle','reload must not announce a new connection');
-  console.log('Reload restores UI without a 1C ping or connection timer.');
+  console.log('Reload restores UI without an immediate 1C ping; monitoring continues on its regular schedule.');
 });

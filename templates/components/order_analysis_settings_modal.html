@@ -352,17 +352,10 @@
               <tr onclick="OrderAnalysisSettings.selectFilterRow(this)">
                 <td style="text-align: center;"><input type="checkbox" class="filter-chk oa-filter-chk"></td>
                 <td>
-                  <select class="filter-field-sel oa-filter-field" onchange="UniversalReportSettings.onFilterFieldChange(this, 'order_analysis')" style="width: 100%; height: 20px; font-size: 11px;">
-                    <option value="Контрагент" selected>Контрагент</option>
-                    <option value="Номенклатура">Номенклатура</option>
-                    <option value="Портфель">Портфель</option>
-                    <option value="Агент">Агент</option>
-                    <option value="Склад">Склад</option>
-                    <option value="Номенклатура.Номенклатурная группа">Номенклатура.Номенклатурная группа</option>
-                    <option value="Качество">Качество</option>
-                    <option value="Регистратор.Вид операции">Регистратор.Вид операции</option>
-                    <option value="Регистратор.Ответственный">Регистратор.Ответственный</option>
-                  </select>
+                  <div class="c1-textbox-wrap filter-field-cell-wrap" data-component="c1-textbox">
+                    <input type="text" class="c1-textbox-input filter-field-name oa-filter-field" value="Контрагент" data-field="Контрагент" readonly title="Контрагент">
+                    <button type="button" class="c1-textbox-btn filter-field-btn-pick" onclick="UniversalReportSettings.editFilterField(this, 'order_analysis')" title="Выбрать (F4)">...</button>
+                  </div>
                 </td>
                 <td>
                   <select class="filter-comp-sel oa-filter-comp" style="width: 100%; height: 20px; font-size: 11px;">
@@ -373,9 +366,9 @@
                   </select>
                 </td>
                 <td>
-                  <div class="filter-value-cell-wrap" style="display: flex; align-items: center; gap: 2px; position: relative;">
-                    <input type="text" class="filter-val-input oa-filter-val" value="" placeholder="Müştəri seç..." style="flex: 1; height: 20px; font-size: 11px; padding: 1px 4px; border: 1px solid #7f9db9;">
-                    <button class="filter-btn-pick" onclick="UniversalReportSettings.openCatalogForFilterRow(this, 'order_analysis')" title="Soraqçadan seç..." style="height: 20px; width: 22px; cursor: pointer; padding: 0;">...</button>
+                  <div class="c1-textbox-wrap filter-value-cell-wrap" data-component="c1-textbox">
+                    <input type="text" class="c1-textbox-input filter-val-input oa-filter-val" value="" placeholder="Müştəri seç..." autocomplete="off" spellcheck="false">
+                    <button type="button" class="c1-textbox-btn filter-btn-pick" onclick="UniversalReportSettings.openCatalogForFilterRow(this, 'order_analysis')" title="Выбрать (F4)">...</button>
                   </div>
                 </td>
               </tr>
@@ -384,14 +377,10 @@
               <tr onclick="OrderAnalysisSettings.selectFilterRow(this)">
                 <td style="text-align: center;"><input type="checkbox" class="filter-chk oa-filter-chk"></td>
                 <td>
-                  <select class="filter-field-sel oa-filter-field" onchange="UniversalReportSettings.onFilterFieldChange(this, 'order_analysis')" style="width: 100%; height: 20px; font-size: 11px;">
-                    <option value="Контрагент">Контрагент</option>
-                    <option value="Номенклатура" selected>Номенклатура</option>
-                    <option value="Портфель">Портфель</option>
-                    <option value="Агент">Агент</option>
-                    <option value="Склад">Склад</option>
-                    <option value="Номенклатура.Номенклатурная группа">Номенклатура.Номенклатурная группа</option>
-                  </select>
+                  <div class="c1-textbox-wrap filter-field-cell-wrap" data-component="c1-textbox">
+                    <input type="text" class="c1-textbox-input filter-field-name oa-filter-field" value="Номенклатура" data-field="Номенклатура" readonly title="Номенклатура">
+                    <button type="button" class="c1-textbox-btn filter-field-btn-pick" onclick="UniversalReportSettings.editFilterField(this, 'order_analysis')" title="Выбрать (F4)">...</button>
+                  </div>
                 </td>
                 <td>
                   <select class="filter-comp-sel oa-filter-comp" style="width: 100%; height: 20px; font-size: 11px;">
@@ -402,9 +391,9 @@
                   </select>
                 </td>
                 <td>
-                  <div class="filter-value-cell-wrap" style="display: flex; align-items: center; gap: 2px; position: relative;">
-                    <input type="text" class="filter-val-input oa-filter-val" value="" placeholder="Məhsul seç..." style="flex: 1; height: 20px; font-size: 11px; padding: 1px 4px; border: 1px solid #7f9db9;">
-                    <button class="filter-btn-pick" onclick="UniversalReportSettings.openCatalogForFilterRow(this, 'order_analysis')" title="Məhsul soraqçasını aç..." style="height: 20px; width: 22px; cursor: pointer; padding: 0;">...</button>
+                  <div class="c1-textbox-wrap filter-value-cell-wrap" data-component="c1-textbox">
+                    <input type="text" class="c1-textbox-input filter-val-input oa-filter-val" value="" placeholder="Məhsul seç..." autocomplete="off" spellcheck="false">
+                    <button type="button" class="c1-textbox-btn filter-btn-pick" onclick="UniversalReportSettings.openCatalogForFilterRow(this, 'order_analysis')" title="Выбрать (F4)">...</button>
                   </div>
                 </td>
               </tr>
@@ -413,14 +402,10 @@
               <tr onclick="OrderAnalysisSettings.selectFilterRow(this)">
                 <td style="text-align: center;"><input type="checkbox" class="filter-chk oa-filter-chk"></td>
                 <td>
-                  <select class="filter-field-sel oa-filter-field" onchange="UniversalReportSettings.onFilterFieldChange(this, 'order_analysis')" style="width: 100%; height: 20px; font-size: 11px;">
-                    <option value="Контрагент">Контрагент</option>
-                    <option value="Номенклатура">Номенклатура</option>
-                    <option value="Портфель" selected>Портфель</option>
-                    <option value="Агент">Агент</option>
-                    <option value="Склад">Склад</option>
-                    <option value="Номенклатура.Номенклатурная группа">Номенклатура.Номенклатурная группа</option>
-                  </select>
+                  <div class="c1-textbox-wrap filter-field-cell-wrap" data-component="c1-textbox">
+                    <input type="text" class="c1-textbox-input filter-field-name oa-filter-field" value="Портфель" data-field="Портфель" readonly title="Портфель">
+                    <button type="button" class="c1-textbox-btn filter-field-btn-pick" onclick="UniversalReportSettings.editFilterField(this, 'order_analysis')" title="Выбрать (F4)">...</button>
+                  </div>
                 </td>
                 <td>
                   <select class="filter-comp-sel oa-filter-comp" style="width: 100%; height: 20px; font-size: 11px;">
@@ -431,9 +416,9 @@
                   </select>
                 </td>
                 <td>
-                  <div class="filter-value-cell-wrap" style="display: flex; align-items: center; gap: 2px; position: relative;">
-                    <input type="text" class="filter-val-input oa-filter-val" value="" placeholder="Portfel seç..." style="flex: 1; height: 20px; font-size: 11px; padding: 1px 4px; border: 1px solid #7f9db9;">
-                    <button class="filter-btn-pick" onclick="UniversalReportSettings.openCatalogForFilterRow(this, 'order_analysis')" title="Portfel soraqçasını aç..." style="height: 20px; width: 22px; cursor: pointer; padding: 0;">...</button>
+                  <div class="c1-textbox-wrap filter-value-cell-wrap" data-component="c1-textbox">
+                    <input type="text" class="c1-textbox-input filter-val-input oa-filter-val" value="" placeholder="Portfel seç..." autocomplete="off" spellcheck="false">
+                    <button type="button" class="c1-textbox-btn filter-btn-pick" onclick="UniversalReportSettings.openCatalogForFilterRow(this, 'order_analysis')" title="Выбрать (F4)">...</button>
                   </div>
                 </td>
               </tr>
@@ -442,14 +427,10 @@
               <tr onclick="OrderAnalysisSettings.selectFilterRow(this)">
                 <td style="text-align: center;"><input type="checkbox" class="filter-chk oa-filter-chk"></td>
                 <td>
-                  <select class="filter-field-sel oa-filter-field" onchange="UniversalReportSettings.onFilterFieldChange(this, 'order_analysis')" style="width: 100%; height: 20px; font-size: 11px;">
-                    <option value="Контрагент">Контрагент</option>
-                    <option value="Номенклатура">Номенклатура</option>
-                    <option value="Портфель">Портфель</option>
-                    <option value="Агент" selected>Агент</option>
-                    <option value="Склад">Склад</option>
-                    <option value="Номенклатура.Номенклатурная группа">Номенклатура.Номенклатурная группа</option>
-                  </select>
+                  <div class="c1-textbox-wrap filter-field-cell-wrap" data-component="c1-textbox">
+                    <input type="text" class="c1-textbox-input filter-field-name oa-filter-field" value="Агент" data-field="Агент" readonly title="Агент">
+                    <button type="button" class="c1-textbox-btn filter-field-btn-pick" onclick="UniversalReportSettings.editFilterField(this, 'order_analysis')" title="Выбрать (F4)">...</button>
+                  </div>
                 </td>
                 <td>
                   <select class="filter-comp-sel oa-filter-comp" style="width: 100%; height: 20px; font-size: 11px;">
@@ -460,25 +441,21 @@
                   </select>
                 </td>
                 <td>
-                  <div class="filter-value-cell-wrap" style="display: flex; align-items: center; gap: 2px; position: relative;">
-                    <input type="text" class="filter-val-input oa-filter-val" value="" placeholder="Agent seç..." style="flex: 1; height: 20px; font-size: 11px; padding: 1px 4px; border: 1px solid #7f9db9;">
-                    <button class="filter-btn-pick" onclick="UniversalReportSettings.openCatalogForFilterRow(this, 'order_analysis')" title="Agent soraqçasını aç..." style="height: 20px; width: 22px; cursor: pointer; padding: 0;">...</button>
+                  <div class="c1-textbox-wrap filter-value-cell-wrap" data-component="c1-textbox">
+                    <input type="text" class="c1-textbox-input filter-val-input oa-filter-val" value="" placeholder="Agent seç..." autocomplete="off" spellcheck="false">
+                    <button type="button" class="c1-textbox-btn filter-btn-pick" onclick="UniversalReportSettings.openCatalogForFilterRow(this, 'order_analysis')" title="Выбрать (F4)">...</button>
                   </div>
                 </td>
               </tr>
 
-              <!-- Filter Row 5: Склад -->
+              <!-- Filter Row 5: Регистратор.Вид операции -->
               <tr onclick="OrderAnalysisSettings.selectFilterRow(this)">
                 <td style="text-align: center;"><input type="checkbox" class="filter-chk oa-filter-chk"></td>
                 <td>
-                  <select class="filter-field-sel oa-filter-field" onchange="UniversalReportSettings.onFilterFieldChange(this, 'order_analysis')" style="width: 100%; height: 20px; font-size: 11px;">
-                    <option value="Контрагент">Контрагент</option>
-                    <option value="Номенклатура">Номенклатура</option>
-                    <option value="Портфель">Портфель</option>
-                    <option value="Агент">Агент</option>
-                    <option value="Склад" selected>Склад</option>
-                    <option value="Номенклатура.Номенклатурная группа">Номенклатура.Номенклатурная группа</option>
-                  </select>
+                  <div class="c1-textbox-wrap filter-field-cell-wrap" data-component="c1-textbox">
+                    <input type="text" class="c1-textbox-input filter-field-name oa-filter-field" value="Регистратор.Вид операции" data-field="Регистратор.Вид операции" readonly title="Регистратор.Вид операции">
+                    <button type="button" class="c1-textbox-btn filter-field-btn-pick" onclick="UniversalReportSettings.editFilterField(this, 'order_analysis')" title="Выбрать (F4)">...</button>
+                  </div>
                 </td>
                 <td>
                   <select class="filter-comp-sel oa-filter-comp" style="width: 100%; height: 20px; font-size: 11px;">
@@ -489,9 +466,9 @@
                   </select>
                 </td>
                 <td>
-                  <div class="filter-value-cell-wrap" style="display: flex; align-items: center; gap: 2px; position: relative;">
-                    <input type="text" class="filter-val-input oa-filter-val" value="" placeholder="Anbar seç..." style="flex: 1; height: 20px; font-size: 11px; padding: 1px 4px; border: 1px solid #7f9db9;">
-                    <button class="filter-btn-pick" onclick="UniversalReportSettings.openCatalogForFilterRow(this, 'order_analysis')" title="Anbar soraqçasını aç..." style="height: 20px; width: 22px; cursor: pointer; padding: 0;">...</button>
+                  <div class="c1-textbox-wrap filter-value-cell-wrap" data-component="c1-textbox">
+                    <input type="text" class="c1-textbox-input filter-val-input oa-filter-val" value="" placeholder="Əməliyyat növü..." autocomplete="off" spellcheck="false">
+                    <button type="button" class="c1-textbox-btn filter-btn-pick" onclick="UniversalReportSettings.openCatalogForFilterRow(this, 'order_analysis')" title="Выбрать (F4)">...</button>
                   </div>
                 </td>
               </tr>

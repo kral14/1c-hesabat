@@ -9,19 +9,26 @@ Server işə düşərkən ekrana gəlir:
 import sys
 import tkinter as tk
 from tkinter import ttk, messagebox
+import json
+import threading
+import queue
+import urllib.request
 
-from services.cluster_service import (
-    get_cluster_sessions,
-    terminate_cluster_session,
-    auto_cleanup_hanging_sessions,
-    terminate_all_com_sessions
-)
+try:
+    from services.cluster_service import get_cluster_sessions, terminate_cluster_session, auto_cleanup_hanging_sessions
+except ImportError:
+    # Home mode administers the office backend over HTTP and needs no local COM installation.
+    get_cluster_sessions = terminate_cluster_session = auto_cleanup_hanging_sessions = None
+
 
 class ClusterSessionsGUI:
-    def __init__(self, server_agent="Test1C:1540", target_base="aztrade_test3"):
+    def __init__(self, server_agent="Test1C:1540", target_base="aztrade_test3", backend_url=None, parent=None):
         self.server_agent = server_agent
         self.target_base = target_base
-        self.root = tk.Tk()
+        self.backend_url = backend_url
+        self.action = None
+        self.parent = parent
+        self.root = tk.Toplevel(parent) if parent is not None else tk.Tk()
         self.root.title("1C Klaster - Sessiya və Lisenziya İdarəetməsi")
         
         # Pəncərə ölçüləri və mərkəzləşdirmə
@@ -90,6 +97,8 @@ class ClusterSessionsGUI:
             "📌 Bazada lisenziya yerini boşaltmaq üçün istədiyiniz sessiyanı seçib 'Sonlandır' sıxın.\n"
             "   Ehtiyac yoxdursa, birbaşa 'Keç / Davam Et' düyməsinə klikləyin."
         )
+        if self.backend_url:
+            info_text = "Mövcud bağlantı ilə davam etmək serverin saxladığı COM sessiyasını istifadə edir.\nAsılı sessiyanı təmizləmək onu sonlandırır; başqa prosesin sessiya ID-si ilə qoşulma edilmir."
         info_lbl = tk.Label(info_frame, text=info_text, font=("Segoe UI", 9), fg="#334155", bg="#f1f5f9", justify=tk.LEFT)
         info_lbl.pack(anchor="w")
 
@@ -172,7 +181,7 @@ class ClusterSessionsGUI:
         # Sağ tərəf: Keç / Davam Et düyməsi
         self.btn_skip = tk.Button(
             btn_frame, 
-            text="🟢 Keç / Davam Et ➔", 
+            text="Bağlantını hazırla və davam et" if self.backend_url else "🟢 Keç / Davam Et ➔",
             font=("Segoe UI", 10, "bold"), 
             bg="#10b981", 
             fg="white", 
@@ -185,6 +194,12 @@ class ClusterSessionsGUI:
             command=self._on_skip
         )
         self.btn_skip.pack(side=tk.RIGHT)
+
+        if self.backend_url:
+            reuse_frame = tk.Frame(self.root, padx=14, pady=4, bg='#f8fafc')
+            reuse_frame.pack(fill=tk.X)
+            tk.Button(reuse_frame, text="Mövcud bağlantı ilə davam et", command=self._on_reuse,
+                      font=("Segoe UI", 10, 'bold'), padx=8, pady=6).pack(fill=tk.X)
 
         # 5. Status Bar
         self.status_bar = tk.Label(
@@ -200,45 +215,64 @@ class ClusterSessionsGUI:
         self.status_bar.pack(fill=tk.X, side=tk.BOTTOM)
 
     def _load_sessions(self):
-        for item in self.tree.get_children():
-            self.tree.delete(item)
-
-        try:
-            sessions = get_cluster_sessions(server_agent=self.server_agent, target_base=self.target_base)
-            if not sessions:
-                self.status_bar.config(text="✅ Aktiv sessiya yoxdur. Bütün lisenziyalar tam sərbəstdir.")
+        self._load_token = getattr(self, '_load_token', 0) + 1
+        token = self._load_token
+        self.status_bar.config(text='Sessiyalar oxunur...')
+        results = queue.Queue()
+        def worker():
+            try:
+                sessions = self._backend('api/cluster/sessions').get('sessions', []) if self.backend_url else get_cluster_sessions(server_agent=self.server_agent, target_base=self.target_base, raise_errors=True)
+                results.put((sessions, None))
+            except Exception as error:
+                results.put((None, str(error)))
+        def poll():
+            if not self.root.winfo_exists() or token != self._load_token: return
+            try:
+                sessions, error = results.get_nowait()
+            except queue.Empty:
+                self.root.after(100, poll)
                 return
+            if error:
+                self.status_bar.config(text='⚠️ Xəta: ' + error)
+            else:
+                self._display_sessions(sessions)
+        threading.Thread(target=worker, daemon=True).start()
+        self.root.after(100, poll)
 
-            hanging_count = 0
-            for s in sessions:
-                sid = s.get("session_id", "")
-                user = s.get("user_name", "")
-                app = s.get("app_id", "")
-                host = s.get("host", "")
-                started = s.get("started_at", "")
-                if len(started) > 19:
-                    started = started[:19]
-                
-                is_hanging = s.get("is_hanging", False)
-                if is_hanging:
-                    hanging_count += 1
-                    status = "⚠️ Asılı (Qopmuş)"
-                else:
-                    status = "Aktiv"
+    def _display_sessions(self, sessions):
+        for item in self.tree.get_children(): self.tree.delete(item)
+        if not sessions:
+            self.status_bar.config(text="✅ Aktiv sessiya yoxdur. Bütün lisenziyalar tam sərbəstdir.")
+            return
 
-                item_id = self.tree.insert("", tk.END, values=(sid, user, app, host, started, status))
-                if is_hanging:
-                    self.tree.item(item_id, tags=("hanging",))
+        hanging_count = 0
+        for s in sessions:
+            sid = s.get("session_id", "")
+            user = s.get("user_name", "")
+            app = s.get("app_id", "")
+            host = s.get("host", "")
+            started = s.get("started_at", "")
+            if len(started) > 19:
+                started = started[:19]
 
-            self.tree.tag_configure("hanging", background="#fef2f2", foreground="#b91c1c")
+            is_hanging = s.get("is_hanging", False)
+            if is_hanging:
+                hanging_count += 1
+                status = "⚠️ Asılı (Qopmuş)"
+            else:
+                status = "Aktiv"
 
-            msg = f"Cəmi {len(sessions)} aktiv sessiya tapıldı."
-            if hanging_count > 0:
-                msg += f" (Bunlardan {hanging_count} ədədi lisenziyanı bloklayan asılı sessiyadır!)"
-            self.status_bar.config(text=msg)
+            item_id = self.tree.insert("", tk.END, values=(sid, user, app, host, started, status))
+            if is_hanging:
+                self.tree.item(item_id, tags=("hanging",))
 
-        except Exception as e:
-            self.status_bar.config(text=f"⚠️ Xəta: {e}")
+        self.tree.tag_configure("hanging", background="#fef2f2", foreground="#b91c1c")
+
+        msg = f"Cəmi {len(sessions)} aktiv sessiya tapıldı."
+        if hanging_count > 0:
+            msg += f" (Bunlardan {hanging_count} ədədi lisenziyanı bloklayan asılı sessiyadır!)"
+        self.status_bar.config(text=msg)
+
 
     def _on_terminate(self):
         selected = self.tree.selection()
@@ -258,7 +292,14 @@ class ClusterSessionsGUI:
         if not confirm:
             return
 
-        ok, err = terminate_cluster_session(sid, server_agent=self.server_agent, target_base=self.target_base)
+        if self.backend_url:
+            try:
+                self._backend('api/cluster/terminate', {'session_id':sid})
+                ok, err = True, None
+            except Exception as error:
+                ok, err = False, str(error)
+        else:
+            ok, err = terminate_cluster_session(sid, server_agent=self.server_agent, target_base=self.target_base)
         if ok:
             messagebox.showinfo("Uğurlu", f"Sessiya #{sid} uğurla sonlandırıldı və lisenziya azad edildi!", parent=self.root)
             self._load_sessions()
@@ -266,25 +307,61 @@ class ClusterSessionsGUI:
             messagebox.showerror("Xəta", f"Sessiyanı sonlandırmaq alınmadı:\n{err}", parent=self.root)
 
     def _on_auto_clean(self):
-        cleaned = auto_cleanup_hanging_sessions(server_agent=self.server_agent, target_base=self.target_base)
-        if cleaned > 0:
-            messagebox.showinfo("Təmizləndi", f"{cleaned} ədəd asılı qalmış COM sessiyası bağlandı və lisenziya azad edildi!", parent=self.root)
+        if not messagebox.askyesno('Təsdiq', 'Yalnız qopmuş COM sessiyaları sonlandırılsın?', parent=self.root):
+            return
+        if self.backend_url:
+            try:
+                sessions = self._backend('api/cluster/sessions').get('sessions', [])
+                targets = [s for s in sessions if s.get('is_hanging') and s.get('app_id') == 'COMConnection']
+                cleaned = 0
+                for session in targets:
+                    self._backend('api/cluster/terminate', {'session_id': session['session_id'], 'only_hanging': True})
+                    cleaned += 1
+            except Exception as error:
+                messagebox.showerror('Xəta', str(error), parent=self.root)
+                self._load_sessions()
+                return
         else:
-            messagebox.showinfo("Məlumat", "Bazada asılı qalmış COM sessiyası tapılmadı.", parent=self.root)
+            cleaned = auto_cleanup_hanging_sessions(server_agent=self.server_agent, target_base=self.target_base)
+        messagebox.showinfo('Sessiyalar', f'{cleaned} qopmuş COM sessiyası təmizləndi.', parent=self.root)
         self._load_sessions()
 
+    def _backend(self, path, extra=None):
+        body = {'server': self.server_agent.rsplit(':',1)[0], 'ref':self.target_base, **(extra or {})}
+        req = urllib.request.Request(self.backend_url.rstrip('/') + '/' + path,
+              data=json.dumps(body).encode('utf-8'), headers={'Content-Type':'application/json'}, method='POST')
+        with urllib.request.urlopen(req, timeout=120) as response:
+            result = json.load(response)
+        if not result.get('success'): raise RuntimeError(result.get('error') or 'Sessiya əməliyyatı alınmadı.')
+        return result
+
+    def _on_reuse(self):
+        try:
+            self._backend('api/connection/resume')
+            self.action = 'reuse'
+            self.root.destroy()
+        except Exception as error:
+            messagebox.showerror('Mövcud bağlantı', str(error), parent=self.root)
+
     def _on_skip(self):
+        self.action = "connect"
         self.root.destroy()
 
     def show(self):
-        self.root.mainloop()
+        if self.parent is not None:
+            self.root.grab_set()
+            self.root.wait_window()
+        else:
+            self.root.mainloop()
+        return self.action
 
-def open_cluster_gui(server_agent="Test1C:1540", target_base="aztrade_test3"):
+def open_cluster_gui(server_agent="Test1C:1540", target_base="aztrade_test3", backend_url=None, parent=None):
     """Pəncərəni açır və istifadəçi bağlayana və ya 'Keç' edənə qədər gözləyir."""
     try:
-        app = ClusterSessionsGUI(server_agent=server_agent, target_base=target_base)
-        app.show()
+        app = ClusterSessionsGUI(server_agent=server_agent, target_base=target_base, backend_url=backend_url, parent=parent)
+        return app.show()
     except Exception as e:
+        if backend_url: raise
         print(f"⚠️ [CLUSTER GUI] GUI pəncərəsi açıla bilmədi: {e}", flush=True)
 
 if __name__ == "__main__":

@@ -169,14 +169,6 @@ def ping_connection_endpoint():
             "user": data.get("user") or active.get("user") or "Nesib",
             "password": data.get("password") or active.get("password") or "15963"
         }
-        key = (payload["server"], payload["ref"], payload["user"])
-        if hasattr(one_c, "connections") and key in one_c.connections and one_c.connections[key] is not None:
-            return jsonify({
-                "success": True,
-                "connected": True,
-                "server": payload["server"],
-                "ref": payload["ref"]
-            })
         res = one_c.execute("ping", payload)
         return jsonify({
             "success": True,
@@ -188,12 +180,68 @@ def ping_connection_endpoint():
         print_server_error("/api/ping_connection", e, data)
         return jsonify({"success": False, "error": str(e)})
 
+@base_bp.route('/api/connection/status', methods=['POST'])
+def connection_status_endpoint():
+    """A probe never opens a session or replaces another user's connection."""
+    if getattr(one_c, 'busy', False) or not one_c.req_q.empty():
+        return jsonify(success=True, connected=None, busy=True)
+    data = request.get_json(silent=True) or {}
+    try:
+        result = one_c.execute('connection_probe', data, retry=0)
+        return jsonify(success=True, **result)
+    except Exception as error:
+        return jsonify(success=False, connected=False, error=str(error))
+
+def cluster_target(data):
+    active = database.get_active_base() or {}
+    server = str(data.get('server') or active.get('server') or '').strip()
+    ref = str(data.get('ref') or active.get('ref') or '').strip()
+    if not server or not ref: raise ValueError('Server və baza seçilməlidir.')
+    return server + ':1540', ref
+
+
+@base_bp.route('/api/cluster/sessions', methods=['POST'])
+def cluster_sessions_endpoint():
+    from services.cluster_service import get_cluster_sessions
+    try:
+        agent, ref = cluster_target(request.get_json(silent=True) or {})
+        return jsonify(success=True, sessions=get_cluster_sessions(agent, ref, raise_errors=True))
+    except Exception as error:
+        return jsonify(success=False, error=str(error))
+
+
+@base_bp.route('/api/cluster/terminate', methods=['POST'])
+def cluster_terminate_endpoint():
+    from services.cluster_service import terminate_cluster_session
+    data = request.get_json(silent=True) or {}
+    try:
+        session_id = str(data.get('session_id') or '')
+        if not session_id.isdigit(): raise ValueError('Sessiya seçilməlidir.')
+        agent, ref = cluster_target(data)
+        ok, error = terminate_cluster_session(session_id, agent, ref, only_hanging=data.get("only_hanging") is True)
+        return jsonify(success=ok, error=error)
+    except Exception as error:
+        return jsonify(success=False, error=str(error))
+
+
+@base_bp.route('/api/connection/resume', methods=['POST'])
+def resume_connection_endpoint():
+    # Probe the retained COM object. Never create or terminate a session here.
+    data = request.get_json(silent=True) or {}
+    try:
+        result = one_c.execute('connection_probe', data, retry=0)
+        if not result.get('connected'):
+            return jsonify(success=False, error=result.get('error') or 'Serverdə saxlanmış bağlantı yoxdur.')
+        return jsonify(success=True, connected=True)
+    except Exception as error:
+        return jsonify(success=False, error=str(error))
+
 @base_bp.route("/api/login", methods=["POST"])
 def user_login():
     data = request.json or {}
     try:
         print(f"🔑 [1C GİRİŞ CƏHDİ] Server: {data.get('server')} | Baza: {data.get('ref')} | İstifadəçi: {data.get('user')}", flush=True)
-        res = one_c.execute("get_reports", data)
+        res = one_c.execute("get_reports", dict(data, _login=True), retry=0, timeout=60)
         print(f"✅ [1C GİRİŞ UĞURLU] İstifadəçi: {data.get('user')} uğurla bağlandı!", flush=True)
         database.set_active_base(
             data.get('server'),

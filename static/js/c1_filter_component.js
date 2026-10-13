@@ -60,6 +60,11 @@ const C1FilterComponent = {
     this.contextKey = options.docType || options.contextKey || "default";
     this.docTitle = options.docTitle || options.docType || "Настройка списка";
     this.availableFields = Array.isArray(options.availableFields) ? options.availableFields : [];
+    this.explicitGenerate = Boolean(options.explicitGenerate);
+    this.filterSelectedFieldKey = null;
+    const confirmButton = document.getElementById('ujFilterConfirmButton');
+    if (confirmButton) confirmButton.textContent = this.explicitGenerate ? 'Сформировать' : 'Завершить редактирование';
+    if (window.FormAction) FormAction.register('ujFilterWindow', () => this.finishFilterEditing());
     this.onApplyCallback = typeof options.onApply === "function" ? options.onApply : null;
     this.isServerFiltered = Boolean(options.isServerFiltered);
     this.items = Array.isArray(options.items) ? options.items : [];
@@ -163,15 +168,15 @@ const C1FilterComponent = {
     };
   },
 
-  close: function() {
+  close: function(skipApply = false) {
     this.closeOpDropdown();
     this.hideFilterAutocomplete();
 
     // Pəncərə bağlananda cari qoyulmuş filtrlər sessiya yaddaşında saxlanılır və tətbiq olunur
-    if (this.tempFilterCriteria && this.tempFilterCriteria.length > 0) {
+    if (!skipApply && !this.explicitGenerate && this.tempFilterCriteria && this.tempFilterCriteria.length > 0) {
       this.syncTempFiltersToStorage();
       this.activeFilters = JSON.parse(JSON.stringify(this.tempFilterCriteria));
-      if (this.onApplyCallback) {
+      if (!this.explicitGenerate && this.onApplyCallback) {
         this.onApplyCallback(this.activeFilters, this.activePresetName);
       }
     }
@@ -1170,7 +1175,7 @@ const C1FilterComponent = {
     const op = crit.operator || "Равно";
     const isInterval = op.startsWith("Интервал");
 
-    if (crit.fieldKey === "date" || isInterval) {
+    if (crit.fieldKey === "date" || crit.fieldKey === "change_date" || isInterval) {
       if (window.PeriodPicker && typeof PeriodPicker.open === "function") {
         let sStart = crit.valueFrom || "";
         let sEnd = crit.valueTo || "";
@@ -1484,20 +1489,20 @@ const C1FilterComponent = {
 
         if (fromEl) {
           fromEl.style.border = "1px solid #7f9db9";
-          if (fromEl.value.trim() && window.PeriodPicker && typeof PeriodPicker.autoCompleteDate === "function") {
+          if (this.availableFields.find(f => f.key === crit.fieldKey)?.type === "date" && fromEl.value.trim() && window.PeriodPicker && typeof PeriodPicker.autoCompleteDate === "function") {
             fromEl.value = PeriodPicker.autoCompleteDate(fromEl.value.trim(), "00:00:00");
           }
           crit.valueFrom = fromEl.value.trim();
         }
         if (toEl) {
           toEl.style.border = "1px solid #7f9db9";
-          if (toEl.value.trim() && window.PeriodPicker && typeof PeriodPicker.autoCompleteDate === "function") {
+          if (this.availableFields.find(f => f.key === crit.fieldKey)?.type === "date" && toEl.value.trim() && window.PeriodPicker && typeof PeriodPicker.autoCompleteDate === "function") {
             toEl.value = PeriodPicker.autoCompleteDate(toEl.value.trim(), "23:59:59");
           }
           crit.valueTo = toEl.value.trim();
         }
 
-        if (crit.valueFrom && crit.valueTo && window.PeriodPicker && typeof PeriodPicker.parseDateObj === "function") {
+        if (this.availableFields.find(f => f.key === crit.fieldKey)?.type === "date" && crit.valueFrom && crit.valueTo && window.PeriodPicker && typeof PeriodPicker.parseDateObj === "function") {
           const dtFrom = PeriodPicker.parseDateObj(crit.valueFrom, false);
           const dtTo = PeriodPicker.parseDateObj(crit.valueTo, true);
           if (dtFrom && dtTo && dtFrom.getTime() > dtTo.getTime()) {
@@ -1532,8 +1537,7 @@ const C1FilterComponent = {
       this.activePresetName = "";
     }
     this.saveActiveFiltersToStorage();
-    this.close();
-
+    if (!this.explicitGenerate) this.close(true);
     if (this.onApplyCallback) {
       this.onApplyCallback(this.activeFilters, this.activePresetName);
     }
@@ -1587,6 +1591,7 @@ const C1FilterComponent = {
   },
 
   syncTempFiltersToStorage: function() {
+    if (this.explicitGenerate) return;
     try {
       if (this.tempFilterCriteria && this.tempFilterCriteria.length > 0) {
         localStorage.setItem(this.getActiveFiltersStorageKey(), JSON.stringify(this.tempFilterCriteria));
@@ -1859,7 +1864,7 @@ const C1FilterComponent = {
 
     this.closePresetSaveModal();
 
-    if (this.onApplyCallback) {
+    if (!this.explicitGenerate && this.onApplyCallback) {
       this.onApplyCallback(this.activeFilters, this.activePresetName);
     }
   },
@@ -2029,7 +2034,7 @@ const C1FilterComponent = {
     this.saveActiveFiltersToStorage();
     this.closePresetRestoreModal();
 
-    if (this.onApplyCallback) {
+    if (!this.explicitGenerate && this.onApplyCallback) {
       this.onApplyCallback(this.activeFilters, this.activePresetName);
     }
   },
@@ -2077,7 +2082,7 @@ const C1FilterComponent = {
     this.activePresetName = "";
     this.saveActiveFiltersToStorage();
     this.closePresetRestoreModal();
-    if (this.onApplyCallback) {
+    if (!this.explicitGenerate && this.onApplyCallback) {
       this.onApplyCallback([], "");
     }
   },

@@ -1,0 +1,21 @@
+const assert=require('node:assert/strict');
+const fs=require('node:fs');const vm=require('node:vm');
+const c=vm.createContext({console,window:{},document:{getElementById:()=>null},localStorage:{getItem:()=>null,setItem(){}},setTimeout:()=>1,clearTimeout(){},AbortController});
+vm.runInContext(fs.readFileSync('static/js/session.js','utf8')+';globalThis.session=SessionManager;',c);
+(async()=>{
+ const s=c.session;let warnings=[];s.showConnectionWarning=m=>warnings.push(m);
+ c.fetch=async()=>({ok:true,json:async()=>({success:true,connected:true})});
+ await s.checkConnection();assert.equal(s.connectionStatus,'connected');
+ c.fetch=async()=>({ok:true,json:async()=>({success:true,connected:null,busy:true})});
+ await s.checkConnection();assert.equal(s.connectionStatus,'connected');assert.equal(warnings.length,0);
+ c.fetch=async()=>({ok:true,json:async()=>({success:true,connected:false,error:'session lost'})});
+ await s.checkConnection();assert.equal(s.connectionStatus,'error');assert.equal(warnings[0],'session lost');
+ c.fetch=async()=>({ok:true,json:async()=>({success:true,connected:true})});
+ await s.checkConnection();assert.equal(s.connectionStatus,'connected');
+ c.fetch=async()=>{throw Error('network')};await s.checkConnection();assert.equal(s.connectionStatus,'error');
+ c.fetch=async()=>({json:async()=>({success:false,error:'failed warmup'})});s.connectionStatus='connected';
+ await s.warmupConnection();assert.equal(s.connectionStatus,'error','failed reconnect cannot retain green state');
+ s.connectionStatus='connected';c.fetch=async()=>{s.state.ref='new-base';return {ok:true,json:async()=>({success:false,connected:false})}};
+ const count=warnings.length;await s.checkConnection();assert.equal(warnings.length,count,'old base reply must not mark new base disconnected');
+ console.log('Connection monitoring: drop, recovery, busy server, network failure and base-switch checks passed.');
+})().catch(e=>{console.error(e);process.exitCode=1;});
