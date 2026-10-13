@@ -24,8 +24,8 @@ app_dir = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, app_dir)
 
 OFFICE_SERVER_URL = os.environ.get("OFFICE_SERVER_URL", "http://172.16.1.63:5050")
-LOCAL_SERVER_URL = "http://127.0.0.1:5050"
-PROXY_SERVER_URL = "http://127.0.0.1:5051"
+LOCAL_SERVER_URL = f"http://127.0.0.1:{int(os.environ.get('REPORTER_API_PORT', 5050))}"
+PROXY_SERVER_URL = f"http://127.0.0.1:{int(os.environ.get('REPORTER_PROXY_PORT', 5051))}"
 
 def is_url_active(url, timeout=2.5):
     try:
@@ -44,7 +44,7 @@ def is_server_running(url=LOCAL_SERVER_URL):
 
 def is_proxy_running():
     try:
-        req = urllib.request.Request("http://127.0.0.1:5051/ping")
+        req = urllib.request.Request(PROXY_SERVER_URL + '/ping')
         with urllib.request.urlopen(req, timeout=0.5) as resp:
             return resp.status == 200
     except Exception:

@@ -199,7 +199,8 @@ class ClusterSessionsGUI:
             reuse_frame = tk.Frame(self.root, padx=14, pady=4, bg='#f8fafc')
             reuse_frame.pack(fill=tk.X)
             tk.Button(reuse_frame, text="Mövcud bağlantı ilə davam et", command=self._on_reuse,
-                      font=("Segoe UI", 10, 'bold'), padx=8, pady=6).pack(fill=tk.X)
+                      font=("Segoe UI", 10, 'bold'), padx=8, pady=6).pack(side=tk.LEFT, fill=tk.X, expand=True)
+            tk.Button(reuse_frame, text='İlişmiş əlaqəni bərpa et', command=self._on_recover, padx=8,pady=6).pack(side=tk.RIGHT,padx=8)
 
         # 5. Status Bar
         self.status_bar = tk.Label(
@@ -334,6 +335,16 @@ class ClusterSessionsGUI:
             result = json.load(response)
         if not result.get('success'): raise RuntimeError(result.get('error') or 'Sessiya əməliyyatı alınmadı.')
         return result
+
+    def _on_recover(self):
+        if not messagebox.askyesno('Təsdiq', 'Bu proqramın saxladığı 1C bağlantısı bağlanıb yenidən qurulacaq. Davam edilsin?', parent=self.root): return
+        try:
+            self._backend('api/connection/worker-recover', {'confirmed':True})
+            self._backend('api/ping_connection')
+            self.action = 'reuse'
+            self.root.destroy()
+        except Exception as error:
+            messagebox.showerror('Əlaqə bərpası', str(error), parent=self.root)
 
     def _on_reuse(self):
         try:

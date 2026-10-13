@@ -199,7 +199,7 @@ window.OrderAnalysisReport = (function () {
     const tStart = performance.now();
 
     try {
-      const resp = await fetch("/api/order_analysis/generate", {
+      const resp = await (window.JobClient ? JobClient.fetch.bind(JobClient) : fetch)("/api/order_analysis/generate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),

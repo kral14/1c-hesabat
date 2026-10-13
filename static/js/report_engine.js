@@ -93,7 +93,7 @@ const ReportEngine = {
         filters: config.filters
       };
 
-      const res = await fetch("/api/universal_report", {
+      const res = await (window.JobClient ? JobClient.fetch.bind(JobClient) : fetch)("/api/universal_report", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),

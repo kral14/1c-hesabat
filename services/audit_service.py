@@ -812,6 +812,7 @@ def get_event_timeline(conn, doc_ref, payload):
             "title": action,
             "comment": ev_comment
         })
+    event_timeline.sort(key=lambda event: parse_query_datetime(event["date"]) or datetime.datetime.min)
     return event_timeline
 
 def get_audit_event_page(conn, payload):

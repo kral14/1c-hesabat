@@ -838,6 +838,7 @@ const AuditJournal = {
   },
 
   loadDiff: function(docType, docNumber) {
+    if (window.JobClient) return this.loadAuditJob(docType, docNumber);
     if (this._loadingDetails) return this._detailsPromise;
     this._loadingDetails = true;
     if (docType) this.currentDocType = docType;
@@ -881,6 +882,44 @@ const AuditJournal = {
       alert(timedOut ? 'Audit detalları vaxtında cavab vermədi. Yenidən yoxlayın.' : err.message);
     })
     .finally(() => { clearTimeout(deadline); this._loadingDetails = false; });
+    return this._detailsPromise;
+  },
+
+  loadAuditJob: function(docType, docNumber) {
+    if (this._loadingDetails) return this._detailsPromise;
+    this.currentDocType = docType || this.currentDocType;
+    this.currentDocNumber = docNumber || this.currentDocNumber;
+    this._loadingDetails = true;
+    const controller = new AbortController();
+    this._currentAbortCtrl = controller;
+    const period = this.buildListPayload();
+    const payload = {...(window.SessionManager ? SessionManager.getCredentials() : {}),
+      doc_type:this.currentDocType,number:this.currentDocNumber,date_from:period.date_from,date_to:period.date_to};
+    let snapshot = null, events = [], renderTimer = null;
+    const render = () => {
+      clearTimeout(renderTimer);renderTimer=null;
+      if(snapshot && !controller.signal.aborted)this.populateDiffData({...snapshot,event_timeline:events,event_timeline_scoped:true});
+    };
+    this._detailsPromise = JobClient.run('audit_history',payload,{
+      signal:controller.signal,
+      onChunk:chunk=>{
+        if(controller.signal.aborted)return;
+        if(chunk.kind==='snapshot')snapshot=chunk.snapshot;
+        else if(chunk.kind==='events')for(const event of chunk.events)events.push(event);
+        if(renderTimer===null)renderTimer=setTimeout(render,150);
+        const status=document.getElementById('ajEventProgress');
+        if(status)status.textContent=chunk.kind==='events' ? `Tarixçə yüklənir: ${chunk.scanned_to} — ${events.length} hadisə` : 'Versiyalar hazırdır; tarixçə yüklənir...';
+      },
+      onProgress:progress=>{
+        const status=document.getElementById('ajEventProgress');
+        if(status && progress.message)status.textContent=progress.message;
+      }
+    }).then(result=>{
+      render();
+      const status=document.getElementById('ajEventProgress');
+      if(status)status.textContent=`Tarixçə hazırdır: ${result.event_count} hadisə`;
+    }).catch(error=>{if(error.name!=='AbortError')alert(error.message);})
+      .finally(()=>{clearTimeout(renderTimer);this._loadingDetails=false;if(this._currentAbortCtrl===controller)this._currentAbortCtrl=null;});
     return this._detailsPromise;
   },
 
@@ -1517,7 +1556,7 @@ const AuditJournal = {
 
     // Normalize Chronological Timeline
     let timeline = data.event_timeline || [];
-    if (!timeline || timeline.length === 0) {
+    if ((!timeline || timeline.length === 0) && !data.event_timeline_scoped) {
       // Synthesize timeline from normalized versions
       timeline = [];
       normalizedVersions.forEach((v, idx) => {
@@ -1596,7 +1635,7 @@ const AuditJournal = {
         }
 
         return {
-          order: ev.order || (idx + 1),
+          order: idx + 1,
           datetime: ev.datetime || ev.date || "—",
           user: ev.user || "İstifadəçi",
           action: act,
@@ -1610,6 +1649,8 @@ const AuditJournal = {
 
     this.currentDiffData.normalizedTimeline = timeline;
 
+    const headerBadge = document.getElementById("mDocEventsBadge");
+    if (headerBadge) headerBadge.textContent = `${timeline.length} Hadisə`;
     // Update Counts in UI
     const tBadge = document.getElementById("ajTimelineBadgeCount");
     if (tBadge) tBadge.textContent = String(timeline.length);

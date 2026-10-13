@@ -505,6 +505,10 @@ def handle_order_analysis(conn, payload, key, resp_q):
 
                 val_raw = getattr(sub_sel, alias_name, "")
                 val_code = ""
+                # Quantities also determine the label of movements without an order.
+                q_ord = float(getattr(sub_sel, "QtyOrder", 0.0) or 0.0)
+                q_real = float(getattr(sub_sel, "QtyReal", 0.0) or 0.0)
+                q_ret = float(getattr(sub_sel, "QtyRet", 0.0) or 0.0)
 
                 if g_label in ("День", "Период", "По дням"):
                     if hasattr(val_raw, "strftime"):
@@ -630,18 +634,15 @@ def handle_order_analysis(conn, payload, key, resp_q):
                     barcode = ""
                     unit = ""
 
-                q_ord = float(getattr(sub_sel, "QtyOrder", 0.0) or 0.0)
                 s_ord = float(getattr(sub_sel, "SumOrder", 0.0) or 0.0)
                 p_ord = (s_ord / q_ord) if q_ord > 0 else 0.0
 
-                q_real = float(getattr(sub_sel, "QtyReal", 0.0) or 0.0)
                 s_real = float(getattr(sub_sel, "SumReal", 0.0) or 0.0)
                 p_real = (s_real / q_real) if q_real > 0 else 0.0
 
                 q_diff = float(getattr(sub_sel, "QtyDiff", 0.0) or 0.0)
                 s_diff = float(getattr(sub_sel, "SumDiff", 0.0) or 0.0)
 
-                q_ret = float(getattr(sub_sel, "QtyRet", 0.0) or 0.0)
                 s_ret = float(getattr(sub_sel, "SumRet", 0.0) or 0.0)
 
                 q_net = float(getattr(sub_sel, "QtyNet", 0.0) or 0.0)

@@ -18,11 +18,12 @@ OFFICE_SERVER_URL = os.environ.get("OFFICE_SERVER_URL", "http://172.16.1.63:5050
 
 # Daimi HTTP/TCP Connection Pool (Hər dəfə yenidən TCP/TLS qurulmasını aradan qaldırır)
 proxy_session = requests.Session()
+proxy_session.trust_env = os.environ.get('REPORTER_TRUST_HTTP_PROXY') == '1'
 retries = Retry(
     total=3,
     backoff_factor=0.3,
     status_forcelist=[502, 503, 504],
-    allowed_methods=frozenset(["GET", "POST", "PUT", "DELETE", "PATCH", "HEAD", "OPTIONS"]),
+    allowed_methods=frozenset(["GET", "HEAD", "OPTIONS"]),
     raise_on_status=False
 )
 adapter = HTTPAdapter(pool_connections=50, pool_maxsize=50, max_retries=retries, pool_block=False)

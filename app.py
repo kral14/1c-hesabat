@@ -26,6 +26,7 @@ from routes.report_routes import report_bp
 from routes.catalog_routes import catalog_bp
 from routes.document_routes import document_bp
 from routes.order_analysis_routes import order_analysis_bp
+from routes.job_routes import job_bp
 
 import os
 
@@ -42,7 +43,8 @@ app.config['TEMPLATES_AUTO_RELOAD'] = True
 
 @app.get('/api/runtime/status')
 def runtime_status():
-    return {'auto_reload': os.environ.get('REPORTER_AUTO_RELOAD') == '1', 'pid': os.getpid()}
+    return {'auto_reload': os.environ.get('REPORTER_AUTO_RELOAD') == '1', 'pid': os.getpid(),
+            'independent_worker': True, 'worker': one_c.status()}
 app.config['SEND_FILE_MAX_AGE_DEFAULT'] = 0
 
 @app.after_request
@@ -86,6 +88,7 @@ def compress_and_headers(response):
     return response
 
 app.register_blueprint(base_bp)
+app.register_blueprint(job_bp)
 app.register_blueprint(report_bp)
 app.register_blueprint(catalog_bp)
 app.register_blueprint(document_bp)

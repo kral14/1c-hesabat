@@ -109,3 +109,7 @@ $RECYCLE.BIN/
 .gemini/
 .agents/
 scratch/
+
+# Isolated connection-server tests and local runtime packages
+stability_staging/
+.runtime-deps/

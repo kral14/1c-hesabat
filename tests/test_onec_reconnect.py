@@ -1,4 +1,4 @@
-import queue, threading, unittest
+import queue, threading, unittest, hashlib
 from unittest.mock import patch
 from services.onec_service import OneCService
 class Probe:
@@ -16,8 +16,8 @@ class ReconnectTests(unittest.TestCase):
     def check(self,alive):
         connector=Connector();worker=OneCService.__new__(OneCService)
         threading.Thread.__init__(worker,daemon=True)
-        worker.req_q=queue.Queue();worker.busy=False
-        existing=Connection(alive);key='test1c_aztrade_test3_nesib_demo'
+        worker.req_q=queue.Queue();worker.busy=False;worker.connection_generation=0
+        existing=Connection(alive);key='test1c_aztrade_test3_nesib_'+hashlib.sha256(b'demo').hexdigest()
         worker.connections={key:existing}
         with patch('services.onec_service.win32com.client.Dispatch',return_value=connector), patch('services.onec_service.database.get_active_base',return_value={}), patch('services.onec_service.pythoncom.CoInitialize'), patch('services.onec_service.pythoncom.CoUninitialize'):
             worker.start()

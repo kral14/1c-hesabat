@@ -40,7 +40,7 @@ const SessionManager = {
     this._monitorTimer = setTimeout(() => this.checkConnection(), 15000);
   },
 
-  showConnectionWarning(message) {
+  showConnectionWarning(message, prefix = "Bağlantı kəsilib") {
     let banner = document.getElementById('connectionWarning');
     if (!banner) {
       banner = document.createElement('div');
@@ -55,14 +55,31 @@ const SessionManager = {
       retry.textContent = 'Yenidən qoşul';
       retry.onclick = () => this.warmupConnection();
       banner.appendChild(retry);
+      const recover = document.createElement('button');
+      recover.textContent = 'İlişmiş əlaqəni bərpa et';
+      recover.onclick = () => this.recoverConnection();
+      banner.appendChild(recover);
       document.body.appendChild(banner);
     }
-    banner.querySelector('.connection-warning-text').textContent = 'Bağlantı kəsilib: ' + message;
+    banner.querySelector('.connection-warning-text').textContent = prefix + ': ' + message;
     banner.style.display = 'flex';
   },
 
+  async recoverConnection() {
+    if (this._recovering) return;
+    if (!confirm('Bu proqramın 1C bağlantısı bağlanıb yenidən qurulacaq. Davam edən oxuma işləri yarımçıq qala bilər. Davam edilsin?')) return;
+    this._recovering = true;
+    try {
+      const response = await fetch('/api/connection/worker-recover', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({confirmed:true})});
+      const result = await response.json();
+      if (!result.success) throw new Error(result.error || 'Əlaqə bərpası alınmadı.');
+      await this.warmupConnection();
+    } catch(error) {this.showConnectionWarning(error.message);}
+    finally {this._recovering=false;}
+  },
+
   async checkConnection() {
-    if (this._checkingConnection || this._warmingConnection) { this.startConnectionMonitor(); return; }
+    if (this._checkingConnection || this._warmingConnection || this._recovering) { this.startConnectionMonitor(); return; }
     this._checkingConnection = true;
     const credentials = this.getCredentials();
     const identity = JSON.stringify(credentials);
@@ -79,6 +96,12 @@ const SessionManager = {
         const message = result.error || 'Ofis serveri və ya 1C sessiyası əlçatan deyil.';
         this.setConnectionStatus('error', message);
         this.showConnectionWarning(message);
+      } else if (result.worker_stalled) {
+        this.showConnectionWarning('1C sorğusu uzun müddətdir bitmir. Bərpa yalnız sənin təsdiqinlə ediləcək.','Sorğu gözləyir');
+      } else if (result.busy && this.connectionStatus === 'error') {
+        this.setConnectionStatus('connecting');
+        const warning = document.getElementById('connectionWarning');
+        if (warning) warning.style.display = 'none';
       } else if (result.connected === true) {
         this.setConnectionStatus('connected');
       }

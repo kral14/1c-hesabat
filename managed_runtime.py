@@ -48,21 +48,17 @@ def child_main(proxy):
         from app import app
         application, port, host = app, 5050, '127.0.0.1'
     import threading
-    if not proxy:
-        import socket
-        import ipaddress
-        from werkzeug.serving import make_server
-        # Separate loopback and office-LAN listeners: do not bind the wildcard
-        # address, which failed localhost readiness on this Windows machine.
+    sys.path.insert(0, str(ROOT/'.runtime-deps'))
+    from waitress import serve
+    port = int(os.environ.get('REPORTER_PROXY_PORT' if proxy else 'REPORTER_API_PORT', port))
+    listen = f'127.0.0.1:{port}'
+    if not proxy and os.environ.get('REPORTER_LOOPBACK_ONLY') != '1':
+        import socket, ipaddress
+        lan_ip = os.environ.get('REPORTER_LAN_HOST') or socket.gethostbyname(socket.gethostname())
         try:
-            lan_ip=os.environ.get('REPORTER_LAN_HOST') or socket.gethostbyname(socket.gethostname())
-            address=ipaddress.ip_address(lan_ip)
-            if address.is_private and not address.is_loopback:
-                lan_server=make_server(lan_ip,port,application,threaded=True)
-                threading.Thread(target=lan_server.serve_forever,daemon=True).start()
-                print(f'Office LAN listener: http://{lan_ip}:{port}',flush=True)
-        except (OSError,ValueError) as error:
-            print(f'Office LAN listener unavailable: {error}',flush=True)
+            address = ipaddress.ip_address(lan_ip)
+            if address.is_private and not address.is_loopback: listen += f' {lan_ip}:{port}'
+        except ValueError: pass
     def stop_on_request():
         stop_file=Path(sys.argv[sys.argv.index('--stop-file')+1])
         while not stop_file.exists(): time.sleep(.25)
@@ -71,7 +67,7 @@ def child_main(proxy):
             one_c.close_all()
         os._exit(0)
     threading.Thread(target=stop_on_request,daemon=True).start()
-    application.run(host=host,port=port,debug=False,use_reloader=False,threaded=True)
+    serve(application, listen=listen, threads=8, channel_timeout=120)
 
 def stop_child(process):
     if process.poll() is not None: return
@@ -83,7 +79,7 @@ def stop_child(process):
 def main():
     proxy='--proxy' in sys.argv
     if '--child' in sys.argv: child_main(proxy);return 0
-    lock=runtime_lock(5051 if proxy else 5050)
+    lock=runtime_lock(int(os.environ.get('REPORTER_PROXY_PORT' if proxy else 'REPORTER_API_PORT', 5051 if proxy else 5050)))
     if lock is None:
         print('Existing runtime supervisor is already running.',flush=True);return 0
     environment=dict(os.environ)
@@ -100,7 +96,10 @@ def main():
     try:
         while True:
             if process.poll() is not None:
-                print(f'Runtime child exited ({process.returncode}).',flush=True);return process.returncode or 1
+                print(f'HTTP child exited ({process.returncode}); restarting API without stopping COM worker.',flush=True)
+                time.sleep(2)
+                process=start()
+                continue
             current=source_signature()
             if current!=signature:
                 signature=current;changed_at=time.monotonic()

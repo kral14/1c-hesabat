@@ -53,3 +53,6 @@ assert.equal(a.currentDiffData.initialCreation,null);
 assert.equal(a.currentDiffData.normalizedVersions[0].isInitial,true);
 assert.equal(a.currentDiffData.normalizedVersions[1].modifiedCount,1);
 console.log('Creation event, missing initial snapshot and real initial snapshot classification checks passed.');
+
+a.normalizeAuditData({event_timeline_scoped:true,event_timeline:[],raw_versions:[{version:1,change_date:'01.01.2020 12:00:00',items:[]}]});
+assert.equal(a.currentDiffData.normalizedTimeline.length,0,'no out-of-period synthetic events in a scoped Audit job');

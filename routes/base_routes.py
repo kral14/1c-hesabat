@@ -183,8 +183,11 @@ def ping_connection_endpoint():
 @base_bp.route('/api/connection/status', methods=['POST'])
 def connection_status_endpoint():
     """A probe never opens a session or replaces another user's connection."""
+    state = one_c.status()
+    if state.get('available') and state.get('worker_alive') is False:
+        return jsonify(success=False, connected=False, error='COM işçisi dayanıb. Təsdiqli əlaqə bərpasını istifadə edin.')
     if getattr(one_c, 'busy', False) or not one_c.req_q.empty():
-        return jsonify(success=True, connected=None, busy=True)
+        return jsonify(success=True, connected=None, busy=True, worker_stalled=state.get('action_age',0)>180)
     data = request.get_json(silent=True) or {}
     try:
         result = one_c.execute('connection_probe', data, retry=0)
