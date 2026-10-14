@@ -9,6 +9,59 @@ from services.onec_service import one_c
 
 document_bp = Blueprint("document_bp", __name__)
 
+@document_bp.get('/api/orders/preview/excel-template')
+def order_preview_excel_template():
+    from openpyxl import Workbook
+    from openpyxl.styles import Font, PatternFill
+    book = Workbook()
+    sheet = book.active
+    sheet.title = 'Mağaza miqdarları'
+    sheet.append(['Mağaza kodu', 'Miqdar'])
+    sheet.append(['C000020101', 24])
+    sheet.append(['C000032840', 12])
+    sheet.freeze_panes = 'A2'
+    sheet.column_dimensions['A'].width = 24
+    sheet.column_dimensions['B'].width = 18
+    for cell in sheet[1]:
+        cell.font = Font(bold=True, color='FFFFFF')
+        cell.fill = PatternFill('solid', fgColor='004080')
+    for row in sheet.iter_rows(min_row=2):
+        row[0].number_format = '@'
+    instructions = book.create_sheet('Təlimat')
+    for line in [
+        'Birinci vərəqdə mağaza kodu və miqdar sütunlarını doldurun.',
+        'Nümunə sətirlərini öz mağaza kodlarınızla əvəz edin və ya silin.',
+        'Mağaza kodu pəncərənin cədvəlindəki kodla eyni olmalıdır.',
+        'Miqdar müsbət olmalıdır; ən çox 3 onluq rəqəm qəbul edilir.',
+        'Eyni mağazanın bir neçə sifarişi varsa, miqdar onların arasında bölünür.',
+        'Faylı .xlsx formatında saxlayın, Excel yüklə ilə seçin və nəticəni yoxlayın.',
+        'Bu şablon sınaq üçündür; 1C-yə avtomatik yazılmır.'
+    ]:
+        instructions.append([line])
+    instructions.column_dimensions['A'].width = 110
+    output = io.BytesIO()
+    book.save(output)
+    book.close()
+    output.seek(0)
+    return send_file(output, as_attachment=True, download_name='magaza_miqdarlari_numune.xlsx',
+                     mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+
+@document_bp.post('/api/orders/preview/import-excel')
+def import_order_preview_excel():
+    uploaded = request.files.get('file')
+    if not uploaded or not (uploaded.filename or '').lower().endswith('.xlsx'):
+        return jsonify(success=False, error='Excel .xlsx faylı seçin.'), 400
+    content = uploaded.read(10 * 1024 * 1024 + 1)
+    if len(content) > 10 * 1024 * 1024:
+        return jsonify(success=False, error='Excel faylı 10 MB-dan böyükdür.'), 400
+    try:
+        from services.order_excel_import import read_store_quantities
+        return jsonify(success=True, **read_store_quantities(content))
+    except ValueError as error:
+        return jsonify(success=False, error=str(error)), 400
+    except Exception:
+        return jsonify(success=False, error='Excel faylı oxunmadı. Düzgün .xlsx faylı seçin.'), 400
+
 @document_bp.route("/api/documents/list", methods=["POST"])
 def documents_list_endpoint():
     data = request.json or {}

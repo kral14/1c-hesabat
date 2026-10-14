@@ -1,0 +1,37 @@
+<div id="orderBatchEditorWindow" class="mdi-window obe-window" style="display:none" onmousedown="MdiManager.activateWindow('orderBatchEditorWindow')">
+  <div class="mdi-window-header" ondblclick="MdiManager.toggleMaximize('orderBatchEditorWindow')">
+    <div class="mdi-win-title-left"><span>📝</span><span class="mdi-win-title-text">Заказы покупателей — изменение</span></div>
+    <div class="mdi-win-controls">
+      <button class="mdi-win-btn mdi-win-btn-min" onclick="MdiManager.minimizeWindow('orderBatchEditorWindow')">_</button>
+      <button class="mdi-win-btn mdi-win-btn-max" onclick="MdiManager.toggleMaximize('orderBatchEditorWindow')">□</button>
+      <button class="mdi-win-btn mdi-win-btn-close" onclick="OrderBatchEditor.close()">✕</button>
+    </div>
+  </div>
+  <div class="mdi-window-body obe-body">
+    <div class="obe-notice"><strong>Сынаq frontend</strong> · Mallar və miqdarlar nümunədir. Dəyişikliklər yalnız bu pəncərədə saxlanır; 1C-yə yazılmır.</div>
+    <div class="obe-controls">
+      <button class="btn-1c" data-obe-action="save">💾 Записать (тест)</button>
+      <button class="btn-1c" data-obe-action="batch">✎ Изменить товар по магазинам</button>
+      <button class="btn-1c" data-obe-action="add-all">＋ Добавить товар в заказы</button>
+      <button class="btn-1c" data-obe-action="reset">↶ Вернуть исходные данные</button>
+      <label class="obe-search">Найти <input id="obeSearch" placeholder="Заказ, магазин, код или название товара…"></label>
+    </div>
+    <div id="obeScope" class="obe-scope"></div>
+    <div id="obeOrders" class="obe-orders"></div>
+    <div id="obeStatus" class="obe-status" role="status"></div>
+  </div>
+</div>
+<div id="obeOperationWindow" class="mdi-window obe-operation-window" style="display:none" onmousedown="MdiManager.activateWindow('obeOperationWindow')">
+  <div class="mdi-window-header" ondblclick="MdiManager.toggleMaximize('obeOperationWindow')">
+    <div class="mdi-win-title-left"><span>✎</span><span id="obeDialogTitle" class="mdi-win-title-text"></span></div>
+    <div class="mdi-win-controls">
+      <button class="mdi-win-btn mdi-win-btn-min" onclick="MdiManager.minimizeWindow('obeOperationWindow')">_</button>
+      <button class="mdi-win-btn mdi-win-btn-max" onclick="MdiManager.toggleMaximize('obeOperationWindow')">□</button>
+      <button class="mdi-win-btn mdi-win-btn-close" onclick="OrderBatchEditor.closeOperation()">✕</button>
+    </div>
+  </div>
+  <div class="mdi-window-body obe-operation-body">
+    <div id="obeDialogBody" class="obe-operation-content"></div>
+    <div class="obe-dialog-actions"><button class="btn-1c" data-obe-action="cancel-dialog">Отмена</button><button class="btn-1c" data-obe-action="apply-dialog">Применить</button></div>
+  </div>
+</div>

@@ -50,6 +50,33 @@ const answer = (request, numbers, more = false) => request.reply({
   assert.equal(requests[0].payload.limit, 200, 'first package must prioritize visible rows');
   answer(requests.at(-1), ['A', 'B']);
   await flush();
+  elements.ujSearchInput.value = 'B';
+  stored.set('uj_navigation_mode', 'edge');
+  journal.loadDocuments({force:true});
+  assert.equal(requests.at(-1).payload.search, 'B', 'switching to a bounded edge page must retain visible search on the server');
+  answer(requests.at(-1), ['B']);
+  await flush();
+  assert.equal(journal.filteredItems.length, 1, 'a matching document must remain visible after changing navigation mode');
+  journal.startDateStr = '01.10.2026';
+  journal.endDateStr = '31.10.2026';
+  journal.loadDocuments({force:true});
+  requests.at(-1).reply({success:true, columns:[], items:[{number:'B',date:'30.09.2026 21:00:00'}],
+    debug_info:{parameters:{DateFrom:'2026-10-01 00:00:00',DateTo:'2026-10-31 23:59:59'}}});
+  await flush();
+  assert.equal(journal.filteredItems.length, 1, 'server-scoped edge rows must survive a display-time boundary conversion');
+  journal.loadDocuments({force:true});
+  requests.at(-1).reply({success:true, columns:[], items:[{number:'B',date:'30.09.2026 21:00:00'}],
+    debug_info:{parameters:{DateFrom:'2026-09-01 00:00:00',DateTo:'2026-09-30 23:59:59'}}});
+  await flush();
+  assert.equal(journal.filteredItems.length, 0, 'a response scoped to a different period must retain the client guard');
+  journal.startDateStr = '';
+  journal.endDateStr = '';
+  stored.delete('uj_navigation_mode');
+  elements.ujSearchInput.value = '';
+  journal.loadDocuments({force:true});
+  answer(requests.at(-1), ['A', 'B']);
+  await flush();
+  requests.splice(1);
   elements.ujSearchInput.value = 'A';
   journal.onSearchInput();
   assert.equal(journal._searchDebounceTimer, null, 'cached search must not wait for debounce');

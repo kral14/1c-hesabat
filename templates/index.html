@@ -16,6 +16,7 @@
   <link rel="stylesheet" href="/static/css/1c_presets.css?v=4.0">
   <link rel="stylesheet" href="/static/css/1c_calendar.css?v=4.5">
   <link rel="stylesheet" href="/static/css/1c_mdi.css?v=5.2">
+  <link rel="stylesheet" href="/static/css/order_batch_editor.css?v=1.4">
   <script>
     if (typeof window !== 'undefined') {
       window.prompt = function (msg, def) {
@@ -659,6 +660,7 @@
 
       <!-- 11. Universal Document Journal Window (Журнал документов) -->
       {% include "components/universal_journal_window.html" %}
+      {% include "components/order_batch_editor_window.html" %}
 
       <!-- 11b. Universal Document Journal Filter MDI Window (Настройка списка - Отбор) -->
       {% include "components/universal_journal_filter_window.html" %}
@@ -765,13 +767,16 @@
   <script src="/static/js/settings_presets.js?v=4.2"></script>
   <script src="/static/js/report_engine.js?v=4.1"></script>
   <script src="/static/js/c1_column_settings.js?v=1.0"></script>
+  <script src="/static/js/c1_table_component.js?v=1.1"></script>
   <script src="/static/js/portfolio_catalog.js?v=5.1"></script>
   <script src="/static/js/period_picker.js?v=3.3"></script>
   <script src="/static/js/components/picker/period_widget.js?v=1.0"></script>
   <script src="/static/js/form_action.js?v=1"></script>
   <script src="/static/js/c1_filter_component.js?v=11.7"></script>
   <script src="/static/js/list_appearance.js?v=1"></script>
-  <script src="/static/js/universal_journal.js?v=12.1"></script>
+  <script src="/static/js/order_batch_editor.js?v=1.7"></script>
+  <script src="/static/js/order_batch_i18n.js?v=1.1"></script>
+  <script src="/static/js/universal_journal.js?v=12.5"></script>
   {% if request.args.get('journal_perf') == '1' %}
   <script src="/static/js/journal_perf.js"></script>
   {% endif %}

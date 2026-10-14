@@ -933,6 +933,8 @@ const _UniversalJournalTarget = {
   },
 
   loadDocuments: function(options = {}) {
+    const orderAction = this.getEl("ujOrderEditAction");
+    if (orderAction) orderAction.style.display = this.activeDocType === "ЗаказПокупателя" ? "block" : "none";
     this._edgeNavigation = options.edge || (JournalLoadSettings.mode() === "edge" ? "home" : null);
     if (this._edgeNavigation) options = {...options, force:true, all:false};
     this._loadStartTime = (typeof performance !== "undefined" && performance.now) ? performance.now() : Date.now();
@@ -959,7 +961,7 @@ const _UniversalJournalTarget = {
     this.updateBottomLoadingState(false);
 
     const searchInp = this.getEl("ujSearchInput");
-    const querySearch = (options.search !== undefined) ? options.search : "";
+    const querySearch = (options.search !== undefined) ? options.search : (searchInp ? searchInp.value.trim() : "");
     const queryFilters = (options.filters !== undefined) ? options.filters : (this.activeFilters || []);
     const activeCrits = (queryFilters || []).filter(c => c && c.enabled !== false);
 
@@ -1109,7 +1111,13 @@ const _UniversalJournalTarget = {
       let rawItems = data.items || [];
       const startMs = this.parseFullDateTimeMs(this.startDateStr, false);
       const endMs = this.parseFullDateTimeMs(this.endDateStr, true);
-      if (startMs !== null || endMs !== null) {
+      // Edge pages have already been restricted by the 1C query. Do not cut
+      // the bounded page again using the browser's interpretation of dates.
+      const serverPeriod = data.debug_info?.parameters || {};
+      const periodAppliedOnServer = this._edgeNavigation &&
+        (!payload.date_from || serverPeriod.DateFrom === payload.date_from) &&
+        (!payload.date_to || serverPeriod.DateTo === payload.date_to);
+      if (!periodAppliedOnServer && (startMs !== null || endMs !== null)) {
         rawItems = rawItems.filter(it => {
           const itMs = this.parseFullDateTimeMs(it.date);
           if (itMs === null) return true;
@@ -1128,6 +1136,17 @@ const _UniversalJournalTarget = {
         this.hasMoreDocs = Boolean(data.has_more);
         this._listReady = false; // An edge page is not a complete-list cache.
         this.applyFiltersAndSearch();
+        this.lastDiagnostics = {
+          timestamp: new Date().toLocaleTimeString(), docType: this.activeDocType, docTitle: this.docTitle,
+          period: {startDate: this.startDateStr, endDate: this.endDateStr},
+          search: querySearch, filters: JSON.parse(JSON.stringify(activeCrits)),
+          responseSuccess: true, rawCount: (data.items || []).length,
+          filteredCount: this.filteredItems.length, serverDebug: data.debug_info || null,
+          periodAppliedOnServer: Boolean(periodAppliedOnServer),
+          dateSamples: (data.items || []).slice(0, 3).map(item => item.date),
+          navigationEdge: this._edgeNavigation, error: null
+        };
+        console.log('[JOURNAL EDGE RESULT]', JSON.stringify(this.lastDiagnostics));
         const wrapper = this.getEl("ujTableWrapper");
         const atEnd = this._edgeNavigation === "end";
         if (wrapper) { wrapper.scrollTop = atEnd ? wrapper.scrollHeight : 0; this.updateVirtualRows(); }
@@ -2239,6 +2258,9 @@ const _UniversalJournalTarget = {
       { key: "agent", label: "Агент", type: "text" }
     ];
 
+    if (this.activeDocType === "ЗаказПокупателя") {
+      fields.push({ key: "portfolio", label: "Портфель", type: "text" });
+    }
     if (isRealization) {
       fields.push(
         { key: "kontragent_code", label: "Код контрагента", type: "text" },
@@ -2993,6 +3015,12 @@ const _UniversalJournalTarget = {
     const docNum = row.number;
     if (window.AuditJournal) {
       AuditJournal.openForDocument(docType, docNum, row);
+    }
+  },
+
+  openOrderBatchEditor: function() {
+    if (this.activeDocType === "ЗаказПокупателя" && window.OrderBatchEditor) {
+      OrderBatchEditor.open(this);
     }
   },
 

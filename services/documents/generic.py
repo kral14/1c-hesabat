@@ -29,12 +29,13 @@ def get_generic_documents_list(conn, payload):
     req_names = set(str(r.Имя) for r in doc_meta.Реквизиты)
     has_kontr = "Контрагент" in req_names
     has_sum = "СуммаДокумента" in req_names
-    has_sklad = "Склад" in req_names or "СкладОрдер" in req_names
-    sklad_field = "СкладОрдер" if "СкладОрдер" in req_names else "Склад"
+    sklad_field = next((name for name in ("СкладОрдер", "Склад", "СкладГруппа") if name in req_names), None)
+    has_sklad = sklad_field is not None
     has_resp = "Ответственный" in req_names
     has_comm = "Комментарий" in req_names
     has_deal = "Сделка" in req_names
     has_contract = "ДоговорКонтрагента" in req_names
+    has_portfolio = has_contract and doc_type == "ЗаказПокупателя"
 
     sel_parts = [
         "Т.Ссылка КАК Ref",
@@ -60,6 +61,9 @@ def get_generic_documents_list(conn, payload):
     if has_contract:
         sel_parts.append("Т.ДоговорКонтрагента.Агент.Наименование КАК Agent")
         columns.append({"key": "agent", "label": "Агент", "width": 140, "align": "left"})
+    if has_portfolio:
+        sel_parts.append("Т.ДоговорКонтрагента.Портфель.Наименование КАК Portfolio")
+        columns.append({"key": "portfolio", "label": "Портфель", "width": 130, "align": "left"})
 
     if has_sum:
         sel_parts.append("Т.СуммаДокумента КАК Amount")
@@ -92,11 +96,13 @@ def get_generic_documents_list(conn, payload):
     dt_from = parse_query_datetime(date_from, is_end=False)
     if dt_from:
         q_doc.SetParameter("DateFrom", dt_from)
+        debug_params["DateFrom"] = str(dt_from)
         where_parts.append("Т.Дата >= &DateFrom")
 
     dt_to = parse_query_datetime(date_to, is_end=True)
     if dt_to:
         q_doc.SetParameter("DateTo", dt_to)
+        debug_params["DateTo"] = str(dt_to)
         where_parts.append("Т.Дата <= &DateTo")
 
     if search_str:
@@ -113,7 +119,8 @@ def get_generic_documents_list(conn, payload):
         field_map["kontragent"] = "Т.Контрагент.Наименование"
         field_map["golovnoy_kontragent"] = "Т.Контрагент.ГоловнойКонтрагент.Наименование"
     if has_sum: field_map["amount"] = "Т.СуммаДокумента"
-    if has_sklad: field_map["warehouse"] = f"ПРЕДСТАВЛЕНИЕ(Т.{sklad_field})"
+    field_map["warehouse"] = f"Т.{sklad_field}.Наименование" if has_sklad else None
+    if has_portfolio: field_map["portfolio"] = "Т.ДоговорКонтрагента.Портфель.Наименование"
     if has_deal: field_map["deal"] = "Т.Сделка.Номер"
     if has_contract:
         field_map["contract"] = "Т.ДоговорКонтрагента.Наименование"
@@ -171,6 +178,7 @@ def get_generic_documents_list(conn, payload):
             row_data["kontragent"] = str(res_doc.Kontragent or "").strip()
             row_data["golovnoy_kontragent"] = str(res_doc.GolovnoyKontragent or "").strip()
         if has_sum: row_data["amount"] = float(res_doc.Amount or 0)
+        if has_portfolio: row_data["portfolio"] = str(res_doc.Portfolio or "").strip()
         if has_sklad: row_data["warehouse"] = str(res_doc.Warehouse or "").strip()
         if has_deal: row_data["deal"] = str(res_doc.Deal or "").strip()
         if has_contract:
