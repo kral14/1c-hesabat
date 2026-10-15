@@ -9,7 +9,7 @@
   <div class="mdi-window-header" ondblclick="MdiManager.toggleMaximize('ujDiagnosticsWindow')">
     <div class="mdi-win-title-left">
       <span class="mdi-win-icon">🩺</span>
-      <span class="mdi-win-title-text" id="ujDiagnosticsWindowTitle">Диагностика отбора и журнала документов (Отладчик)</span>
+      <span class="mdi-win-title-text" id="ujDiagnosticsWindowTitle" data-i18n="diag.title">Диагностика отбора и журнала документов (Отладчик)</span>
     </div>
     <div class="mdi-win-controls">
       <button class="mdi-win-btn mdi-win-btn-min" title="Qatla" onclick="MdiManager.minimizeWindow('ujDiagnosticsWindow')" onmousedown="event.stopPropagation()">_</button>
@@ -27,12 +27,12 @@
         <button type="button" class="btn-1c" onclick="UniversalJournal.copyDiagnosticsToClipboard()" 
                 style="height: 22px; padding: 0 10px; font-weight: bold; background: #ffe3a8; border: 1px solid #c99c47; color: #111; cursor: pointer; display: inline-flex; align-items: center; gap: 4px;"
                 title="Отчет в буфер обмена">
-          <span>📋</span><span>Скопировать отчет</span>
+          <span>📋</span><span data-i18n="diag.copy">Скопировать отчет</span>
         </button>
         <button type="button" class="btn-1c" onclick="UniversalJournal.executeSearchOrFilter(); setTimeout(() => UniversalJournal.renderDebugDiagnosticsContent(), 400);" 
                 style="height: 22px; padding: 0 8px; cursor: pointer; display: inline-flex; align-items: center; gap: 4px;"
                 title="Обновить данные и статус">
-          <span>🔄</span><span>Обновить данные</span>
+          <span>🔄</span><span data-i18n="diag.refresh">Обновить данные</span>
         </button>
       </div>
 
@@ -49,9 +49,9 @@
     <!-- Footer -->
     <div style="padding: 5px 10px; background: #e5e2cf; border-top: 1px solid #b0af9f; display: flex; justify-content: space-between; align-items: center; flex-shrink: 0;">
       <div style="font-size: 10px; color: #666;">
-        <span>ℹ️ Этот отчет детально показывает, почему поиск пустой или возникла ошибка.</span>
+        <span data-i18n="diag.note">ℹ️ Этот отчет детально показывает, почему поиск пустой или возникла ошибка.</span>
       </div>
-      <button type="button" class="btn-1c" onclick="UniversalJournal.closeDebugDiagnosticsModal()" style="height: 22px; min-width: 75px; font-size: 11px; font-weight: bold; background: #ece9d8; border: 1px solid #7f9db9; cursor: pointer;">
+      <button type="button" class="btn-1c" onclick="UniversalJournal.closeDebugDiagnosticsModal()" data-i18n="common.close" style="height: 22px; min-width: 75px; font-size: 11px; font-weight: bold; background: #ece9d8; border: 1px solid #7f9db9; cursor: pointer;">
         Закрыть
       </button>
     </div>

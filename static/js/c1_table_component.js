@@ -75,7 +75,7 @@
     this.storageKey = this.options.storageKey;
     this.title = this.options.title;
     this.defaultColumns = JSON.parse(JSON.stringify(this.options.defaultColumns || []));
-
+    
     // Load or initialize columns
     this.columns = this.loadColumns();
 
@@ -239,10 +239,10 @@
 
       visibleCols.forEach(col => {
         const isSort = (this.currentSortCol === col.key);
-        const arrow = isSort ? (this.currentSortAsc ? ' ▴' : ' ▾') : '';
+        const arrow = isSort ? `<svg class="c1-sort-steps" width="15" height="13" viewBox="0 0 15 13" style="margin-left:5px;vertical-align:middle" role="img" aria-label="${this.currentSortAsc ? 'Artan sıra' : 'Azalan sıra'}"><title>${this.currentSortAsc ? 'Artan sıra' : 'Azalan sıra'}</title><path d="${this.currentSortAsc ? 'M1 2h4M1 6.5h8M1 11h12' : 'M1 2h12M1 6.5h8M1 11h4'}" fill="none" stroke="currentColor" stroke-width="2"/></svg>` : '';
         const wVal = Number(col.width) || 100;
-        const wStyle = col.autoWidth
-          ? ''
+        const wStyle = col.autoWidth 
+          ? '' 
           : `width: ${wVal}px; min-width: ${wVal}px; max-width: ${wVal}px;`;
         const align = col.align || 'left';
         const cursor = col.sortable !== false ? 'cursor: pointer;' : '';
@@ -354,7 +354,7 @@
         moveEvt.preventDefault();
         const delta = moveEvt.clientX - startX;
         const newWidth = Math.max(col.minWidth || 30, Math.min(col.maxWidth || 800, startWidth + delta));
-
+        
         col.width = newWidth;
         col.autoWidth = false;
 
@@ -494,8 +494,8 @@
 
         visibleCols.forEach(col => {
           const wVal = Number(col.width) || 100;
-          const wStyle = col.autoWidth
-            ? ''
+          const wStyle = col.autoWidth 
+            ? '' 
             : `width: ${wVal}px; min-width: ${wVal}px; max-width: ${wVal}px;`;
           const align = col.align || 'left';
           const isCellActive = isSelected && (this.selectedColKey === col.key);
@@ -511,8 +511,8 @@
           }
 
           const cellClass = isCellActive ? 'c1-cell-active' : '';
-          const cellStyle = isCellActive
-            ? 'background: #316ac5 !important; color: #ffffff !important;'
+          const cellStyle = isCellActive 
+            ? 'background: #316ac5 !important; color: #ffffff !important;' 
             : '';
 
           cellsHtml += `
@@ -676,7 +676,7 @@
      */
     handleContextMenu: function(e) {
       e.preventDefault();
-
+      
       const tr = e.target.closest('tr.c1-tr');
       const td = e.target.closest('td.c1-td');
       if (tr) {
@@ -825,14 +825,62 @@
 
     /**
      * Update table dataset and refresh body rendering.
-     * @param {Array} newItems
+     * @param {Array} newItems 
      * @param {number} [lineNumberOffset] Optional offset for row numbers
      */
     setItems: function(newItems, lineNumberOffset) {
       if (lineNumberOffset !== undefined) {
         this.options.lineNumberOffset = lineNumberOffset;
       }
-      this.items = Array.isArray(newItems) ? newItems : [];
+      this._originalItems = Array.isArray(newItems) ? newItems : [];
+      if (this._columnFilters && Object.keys(this._columnFilters).length > 0) {
+        this.applyInternalFilters();
+      } else {
+        this.items = this._originalItems;
+        this.renderBody();
+      }
+    },
+
+    setColumnFilter: function(colKey, value, matchMode = 'contains') {
+      if (!this._columnFilters) this._columnFilters = {};
+      if (!value) {
+        delete this._columnFilters[colKey];
+      } else {
+        this._columnFilters[colKey] = { value: String(value).toLowerCase().trim(), matchMode };
+      }
+      this.applyInternalFilters();
+    },
+
+    clearColumnFilter: function(colKey) {
+      if (this._columnFilters && this._columnFilters[colKey]) {
+        delete this._columnFilters[colKey];
+        this.applyInternalFilters();
+      }
+    },
+
+    applyInternalFilters: function() {
+      if (!this._originalItems) {
+        this._originalItems = Array.isArray(this.items) ? [...this.items] : [];
+      }
+      if (!this._columnFilters || Object.keys(this._columnFilters).length === 0) {
+        this.items = this._originalItems;
+        this.renderBody();
+        return;
+      }
+      const filters = this._columnFilters;
+      this.items = this._originalItems.filter(item => {
+        for (const [col, f] of Object.entries(filters)) {
+          const itemVal = String(item[col] !== undefined && item[col] !== null ? item[col] : '').toLowerCase();
+          if (f.matchMode === 'exact') {
+            if (itemVal !== f.value) return false;
+          } else if (f.matchMode === 'starts') {
+            if (!itemVal.startsWith(f.value)) return false;
+          } else {
+            if (!itemVal.includes(f.value)) return false;
+          }
+        }
+        return true;
+      });
       this.renderBody();
     },
 
@@ -901,6 +949,7 @@
   C1TableComponent.create = function(options) {
     return new C1TableComponent(options);
   };
+  C1TableComponent.activeInstances = activeTableInstances;
 
   // Dinamik dil dəyişdikdə bütün cədvəllərin başlıqlarını dərhal yenilə
   window.addEventListener('c1-language-changed', function() {

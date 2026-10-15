@@ -1,5 +1,6 @@
 """Audit filters compiled before grouping and limiting results."""
 import re
+from services.onec_dates import as_1c_date
 from services.documents.base import build_filter_conditions, parse_query_datetime
 
 DOCUMENT_TYPES = ('РеализацияТоваровУслуг', 'ВозвратТоваровОтПокупателя', 'ПогрузкиМашин', 'УстановкаЦенНоменклатуры')
@@ -25,7 +26,7 @@ def date_condition(query, condition, expression, prefix):
                 parsed = parse_query_datetime(value, is_end)
                 if parsed is None: raise ValueError('Yanlış tarix')
                 name = prefix + key
-                query.SetParameter(name, parsed)
+                query.SetParameter(name, as_1c_date(parsed))
                 clauses.append(f'{expression} {cmp} &{name}')
         if not clauses: raise ValueError('Tarix intervalını daxil edin')
         return ' И '.join(clauses)
@@ -36,7 +37,7 @@ def date_condition(query, condition, expression, prefix):
     value = parse_query_datetime(condition.get('value'), op in ('Меньше или равно', 'Больше'))
     if value is None: raise ValueError('Tarixi daxil edin')
     name = prefix + 'date'
-    query.SetParameter(name, value)
+    query.SetParameter(name, as_1c_date(value))
     return f'{expression} {comparisons[op]} &{name}'
 
 def document_conditions(query, payload, doc_type, prefix='af_', field_map=None):
@@ -65,7 +66,7 @@ def document_conditions(query, payload, doc_type, prefix='af_', field_map=None):
                 if str(rule.get(value_key, '')).strip():
                     value = float(str(rule[value_key]).replace(',', '.'))
                     name = prefix + str(index) + value_key
-                    query.SetParameter(name, value)
+                    query.SetParameter(name, as_1c_date(value))
                     clauses.append(f'Т.СуммаДокумента {cmp} &{name}')
                     added = True
             if not added: raise ValueError('Məbləğ intervalını daxil edin')
@@ -78,7 +79,7 @@ def document_conditions(query, payload, doc_type, prefix='af_', field_map=None):
     if payload.get('period_field') == 'date':
         for key, cmp, end in [('date_from','>=',False),('date_to','<=',True)]:
             if payload.get(key):
-                query.SetParameter(prefix + key, parse_query_datetime(payload[key], end))
+                query.SetParameter(prefix + key, as_1c_date(parse_query_datetime(payload[key], end)))
                 clauses.append(f'Т.Дата {cmp} &{prefix}{key}')
     mode = payload.get('filter_mode')
     if mode == 'posted_only': clauses.append('Т.Проведен = ИСТИНА')

@@ -145,6 +145,21 @@ def save_price_doc_endpoint():
         print_server_error("/api/documents/save_price_doc", e, data)
         return jsonify({"success": False, "error": str(e)})
 
+@document_bp.route("/api/documents/price_formation", methods=["POST"])
+def price_formation_endpoint():
+    data = request.json or {}
+    try:
+        res = one_c.execute("form_price_document", data)
+        return jsonify({
+            "success": True,
+            "price_types": res.get("price_types", []),
+            "items": res.get("items", []),
+            "total_items": res.get("total_items", 0)
+        })
+    except Exception as e:
+        print_server_error("/api/documents/price_formation", e, data)
+        return jsonify({"success": False, "error": str(e), "items": [], "price_types": []})
+
 @document_bp.route("/api/documents/resolve_nomenclature", methods=["POST"])
 def resolve_nomenclature_endpoint():
     data = request.json or {}

@@ -12,11 +12,26 @@ ALIASES = {
 
 def edge_query(text, payload):
     rules = payload.get('sort_rules') or [{'field':payload.get('sort_field','date'), 'ascending':payload.get('sort_ascending',False)}]
+    sort_aliases = {}
+    for rule in rules:
+        if rule.get('enabled') is False: continue
+        alias = ALIASES.get(rule.get('field'))
+        if alias not in ('StatusVMS','Warehouse','Responsible','Voditel'): continue
+        # 1C presentation is a display-only operation: an ORDER BY of its alias
+        # still fails. Select a separate typed sort key and retain the label.
+        pattern = rf'ПРЕДСТАВЛЕНИЕ\(([^()]+)\)\s+КАК\s+{alias}\b'
+        match = re.search(pattern,text,flags=re.I)
+        if not match: continue
+        sort_alias = 'Sort' + alias
+        expression = match[1] if alias == 'StatusVMS' else match[1] + '.Наименование'
+        text = re.sub(pattern,lambda m:m[0] + f', {expression} КАК {sort_alias}',text,flags=re.I)
+        sort_aliases[alias] = sort_alias
     ordering = []
     for rule in rules:
         if rule.get('enabled') is False: continue
         alias = ALIASES.get(rule.get('field'))
         if not alias: raise ValueError('Bu sütun üzrə server sıralaması dəstəklənmir.')
+        alias = sort_aliases.get(alias,alias)
         ascending = bool(rule.get('ascending', False))
         if payload.get('navigation_edge') == 'end': ascending = not ascending
         direction = 'ВОЗР' if ascending else 'УБЫВ'

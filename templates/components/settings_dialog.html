@@ -9,7 +9,7 @@
   <div class="mdi-window-header" ondblclick="MdiManager.toggleMaximize('settingsWindowModal')">
     <div class="mdi-win-title-left">
       <span class="mdi-win-icon">⚙️</span>
-      <span class="mdi-win-title-text" id="settingsDialogTitle">Настройка: Товары на складах</span>
+      <span class="mdi-win-title-text" id="settingsDialogTitle" data-i18n="rep_set.title">Настройка: Товары на складах</span>
       <span id="settingsDialogActivePresetBadge" style="display: none; background: #2e7d32; color: #fff; padding: 1px 6px; border-radius: 2px; font-size: 10px; font-weight: bold; margin-left: 6px;"></span>
     </div>
     <div class="mdi-win-controls">
@@ -71,13 +71,13 @@
         
         <!-- Period Row -->
         <div class="settings-period-row">
-          <span style="font-weight: bold; color: #333;">Период с:</span>
+          <span style="font-weight: bold; color: #333;" data-i18n="rep_set.period_from">Период с:</span>
           <div class="period-input-wrapper">
             <input type="text" id="dlgStartDateInput" class="period-input-1c" value="01.09.2026" onchange="syncDateInputsFromDlg()">
             <button class="period-cal-btn" onclick="pickDate('dlgStartDateInput', this)">📅</button>
           </div>
 
-          <span style="font-weight: bold; color: #333;">по:</span>
+          <span style="font-weight: bold; color: #333;" data-i18n="rep_set.period_to">по:</span>
           <div class="period-input-wrapper">
             <input type="text" id="dlgEndDateInput" class="period-input-1c" value="30.09.2026" onchange="syncDateInputsFromDlg()">
             <button class="period-cal-btn" onclick="pickDate('dlgEndDateInput', this)">📅</button>
@@ -88,32 +88,32 @@
 
         <!-- Parameters Checkboxes -->
         <div class="settings-params-row">
-          <div class="settings-params-title">Параметры</div>
+          <div class="settings-params-title" data-i18n="rep_set.parameters">Параметры</div>
           <div class="settings-checkboxes-group">
             <label class="checkbox-1c-label">
               <input type="checkbox" id="chkNegativeRed" checked>
-              <span>Отрицательное красным</span>
+              <span data-i18n="rep_set.negative_red">Отрицательное красным</span>
             </label>
 
             <label class="checkbox-1c-label">
               <input type="checkbox" id="chkShowGrandTotals" checked>
-              <span>Выводить общие итоги</span>
+              <span data-i18n="rep_set.show_grand_totals">Выводить общие итоги</span>
             </label>
 
             <label class="checkbox-1c-label">
               <input type="checkbox" id="chkShowDetails">
-              <span>Выводить детальные записи</span>
+              <span data-i18n="rep_set.show_details">Выводить детальные записи</span>
             </label>
 
             <label class="checkbox-1c-label">
               <input type="checkbox" id="chkUseProperties" checked>
-              <span>Использовать свойства и категории</span>
+              <span data-i18n="rep_set.use_properties">Использовать свойства и категории</span>
             </label>
           </div>
 
           <!-- Price Type Selector (Тип цен) - Multi-select -->
           <div style="display: flex; align-items: center; gap: 8px; margin-top: 8px; padding-top: 6px; border-top: 1px dotted #ccc; font-size: 11px; position: relative;">
-            <span style="font-weight: bold; color: #222; white-space: nowrap;">Типы цен:</span>
+            <span style="font-weight: bold; color: #222; white-space: nowrap;" data-i18n="rep_set.price_types">Типы цен:</span>
             <div id="priceTypeDropdownContainer" style="position: relative; flex: 1; max-width: 440px;">
               <div id="priceTypeDropdownBtn" onclick="togglePriceTypeDropdown(event)" style="display: flex; align-items: center; justify-content: space-between; height: 22px; padding: 1px 6px; border: 1px solid #7f9db9; background: #fff; border-radius: 2px; cursor: pointer; user-select: none;">
                 <span id="priceTypeSummary" style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 11px; color: #111;">20</span>
@@ -150,7 +150,7 @@
         <!-- 1. Box: Показатели (Indicators) -->
         <div class="settings-box">
           <div class="settings-box-header">
-            <span class="settings-box-title">Показатели</span>
+            <span class="settings-box-title" data-i18n="rep_set.tab_indicators">Показатели</span>
             <div class="settings-box-toolbar">
               <button class="box-tool-btn" onclick="checkAllIndicators(true)" title="Hamısını seç">➕</button>
               <button class="box-tool-btn" onclick="checkAllIndicators(false)" title="Təmizlə">✖</button>
@@ -165,20 +165,20 @@
               <li class="tree-node-group">
                 <div class="tree-node-header" onclick="toggleTreeNode(this)">
                   <span>📁</span>
-                  <span>Представление</span>
+                  <span data-i18n="rep_set.ind_representation">Представление</span>
                 </div>
                 <ul class="tree-node-children">
                   <li class="tree-child-item">
                     <input type="checkbox" id="indBarcodeUnit" checked>
-                    <label for="indBarcodeUnit">Штрихкод (ədəd / шт)</label>
+                    <label for="indBarcodeUnit" data-i18n="rep_set.barcode_unit">Штрихкод (ədəd / шт)</label>
                   </li>
                   <li class="tree-child-item">
                     <input type="checkbox" id="indBarcodeBox" checked>
-                    <label for="indBarcodeBox">Штрихкод (qutu / кор)</label>
+                    <label for="indBarcodeBox" data-i18n="rep_set.barcode_box">Штрихкод (qutu / кор)</label>
                   </li>
                   <li class="tree-child-item">
                     <input type="checkbox" id="indBarcodeBlock">
-                    <label for="indBarcodeBlock">Штрихкод (blok / упак)</label>
+                    <label for="indBarcodeBlock" data-i18n="rep_set.barcode_block">Штрихкод (blok / упак)</label>
                   </li>
                 </ul>
               </li>
@@ -187,24 +187,24 @@
               <li class="tree-node-group">
                 <div class="tree-node-header" onclick="toggleTreeNode(this)">
                   <span>📁</span>
-                  <span>Количество (в базовых единицах)</span>
+                  <span data-i18n="rep_set.base_qty_group">Количество (в базовых единицах)</span>
                 </div>
                 <ul class="tree-node-children" style="display: none;">
                   <li class="tree-child-item">
                     <input type="checkbox" id="indBaseStart">
-                    <label for="indBaseStart">Начальный остаток</label>
+                    <label for="indBaseStart" data-i18n="rep_set.start_qty">Начальный остаток</label>
                   </li>
                   <li class="tree-child-item">
                     <input type="checkbox" id="indBaseIn">
-                    <label for="indBaseIn">Приход</label>
+                    <label for="indBaseIn" data-i18n="rep_set.in_qty">Приход</label>
                   </li>
                   <li class="tree-child-item">
                     <input type="checkbox" id="indBaseOut">
-                    <label for="indBaseOut">Расход</label>
+                    <label for="indBaseOut" data-i18n="rep_set.out_qty">Расход</label>
                   </li>
                   <li class="tree-child-item">
                     <input type="checkbox" id="indBaseEnd">
-                    <label for="indBaseEnd">Конечный остаток</label>
+                    <label for="indBaseEnd" data-i18n="rep_set.end_qty">Конечный остаток</label>
                   </li>
                 </ul>
               </li>
@@ -213,28 +213,28 @@
               <li class="tree-node-group">
                 <div class="tree-node-header" onclick="toggleTreeNode(this)">
                   <span>📂</span>
-                  <span style="font-weight: bold;">Количество</span>
+                  <span style="font-weight: bold;" data-i18n="rep_set.qty_group">Количество</span>
                 </div>
                 <ul class="tree-node-children">
                   <li class="tree-child-item">
                     <input type="checkbox" id="indQtyStart" checked>
-                    <label for="indQtyStart">Начальный остаток</label>
+                    <label for="indQtyStart" data-i18n="rep_set.start_qty">Начальный остаток</label>
                   </li>
                   <li class="tree-child-item">
                     <input type="checkbox" id="indQtyIn" checked>
-                    <label for="indQtyIn">Приход</label>
+                    <label for="indQtyIn" data-i18n="rep_set.in_qty">Приход</label>
                   </li>
                   <li class="tree-child-item">
                     <input type="checkbox" id="indQtyOut" checked>
-                    <label for="indQtyOut">Расход</label>
+                    <label for="indQtyOut" data-i18n="rep_set.out_qty">Расход</label>
                   </li>
                   <li class="tree-child-item">
                     <input type="checkbox" id="indQtyEnd" checked>
-                    <label for="indQtyEnd">Конечный остаток</label>
+                    <label for="indQtyEnd" data-i18n="rep_set.end_qty">Конечный остаток</label>
                   </li>
                   <li class="tree-child-item">
                     <input type="checkbox" id="indQtyTurnover">
-                    <label for="indQtyTurnover">Оборот</label>
+                    <label for="indQtyTurnover" data-i18n="rep_set.turnover">Оборот</label>
                   </li>
                 </ul>
               </li>
@@ -243,16 +243,16 @@
               <li class="tree-node-group">
                 <div class="tree-node-header" onclick="toggleTreeNode(this)">
                   <span>📂</span>
-                  <span style="font-weight: bold; color: #004080;">Цена и Стоимость</span>
+                  <span style="font-weight: bold; color: #004080;" data-i18n="rep_set.price_cost_group">Цена и Стоимость</span>
                 </div>
                 <ul class="tree-node-children">
                   <li class="tree-child-item">
                     <input type="checkbox" id="indShowPrice" checked>
-                    <label for="indShowPrice" style="font-weight: 500;">Цена (1 ədədin qiyməti)</label>
+                    <label for="indShowPrice" style="font-weight: 500;" data-i18n="rep_set.price_ind">Цена (1 ədədin qiyməti)</label>
                   </li>
                   <li class="tree-child-item">
                     <input type="checkbox" id="indShowSum" checked>
-                    <label for="indShowSum" style="font-weight: 500;">Сумма (Конечный остаток)</label>
+                    <label for="indShowSum" style="font-weight: 500;" data-i18n="rep_set.sum_ind">Сумма (Конечный остаток)</label>
                   </li>
                 </ul>
               </li>
@@ -264,7 +264,7 @@
         <!-- 2. Box: Группировки строк (Row Groupings - Screenshot 1 & 3) -->
         <div class="settings-box">
           <div class="settings-box-header">
-            <span class="settings-box-title">Группировки строк</span>
+            <span class="settings-box-title" data-i18n="rep_set.tab_row_groups">Группировки строк</span>
             <div class="settings-box-toolbar">
               <button class="box-tool-btn btn-purple-plus" onclick="openFieldSelectorForRowGrouping()" title="Добавить группировку">+</button>
               <button class="box-tool-btn btn-red-del" onclick="removeSelectedRowGrouping()" title="Удалить">✕</button>
@@ -276,8 +276,8 @@
             <table class="groupings-table" id="rowGroupingsTable">
               <thead>
                 <tr>
-                  <th>Группировки строк</th>
-                  <th style="width: 85px;">Тип</th>
+                  <th data-i18n="rep_set.groupings_row">Группировки строк</th>
+                  <th style="width: 85px;" data-i18n="rep_set.type">Тип</th>
                 </tr>
               </thead>
               <tbody id="rowGroupingsBody">
@@ -325,7 +325,7 @@
         <!-- 3. Box: Группировки колонок (Column Groupings) -->
         <div class="settings-box">
           <div class="settings-box-header">
-            <span class="settings-box-title">Группировки колонок</span>
+            <span class="settings-box-title" data-i18n="rep_set.tab_col_groups">Группировки колонок</span>
             <div class="settings-box-toolbar">
               <button class="box-tool-btn btn-purple-plus" onclick="openFieldSelectorForColGrouping()" title="Добавить группировку">+</button>
               <button class="box-tool-btn btn-red-del" onclick="removeSelectedColGrouping()" title="Удалить">✕</button>
@@ -337,8 +337,8 @@
             <table class="groupings-table" id="colGroupingsTable">
               <thead>
                 <tr>
-                  <th>Группировки колонок</th>
-                  <th style="width: 85px;">Тип</th>
+                  <th data-i18n="rep_set.groupings_col">Группировки колонок</th>
+                  <th style="width: 85px;" data-i18n="rep_set.type">Тип</th>
                 </tr>
               </thead>
               <tbody id="colGroupingsBody">
@@ -353,7 +353,7 @@
       <!-- Bottom Section: Отборы (Filters Table) -->
       <div class="settings-filters-section">
         <div class="settings-box-header">
-          <span class="settings-box-title">Отборы</span>
+          <span class="settings-box-title" data-i18n="rep_set.tab_filter">Отборы</span>
           <div class="settings-box-toolbar">
             <button class="box-tool-btn" onclick="addFilterRow()" title="Yeni süzgəc sahəsi əlavə et">➕</button>
             <button class="box-tool-btn" onclick="removeSelectedFilterRow()" title="Seçilmiş süzgəci sil">✖</button>
@@ -367,9 +367,9 @@
             <thead>
               <tr>
                 <th class="col-check">✔</th>
-                <th class="col-field">Поле</th>
-                <th class="col-comp">Тип сравнения</th>
-                <th class="col-val">Значение</th>
+                <th class="col-field" data-i18n="filter.col_field">Поле</th>
+                <th class="col-comp" data-i18n="filter.col_comparison">Тип сравнения</th>
+                <th class="col-val" data-i18n="filter.col_value">Значение</th>
               </tr>
             </thead>
             <tbody id="filtersTableBody">
@@ -594,17 +594,17 @@
       <div class="settings-footer-left">
         <label class="checkbox-1c-label">
           <input type="checkbox" id="chkAdvancedSettings">
-          <span>Расширенная настройка</span>
+          <span data-i18n="rep_set.advanced">Расширенная настройка</span>
         </label>
       </div>
 
       <div class="settings-footer-right">
         <button class="btn-1c primary" onclick="applySettingsAndGenerate()" title="Сформировать отчет (Ctrl+Enter)">
           <span style="color: #107c10; font-size: 10px;">▶</span>
-          <span>Сформировать</span>
+          <span data-i18n="common.formirovat">Сформировать</span>
         </button>
         <button class="btn-1c" onclick="closeSettingsModal()" style="min-width: 60px;" title="Закрыть (Esc)">
-          <span>Отмена</span>
+          <span data-i18n="common.cancel">Отмена</span>
         </button>
       </div>
     </div>

@@ -23,7 +23,7 @@ const fs=require('node:fs'),assert=require('node:assert/strict');const {chromium
    return {ok:true,status:200,json:async()=>({success:true,connected:true})};
   };
  });
- for(const file of ['form_action','mdi_manager','session','c1_filter_component','list_appearance','universal_journal','job_client','audit_journal'])await page.addScriptTag({content:fs.readFileSync(`static/js/${file}.js`,'utf8')});
+ for(const file of ['c1_dates','form_action','mdi_manager','session','c1_filter_component','list_appearance','universal_journal','job_client','audit_journal'])await page.addScriptTag({content:fs.readFileSync(`static/js/${file}.js`,'utf8')});
  await page.evaluate(()=>{
   window.SessionManager=SessionManager;SessionManager.state.password='demo';
   MdiManager.init();AuditJournal.init();AuditJournal.startDateStr='06.10.2026';AuditJournal.endDateStr='13.10.2026';

@@ -10,7 +10,7 @@
     <div class="settings-header" ondblclick="OperationTypeSelector.toggleMaximize()">
       <div class="settings-header-title">
         <span style="font-size: 13px; margin-right: 4px;">📑</span>
-        <span>Выбор вида операции (Регистратор)</span>
+        <span data-i18n="op_type.title">Выбор вида операции (Регистратор)</span>
       </div>
       <div class="window-titlebar-controls">
         <button class="window-btn-sys" title="Böyüt / Bərpa et" onclick="OperationTypeSelector.toggleMaximize()">□</button>
@@ -21,8 +21,8 @@
     <!-- Search Toolbar -->
     <div style="background: #ece9d8; padding: 5px 8px; border-bottom: 1px solid #c0bfae; display: flex; align-items: center; justify-content: space-between; gap: 8px;">
       <div style="display: flex; align-items: center; gap: 6px; flex: 1;">
-        <span style="font-size: 11px; color: #333; font-weight: bold;">Поиск:</span>
-        <input type="text" id="opTypeSearchInput" class="input-1c" style="flex: 1; height: 21px;" placeholder="Əməliyyat növünü axtar..." oninput="OperationTypeSelector.filter(this.value)">
+        <span style="font-size: 11px; color: #333; font-weight: bold;" data-i18n="common.search_label">Поиск:</span>
+        <input type="text" id="opTypeSearchInput" class="input-1c" style="flex: 1; height: 21px;" data-i18n-placeholder="op_type.search_placeholder" placeholder="Əməliyyat növünü axtar..." oninput="OperationTypeSelector.filter(this.value)">
       </div>
       <button class="btn-1c" onclick="OperationTypeSelector.clearSearch()" style="height: 21px; padding: 0 8px;" title="Təmizlə">✕</button>
     </div>
@@ -35,8 +35,8 @@
             <th style="width: 28px; text-align: center; padding: 3px;" id="opTypeColChk">
               <input type="checkbox" id="opTypeCheckAll" onchange="OperationTypeSelector.checkAll(this.checked)" title="Hamısını seç">
             </th>
-            <th style="text-align: left; padding: 4px 6px; border-left: 1px solid #dcd9c8;">Вид операции</th>
-            <th style="text-align: left; padding: 4px 6px; width: 190px; border-left: 1px solid #dcd9c8;">Документ движения</th>
+            <th style="text-align: left; padding: 4px 6px; border-left: 1px solid #dcd9c8;" data-i18n="op_type.col_type">Вид операции</th>
+            <th style="text-align: left; padding: 4px 6px; width: 190px; border-left: 1px solid #dcd9c8;" data-i18n="op_type.col_doc">Документ движения</th>
           </tr>
         </thead>
         <tbody id="operationTypeTbody">
@@ -51,8 +51,8 @@
         Seçilmiş: 0 əməliyyat
       </div>
       <div style="display: flex; gap: 6px;">
-        <button class="btn-1c primary" onclick="OperationTypeSelector.confirm()" style="min-width: 75px; font-weight: bold;">Выбрать</button>
-        <button class="btn-1c" onclick="OperationTypeSelector.close()" style="min-width: 65px;">Отмена</button>
+        <button class="btn-1c primary" onclick="OperationTypeSelector.confirm()" data-i18n="common.select" style="min-width: 75px; font-weight: bold;">Выбрать</button>
+        <button class="btn-1c" onclick="OperationTypeSelector.close()" data-i18n="common.cancel" style="min-width: 65px;">Отмена</button>
       </div>
     </div>
 

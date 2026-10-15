@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+from services.onec_dates import as_1c_date, calendar_period
 from services.common import CACHE_DIR
 import os
 import re
@@ -27,14 +28,7 @@ def handle_universal_sales(conn, payload, key, resp_q):
     portfolio = payload.get("portfolio", "").strip()
     limit = int(payload.get("limit", 300))
 
-    try:
-        y1, m1, d1 = map(int, date_start_str.split("-"))
-        dt_start = datetime.datetime(y1, m1, d1, 4, 0, 0)
-        y2, m2, d2 = map(int, date_end_str.split("-"))
-        dt_end = datetime.datetime(y2, m2, d2, 23, 59, 59)
-    except Exception:
-        dt_start = datetime.datetime(2026, 9, 1, 4, 0, 0)
-        dt_end = datetime.datetime(2026, 9, 28, 23, 59, 59)
+    dt_start, dt_end = calendar_period(date_start_str, date_end_str)
 
     query = conn.NewObject("Запрос")
     where_clauses = ["ПродажиОбороты.КоличествоОборот <> 0"]
@@ -112,8 +106,8 @@ def handle_universal_sales(conn, payload, key, resp_q):
         Nomenklatura
     """
     query.Text = sql
-    query.SetParameter("НачалоПериода", dt_start)
-    query.SetParameter("КонецПериода", dt_end)
+    query.SetParameter("НачалоПериода", as_1c_date(dt_start))
+    query.SetParameter("КонецПериода", as_1c_date(dt_end))
 
     res = query.Execute().Choose()
 
@@ -244,14 +238,7 @@ def handle_universal_report(conn, payload, key, resp_q):
     row_groupings = payload.get("row_groupings", [])
     filters = payload.get("filters", [])
 
-    try:
-        d1, m1, y1 = map(int, start_date_str.split("."))
-        dt_start = datetime.datetime(y1, m1, d1, 0, 0, 0)
-        d2, m2, y2 = map(int, end_date_str.split("."))
-        dt_end = datetime.datetime(y2, m2, d2, 23, 59, 59)
-    except Exception:
-        dt_start = datetime.datetime(2026, 9, 1, 0, 0, 0)
-        dt_end = datetime.datetime(2026, 9, 30, 23, 59, 59)
+    dt_start, dt_end = calendar_period(start_date_str, end_date_str)
 
     q = conn.NewObject("Запрос")
     where_clauses = []
@@ -636,8 +623,8 @@ def handle_universal_report(conn, payload, key, resp_q):
         Warehouse,
         Item
     """
-    q.SetParameter("НачалоПериода", dt_start)
-    q.SetParameter("КонецПериода", dt_end)
+    q.SetParameter("НачалоПериода", as_1c_date(dt_start))
+    q.SetParameter("КонецПериода", as_1c_date(dt_end))
     for k_p, v_p in price_params.items():
         q.SetParameter(k_p, v_p)
 
@@ -940,14 +927,7 @@ def handle_direct_calculate(conn, payload, key, resp_q):
     date_start_str = payload.get("date_start", "2026-09-01")
     date_end_str = payload.get("date_end", "2026-09-28")
 
-    try:
-        y1, m1, d1 = map(int, date_start_str.split("-"))
-        dt_start = datetime.datetime(y1, m1, d1, 4, 0, 0)
-        y2, m2, d2 = map(int, date_end_str.split("-"))
-        dt_end = datetime.datetime(y2, m2, d2, 23, 59, 59)
-    except Exception:
-        dt_start = datetime.datetime(2026, 9, 1, 4, 0, 0)
-        dt_end = datetime.datetime(2026, 9, 28, 23, 59, 59)
+    dt_start, dt_end = calendar_period(date_start_str, date_end_str)
 
     q_calc = conn.NewObject("Запрос")
     q_calc.Text = """
@@ -1018,8 +998,8 @@ def handle_direct_calculate(conn, payload, key, resp_q):
     УПОРЯДОЧИТЬ ПО
         Portfolio
     """
-    q_calc.SetParameter("НачалоПериода", dt_start)
-    q_calc.SetParameter("КонецПериода", dt_end)
+    q_calc.SetParameter("НачалоПериода", as_1c_date(dt_start))
+    q_calc.SetParameter("КонецПериода", as_1c_date(dt_end))
 
     res = q_calc.Execute().Choose()
     headers = [
@@ -1180,16 +1160,13 @@ def handle_generate(conn, payload, key, resp_q, req_q=None):
 
     settings = builder.ПолучитьНастройки()
 
-    y1, m1, d1 = map(int, date_start_str.split("-"))
-    dt_start = datetime.datetime(y1, m1, d1, 4, 0, 0)
-    y2, m2, d2 = map(int, date_end_str.split("-"))
-    dt_end = datetime.datetime(y2, m2, d2, 23, 59, 59)
+    dt_start, dt_end = calendar_period(date_start_str, date_end_str)
 
     for p_name in ["НачалоПериода", "Период", "ДатаНач", "StartDate"]:
         try:
             p_param = settings.ПараметрыДанных.Элементы.Найти(p_name)
             if p_param:
-                p_param.Значение = dt_start
+                p_param.Значение = as_1c_date(dt_start)
                 p_param.Использование = True
         except Exception: pass
 
@@ -1197,7 +1174,7 @@ def handle_generate(conn, payload, key, resp_q, req_q=None):
         try:
             p_param = settings.ПараметрыДанных.Элементы.Найти(p_name)
             if p_param:
-                p_param.Значение = dt_end
+                p_param.Значение = as_1c_date(dt_end)
                 p_param.Использование = True
         except Exception: pass
 

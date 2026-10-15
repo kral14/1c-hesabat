@@ -183,17 +183,23 @@ def ping_connection_endpoint():
 @base_bp.route('/api/connection/status', methods=['POST'])
 def connection_status_endpoint():
     """A probe never opens a session or replaces another user's connection."""
+    from services.connection_status import public_details
     state = one_c.status()
+    details = public_details(state)
+    if not state.get('available'):
+        return jsonify(details=details, success=True, connected=False, worker_available=False, error='COM xidməti hazır deyil.')
     if state.get('available') and state.get('worker_alive') is False:
-        return jsonify(success=False, connected=False, error='COM işçisi dayanıb. Təsdiqli əlaqə bərpasını istifadə edin.')
+        return jsonify(details=details, success=False, connected=False, error='COM işçisi dayanıb. Təsdiqli əlaqə bərpasını istifadə edin.')
     if getattr(one_c, 'busy', False) or not one_c.req_q.empty():
-        return jsonify(success=True, connected=None, busy=True, worker_stalled=state.get('action_age',0)>180)
+        return jsonify(details=details, success=True, connected=None, busy=True, worker_stalled=state.get('action_age',0)>180)
+    if not state.get('session_count'):
+        return jsonify(details=details, success=True, connected=False, worker_available=True, session_count=0)
     data = request.get_json(silent=True) or {}
     try:
         result = one_c.execute('connection_probe', data, retry=0)
-        return jsonify(success=True, **result)
+        return jsonify(details=details, success=True, worker_available=True, session_count=state.get('session_count'), **result)
     except Exception as error:
-        return jsonify(success=False, connected=False, error=str(error))
+        return jsonify(details=details, success=False, connected=False, error=str(error))
 
 def cluster_target(data):
     active = database.get_active_base() or {}

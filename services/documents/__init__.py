@@ -10,6 +10,7 @@ Dispatches requests cleanly to per-document handler modules:
 - generic.py     (Generic fallback for all other 1C documents)
 - nomenclature.py (Nomenclature lookup & barcodes)
 """
+from services.onec_dates import as_1c_date
 from services.documents.realization import get_realization_list, get_realization_details
 from services.documents.pogruzka import get_pogruzka_list, get_pogruzka_details
 from services.documents.vozvrat import get_vozvrat_list, get_vozvrat_details
@@ -18,7 +19,8 @@ from services.documents.price import (
     get_price_document_details,
     save_price_document,
     get_all_price_types_list,
-    get_item_prices_dict
+    get_item_prices_dict,
+    form_price_document
 )
 from services.documents.nomenclature import resolve_nomenclature_batch, search_nomenclature
 from services.documents.base import format_1c_datetime, parse_query_datetime
@@ -81,6 +83,11 @@ def handle_get_all_price_types(conn, payload, key, resp_q):
     resp_q.put((True, {"price_types": pts}))
 
 
+def handle_form_price_document(conn, payload, key, resp_q):
+    res = form_price_document(conn, payload, key)
+    resp_q.put((True, res))
+
+
 def handle_get_item_prices(conn, payload, key, resp_q):
     prices = get_item_prices_dict(conn, payload)
     resp_q.put((True, {"prices": prices}))
@@ -124,12 +131,12 @@ def handle_find_pogruzka(conn, payload, key, resp_q):
 
     dt_from = parse_query_datetime(date_from, False)
     if dt_from:
-        q_find.SetParameter("DateFrom", dt_from)
+        q_find.SetParameter("DateFrom", as_1c_date(dt_from))
         where_parts.append("П.Накладная.Дата >= &DateFrom")
 
     dt_to = parse_query_datetime(date_to, True)
     if dt_to:
-        q_find.SetParameter("DateTo", dt_to)
+        q_find.SetParameter("DateTo", as_1c_date(dt_to))
         where_parts.append("П.Накладная.Дата <= &DateTo")
 
     where_sql = f"ГДЕ {' И '.join(where_parts)}" if where_parts else ""
@@ -202,6 +209,7 @@ DOCUMENT_HANDLERS = {
     "resolve_nomenclature_batch": handle_resolve_nomenclature_batch,
     "search_nomenclature": handle_search_nomenclature,
     "get_all_price_types": handle_get_all_price_types,
+    "form_price_document": handle_form_price_document,
     "get_item_prices": handle_get_item_prices,
     "get_batch_item_prices": handle_get_batch_item_prices,
     "find_pogruzka": handle_find_pogruzka,

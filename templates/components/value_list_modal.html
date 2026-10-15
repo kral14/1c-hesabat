@@ -10,7 +10,7 @@
     <div class="settings-header" ondblclick="ValueListModal.toggleMaximize()">
       <div class="settings-header-title">
         <div class="settings-header-icon" style="background: #316ac5;">📋</div>
-        <span>Редактирование списка значений</span>
+        <span data-i18n="vl.title">Редактирование списка значений</span>
       </div>
       <div class="window-titlebar-controls">
         <button class="window-btn-sys" title="Böyüt / Bərpa et" onclick="ValueListModal.toggleMaximize()">□</button>
@@ -56,13 +56,13 @@
       <!-- Top Label, MatchAll & Toolbar (Screenshot 2 & 3) -->
       <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px; gap: 4px; flex-wrap: wrap;">
         <div style="display: flex; align-items: center; gap: 8px;">
-          <span style="font-size: 11px; color: #222; font-weight: bold; white-space: nowrap;">Список значений</span>
+          <span data-i18n="vl.list_title" style="font-size: 11px; color: #222; font-weight: bold; white-space: nowrap;">Список значений</span>
           
           <!-- Match All Checkbox (Hər ikisi/hamısı eyni sənəddə olsun - "И") -->
           <label style="display: inline-flex; align-items: center; gap: 4px; font-size: 11px; cursor: pointer; user-select: none; background: #eaf1fb; border: 1px solid #7f9db9; padding: 2px 6px; border-radius: 2px;"
                  title="Aktiv edildikdə sənəddə bu siyahıdakı BÜTÜN mallar eyni vaxtda olmalıdır (Məntiqi VƏ / И). Deaktiv olduqda ən azı biri olduqda tapır (Məntiqi VƏ YA / ИЛИ).">
             <input type="checkbox" id="vlMatchAllChk" onchange="ValueListModal.onMatchAllChange(this.checked)" style="cursor: pointer; margin: 0;">
-            <span style="font-weight: bold; color: #003399;">Все одновременно (И)</span>
+            <span data-i18n="vl.match_all" style="font-weight: bold; color: #003399;">Все одновременно (И)</span>
           </label>
         </div>
         
@@ -71,11 +71,11 @@
           <select id="vlSearchFieldSelect" class="select-1c" onchange="ValueListModal.onSearchScopeChange(this.value)" 
                   style="height: 22px; font-size: 11px; border: 1px solid #7f9db9; background: #ffffff !important; color: #111111 !important; cursor: pointer; padding: 0 4px; outline: none; margin-right: 4px;"
                   title="Axtarış sahəsi">
-            <option value="all" selected>Все видимые поля</option>
-            <option value="name">Наименование</option>
-            <option value="artikul">Артикул</option>
-            <option value="code">Код</option>
-            <option value="barcode">Штрихкод</option>
+            <option value="all" data-i18n="vl.scope_all" selected>Все видимые поля</option>
+            <option value="name" data-i18n="vl.scope_name">Наименование</option>
+            <option value="artikul" data-i18n="vl.scope_artikul">Артикул</option>
+            <option value="code" data-i18n="vl.scope_code">Код</option>
+            <option value="barcode" data-i18n="vl.scope_barcode">Штрихкод</option>
           </select>
 
           <!-- [+] Add Row (Yeni sətir əlavə et) -->
@@ -101,7 +101,7 @@
           
           <!-- "Подбор" Button (Screenshot 2) -->
           <button class="btn-1c primary" onclick="ValueListModal.openPodbor()" style="height: 20px; padding: 0 8px; margin-left: 4px; font-weight: bold;" title="Soraqçadan çoxsaylı seçim (Подбор)">
-            <span>Подбор</span>
+            <span data-i18n="vl.podbor">Подбор</span>
           </button>
         </div>
       </div>
@@ -112,11 +112,11 @@
           <thead style="background: #ece9d8; border-bottom: 1px solid #7f9db9; font-size: 10px; color: #333; position: sticky; top: 0; z-index: 5; user-select: none;">
             <tr>
               <th style="width: 28px; padding: 3px 2px; text-align: center; border-right: 1px solid #d0d0d0; font-weight: bold;">№</th>
-              <th style="width: 85px; padding: 3px 4px; text-align: left; border-right: 1px solid #d0d0d0; font-weight: bold;">Вид сравнения</th>
-              <th style="width: 75px; padding: 3px 4px; text-align: center; border-right: 1px solid #d0d0d0; font-weight: bold;">Код</th>
-              <th id="vlThArtikul" style="width: 85px; padding: 3px 4px; text-align: center; border-right: 1px solid #d0d0d0; font-weight: bold;">Артикул</th>
-              <th id="vlThBarcode" style="width: 105px; padding: 3px 4px; text-align: center; border-right: 1px solid #d0d0d0; font-weight: bold;">Штрихкод</th>
-              <th style="padding: 3px 6px; text-align: left; font-weight: bold;">Значение (Наименование)</th>
+              <th data-i18n="vl.col_comparison" style="width: 85px; padding: 3px 4px; text-align: left; border-right: 1px solid #d0d0d0; font-weight: bold;">Вид сравнения</th>
+              <th data-i18n="vl.col_code" style="width: 75px; padding: 3px 4px; text-align: center; border-right: 1px solid #d0d0d0; font-weight: bold;">Код</th>
+              <th id="vlThArtikul" data-i18n="vl.col_artikul" style="width: 85px; padding: 3px 4px; text-align: center; border-right: 1px solid #d0d0d0; font-weight: bold;">Артикул</th>
+              <th id="vlThBarcode" data-i18n="vl.col_barcode" style="width: 105px; padding: 3px 4px; text-align: center; border-right: 1px solid #d0d0d0; font-weight: bold;">Штрихкод</th>
+              <th data-i18n="vl.col_value" style="padding: 3px 6px; text-align: left; font-weight: bold;">Значение (Наименование)</th>
               <th style="width: 28px; padding: 3px 2px; text-align: center; font-weight: bold;">...</th>
             </tr>
           </thead>
@@ -133,13 +133,13 @@
     <!-- Footer: OK / Отмена / Справка (Screenshot 2) -->
     <div class="settings-footer" style="justify-content: flex-end; gap: 6px; padding: 6px 10px;">
       <button class="btn-1c primary" onclick="ValueListModal.applyAndClose()" style="min-width: 65px; height: 23px;">
-        <span>OK</span>
+        <span data-i18n="common.ok">OK</span>
       </button>
       <button class="btn-1c" onclick="ValueListModal.close()" style="min-width: 65px; height: 23px;">
-        <span>Отмена</span>
+        <span data-i18n="common.cancel">Отмена</span>
       </button>
       <button class="btn-1c" onclick="alert('Dəyərlər siyahısı redaktoru:\n\n- [Подбор] düyməsinə basaraq soraqçadan qovluq və ya malları siyahıya əlavə edin.\n- Qovluq (məs: 01 MONDELEZ) seçildikdə hesabat onun daxilindəki bütün malları da əhatə edəcəkdir.')" style="min-width: 65px; height: 23px;">
-        <span>Справка</span>
+        <span data-i18n="common.help">Справка</span>
       </button>
     </div>
 

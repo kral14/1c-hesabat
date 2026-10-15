@@ -1,0 +1,258 @@
+<!-- ========================================================
+     1C:ENTERPRISE - COUNTERPARTIES DIRECTORY & AUDIT JOURNAL WINDOW
+     templates/components/kontragenty_journal_window.html
+     ======================================================== -->
+
+<div class="mdi-window" id="kontragentyJournalWindow" style="display: none; top: 25px; left: 45px; width: 980px; height: 620px; min-width: 720px; min-height: 440px; z-index: 120; box-shadow: 0 8px 32px rgba(0,0,0,0.35);" onmousedown="MdiManager.activateWindow('kontragentyJournalWindow')">
+  
+  <!-- Window Header (1C Style) -->
+  <div class="mdi-window-header" ondblclick="MdiManager.toggleMaximize('kontragentyJournalWindow')">
+    <div class="mdi-win-title-left" style="display: flex; align-items: center; gap: 6px;">
+      <span class="mdi-win-icon" style="font-size: 13px;">👥</span>
+      <span class="mdi-win-title-text" data-i18n="kj.title" style="font-weight: bold; font-family: Tahoma, 'MS Sans Serif', sans-serif; font-size: 11px;">Контрагенты (Справочник и аудит полноты реквизитов)</span>
+      <span id="kjTotalCountBadge" style="background: #2563eb; color: #fff; padding: 1px 6px; border-radius: 2px; font-size: 10px; font-weight: bold; margin-left: 6px;">...</span>
+    </div>
+    <div class="mdi-win-controls">
+      <button class="mdi-win-btn mdi-win-btn-min" title="Qatla" onclick="MdiManager.minimizeWindow('kontragentyJournalWindow')" onmousedown="event.stopPropagation()">_</button>
+      <button class="mdi-win-btn mdi-win-btn-max" title="Böyüt / Bərpa et" onclick="MdiManager.toggleMaximize('kontragentyJournalWindow')" onmousedown="event.stopPropagation()">□</button>
+      <button class="mdi-win-btn mdi-win-btn-close" title="Bağla" onclick="KontragentyJournal.close()" onmousedown="event.stopPropagation()">✕</button>
+    </div>
+  </div>
+
+  <!-- Window Body -->
+  <div class="mdi-window-body" style="background-color: #f0eee3; display: flex; flex-direction: column; height: 100%; overflow: hidden; font-family: Tahoma, 'MS Sans Serif', Arial, sans-serif; font-size: 11px; color: #000;">
+
+    <!-- 1. Command Bar & Quick Tools -->
+    <div style="padding: 4px 8px; background: #e5e2cf; border-bottom: 1px solid #b0af9f; display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; user-select: none;">
+      
+      <!-- Left: Actions -->
+      <div style="display: flex; align-items: center; gap: 6px;">
+        
+        <!-- Create new -->
+        <button type="button" class="btn-1c btn-1c-primary" onclick="KontragentCard.open()" title="Создать нового контрагента (Ins)" style="height: 23px; padding: 0 10px; font-weight: bold; background: linear-gradient(to bottom, #ffea88, #d8a020); border: 1px solid #7c6817; color: #000; cursor: pointer; display: inline-flex; align-items: center; gap: 4px; font-size: 11px;">
+          <span>➕</span>
+          <span>Ins</span>
+        </button>
+
+        <!-- Edit / Open Card (F2) -->
+        <button type="button" class="btn-1c" onclick="KontragentyJournal.openCurrentCard()" title="Открыть карточку контрагента (F2)" style="height: 23px; padding: 0 8px; border: 1px solid #7f9db9; background: #e0dfd5; cursor: pointer; display: inline-flex; align-items: center; gap: 4px; font-size: 11px; font-weight: bold; color: #002060;">
+          <span>🔍</span>
+          <span>F2</span>
+        </button>
+
+        <!-- Refresh -->
+        <button type="button" class="btn-1c" onclick="KontragentyJournal.reload()" title="Обновить список (F5)" style="height: 23px; padding: 0 8px; border: 1px solid #7f9db9; background: #e0dfd5; cursor: pointer; display: inline-flex; align-items: center; gap: 4px; font-size: 11px;">
+          <span>🔄</span>
+          <span data-i18n="common.refresh">Обновить</span>
+        </button>
+
+        <div style="width: 1px; height: 18px; background: #b0af9f; margin: 0 2px;"></div>
+
+        <!-- 1C Standart Filtr Sistemi (Bizim Filtr: 4 Core Filter Actions from 1C 8.3) -->
+        <!-- 1. Настройка списка (Отбор и сортировка)... -->
+        <button type="button" class="btn-1c" id="kjBtnFilter" onclick="KontragentyJournal.openFilterModal()" data-i18n-title="kj.btn_filter_title" title="Настройка списка (Отбор и сортировка)..." style="height: 23px; padding: 0 6px; display: inline-flex; align-items: center; justify-content: center; cursor: pointer; background: #ffffff; position: relative;">
+          <svg width="15" height="15" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <rect x="2" y="3" width="8" height="11" rx="1" fill="#f8fafc" stroke="#78909c" stroke-width="1"/>
+            <line x1="4" y1="6" x2="8" y2="6" stroke="#90a4ae" stroke-width="0.8"/>
+            <line x1="4" y1="8" x2="8" y2="8" stroke="#90a4ae" stroke-width="0.8"/>
+            <line x1="4" y1="10" x2="7" y2="10" stroke="#90a4ae" stroke-width="0.8"/>
+            <path d="M5.5 2.5 L14.5 2.5 L10.8 7.5 L10.8 13 L8.8 14 L8.8 7.5 Z" fill="#cfd8dc" stroke="#546e7a" stroke-width="1" stroke-linejoin="round"/>
+            <path d="M13.5 10 L13.5 14 M11.5 12.5 L13.5 14.5 L15.5 12.5" stroke="#37474f" stroke-width="1" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+          <!-- Criteria Count Badge -->
+          <span id="kjFilterCountBadge" style="display: none; position: absolute; top: -5px; right: -5px; background: #c62828; color: #ffffff; font-size: 9px; font-weight: bold; border-radius: 8px; padding: 0 4px; min-width: 13px; height: 13px; line-height: 13px; text-align: center; box-shadow: 0 1px 3px rgba(0,0,0,0.35); border: 1px solid #ffffff; z-index: 2;">0</span>
+        </button>
+
+        <!-- 2. Отбор по значению в текущей колонке (F7) -->
+        <button type="button" class="btn-1c" id="kjBtnQuickFilter" onclick="KontragentyJournal.filterByCurrentValue()" data-i18n-title="kj.btn_quick_filter_title" title="Отбор по значению в текущей колонке (F7)" style="height: 23px; padding: 0 6px; display: inline-flex; align-items: center; justify-content: center; cursor: pointer; background: #ffffff;">
+          <svg width="15" height="15" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M2.5 2.5 L13.5 2.5 L9.5 7.5 L9.5 13 L7.5 14 L7.5 7.5 Z" fill="#cfd8dc" stroke="#546e7a" stroke-width="1" stroke-linejoin="round"/>
+            <rect x="8.5" y="8.5" width="6.5" height="6.5" rx="1" fill="#e1f5fe" stroke="#0288d1" stroke-width="1"/>
+            <path d="M9.8 11.8 L11.2 13.2 L14 10" stroke="#0277bd" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </button>
+
+        <!-- 3. Снять отбор по текущей колонке (Shift+F7) -->
+        <button type="button" class="btn-1c" id="kjBtnRemoveColumnFilter" onclick="KontragentyJournal.removeFilterByCurrentColumn()" data-i18n-title="kj.btn_remove_col_filter_title" title="Снять отбор по текущей колонке (Shift+F7)" style="height: 23px; padding: 0 6px; display: inline-flex; align-items: center; justify-content: center; cursor: default; background: #ffffff; opacity: 0.4;" disabled>
+          <svg width="15" height="15" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M2.5 2.5 L13.5 2.5 L9.5 7.5 L9.5 13 L7.5 14 L7.5 7.5 Z" fill="#cfd8dc" stroke="#546e7a" stroke-width="1" stroke-linejoin="round"/>
+            <rect x="8" y="9.5" width="7" height="4.5" rx="1" fill="#ffebee" stroke="#c62828" stroke-width="1"/>
+            <line x1="9.5" y1="11.7" x2="13.5" y2="11.7" stroke="#c62828" stroke-width="1.8" stroke-linecap="round"/>
+          </svg>
+        </button>
+
+        <!-- 4. Отключить все отборы -->
+        <button type="button" class="btn-1c" id="kjBtnClearFilter" onclick="KontragentyJournal.clearFilter()" data-i18n-title="kj.btn_clear_filter_title" title="Отключить все отборы" style="height: 23px; padding: 0 6px; display: inline-flex; align-items: center; justify-content: center; cursor: default; background: #ffffff; opacity: 0.4;" disabled>
+          <svg width="15" height="15" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M2.5 2.5 L13.5 2.5 L9.5 7.5 L9.5 13 L7.5 14 L7.5 7.5 Z" fill="#cfd8dc" stroke="#546e7a" stroke-width="1" stroke-linejoin="round"/>
+            <line x1="9.5" y1="9.5" x2="14.5" y2="14.5" stroke="#d32f2f" stroke-width="2.2" stroke-linecap="round"/>
+            <line x1="14.5" y1="9.5" x2="9.5" y2="14.5" stroke="#d32f2f" stroke-width="2.2" stroke-linecap="round"/>
+          </svg>
+        </button>
+
+        <div style="width: 1px; height: 18px; background: #b0af9f; margin: 0 2px;"></div>
+
+        <!-- Excel Export -->
+        <button type="button" class="btn-1c" onclick="KontragentyJournal.exportExcel()" title="Экспортировать текущий список в Excel" style="height: 23px; padding: 0 8px; border: 1px solid #7f9db9; background: #e0dfd5; cursor: pointer; display: inline-flex; align-items: center; gap: 4px; font-size: 11px;">
+          <span>📊</span>
+          <span data-i18n="table.menu_export">Экспорт</span>
+        </button>
+
+        <!-- Columns Settings Button (1C Настройка списка / Колонки) -->
+        <button type="button" class="btn-1c" id="kjBtnColumnsSettings" onclick="KontragentyJournal.openColumnSettings()" data-i18n-title="kj.btn_columns_title" title="Настройка списка (колонки, видимость, порядок, ширина)..." style="height: 23px; padding: 0 8px; border: 1px solid #7f9db9; background: #ffffff; cursor: pointer; display: inline-flex; align-items: center; gap: 4px; font-size: 11px;">
+          <span>⚙️</span>
+          <span data-i18n="kj.btn_columns">Колонки...</span>
+        </button>
+
+      </div>
+
+      <!-- Right: Universal C1SearchBox ("Найти") -->
+      <div id="kjSearchWrap" class="c1-search-box-wrap" style="position: relative; display: flex; align-items: center; width: 280px; box-sizing: border-box;">
+        <input type="text" id="kjSearchInput" class="input-1c c1-search-input" data-i18n-placeholder="kj.search_placeholder" placeholder="Поиск по названию, коду, VÖEN..."
+               style="width: 100%; height: 23px; padding: 2px 26px 2px 8px; font-size: 11px; border: 1px solid #7f9db9; border-radius: 2px; background: #ffffff; box-sizing: border-box; outline: none;"
+               autocomplete="off">
+        <button type="button" class="c1-search-action-btn" id="kjSearchActionBtn" title="Найти (Enter) / Очистить (Ctrl+Q)"
+                style="position: absolute; right: 3px; top: 50%; transform: translateY(-50%); width: 20px; height: 19px; border: none; background: transparent; cursor: pointer; display: flex; align-items: center; justify-content: center; padding: 0; outline: none;">
+          <svg class="c1-icon-search" width="13" height="13" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <circle cx="6.5" cy="6.5" r="4.5" stroke="#004080" stroke-width="1.8"/>
+            <line x1="10" y1="10" x2="14.5" y2="14.5" stroke="#004080" stroke-width="2" stroke-linecap="round"/>
+          </svg>
+          <span class="c1-icon-clear" style="display: none; color: #c62828; font-weight: bold; font-size: 13px; line-height: 13px;">✕</span>
+        </button>
+      </div>
+
+    </div>
+
+    <!-- 1C Aktiv Filtrlər Zolağı (Active Filters Bar / Chips) -->
+    <div id="kjActiveFiltersBar" style="display: none; background: #fffde7; border-bottom: 1px solid #ffe082; padding: 3px 8px; font-size: 11px; align-items: center; gap: 6px; flex-wrap: wrap; user-select: none;">
+      <span style="color: #666; font-weight: bold; font-size: 10px; display: inline-flex; align-items: center; gap: 3px;">
+        <span>🏷️</span>
+        <span data-i18n="kj.active_filters">Активные отборы:</span>
+      </span>
+      <div id="kjActiveFilterChipsList" style="display: inline-flex; gap: 4px; flex-wrap: wrap; align-items: center;"></div>
+      <button type="button" class="btn-1c" onclick="KontragentyJournal.clearFilter()" title="Снять все установленные отборы" style="height: 19px; padding: 0 6px; font-size: 10px; margin-left: auto; color: #b91c1c; border: 1px solid #fca5a5; background: #fff; cursor: pointer; border-radius: 2px;">
+        ✕
+      </button>
+    </div>
+
+    <!-- 2. Quick Audit Filter Chips Bar (Sürətli Audit Süzgəcləri) -->
+    <div style="padding: 6px 10px; background: #f8fafc; border-bottom: 1px solid #cbd5e1; display: flex; align-items: center; gap: 6px; flex-wrap: wrap; user-select: none;">
+      
+      <!-- All -->
+      <button type="button" class="kj-chip active" id="kjChip-all" onclick="KontragentyJournal.setFilter('all')">
+        <span data-i18n="kj.chip_all">🔘 Все контрагенты</span>
+        <span class="kj-chip-cnt" id="kjCnt-total">...</span>
+      </button>
+
+      <!-- Missing INN / VÖEN -->
+      <button type="button" class="kj-chip kj-chip-warn" id="kjChip-no_inn" onclick="KontragentyJournal.setFilter('no_inn')">
+        <span data-i18n="kj.chip_no_inn">⚠️ Без ИНН</span>
+        <span class="kj-chip-cnt" id="kjCnt-no_inn">...</span>
+      </button>
+
+      <!-- Has INN -->
+      <button type="button" class="kj-chip kj-chip-ok" id="kjChip-has_inn" onclick="KontragentyJournal.setFilter('has_inn')">
+        <span data-i18n="kj.chip_has_inn">✔ С ИНН</span>
+        <span class="kj-chip-cnt" id="kjCnt-has_inn">...</span>
+      </button>
+
+      <!-- Missing Contract -->
+      <button type="button" class="kj-chip kj-chip-warn" id="kjChip-no_contract" onclick="KontragentyJournal.setFilter('no_contract')">
+        <span data-i18n="kj.chip_no_contract">⚠️ Без договора</span>
+        <span class="kj-chip-cnt" id="kjCnt-no_contract">...</span>
+      </button>
+
+      <!-- Missing Bank Account -->
+      <button type="button" class="kj-chip kj-chip-warn" id="kjChip-no_bank" onclick="KontragentyJournal.setFilter('no_bank')">
+        <span data-i18n="kj.chip_no_bank">⚠️ Без банк. счета</span>
+        <span class="kj-chip-cnt" id="kjCnt-no_bank">...</span>
+      </button>
+
+    </div>
+
+    <!-- 3. Table of Counterparties (Universal C1TableComponent) -->
+    <div id="kjTableContainer" style="flex: 1; overflow: hidden; position: relative;">
+      <!-- Populated dynamically via C1TableComponent -->
+      
+      <!-- Loading overlay -->
+      <div id="kjLoadingOverlay" style="display: none; position: absolute; inset: 0; background: rgba(255,255,255,0.7); align-items: center; justify-content: center; z-index: 10;">
+        <div style="background: #fff; border: 1px solid #7f9db9; padding: 12px 20px; box-shadow: 0 4px 16px rgba(0,0,0,0.2); font-weight: bold; color: #1e3a8a; display: flex; align-items: center; gap: 8px;">
+          <span>⏳</span> <span data-i18n="kj.loading">Загрузка данных контрагентов...</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- 4. Bottom Status & Navigation Bar -->
+    <div style="padding: 4px 10px; background: #e5e2cf; border-top: 1px solid #b0af9f; display: flex; align-items: center; justify-content: space-between; font-size: 10px; color: #444; user-select: none;">
+      <div style="display: flex; align-items: center; gap: 14px;">
+        <span><span data-i18n="kj.footer_showing">Отображено:</span> <strong id="kjCountShowing">0</strong> <span data-i18n="kj.footer_from">из</span> <strong id="kjCountTotal">0</strong></span>
+        <span>•</span>
+        <span style="color: #666;" data-i18n="kj.footer_hint">Двойной клик или <strong>F2</strong> открывает карточку контрагента</span>
+      </div>
+
+      <!-- Quick pagination buttons -->
+      <div style="display: flex; align-items: center; gap: 6px;">
+        <button type="button" class="btn-1c" onclick="KontragentyJournal.prevPage()" title="Предыдущая страница" style="height: 19px; padding: 0 6px; font-size: 10px; border: 1px solid #7f9db9; background: #fff; cursor: pointer;" data-i18n="kj.prev">◀ Назад</button>
+        <span id="kjPageIndicator" style="font-weight: bold; color: #111;">Стр. 1</span>
+        <button type="button" class="btn-1c" onclick="KontragentyJournal.nextPage()" title="Следующая страница" style="height: 19px; padding: 0 6px; font-size: 10px; border: 1px solid #7f9db9; background: #fff; cursor: pointer;" data-i18n="kj.next">Вперед ▶</button>
+      </div>
+    </div>
+
+  </div>
+
+</div>
+
+<!-- Chip styling -->
+<style>
+  .kj-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-size: 10px;
+    font-weight: bold;
+    cursor: pointer;
+    background: #e2e8f0;
+    color: #334155;
+    border: 1px solid #cbd5e1;
+    transition: all 0.15s ease;
+  }
+  .kj-chip:hover {
+    background: #cbd5e1;
+  }
+  .kj-chip.active {
+    background: #1e40af !important;
+    color: #ffffff !important;
+    border-color: #1e3a8a !important;
+  }
+  .kj-chip-warn {
+    background: #fef3c7;
+    color: #92400e;
+    border-color: #fde68a;
+  }
+  .kj-chip-warn.active {
+    background: #d97706 !important;
+    color: #ffffff !important;
+    border-color: #b45309 !important;
+  }
+  .kj-chip-ok {
+    background: #dcfce7;
+    color: #166534;
+    border-color: #bbf7d0;
+  }
+  .kj-chip-ok.active {
+    background: #15803d !important;
+    color: #ffffff !important;
+    border-color: #14532d !important;
+  }
+  .kj-chip-cnt {
+    background: rgba(0,0,0,0.08);
+    padding: 0 4px;
+    border-radius: 8px;
+    font-size: 9px;
+  }
+  .kj-chip.active .kj-chip-cnt {
+    background: rgba(255,255,255,0.25);
+  }
+</style>

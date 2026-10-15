@@ -8,6 +8,8 @@ function element(id) {
 }
 const context = vm.createContext({console,Map,Set,Date,Promise,JSON,Array,Number,Error,alert:msg=>{throw Error(msg)},window:{}, AbortController, setTimeout:()=>1,clearTimeout(){}, document:{getElementById:element,addEventListener(){}},localStorage:{getItem(){return null;},setItem(){}}, SessionManager:{getCredentials(){return {server:'Test1C',ref:'Aztrade_test3'}}}});
 context.window = context;
+context.addEventListener=()=>{};
+vm.runInContext(fs.readFileSync('static/js/c1_dates.js','utf8'),context);
 vm.runInContext(fs.readFileSync('static/js/form_action.js','utf8'),context);
 vm.runInContext(fs.readFileSync('static/js/audit_journal.js','utf8')+';globalThis.audit=AuditJournal;',context);
 vm.runInContext(fs.readFileSync('static/js/c1_filter_component.js','utf8')+';globalThis.filter=C1FilterComponent;',context);
@@ -32,7 +34,7 @@ vm.runInContext(fs.readFileSync('static/js/c1_filter_component.js','utf8')+';glo
   assert.equal(context.FormAction.busy.size,0);
   const f=context.filter;let callbacks=0;
   f.closeOpDropdown=()=>{};f.hideFilterAutocomplete=()=>{};
-  f.explicitGenerate=true;f.onApplyCallback=()=>callbacks++;f.tempFilterCriteria=[{fieldKey:'number',value:'1'}];
+  f.explicitGenerate=true;f.onApplyCallback=()=>callbacks++;f.availableFields=[{key:'number',type:'text'}];f.isFieldInCurrentDoc=()=>true;element('ujFilterValInput_0').value='C0000476122';f.tempFilterCriteria=[{fieldKey:'number',operator:'Равно',value:'C0000476122'}];
   f.close();assert.equal(callbacks,0,'cancel must not generate');
   f.saveActiveFiltersToStorage=()=>{};
   f.finishFilterEditing();assert.equal(callbacks,1,'explicit confirm must call once');

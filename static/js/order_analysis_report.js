@@ -75,21 +75,24 @@ window.OrderAnalysisReport = (function () {
     if (s1) s1.value = "ЗаказПокупателяАнализ";
     if (s2) s2.value = "ЗаказПокупателяАнализ";
 
-    // Restore remembered period if available
-    const rem = (window.PeriodPicker && typeof PeriodPicker.getRememberedPeriod === "function")
-      ? PeriodPicker.getRememberedPeriod()
-      : null;
+    // Restore remembered period for order_analysis if available
+    const rem = (window.C1PeriodWidget && typeof C1PeriodWidget.getStoredPeriod === "function")
+      ? C1PeriodWidget.getStoredPeriod("order_analysis")
+      : (window.PeriodPicker && typeof PeriodPicker.getRememberedPeriod === "function" ? PeriodPicker.getRememberedPeriod("order_analysis") : null);
     const oaStart = document.getElementById("oaStartDateInput");
     const oaEnd = document.getElementById("oaEndDateInput");
-    const topStart = document.getElementById("topStartDateInput");
-    const topEnd = document.getElementById("topEndDateInput");
 
     if (rem && (rem.startDate || rem.endDate)) {
       if (oaStart && rem.startDate) oaStart.value = rem.startDate;
       if (oaEnd && rem.endDate) oaEnd.value = rem.endDate;
     } else {
-      if (topStart && oaStart && (!oaStart.value || oaStart.value === "")) oaStart.value = topStart.value;
-      if (topEnd && oaEnd && (!oaEnd.value || oaEnd.value === "")) oaEnd.value = topEnd.value;
+      const def = (window.C1PeriodWidget && typeof C1PeriodWidget.getDefaultPeriod === "function")
+        ? C1PeriodWidget.getDefaultPeriod()
+        : null;
+      if (def) {
+        if (oaStart && !oaStart.value) oaStart.value = def.startDate;
+        if (oaEnd && !oaEnd.value) oaEnd.value = def.endDate;
+      }
     }
     updatePeriodLabel();
   }
@@ -708,8 +711,8 @@ window.OrderAnalysisReport = (function () {
       if (window.OrderAnalysisSettings && typeof OrderAnalysisSettings.updatePeriodLabel === "function") {
         OrderAnalysisSettings.updatePeriodLabel();
       }
-      if (window.PeriodPicker && typeof PeriodPicker.saveExplicitPeriod === "function") {
-        PeriodPicker.saveExplicitPeriod(start, end);
+      if (window.C1PeriodWidget && typeof C1PeriodWidget.setStoredPeriod === "function") {
+        C1PeriodWidget.setStoredPeriod("order_analysis", start, end);
       }
     };
 
@@ -717,12 +720,14 @@ window.OrderAnalysisReport = (function () {
       C1PeriodWidget.open({
         startDate: currStart,
         endDate: currEnd,
+        contextKey: "order_analysis",
         onSelect: handleSelect
       });
     } else if (window.PeriodPicker && typeof PeriodPicker.open === "function") {
       PeriodPicker.open({
         startDate: currStart,
         endDate: currEnd,
+        contextKey: "order_analysis",
         onSelect: handleSelect
       });
     }

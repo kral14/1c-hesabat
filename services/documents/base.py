@@ -3,6 +3,9 @@
 services/documents/base.py
 Shared utility functions for 1C document query handlers.
 """
+from services.onec_dates import as_1c_date, parse_calendar_date, format_calendar_date
+from services.filter_policy import validate_filters, number_values
+from services.filter_sql import text_condition
 import datetime
 import re
 
@@ -24,53 +27,11 @@ def narrow_search_to_column(payload, where_parts, field_map, query=None):
             return
 
 def format_1c_datetime(raw_date):
-    if not raw_date:
-        return ""
-    if hasattr(raw_date, "strftime"):
-        try:
-            return raw_date.strftime("%d.%m.%Y %H:%M:%S")
-        except Exception:
-            pass
-    s = str(raw_date).strip()
-    m_iso = re.match(r"^(\d{4})[-/.](\d{1,2})[-/.](\d{1,2})(?:[T\s](\d{1,2}):(\d{1,2}):(\d{1,2}))?", s)
-    if m_iso:
-        y, mo, d, hh, mm, ss = m_iso.groups()
-        return f"{int(d):02d}.{int(mo):02d}.{int(y):04d} {int(hh or 0):02d}:{int(mm or 0):02d}:{int(ss or 0):02d}"
-    m_dot = re.match(r"^(\d{1,2})\.(\d{1,2})\.(\d{4})(?:\s+(\d{1,2}):(\d{1,2}):(\d{1,2}))?", s)
-    if m_dot:
-        d, mo, y, hh, mm, ss = m_dot.groups()
-        return f"{int(d):02d}.{int(mo):02d}.{int(y):04d} {int(hh or 0):02d}:{int(mm or 0):02d}:{int(ss or 0):02d}"
-    return s[:19]
+    return format_calendar_date(raw_date)
 
 
 def parse_query_datetime(val, is_end=False):
-    if not val:
-        return None
-    if isinstance(val, datetime.datetime):
-        return val
-    val = str(val).strip().replace("T", " ")
-    parts = val.split(" ")
-    d_part = parts[0]
-    t_part = parts[1] if len(parts) > 1 else ""
-
-    if "." in d_part:
-        d, m, y = map(int, d_part.split(".")[:3])
-    elif "-" in d_part:
-        y, m, d = map(int, d_part.split("-")[:3])
-    else:
-        return None
-
-    if t_part:
-        t_splits = t_part.split(":")
-        hh = int(t_splits[0]) if len(t_splits) > 0 else (23 if is_end else 0)
-        mm = int(t_splits[1]) if len(t_splits) > 1 else (59 if is_end else 0)
-        ss = int(t_splits[2]) if len(t_splits) > 2 else (59 if is_end else 0)
-    else:
-        hh = 23 if is_end else 0
-        mm = 59 if is_end else 0
-        ss = 59 if is_end else 0
-
-    return datetime.datetime(y, m, d, hh, mm, ss)
+    return parse_calendar_date(val, is_end)
 
 
 def build_filter_conditions(filters, q_doc, where_parts, debug_params, field_map=None):
@@ -80,6 +41,8 @@ def build_filter_conditions(filters, q_doc, where_parts, debug_params, field_map
     """
     if not filters or not isinstance(filters, list):
         return
+
+    validate_filters(filters)
 
     mapping = {
         "number": "Т.Номер",
@@ -96,7 +59,7 @@ def build_filter_conditions(filters, q_doc, where_parts, debug_params, field_map
         "responsible": "Т.Ответственный.Наименование",
         "comment": "Т.Комментарий",
         "marshrut": "Т.Маршрут",
-        "voditel": "ПРЕДСТАВЛЕНИЕ(Т.Водитель)"
+        "voditel": "Т.Водитель.Наименование"
     }
     if field_map:
         mapping.update(field_map)
@@ -131,88 +94,77 @@ def build_filter_conditions(filters, q_doc, where_parts, debug_params, field_map
                 link_field = "ТТ.Ссылка"
 
             if f_op in ["Заполнено", "Не заполнено"]:
-                cond = f"Т.Ссылка В (ВЫБРАТЬ РАЗЛИЧНЫЕ {link_field} ИЗ {subquery_from} ГДЕ ТТ.Номенклатура ЕСТЬ НЕ NULL)"
+                cond = f"Т.Ссылка В (ВЫБРАТЬ {link_field} ИЗ {subquery_from} ГДЕ ТТ.Номенклатура <> ЗНАЧЕНИЕ(Справочник.Номенклатура.ПустаяСсылка))"
                 where_parts.append(cond if f_op == "Заполнено" else f"НЕ ({cond})")
                 continue
+            positive_op = {"Не равно": "Равно", "Не содержит": "Содержит", "Не в списке": "В списке"}.get(f_op, f_op)
+            structured = crit.get('structuredFilter') or {}
+            entries = structured.get('items') if positive_op in ('В списке', 'В группе из списка') else None
+            if not entries:
+                tokens = re.split(r'[,;\n]+', str(f_val)) if positive_op in ('В списке', 'В группе из списка') else [f_val]
+                entries = [{'value': str(v).strip(), 'comp': 'contains' if positive_op == 'Содержит' else 'equal'} for v in tokens if str(v).strip()]
+            document_matches = []
+            for token_index, entry in enumerate(entries):
+                value = str(entry.get('value') or '').strip()
+                bracket = re.match(r'^\[([^\]]+)\]\s*(.*)$', value)
+                token_op = 'Содержит' if entry.get('comp') == 'contains' else ('Начинается с' if positive_op == 'Начинается с' else 'Равно')
+                fields = [('Код', bracket[1])] if bracket and token_op == 'Равно' else [(name, value) for name in ('Наименование', 'Код', 'Артикул')]
+                conditions = [text_condition(q_doc, f'ТТ.Номенклатура.{name}', {'operator': token_op, 'value': token}, f'{param_key}_{token_index}_{i}', debug_params) for i, (name, token) in enumerate(fields)]
+                document_matches.append(f"Т.Ссылка В (ВЫБРАТЬ {link_field} ИЗ {subquery_from} ГДЕ ({' ИЛИ '.join(conditions)}))")
+            if not document_matches: raise ValueError('Məhsul filtrinin dəyərini daxil edin')
+            join = ' И ' if structured.get('matchAll') else ' ИЛИ '
+            condition = '(' + join.join(document_matches) + ')'
+            where_parts.append('НЕ ' + condition if f_op in ('Не равно', 'Не содержит', 'Не в списке') else condition)
+            continue
 
-            if f_val is None or str(f_val).strip() == "":
+        if f_field == "vms_status":
+            expression = 'ЕСТЬNULL(ВМС.СтатусВМС, ЗНАЧЕНИЕ(Перечисление.СтатусыВМС.ПустаяСсылка))'
+            empty = 'ЗНАЧЕНИЕ(Перечисление.СтатусыВМС.ПустаяСсылка)'
+            if f_op in ('Заполнено', 'Не заполнено'):
+                where_parts.append(f'{expression} {"<>" if f_op == "Заполнено" else "="} {empty}')
                 continue
-            val_str = str(f_val).strip()
-
-            clean_search_val = val_str.strip()
-            if clean_search_val.endswith("..."):
-                clean_search_val = clean_search_val[:-3].strip()
-
-            c_part = ""
-            n_part = ""
-            m_code = re.match(r"^\[([^\]]+)\]\s*(.*)$", clean_search_val)
-            if m_code:
-                c_part = m_code.group(1).strip()
-                n_part = m_code.group(2).strip()
-
-            if f_op in ["Равно", "Содержит"]:
-                if c_part and n_part:
-                    q_doc.SetParameter(param_key, f"%{n_part}%")
-                    p_code_key = f"{param_key}_code"
-                    q_doc.SetParameter(p_code_key, f"%{c_part}%")
-                    debug_params[param_key] = f"%{n_part}%"
-                    debug_params[p_code_key] = f"%{c_part}%"
-                    nom_cond = f"(ТТ.Номенклатура.Наименование ПОДОБНО &{param_key} ИЛИ ТТ.Номенклатура.Код ПОДОБНО &{p_code_key} ИЛИ ТТ.Номенклатура.Артикул ПОДОБНО &{param_key})"
-                else:
-                    q_doc.SetParameter(param_key, f"%{clean_search_val}%")
-                    debug_params[param_key] = f"%{clean_search_val}%"
-                    nom_cond = f"(ТТ.Номенклатура.Наименование ПОДОБНО &{param_key} ИЛИ ТТ.Номенклатура.Код ПОДОБНО &{param_key} ИЛИ ТТ.Номенклатура.Артикул ПОДОБНО &{param_key})"
-                where_parts.append(f"Т.Ссылка В (ВЫБРАТЬ РАЗЛИЧНЫЕ {link_field} ИЗ {subquery_from} ГДЕ {nom_cond})")
-            elif f_op == "Не равно":
-                q_doc.SetParameter(param_key, f"%{clean_search_val}%")
-                debug_params[param_key] = f"%{clean_search_val}%"
-                nom_cond = f"(ТТ.Номенклатура.Наименование ПОДОБНО &{param_key} ИЛИ ТТ.Номенклатура.Код ПОДОБНО &{param_key})"
-                where_parts.append(f"НЕ (Т.Ссылка В (ВЫБРАТЬ РАЗЛИЧНЫЕ {link_field} ИЗ {subquery_from} ГДЕ {nom_cond}))")
-            elif f_op == "Не содержит":
-                q_doc.SetParameter(param_key, f"%{val_str}%")
-                debug_params[param_key] = f"%{val_str}%"
-                nom_cond = f"(ТТ.Номенклатура.Наименование ПОДОБНО &{param_key} ИЛИ ТТ.Номенклатура.Код ПОДОБНО &{param_key} ИЛИ ТТ.Номенклатура.Артикул ПОДОБНО &{param_key})"
-                where_parts.append(f"НЕ (Т.Ссылка В (ВЫБРАТЬ РАЗЛИЧНЫЕ {link_field} ИЗ {subquery_from} ГДЕ {nom_cond}))")
-            elif f_op == "Начинается с":
-                q_doc.SetParameter(param_key, f"{val_str}%")
-                debug_params[param_key] = f"{val_str}%"
-                nom_cond = f"(ТТ.Номенклатура.Наименование ПОДОБНО &{param_key} ИЛИ ТТ.Номенклатура.Код ПОДОБНО &{param_key})"
-                where_parts.append(f"Т.Ссылка В (ВЫБРАТЬ РАЗЛИЧНЫЕ {link_field} ИЗ {subquery_from} ГДЕ {nom_cond})")
-            elif f_op in ["В списке", "Не в списке", "В группе из списка"]:
-                raw_tokens = re.split(r"[,;]+", val_str)
-                tokens = [t.strip() for t in raw_tokens if t.strip()]
-                if tokens:
-                    tok_conds = []
-                    for t_i, tok in enumerate(tokens):
-                        p_tok = f"{param_key}_tok_{t_i}"
-                        q_doc.SetParameter(p_tok, f"%{tok}%")
-                        debug_params[p_tok] = f"%{tok}%"
-                        tok_conds.append(f"(ТТ.Номенклатура.Наименование ПОДОБНО &{p_tok} ИЛИ ТТ.Номенклатура.Код ПОДОБНО &{p_tok})")
-                    comb = " ИЛИ ".join(tok_conds)
-                    if f_op == "Не в списке":
-                        where_parts.append(f"НЕ (Т.Ссылка В (ВЫБРАТЬ РАЗЛИЧНЫЕ {link_field} ИЗ {subquery_from} ГДЕ {comb}))")
-                    else:
-                        where_parts.append(f"Т.Ссылка В (ВЫБРАТЬ РАЗЛИЧНЫЕ {link_field} ИЗ {subquery_from} ГДЕ {comb})")
-            else: # Содержит
-                q_doc.SetParameter(param_key, f"%{val_str}%")
-                debug_params[param_key] = f"%{val_str}%"
-                nom_cond = f"(ТТ.Номенклатура.Наименование ПОДОБНО &{param_key} ИЛИ ТТ.Номенклатура.Код ПОДОБНО &{param_key} ИЛИ ТТ.Номенклатура.Артикул ПОДОБНО &{param_key})"
-                where_parts.append(f"Т.Ссылка В (ВЫБРАТЬ РАЗЛИЧНЫЕ {link_field} ИЗ {subquery_from} ГДЕ {nom_cond})")
+            statuses = {'выгружен': 'Выгружен', 'подтвержденвмс': 'ПодтвержденВМС', 'естьрасхождение': 'ЕстьРасхождение'}
+            structured = crit.get('structuredFilter') or {}
+            values = [item.get('value', '') for item in structured.get('items', [])] if structured.get('items') else re.split(r'[,;\n]+', str(f_val))
+            literals = []
+            for value in values:
+                normalized = re.sub(r'[\s_]+', '', str(value).lower().replace('wms', 'вмс'))
+                name = statuses.get(normalized)
+                if not name: raise ValueError('WMS statusunu siyahıdan seçin: ' + str(value))
+                literals.append(f'{expression} = ЗНАЧЕНИЕ(Перечисление.СтатусыВМС.{name})')
+            if not literals: raise ValueError('WMS statusunu seçin')
+            condition = '(' + ' ИЛИ '.join(literals) + ')'
+            where_parts.append('НЕ ' + condition if f_op in ('Не равно', 'Не в списке') else condition)
             continue
 
         field_sql = mapping.get(f_field)
         if not field_sql:
-            print(f"[FILTER WARNING] Field '{f_field}' not in mapping, skipping.")
-            continue
+            raise ValueError(f'Filtr sahəsi dəstəklənmir: {f_field}')
 
         if "ПРЕДСТАВЛЕНИЕ" in field_sql and "ПОДСТРОКА" not in field_sql:
             field_sql = f"ПОДСТРОКА({field_sql}, 1, 150)"
 
         param_key = f"p_crit_{idx}"
 
+        if f_op.startswith('Интервал') and f_field in ('date', 'amount', 'realization_count'):
+            bounds = re.search(r'\((>=|>),\s*(<=|<)\)', f_op)
+            for name, comparison in [('valueFrom', bounds[1]), ('valueTo', bounds[2])]:
+                raw = crit.get(name)
+                if raw is None or str(raw).strip() == '':
+                    continue
+                value = as_1c_date(parse_query_datetime(raw, name == 'valueTo')) if f_field == 'date' else float(str(raw).replace(',', '.'))
+                parameter = f'{param_key}_{name}'
+                q_doc.SetParameter(parameter, value)
+                debug_params[parameter] = value
+                where_parts.append(f'{field_sql} {comparison} &{parameter}')
+            continue
+
         if f_op in ["Заполнено", "Не заполнено"]:
-            cond = f"({field_sql} ЕСТЬ НЕ NULL И {field_sql} <> \"\")"
-            where_parts.append(cond if f_op == "Заполнено" else f"НЕ {cond}")
+            if f_field in ("date", "amount", "realization_count"):
+                empty = "ДАТАВРЕМЯ(1,1,1)" if f_field == "date" else "0"
+                where_parts.append(f'{field_sql} {"<>" if f_op == "Заполнено" else "="} {empty}')
+            else:
+                where_parts.append(text_condition(q_doc, field_sql, crit, param_key, debug_params))
             continue
 
         if f_val is None or str(f_val).strip() == "":
@@ -228,9 +180,9 @@ def build_filter_conditions(filters, q_doc, where_parts, debug_params, field_map
             continue
 
         if f_field == "date":
-            dt_val = parse_query_datetime(val_str, is_end=(f_op in ["Меньше или равно", "Больше или равно"]))
+            dt_val = parse_query_datetime(val_str, is_end=(f_op in ["Меньше", "Меньше или равно"]))
             if dt_val:
-                q_doc.SetParameter(param_key, dt_val)
+                q_doc.SetParameter(param_key, as_1c_date(dt_val))
                 debug_params[param_key] = dt_val
                 if f_op == "Равно":
                     where_parts.append(f"{field_sql} = &{param_key}")
@@ -246,7 +198,7 @@ def build_filter_conditions(filters, q_doc, where_parts, debug_params, field_map
                     where_parts.append(f"{field_sql} <= &{param_key}")
             continue
 
-        if f_field == "amount":
+        if f_field in ("amount", "realization_count"):
             try:
                 num_val = float(str(val_str).replace(",", ".").replace(" ", ""))
                 q_doc.SetParameter(param_key, num_val)
@@ -268,7 +220,21 @@ def build_filter_conditions(filters, q_doc, where_parts, debug_params, field_map
             continue
 
         # Text filters
+        if f_field != 'number':
+            where_parts.append(text_condition(q_doc, field_sql, crit, param_key, debug_params))
+            continue
         if f_op in ["В списке", "Не в списке", "В группе из списка"]:
+            if f_field == 'number':
+                tokens = number_values(crit)
+                conditions = []
+                for token_index, token in enumerate(tokens):
+                    parameter = f'{param_key}_tok_{token_index}'
+                    q_doc.SetParameter(parameter, token)
+                    debug_params[parameter] = token
+                    conditions.append(f'{field_sql} = &{parameter}')
+                combined = ' ИЛИ '.join(conditions)
+                where_parts.append(f'НЕ ({combined})' if f_op == 'Не в списке' else f'({combined})')
+                continue
             raw_tokens = re.split(r"[,;]+", val_str)
             tokens = [t.strip() for t in raw_tokens if t.strip()]
             if tokens:

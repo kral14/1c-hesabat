@@ -8,6 +8,21 @@ import subprocess
 ROOT = Path(__file__).resolve().parent
 if hasattr(sys.stdout, 'reconfigure'): sys.stdout.reconfigure(encoding='utf-8')
 if hasattr(sys.stderr, 'reconfigure'): sys.stderr.reconfigure(encoding='utf-8')
+
+def require_waitress():
+    import importlib
+    dependency_path = str(ROOT / '.runtime-deps')
+    if dependency_path not in sys.path:
+        sys.path.insert(0, dependency_path)
+    try:
+        return importlib.import_module('waitress').serve
+    except ModuleNotFoundError as error:
+        if error.name != 'waitress':
+            raise
+        raise RuntimeError(
+            'Waitress quraşdırılmayıb. Bu kompüterdə bir dəfə çalışdırın:\n'
+            f'"{sys.executable}" -m pip install -r "{ROOT / "requirements-runtime.txt"}"'
+        ) from error
 def source_files():
     return sorted(list(ROOT.glob('*.py')) + list((ROOT/'services').rglob('*.py')) + list((ROOT/'routes').rglob('*.py')))
 
@@ -48,8 +63,7 @@ def child_main(proxy):
         from app import app
         application, port, host = app, 5050, '127.0.0.1'
     import threading
-    sys.path.insert(0, str(ROOT/'.runtime-deps'))
-    from waitress import serve
+    serve = require_waitress()
     port = int(os.environ.get('REPORTER_PROXY_PORT' if proxy else 'REPORTER_API_PORT', port))
     listen = f'127.0.0.1:{port}'
     if not proxy and os.environ.get('REPORTER_LOOPBACK_ONLY') != '1':

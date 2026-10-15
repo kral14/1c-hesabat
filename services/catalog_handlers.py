@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+from services.onec_dates import as_1c_date
 import datetime
 from services.user_passwords import list_accounts, change_password
 from services.common import (
@@ -70,19 +71,35 @@ def handle_get_agents(conn, payload, key, resp_q):
 
 def handle_search_kontragents(conn, payload, key, resp_q):
     pat = payload.get("query", "").strip()
+    is_head = payload.get("is_head", False)
     q = conn.NewObject("Запрос")
-    q.Text = """
-    ВЫБРАТЬ ПЕРВЫЕ 25
-        Т.Наименование КАК Name,
-        Т.Код КАК Code
-    ИЗ
-        Справочник.Контрагенты КАК Т
-    ГДЕ
-        НЕ Т.ЭтоГруппа
-        И (Т.Наименование ПОДОБНО &Pattern ИЛИ Т.Код ПОДОБНО &Pattern)
-    УПОРЯДОЧИТЬ ПО
-        Т.Наименование
-    """
+    if is_head:
+        q.Text = """
+        ВЫБРАТЬ РАЗЛИЧНЫЕ ПЕРВЫЕ 25
+            Т.ГоловнойКонтрагент.Наименование КАК Name,
+            Т.ГоловнойКонтрагент.Код КАК Code
+        ИЗ
+            Справочник.Контрагенты КАК Т
+        ГДЕ
+            НЕ Т.ГоловнойКонтрагент.ПометкаУдаления
+            И Т.ГоловнойКонтрагент <> ЗНАЧЕНИЕ(Справочник.Контрагенты.ПустаяСсылка)
+            И (Т.ГоловнойКонтрагент.Наименование ПОДОБНО &Pattern ИЛИ Т.ГоловнойКонтрагент.Код ПОДОБНО &Pattern)
+        УПОРЯДОЧИТЬ ПО
+            Т.ГоловнойКонтрагент.Наименование
+        """
+    else:
+        q.Text = """
+        ВЫБРАТЬ ПЕРВЫЕ 25
+            Т.Наименование КАК Name,
+            Т.Код КАК Code
+        ИЗ
+            Справочник.Контрагенты КАК Т
+        ГДЕ
+            НЕ Т.ЭтоГруппа
+            И (Т.Наименование ПОДОБНО &Pattern ИЛИ Т.Код ПОДОБНО &Pattern)
+        УПОРЯДОЧИТЬ ПО
+            Т.Наименование
+        """
     q.SetParameter("Pattern", f"%{pat}%")
     res = q.Execute().Choose()
     k_list = []
@@ -828,7 +845,7 @@ def handle_get_portfolio_catalog_items(conn, payload, key, resp_q):
     if port_folders_obj:
         q.SetParameter("PortFolder", port_folders_obj)
     if selected_price_types:
-        q.SetParameter("CurrentDate", datetime.datetime.now())
+        q.SetParameter("CurrentDate", as_1c_date(datetime.datetime.now()))
         for p_k, p_v in price_params.items():
             q.SetParameter(p_k, p_v)
     if len(selected_nom_groups) == 1:

@@ -21,6 +21,42 @@ const C1FilterComponent = {
   activeFilterTab: "otbor",
   onApplyCallback: null,
   isServerFiltered: false,
+  _initialAvailableFields: [],
+  selectedAddAvailKey: null,
+
+  MASTER_1C_FIELDS: [
+    { key: "portfolio", label: "Портфель", type: "text", category: "Основные" },
+    { key: "kontragent", label: "Контрагент", type: "text", category: "Контрагенты" },
+    { key: "golovnoy_kontragent", label: "Головной контрагент", type: "text", category: "Контрагенты" },
+    { key: "kontragent_code", label: "Код контрагента", type: "text", category: "Контрагенты" },
+    { key: "contract", label: "Договор контрагента", type: "text", category: "Договоры" },
+    { key: "contract_price_type", label: "Тип цен", type: "text", category: "Договоры" },
+    { key: "organization", label: "Организация", type: "text", category: "Основные" },
+    { key: "division", label: "Подразделение", type: "text", category: "Основные" },
+    { key: "warehouse", label: "Склад", type: "text", category: "Склад" },
+    { key: "nomenclature", label: "Номенклатура", type: "text", category: "Номенклатура" },
+    { key: "artikul", label: "Артикул", type: "text", category: "Номенклатура" },
+    { key: "barcode", label: "Штрихкод", type: "text", category: "Номенклатура" },
+    { key: "responsible", label: "Ответственный", type: "text", category: "Основные" },
+    { key: "agent", label: "Агент", type: "text", category: "Основные" },
+    { key: "deal", label: "Сделка / Заказ", type: "text", category: "Документы" },
+    { key: "comment", label: "Комментарий", type: "text", category: "Основные" },
+    { key: "date", label: "Дата", type: "date", category: "Основные" },
+    { key: "number", label: "Номер", type: "text", category: "Основные" },
+    { key: "amount", label: "Сумма", type: "number", category: "Основные" },
+    { key: "vms_status", label: "Статус ВМС", type: "select", options: ["Выгружен", "Подтвержден WMS", "Есть расхождение"], category: "Логистика / WMS" },
+    { key: "wms_status", label: "Статус ВМС", type: "select", options: ["Выгружен", "Подтвержден WMS", "Есть расхождение"], category: "Логистика / WMS" },
+    { key: "pogruzka_marshrut", label: "Погрузка машины: Маршрут", type: "text", category: "Логистика / WMS" },
+    { key: "pogruzka_voditel", label: "Погрузка машины: Водитель", type: "text", category: "Логистика / WMS" },
+    { key: "pogruzka_duplicate", label: "Погрузка машины: есть дубликаты", type: "boolean", category: "Логистика / WMS" },
+    { key: "pogruzka_active_duplicate", label: "Погрузка машины: активные дубликаты", type: "boolean", category: "Логистика / WMS" },
+    { key: "marshrut", label: "Маршрут", type: "text", category: "Логистика / WMS" },
+    { key: "voditel", label: "Водитель", type: "text", category: "Логистика / WMS" },
+    { key: "realization_count", label: "Кол-во накладных", type: "number", category: "Логистика / WMS" },
+    { key: "obrabotka_number", label: "Номер обработки", type: "text", category: "Основные" },
+    { key: "deleted", label: "Пометка удаления", type: "boolean", category: "Стандартные" },
+    { key: "posted", label: "Проведен", type: "boolean", category: "Стандартные" }
+  ],
 
   filterOperators: [
     "Равно",
@@ -45,6 +81,8 @@ const C1FilterComponent = {
 
   getOperatorsForField: function(field) {
     const key = field.key || field.fieldKey;
+    if (key === "number") return ["Равно", "Не равно", "В списке", "Не в списке", "В группе из списка", "Содержит", "Не содержит", "Начинается с", "Заполнено", "Не заполнено"];
+    if (["warehouse", "portfolio", "kontragent", "golovnoy_kontragent", "contract", "organization", "division", "responsible", "agent", "currency", "deal"].includes(key)) return ["Равно", "Не равно", "В списке", "Не в списке", "Заполнено", "Не заполнено"];
     const type = ["posted", "deleted", "pogruzka_duplicate", "pogruzka_active_duplicate"].includes(key) ? "boolean" : (key === "date" ? "date" : field.type);
     if (type === "boolean") return ["Равно", "Не равно"];
     if (type === "date" || type === "number") return this.filterOperators.filter(op =>
@@ -59,7 +97,8 @@ const C1FilterComponent = {
   open: function(options = {}) {
     this.contextKey = options.docType || options.contextKey || "default";
     this.docTitle = options.docTitle || options.docType || "Настройка списка";
-    this.availableFields = Array.isArray(options.availableFields) ? options.availableFields : [];
+    this._initialAvailableFields = Array.isArray(options.availableFields) ? JSON.parse(JSON.stringify(options.availableFields)) : [];
+    this.availableFields = this.loadPersistedAvailableFields(this._initialAvailableFields);
     this.explicitGenerate = Boolean(options.explicitGenerate);
     this.filterSelectedFieldKey = null;
     const confirmButton = document.getElementById('ujFilterConfirmButton');
@@ -235,7 +274,7 @@ const C1FilterComponent = {
   getAvailableFieldTree: function() {
     const groups = [
       {id:"kontragent",label:"Контрагент",parent:"kontragent",keys:["kontragent","golovnoy_kontragent","kontragent_code","golovnoy_kontragent_code"]},
-      {id:"contract",label:"Договор контрагента",parent:"contract",keys:["contract","contract_price_type","portfolio","agent"]},
+      {id:"contract",label:"Договор контрагента",parent:"contract",keys:["contract","contract_price_type"]},
       {id:"pogruzka",label:"Погрузка машины",keys:["pogruzka_marshrut","pogruzka_voditel","pogruzka_duplicate","pogruzka_active_duplicate"]}
     ];
     const emitted = new Set();
@@ -266,6 +305,7 @@ const C1FilterComponent = {
       const isSelected = (f.key === this.filterSelectedFieldKey);
       const bg = isSelected ? "#316ac5" : "#ffffff";
       const fg = isSelected ? "#ffffff" : "#111111";
+      const displayLabel = window.C1I18n ? window.C1I18n.translateColumn(f.key, f.label) : f.label;
       return `
         <div id="ujAvailField_${f.key}"
              style="padding: 3px 6px; font-size: 11px; background: ${bg}; color: ${fg}; cursor: pointer; user-select: none; display: flex; align-items: center; gap: 5px; border-bottom: 1px dotted #e0dec8;"
@@ -273,19 +313,20 @@ const C1FilterComponent = {
              ondblclick="C1FilterComponent.addFilterCriterion('${f.key}')">
           ${indented ? '<span style="width:17px;flex-shrink:0"></span>' : ''}
           ${toggle || `<span style="font-size: 10px; color: ${isSelected ? '#fff' : '#4a78c4'};">▬</span>`}
-          <span style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${this.escapeHtml(f.label)}</span>
+          <span style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${this.escapeHtml(displayLabel)}</span>
         </div>
       `;
     };
-    let html = "";
-    for (const node of this.getAvailableFieldTree()) {
-      if (!node.children) { html += renderField(node.field); continue; }
-      const expanded = Boolean(this.expandedFieldGroups[node.id]);
-      const toggle = `<button type="button" aria-label="${this.escapeHtml(node.label)}: ${expanded ? 'Bağla' : 'Aç'}" aria-expanded="${expanded}" style="width:16px;height:16px;padding:0;line-height:12px;flex-shrink:0;cursor:pointer" onclick="event.stopPropagation();C1FilterComponent.toggleFieldGroup('${node.id}')" ondblclick="event.stopPropagation()">${expanded ? '−' : '+'}</button>`;
-      if (node.field) html += renderField(node.field,false,toggle);
-      else html += `<div style="padding:3px 6px;font-size:11px;display:flex;gap:5px;align-items:center;border-bottom:1px dotted #e0dec8;cursor:pointer" onclick="C1FilterComponent.toggleFieldGroup('${node.id}')">${toggle}<span>${this.escapeHtml(node.label)}</span></div>`;
-      if (expanded) node.children.forEach(child=>{ html += renderField(child,true); });
-    }
+        let html = "";
+        for (const node of this.getAvailableFieldTree()) {
+          if (!node.children) { html += renderField(node.field); continue; }
+          const expanded = Boolean(this.expandedFieldGroups[node.id]);
+          const nodeLabel = window.C1I18n ? window.C1I18n.translatePhrase(node.label) : node.label;
+          const toggle = `<button type="button" aria-label="${this.escapeHtml(nodeLabel)}: ${expanded ? 'Bağla' : 'Aç'}" aria-expanded="${expanded}" style="width:16px;height:16px;padding:0;line-height:12px;flex-shrink:0;cursor:pointer" onclick="event.stopPropagation();C1FilterComponent.toggleFieldGroup('${node.id}')" ondblclick="event.stopPropagation()">${expanded ? '−' : '+'}</button>`;
+          if (node.field) html += renderField(node.field,false,toggle);
+          else html += `<div style="padding:3px 6px;font-size:11px;display:flex;gap:5px;align-items:center;border-bottom:1px dotted #e0dec8;cursor:pointer" onclick="C1FilterComponent.toggleFieldGroup('${node.id}')">${toggle}<span>${this.escapeHtml(nodeLabel)}</span></div>`;
+          if (expanded) node.children.forEach(child=>{ html += renderField(child,true); });
+        }
     listEl.innerHTML = html;
   },
 
@@ -305,16 +346,456 @@ const C1FilterComponent = {
   },
 
   // ==========================================
+  // Available Fields Management (Add / Delete / Persist)
+  // ==========================================
+  loadPersistedAvailableFields: function(initialFields) {
+    const contextKey = this.contextKey || "default";
+    let fields = Array.isArray(initialFields) ? initialFields.slice() : [];
+
+    try {
+      // 1. Filter out previously removed fields
+      const removedRaw = localStorage.getItem(`c1_filter_removed_fields_${contextKey}`);
+      if (removedRaw) {
+        const removedKeys = JSON.parse(removedRaw);
+        if (Array.isArray(removedKeys) && removedKeys.length > 0) {
+          const removedSet = new Set(removedKeys);
+          fields = fields.filter(f => !removedSet.has(f.key));
+        }
+      }
+
+      // 2. Append previously added custom fields
+      const customRaw = localStorage.getItem(`c1_filter_custom_fields_${contextKey}`);
+      if (customRaw) {
+        const customFields = JSON.parse(customRaw);
+        if (Array.isArray(customFields)) {
+          customFields.forEach(cf => {
+            if (cf && cf.key && !fields.some(f => f.key === cf.key)) {
+              fields.push(cf);
+            }
+          });
+        }
+      }
+    } catch (e) {
+      console.warn("Failed to load persisted available fields:", e);
+    }
+
+    return fields;
+  },
+
+  savePersistedAvailableFields: function() {
+    const contextKey = this.contextKey || "default";
+    try {
+      const initialKeys = new Set((this._initialAvailableFields || []).map(f => f.key));
+      const currentKeys = new Set((this.availableFields || []).map(f => f.key));
+
+      // Removed keys = present in initial baseline, but deleted by user
+      const removedKeys = (this._initialAvailableFields || [])
+        .map(f => f.key)
+        .filter(k => !currentKeys.has(k));
+      localStorage.setItem(`c1_filter_removed_fields_${contextKey}`, JSON.stringify(removedKeys));
+
+      // Custom added fields = present in current list, but not in initial baseline
+      const customAdded = (this.availableFields || []).filter(f => !initialKeys.has(f.key));
+      localStorage.setItem(`c1_filter_custom_fields_${contextKey}`, JSON.stringify(customAdded));
+    } catch (e) {
+      console.warn("Failed to save persisted available fields:", e);
+    }
+  },
+
+  isFieldInCurrentDoc: function(fieldKey) {
+    if (!fieldKey) return false;
+    const normKey = (fieldKey === "wms_status") ? "vms_status" : fieldKey;
+
+    // 1. Standard base fields always present in any 1C document
+    if (["deleted", "posted", "date", "number"].includes(normKey)) return true;
+
+    // 2. Check if present in table columns
+    const columns = (window.UniversalJournal && Array.isArray(UniversalJournal.columns)) ? UniversalJournal.columns : [];
+    if (columns.some(c => c.key === normKey || c.key === fieldKey)) return true;
+
+    // 3. Check loaded items: does any document have this field populated?
+    const items = (this.items && this.items.length) ? this.items : ((window.UniversalJournal && UniversalJournal.items) ? UniversalJournal.items : []);
+    if (items.some(it => it && (it[normKey] !== undefined && it[normKey] !== null && String(it[normKey]).trim() !== "" || it[fieldKey] !== undefined && it[fieldKey] !== null && String(it[fieldKey]).trim() !== ""))) {
+      return true;
+    }
+
+    // 4. Document-specific schema checks
+    const docType = this.contextKey || (window.UniversalJournal && UniversalJournal.activeDocType) || "";
+    if (docType === "РеализацияТоваровУслуг") {
+      const allowed = ["vms_status", "pogruzka_marshrut", "pogruzka_voditel", "pogruzka_duplicate", "pogruzka_active_duplicate", "obrabotka_number", "deal", "portfolio", "contract", "contract_price_type", "warehouse", "nomenclature", "responsible", "amount", "kontragent", "golovnoy_kontragent", "kontragent_code", "agent", "comment"];
+      return allowed.includes(normKey);
+    } else if (docType === "ВозвратТоваровОтПокупателя") {
+      const allowed = ["vms_status", "kontragent", "golovnoy_kontragent", "agent", "amount", "warehouse", "deal", "contract", "responsible", "comment", "nomenclature", "portfolio"];
+      if (allowed.includes(normKey)) return true;
+      if (normKey.startsWith("pogruzka") || normKey === "marshrut" || normKey === "voditel" || normKey === "realization_count") {
+        return false;
+      }
+    } else if (docType === "ЗаказПокупателя") {
+      const allowed = ["kontragent", "golovnoy_kontragent", "amount", "warehouse", "deal", "contract", "responsible", "comment", "portfolio", "agent", "nomenclature"];
+      if (allowed.includes(normKey)) return true;
+      if (normKey.startsWith("pogruzka") || normKey === "vms_status") return false;
+    } else if (docType === "ПогрузкаМашин" || docType === "ПогрузкиМашин") {
+      return ["marshrut", "voditel", "realization_count"].includes(normKey);
+    }
+
+    return false;
+  },
+
+  getAllKnownFields: function() {
+    const map = new Map();
+    // 1. Master catalog
+    this.MASTER_1C_FIELDS.forEach(f => map.set(f.key, { ...f }));
+
+    // 2. Initial fields passed from caller
+    (this._initialAvailableFields || []).forEach(f => {
+      if (!map.has(f.key)) {
+        map.set(f.key, { ...f, category: "Текущий журнал" });
+      }
+    });
+
+    // 3. Current available fields
+    (this.availableFields || []).forEach(f => {
+      if (!map.has(f.key)) {
+        map.set(f.key, { ...f, category: "Дополнительные" });
+      }
+    });
+
+    // 4. Any columns from UniversalJournal.columns if available
+    if (window.UniversalJournal && Array.isArray(UniversalJournal.columns)) {
+      UniversalJournal.columns.forEach(col => {
+        if (col && col.key && col.key !== "status" && !map.has(col.key)) {
+          map.set(col.key, {
+            key: col.key,
+            label: col.label || col.key,
+            type: (col.key.includes("amount") || col.key.includes("sum")) ? "number" : "text",
+            category: "Колонки журнала"
+          });
+        }
+      });
+    }
+
+    return Array.from(map.values());
+  },
+
+  openAddAvailableFieldDialog: function() {
+    const overlay = document.getElementById("ujAddAvailFieldModalOverlay");
+    if (!overlay) return;
+
+    this.selectedAddAvailKey = null;
+    const searchInp = document.getElementById("ujAddAvailFieldSearchInput");
+    if (searchInp) searchInp.value = "";
+
+    const customPanel = document.getElementById("ujCustomFieldPanel");
+    if (customPanel) customPanel.style.display = "none";
+
+    this.renderAddAvailableFieldList("");
+
+    overlay.style.display = "flex";
+    overlay.classList.add("active");
+
+    const win = document.getElementById("ujAddAvailFieldWindow");
+    const title = document.getElementById("ujAddAvailFieldTitlebar");
+    if (win && title && !title.dataset.bound) {
+      title.dataset.bound = "1";
+      title.onpointerdown = e => {
+        if (e.button !== 0 || e.target.closest("button")) return;
+        e.preventDefault();
+        const rect = win.getBoundingClientRect(), x = e.clientX, y = e.clientY;
+        win.style.position = "fixed"; win.style.margin = "0";
+        win.style.left = rect.left + "px"; win.style.top = rect.top + "px";
+        title.setPointerCapture(e.pointerId);
+        title.onpointermove = ev => {
+          win.style.left = Math.max(0, Math.min(window.innerWidth - win.offsetWidth, rect.left + ev.clientX - x)) + "px";
+          win.style.top = Math.max(0, Math.min(window.innerHeight - win.offsetHeight, rect.top + ev.clientY - y)) + "px";
+        };
+        const end = () => { title.onpointermove = null; };
+        title.onpointerup = end; title.onpointercancel = end;
+      };
+    }
+
+    setTimeout(() => { if (searchInp) searchInp.focus(); }, 60);
+  },
+
+  closeAddAvailableFieldDialog: function() {
+    const overlay = document.getElementById("ujAddAvailFieldModalOverlay");
+    if (overlay) {
+      overlay.classList.remove("active");
+      overlay.style.display = "none";
+    }
+  },
+
+  renderAddAvailableFieldList: function(query = "") {
+    const listEl = document.getElementById("ujAddAvailFieldList");
+    const countEl = document.getElementById("ujAddAvailFieldCount");
+    if (!listEl) return;
+
+    const allFields = this.getAllKnownFields();
+    const currentKeys = new Set((this.availableFields || []).map(f => f.key));
+
+    const q = String(query || "").trim().toLowerCase();
+    const filtered = allFields.filter(f => {
+      if (!q) return true;
+      const displayLabel = window.C1I18n ? window.C1I18n.translateColumn(f.key, f.label) : f.label;
+      return f.label.toLowerCase().includes(q) || f.key.toLowerCase().includes(q) || displayLabel.toLowerCase().includes(q);
+    });
+
+    if (countEl) {
+      countEl.textContent = `${filtered.length} из ${allFields.length}`;
+    }
+
+    if (filtered.length === 0) {
+      listEl.innerHTML = `<div style="padding: 30px; text-align: center; color: #888; font-style: italic;">Поле не найдено. Нажмите "Произвольное поле...", чтобы добавить любое нестандартное поле.</div>`;
+      return;
+    }
+
+    if (!this.selectedAddAvailKey || !filtered.some(f => f.key === this.selectedAddAvailKey)) {
+      const firstAvailable = filtered.find(f => !currentKeys.has(f.key));
+      this.selectedAddAvailKey = firstAvailable ? firstAvailable.key : filtered[0].key;
+    }
+
+    let html = "";
+    filtered.forEach(f => {
+      const isAlreadyIn = currentKeys.has(f.key);
+      const isSel = (f.key === this.selectedAddAvailKey);
+      const isInDoc = this.isFieldInCurrentDoc(f.key);
+      const isAz = (window.C1I18n && window.C1I18n.getLanguage() === 'az');
+      const bg = isSel ? "#316ac5" : (isAlreadyIn ? "#fbfaf6" : "#ffffff");
+      const fg = isSel ? "#ffffff" : (isAlreadyIn ? "#666666" : "#111111");
+      const displayLabel = window.C1I18n ? window.C1I18n.translateColumn(f.key, f.label) : f.label;
+      const typeLabel = f.type === "boolean" ? "Булево" : (f.type === "number" ? "Число" : (f.type === "date" ? "Дата" : (f.type === "select" ? "Список" : "Текст")));
+
+      const inDocBadge = isInDoc
+        ? `<span style="font-size: 9px; padding: 1px 5px; border-radius: 2px; background: ${isSel ? 'rgba(46,125,50,0.85)' : '#e8f5e9'}; color: ${isSel ? '#fff' : '#2e7d32'}; font-weight: bold; border: 1px solid ${isSel ? '#2e7d32' : '#c8e6c9'};">${isAz ? '✅ Sənəddə var' : '✅ В документе'}</span>`
+        : `<span style="font-size: 9px; padding: 1px 5px; border-radius: 2px; background: ${isSel ? 'rgba(216,67,21,0.85)' : '#fff3e0'}; color: ${isSel ? '#fff' : '#d84315'}; font-weight: bold; border: 1px solid ${isSel ? '#d84315' : '#ffe0b2'};" title="${isAz ? 'Bu sahə cari sənəddə qeydiyyatda deyil' : 'Этот реквизит не ведется в текущем документе'}">${isAz ? '⚠️ Bu sənəddə yoxdur' : '⚠️ Нет в этом документе'}</span>`;
+
+      html += `
+        <div id="ujAddAvailItem_${f.key}" data-key="${f.key}"
+             style="padding: 5px 8px; font-size: 11px; background: ${bg}; color: ${fg}; cursor: pointer; user-select: none; display: flex; align-items: center; justify-content: space-between; gap: 8px; border-bottom: 1px dotted #e0dec8;"
+             onclick="C1FilterComponent.selectAddAvailItem('${f.key}')"
+             ondblclick="C1FilterComponent.confirmAddAvailableField('${f.key}')">
+          <div style="display: flex; align-items: center; gap: 6px; min-width: 0;">
+            <span style="font-size: 11px; color: ${isSel ? '#ffffff' : (isAlreadyIn ? '#888' : (isInDoc ? '#2e7d32' : '#d84315'))}; font-weight: bold; flex-shrink: 0;">
+              ${isAlreadyIn ? '✓' : (isInDoc ? '➕' : '⚠️')}
+            </span>
+            <div style="display: flex; flex-direction: column; min-width: 0;">
+              <span style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-weight: ${isSel ? 'bold' : 'normal'};">
+                ${this.escapeHtml(displayLabel)}
+              </span>
+              <span style="font-size: 9px; color: ${isSel ? '#e0e8ff' : (isInDoc ? '#888888' : '#d84315')};">
+                ${this.escapeHtml(f.key)} • ${this.escapeHtml(f.category || 'Общие')}
+                ${!isInDoc ? ` • (${isAz ? 'sənəddə qeydiyyatı yoxdur' : 'отсутствует в этом документе'})` : ''}
+              </span>
+            </div>
+          </div>
+          <div style="display: flex; align-items: center; gap: 4px; flex-shrink: 0;">
+            ${inDocBadge}
+            <span style="font-size: 9px; padding: 1px 4px; border-radius: 2px; background: ${isSel ? 'rgba(255,255,255,0.2)' : '#eee'}; color: ${isSel ? '#fff' : '#666'};">
+              ${typeLabel}
+            </span>
+            ${isAlreadyIn ? `<span style="font-size: 10px; color: ${isSel ? '#ffeb3b' : '#388e3c'}; font-style: italic;">${window.C1I18n ? window.C1I18n.translatePhrase('filter.already_added') : 'Уже в списке'}</span>` : ''}
+          </div>
+        </div>
+      `;
+    });
+
+    listEl.innerHTML = html;
+
+    const activeEl = listEl.querySelector(`[id='ujAddAvailItem_${this.selectedAddAvailKey}']`);
+    if (activeEl) {
+      activeEl.scrollIntoView({ block: "nearest" });
+    }
+  },
+
+  filterAddAvailableFieldList: function(query) {
+    this.renderAddAvailableFieldList(query);
+  },
+
+  selectAddAvailItem: function(key) {
+    this.selectedAddAvailKey = key;
+    const listEl = document.getElementById("ujAddAvailFieldList");
+    if (!listEl) return;
+    const currentKeys = new Set((this.availableFields || []).map(f => f.key));
+
+    listEl.querySelectorAll("[id^='ujAddAvailItem_']").forEach(el => {
+      const itemKey = el.getAttribute("data-key");
+      const isSel = (itemKey === key);
+      const isAlreadyIn = currentKeys.has(itemKey);
+      el.style.background = isSel ? "#316ac5" : (isAlreadyIn ? "#fbfaf6" : "#ffffff");
+      el.style.color = isSel ? "#ffffff" : (isAlreadyIn ? "#666666" : "#111111");
+    });
+  },
+
+  confirmAddAvailableField: function(targetKey) {
+    const key = targetKey || this.selectedAddAvailKey;
+    if (!key) return;
+
+    const allKnown = this.getAllKnownFields();
+    const fieldDef = allKnown.find(f => f.key === key) || { key, label: key, type: "text" };
+    const isInDoc = this.isFieldInCurrentDoc(key);
+    const isAz = (window.C1I18n && window.C1I18n.getLanguage() === 'az');
+    const docName = this.docTitle || this.contextKey || "текущем документе";
+
+    if (!isInDoc) {
+      const warnMsg = isAz
+        ? `⚠️ DİQQƏT: "${fieldDef.label}" sahəsi cari "${docName}" sənədində qeydiyyatda yoxdur və cədvəldə mövcud deyil.\n\nƏgər bu sahə üzrə süzgəc qoysanız, heç bir sənəd tapılmayacaq (cədvəl boş çıxacaq).\n\nYenə də süzgəc sahələrinə əlavə edilsin?`
+        : `⚠️ ВНИМАНИЕ: Поле "${fieldDef.label}" (${key}) не поддерживается в документе "${docName}" и отсутствует в таблице.\n\nВ вашей таблице или документе нет записей по этому полю. Если вы включите отбор по нему, список документов будет пустым (0 записей).\n\nВсе равно добавить в список доступных полей?`;
+      if (!confirm(warnMsg)) {
+        return;
+      }
+    } else {
+      // If field IS present in document items/schema, ensure it's also added to the table columns!
+      if (window.UniversalJournal && typeof UniversalJournal.ensureColumnExists === "function") {
+        UniversalJournal.ensureColumnExists(fieldDef.key, fieldDef.label);
+      }
+    }
+
+    // Check if already in availableFields
+    const existing = this.availableFields.find(f => f.key === key);
+    if (existing) {
+      this.closeAddAvailableFieldDialog();
+      this.selectAvailableField(key);
+      return;
+    }
+
+    this.availableFields.push({
+      key: fieldDef.key,
+      label: fieldDef.label || fieldDef.key,
+      type: fieldDef.type || "text",
+      options: fieldDef.options
+    });
+
+    this.savePersistedAvailableFields();
+    this.renderFilterAvailableFields();
+    this.selectAvailableField(fieldDef.key);
+    this.closeAddAvailableFieldDialog();
+  },
+
+  removeSelectedAvailableField: function() {
+    const key = this.filterSelectedFieldKey;
+    if (!key) {
+      alert("Выберите поле в списке доступных для удаления.");
+      return;
+    }
+
+    const idx = this.availableFields.findIndex(f => f.key === key);
+    if (idx === -1) return;
+
+    this.availableFields.splice(idx, 1);
+    this.savePersistedAvailableFields();
+
+    if (this.availableFields.length > 0) {
+      const nextIdx = Math.min(idx, this.availableFields.length - 1);
+      this.filterSelectedFieldKey = this.availableFields[nextIdx].key;
+    } else {
+      this.filterSelectedFieldKey = null;
+    }
+
+    this.renderFilterAvailableFields();
+  },
+
+  resetAvailableFieldsToDefault: function() {
+    const contextKey = this.contextKey || "default";
+    try {
+      localStorage.removeItem(`c1_filter_removed_fields_${contextKey}`);
+      localStorage.removeItem(`c1_filter_custom_fields_${contextKey}`);
+    } catch (e) {}
+
+    this.availableFields = Array.isArray(this._initialAvailableFields) 
+      ? JSON.parse(JSON.stringify(this._initialAvailableFields)) 
+      : [];
+    if (!this.availableFields.some(f => f.key === this.filterSelectedFieldKey) && this.availableFields.length > 0) {
+      this.filterSelectedFieldKey = this.availableFields[0].key;
+    }
+    this.renderFilterAvailableFields();
+    this.closeAddAvailableFieldDialog();
+  },
+
+  toggleCustomFieldInput: function() {
+    const panel = document.getElementById("ujCustomFieldPanel");
+    if (!panel) return;
+    const isHidden = (panel.style.display === "none" || !panel.style.display);
+    panel.style.display = isHidden ? "block" : "none";
+    if (isHidden) {
+      const keyInp = document.getElementById("ujCustomFieldKey");
+      if (keyInp) {
+        keyInp.value = "";
+        setTimeout(() => keyInp.focus(), 50);
+      }
+    }
+  },
+
+  addCustomFieldSubmit: function() {
+    const keyInp = document.getElementById("ujCustomFieldKey");
+    const labelInp = document.getElementById("ujCustomFieldLabel");
+    const typeInp = document.getElementById("ujCustomFieldType");
+    if (!keyInp || !labelInp) return;
+
+    const key = keyInp.value.trim();
+    const label = labelInp.value.trim() || key;
+    const type = typeInp ? typeInp.value : "text";
+
+    if (!key) {
+      alert("Укажите код поля (например: organization).");
+      keyInp.focus();
+      return;
+    }
+
+    if (this.availableFields.some(f => f.key === key)) {
+      alert(`Поле с кодом "${key}" уже добавлено в список.`);
+      this.selectAvailableField(key);
+      this.closeAddAvailableFieldDialog();
+      return;
+    }
+
+    this.availableFields.push({ key, label, type });
+    this.savePersistedAvailableFields();
+    this.renderFilterAvailableFields();
+    this.selectAvailableField(key);
+    this.closeAddAvailableFieldDialog();
+  },
+
+  onAddAvailableFieldKeydown: function(e) {
+    if (e.key === "Escape") {
+      this.closeAddAvailableFieldDialog();
+      return;
+    }
+    if (e.key === "Enter") {
+      e.preventDefault();
+      this.confirmAddAvailableField();
+      return;
+    }
+    if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+      e.preventDefault();
+      const listEl = document.getElementById("ujAddAvailFieldList");
+      if (!listEl) return;
+      const items = Array.from(listEl.querySelectorAll("[id^='ujAddAvailItem_']"));
+      if (items.length === 0) return;
+      let currIdx = items.findIndex(el => el.getAttribute("data-key") === this.selectedAddAvailKey);
+      if (e.key === "ArrowDown") {
+        currIdx = (currIdx + 1) < items.length ? currIdx + 1 : 0;
+      } else {
+        currIdx = (currIdx - 1) >= 0 ? currIdx - 1 : items.length - 1;
+      }
+      const nextKey = items[currIdx].getAttribute("data-key");
+      this.selectAddAvailItem(nextKey);
+      items[currIdx].scrollIntoView({ block: "nearest" });
+    }
+  },
+
+  // ==========================================
   // Criteria Operations: Add / Remove / Order
   // ==========================================
   addFilterCriterion: function(fieldKey) {
     const avail = this.availableFields;
     const fKey = fieldKey || this.filterSelectedFieldKey || (avail.length > 0 ? avail[0].key : "kontragent");
-    const fieldObj = avail.find(f => f.key === fKey) || { key: fKey, label: fKey, type: "text" };
+    const normFKey = (fKey === "wms_status") ? "vms_status" : fKey;
+    const fieldObj = avail.find(f => f.key === fKey || f.key === normFKey)
+      || this.MASTER_1C_FIELDS.find(f => f.key === normFKey)
+      || { key: normFKey, label: normFKey, type: "text" };
 
     let defVal = "";
     if (fieldObj.type === "boolean") defVal = "Да";
-    else if (fieldObj.key === "vms_status") defVal = "Подтвержден WMS";
+    else if (fieldObj.key === "vms_status" || fieldObj.key === "wms_status") defVal = "Подтвержден WMS";
 
     this.tempFilterCriteria.push({
       id: "crit_" + Date.now() + "_" + Math.random().toString(36).substr(2, 4),
@@ -451,15 +932,16 @@ const C1FilterComponent = {
     const selCritIdx = Math.max(0, Math.min(this.filterSelectedCritIdx, crits.length - 1));
 
     if (countEl) {
-      countEl.textContent = `${crits.length} элементов`;
+      const itemsWord = (window.C1I18n && window.C1I18n.getLanguage() === 'az') ? "element" : "элементов";
+      countEl.textContent = `${crits.length} ${itemsWord}`;
     }
 
     if (crits.length === 0) {
+      const isAz = (window.C1I18n && window.C1I18n.getLanguage() === 'az');
       tbody.innerHTML = `
         <tr>
           <td colspan="4" style="text-align: center; padding: 35px; color: #777; font-style: italic;">
-            Условия отбора не заданы.<br>
-            Выберите поле слева и дважды кликните или нажмите "Выбрать" / "➕ Добавить новый элемент".
+            ${isAz ? 'Süzgəc şərtləri təyin edilməyib.<br>Soldan sahəni seçib iki dəfə klikləyin və ya "Seç" / "➕ Yeni element əlavə et" düyməsinə basın.' : 'Условия отбора не заданы.<br>Выберите поле слева и дважды кликните или нажмите "Выбрать" / "➕ Добавить новый элемент".'}
           </td>
         </tr>
       `;
@@ -469,17 +951,12 @@ const C1FilterComponent = {
     let rowsHtml = "";
     crits.forEach((crit, idx) => {
       const isSelected = (idx === selCritIdx);
+      const isChecked = crit.enabled !== false;
       const bg = isSelected ? "#e2eefb" : (idx % 2 === 1 ? "#f9f8f4" : "#ffffff");
-      const isChecked = (crit.enabled !== false);
-      const fieldObj = availFields.find(f => f.key === crit.fieldKey) || { key: crit.fieldKey, label: crit.fieldLabel || crit.fieldKey, type: "text" };
-      if (!this.getOperatorsForField(fieldObj).includes(crit.operator)) {
-        crit.operator = "Равно";
-        crit.value = "";
-        delete crit.valueFrom;
-        delete crit.valueTo;
-        delete crit.structuredFilter;
-        crit.enabled = false;
-      }
+      const normKey = (crit.fieldKey === "wms_status") ? "vms_status" : crit.fieldKey;
+      const fieldObj = availFields.find(f => f.key === crit.fieldKey || f.key === normKey)
+        || this.MASTER_1C_FIELDS.find(f => f.key === crit.fieldKey || f.key === normKey)
+        || { key: crit.fieldKey, label: crit.fieldLabel || crit.fieldKey, type: "text" };
       const isNoValueNeeded = (crit.operator === "Заполнено" || crit.operator === "Не заполнено");
 
       let valueInputHtml = "";
@@ -493,6 +970,22 @@ const C1FilterComponent = {
                   onchange="C1FilterComponent.tempFilterCriteria[${idx}].value = this.value; C1FilterComponent.setCritEnabled(${idx}, true); C1FilterComponent.syncTempFiltersToStorage();">
             <option value="Да" ${valStr === 'Да' ? 'selected' : ''} style="color: #111111 !important; background-color: #ffffff !important;">Да</option>
             <option value="Нет" ${valStr === 'Нет' ? 'selected' : ''} style="color: #111111 !important; background-color: #ffffff !important;">Нет</option>
+          </select>
+        `;
+      } else if ((fieldObj.type === "select" || Array.isArray(fieldObj.options)) && (crit.operator === "Равно" || crit.operator === "Не равно")) {
+        const curVal = crit.value !== undefined ? String(crit.value) : "";
+        const opts = (fieldObj.options || []).map(opt => {
+          const val = typeof opt === 'object' ? opt.value : opt;
+          const lbl = typeof opt === 'object' ? opt.label : opt;
+          const isSel = String(val) === curVal ? 'selected' : '';
+          return `<option value="${this.escapeHtml(val)}" ${isSel}>${this.escapeHtml(lbl)}</option>`;
+        }).join('');
+        valueInputHtml = `
+          <select id="ujFilterValInput_${idx}" class="select-1c" style="width: 100%; height: 21px; font-size: 11px; background: #ffffff !important; color: #111111 !important; border: 1px solid #7f9db9;"
+                  onclick="event.stopPropagation()"
+                  onchange="C1FilterComponent.tempFilterCriteria[${idx}].value = this.value; C1FilterComponent.setCritEnabled(${idx}, Boolean(this.value)); C1FilterComponent.syncTempFiltersToStorage();">
+            <option value="">(Все / Не выбрано)</option>
+            ${opts}
           </select>
         `;
       } else {
@@ -570,6 +1063,15 @@ const C1FilterComponent = {
         }
       }
 
+      const fieldDisplayLabel = window.C1I18n ? window.C1I18n.translateColumn(fieldObj.key, fieldObj.label) : fieldObj.label;
+      const opDisplayLabel = window.C1I18n ? window.C1I18n.translateOperator(crit.operator || "Равно") : (crit.operator || "Равно");
+
+      const isInDoc = this.isFieldInCurrentDoc(fieldObj.key);
+      const isAz = (window.C1I18n && window.C1I18n.getLanguage() === 'az');
+      const notInDocWarn = !isInDoc 
+        ? `<span title="${isAz ? 'Diqqət: bu sahə cari sənəddə qeydiyyatda yoxdur və cədvəldə mövcud deyil' : 'Внимание: это поле отсутствует в текущем документе и не ведется ни в одной строке'}" style="color: #e65100; font-size: 11px; cursor: help; margin-right: 3px; flex-shrink: 0;">⚠️</span>` 
+        : '';
+
       rowsHtml += `
         <tr id="ujCritRow_${idx}" style="background: ${bg}; height: 25px;" onclick="C1FilterComponent.selectFilterCritRow(${idx})">
           <td style="width: 28px; text-align: center; border: 1px solid #d4d0c8;">
@@ -578,36 +1080,37 @@ const C1FilterComponent = {
                    style="cursor: pointer; vertical-align: middle;">
           </td>
           <td style="padding: 1px 4px; border: 1px solid #d4d0c8; width: 170px;">
-            <div style="display: flex; align-items: center; width: 100%; height: 21px; background: #ffffff; border: 1px solid #7f9db9; padding: 0 1px; box-sizing: border-box;">
-              <span style="flex: 1; min-width: 0; padding: 0 4px; font-size: 11px; color: #111111; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; user-select: none; cursor: pointer;"
+            <div style="display: flex; align-items: center; width: 100%; height: 21px; background: ${isInDoc ? '#ffffff' : '#fffde7'}; border: 1px solid ${isInDoc ? '#7f9db9' : '#fbc02d'}; padding: 0 1px; box-sizing: border-box;">
+              ${notInDocWarn}
+              <span style="flex: 1; min-width: 0; padding: 0 4px; font-size: 11px; color: ${isInDoc ? '#111111' : '#b78103'}; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; user-select: none; cursor: pointer;"
                     onclick="C1FilterComponent.openFieldSelectModal(${idx})"
                     ondblclick="C1FilterComponent.openFieldSelectModal(${idx})"
-                    title="Нажмите для выбора поля (${this.escapeHtml(fieldObj.label)})">
-                ${this.escapeHtml(fieldObj.label)}
+                    title="${!isInDoc ? (isAz ? 'Diqqət: bu sahə cari sənəddə qeydiyyatda deyil' : 'Внимание: это поле отсутствует в этом документе') + ' - ' : ''}${this.escapeHtml(fieldDisplayLabel)}">
+                ${this.escapeHtml(fieldDisplayLabel)}
               </span>
-              <button type="button" class="btn-1c filter-field-btn-pick"
-                      onclick="event.stopPropagation(); C1FilterComponent.openFieldSelectModal(${idx})"
-                      title="Выбрать поле (...)"
-                      style="width: 20px; height: 19px; padding: 0; margin: 0; font-size: 11px; font-weight: bold; background: #ece9d8; border: 1px solid #7f9db9; border-radius: 1px; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; color: #111111;">
-                ...
-              </button>
-            </div>
-          </td>
-          <td style="padding: 1px 4px; border: 1px solid #d4d0c8; width: 140px;">
-            <div id="ujCritOpBtn_${idx}" class="btn-1c uj-crit-op-btn"
-                 onclick="event.stopPropagation(); C1FilterComponent.toggleOpDropdown(${idx}, this)"
-                 style="width: 100%; height: 21px; background: #ffffff !important; border: 1px solid #7f9db9; padding: 0 4px; display: flex; align-items: center; justify-content: space-between; font-size: 11px; color: #111111 !important; cursor: pointer; box-sizing: border-box; user-select: none;"
-                 title="Вид сравнения: ${this.escapeHtml(crit.operator || 'Равно')}">
-              <span style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; text-align: left;">${this.escapeHtml(crit.operator || "Равно")}</span>
-              <span style="font-size: 8px; color: #555; margin-left: 3px; flex-shrink: 0;">▼</span>
-            </div>
-          </td>
-          <td style="padding: 1px 4px; border: 1px solid #d4d0c8;">
-            ${valueInputHtml}
-          </td>
-        </tr>
-      `;
-    });
+                <button type="button" class="btn-1c filter-field-btn-pick"
+                        onclick="event.stopPropagation(); C1FilterComponent.openFieldSelectModal(${idx})"
+                        title="Выбрать поле (...)"
+                        style="width: 20px; height: 19px; padding: 0; margin: 0; font-size: 11px; font-weight: bold; background: #ece9d8; border: 1px solid #7f9db9; border-radius: 1px; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; color: #111111;">
+                  ...
+                </button>
+              </div>
+            </td>
+            <td style="padding: 1px 4px; border: 1px solid #d4d0c8; width: 140px;">
+              <div id="ujCritOpBtn_${idx}" class="btn-1c uj-crit-op-btn"
+                   onclick="event.stopPropagation(); C1FilterComponent.toggleOpDropdown(${idx}, this)"
+                   style="width: 100%; height: 21px; background: #ffffff !important; border: 1px solid #7f9db9; padding: 0 4px; display: flex; align-items: center; justify-content: space-between; font-size: 11px; color: #111111 !important; cursor: pointer; box-sizing: border-box; user-select: none;"
+                   title="Вид сравнения: ${this.escapeHtml(opDisplayLabel)}">
+                <span style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; text-align: left;">${this.escapeHtml(opDisplayLabel)}</span>
+                <span style="font-size: 8px; color: #555; margin-left: 3px; flex-shrink: 0;">▼</span>
+              </div>
+            </td>
+            <td style="padding: 1px 4px; border: 1px solid #d4d0c8;">
+              ${valueInputHtml}
+            </td>
+          </tr>
+        `;
+      });
 
     tbody.innerHTML = rowsHtml;
     this.updateHeaderCheckAllState();
@@ -681,13 +1184,14 @@ const C1FilterComponent = {
       const bg = isCur ? "#d9e8fb" : "#ffffff";
       const fg = isCur ? "#002060" : "#111111";
       const fw = isCur ? "bold" : "normal";
+      const opLabel = window.C1I18n ? window.C1I18n.translateOperator(op) : op;
       return `
         <div class="uj-op-item" data-op="${this.escapeHtml(op)}"
              style="height: 22px; padding: 2px 8px; display: flex; align-items: center; justify-content: space-between; cursor: pointer; user-select: none; background: ${bg}; color: ${fg}; font-weight: ${fw}; border-bottom: 1px solid #f0eee3; font-size: 11px; box-sizing: border-box;"
              onmouseover="this.style.background='#316ac5'; this.style.color='#ffffff';"
              onmouseout="this.style.background='${bg}'; this.style.color='${fg}';"
              onclick="event.stopPropagation(); C1FilterComponent.selectOpDropdownItem(${idx}, '${this.escapeHtml(op)}')">
-          <span style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${this.escapeHtml(op)}</span>
+          <span style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${this.escapeHtml(opLabel)}</span>
           ${isCur ? '<span style="font-size: 10px; margin-left: 4px; color: #002060; font-weight: bold;">✓</span>' : ''}
         </div>
       `;
@@ -757,10 +1261,16 @@ const C1FilterComponent = {
         inputEl.value = inputEl.value.replace(/[^0-9.:\s\/\-,]/g, "");
       }
       crit.value = inputEl.value;
-      if (inputEl.value.trim().length > 0) {
+      const valid = this.validateNumberInput(idx, inputEl, false);
+      if (!valid) {
+        crit.enabled = false;
+        const checkbox = document.getElementById(`ujCritEnabled_${idx}`);
+        if (checkbox) checkbox.checked = false;
+        this.updateHeaderCheckAllState();
+      } else if (inputEl.value.trim().length > 0) {
         this.setCritEnabled(idx, true);
       }
-      this.syncTempFiltersToStorage();
+      if (valid) this.syncTempFiltersToStorage();
     }
     this.showFilterAutocomplete(idx, inputEl);
   },
@@ -769,6 +1279,8 @@ const C1FilterComponent = {
     const crit = this.tempFilterCriteria[idx];
     if (!crit) return;
     const val = inputEl.value.trim();
+    crit.value = val;
+    if (!this.validateNumberInput(idx, inputEl, true)) return;
     if (val) {
       this.setCritEnabled(idx, true);
     }
@@ -901,6 +1413,14 @@ const C1FilterComponent = {
 
   onFilterInputKeydown: function(idx, inputEl, event) {
     const crit = this.tempFilterCriteria[idx];
+    if (event.key === "Enter" && crit?.fieldKey === "number") {
+      crit.value = inputEl.value.trim();
+      if (!this.validateNumberInput(idx, inputEl, true)) {
+        event.preventDefault();
+        event.stopPropagation();
+        return;
+      }
+    }
     const isDateField = crit && (crit.fieldKey === "date");
 
     if (isDateField) {
@@ -1029,7 +1549,7 @@ const C1FilterComponent = {
         filtered = (values || []).filter(v => v.toLowerCase().includes(searchTerm));
       }
     } else if (crit.fieldKey === "vms_status") {
-      const statuses = ["Подтвержден WMS", "Выгружен", "Новый", "В обработке", "Готов к отгрузке", "Отменен"];
+      const statuses = ["Выгружен", "Подтвержден WMS", "Есть расхождение"];
       filtered = statuses.filter(s => s.toLowerCase().includes(searchTerm));
     } else {
       const values = this.getDistinctFieldValues(crit.fieldKey);
@@ -1077,6 +1597,15 @@ const C1FilterComponent = {
 
   getDistinctFieldValues: function(fieldKey) {
     const set = new Set();
+    const fieldObj = (this.availableFields || []).find(f => f.key === fieldKey);
+    if (fieldObj && Array.isArray(fieldObj.options)) {
+      fieldObj.options.forEach(opt => {
+        const val = typeof opt === 'object' ? (opt.label || opt.value) : opt;
+        if (val !== undefined && val !== null && String(val).trim() !== "") {
+          set.add(String(val).trim());
+        }
+      });
+    }
     (this.items || []).forEach(item => {
       const v = item[fieldKey];
       if (v !== undefined && v !== null && String(v).trim() !== "") {
@@ -1084,7 +1613,7 @@ const C1FilterComponent = {
       }
     });
     if (fieldKey === "vms_status") {
-      ["Выгружен", "Подтвержден WMS", "Новый", "В обработке", "Готов к отгрузке", "Отменен"].forEach(s => set.add(s));
+      ["Выгружен", "Подтвержден WMS", "Есть расхождение"].forEach(s => set.add(s));
     }
     return Array.from(set).sort((a, b) => a.localeCompare(b, "ru"));
   },
@@ -1294,7 +1823,7 @@ const C1FilterComponent = {
           }
         });
       } else {
-        const statuses = ["Подтвержден WMS", "Выгружен", "Новый", "В обработке", "Готов к отгрузке", "Отменен"];
+        const statuses = ["Выгружен", "Подтвержден WMS", "Есть расхождение"];
         const cur = inputEl.value || "";
         const nextIdx = (statuses.indexOf(cur) + 1) % statuses.length;
         inputEl.value = statuses[nextIdx];
@@ -1475,6 +2004,83 @@ const C1FilterComponent = {
   // ==========================================
   // Finish & Apply Filter Editing
   // ==========================================
+  getNumberFilterValues: function(crit) {
+    if (!["В списке", "Не в списке", "В группе из списка"].includes(crit.operator)) return [String(crit.value || "").trim()];
+    if (crit.structuredFilter?.items?.length) return crit.structuredFilter.items.map(item => (item.comp || "equal") === "equal" ? String(item.value || "").trim() : "");
+    return String(crit.value || "").split(/[,;\n]+/).map(v => v.trim());
+  },
+
+  validateNumberInput: function(idx, input, notify) {
+    const crit = this.tempFilterCriteria[idx];
+    if (!crit || crit.fieldKey !== "number") return true;
+    const exact = ["Равно", "Не равно", "В списке", "Не в списке", "В группе из списка"].includes(crit.operator || "Равно");
+    const values = this.getNumberFilterValues(crit);
+    const invalid = exact && (!values.length || values.some(v => !/^(?:[A-Za-zА-Яа-я]\d{10,11}|\d{9,11})$/.test(v)));
+    const message = invalid ? "Bu müqayisədə qısa nömrə yazmaq olmaz. Tam sənəd nömrəsini yazın, məsələn C0000476122." : "";
+    const prefixHint = crit.operator === "Начинается с" && /^\d+$/.test(String(crit.value || "").trim())
+      ? '“Начинается с” nömrənin lap əvvəlindən axtarır. Nömrə C000… ilə başlayırsa, C hərfini və sıfırları da yazın (məsələn C000). Nömrənin içindəki “' + String(crit.value).trim() + '” üçün “Содержит” seçin.' : "";
+    input.setCustomValidity?.(message);
+    input.setAttribute?.("aria-invalid", String(invalid));
+    input.style.border = invalid ? "1px solid #cc0000" : "1px solid #7f9db9";
+    input.title = "";
+    // Warnings belong to the separate message dialog, never inside the grid.
+    document.getElementById(`ujFilterNumberError_${idx}`)?.remove?.();
+    if ((invalid || prefixHint) && notify) {
+      const hadValue = Boolean(String(crit.value || "").trim());
+      input.value = "";
+      crit.value = "";
+      delete crit.structuredFilter;
+      delete crit.referenceCode;
+      delete crit.referenceName;
+      if (input.dataset) delete input.dataset.structuredList;
+      crit.enabled = false;
+      this.setCritEnabled(idx, false);
+      input.setCustomValidity?.("");
+      input.setAttribute?.("aria-invalid", "false");
+      input.style.border = "1px solid #7f9db9";
+      input.title = "";
+      if (hadValue) alert(message || prefixHint);
+    }
+    if (!invalid) delete input._lastNumberWarning;
+    return !(invalid || prefixHint);
+  },
+
+  validateCriteria: function(criteria) {
+    for (let idx = 0; idx < criteria.length; idx++) {
+      const c = criteria[idx];
+      if (!c || c.enabled === false) continue;
+      const field = this.availableFields.find(f => f.key === c.fieldKey);
+      let error = !field || !this.isFieldInCurrentDoc(c.fieldKey) ? "Sahə bu sənəddə dəstəklənmir" : "";
+      const op = c.operator || "Равно";
+      if (!error && !this.getOperatorsForField(field).includes(op)) error = "Bu sahə üçün müqayisə uyğun deyil";
+      const noValue = ["Заполнено", "Не заполнено"].includes(op);
+      const values = op.startsWith("Интервал") ? [c.valueFrom, c.valueTo] : [c.value];
+      const present = values.filter(v => v !== undefined && v !== null && String(v).trim() !== "");
+      if (!error && !noValue && !present.length) error = "Dəyəri daxil edin";
+      if (!error && !noValue && field.type === "boolean" && !["true", "false", "1", "0", "да", "нет"].includes(String(c.value).toLowerCase())) error = "Bəli və ya xeyr seçin";
+      if (!error && c.fieldKey === "number" && ["Равно", "Не равно", "В списке", "Не в списке", "В группе из списка"].includes(op)) {
+        const numbers = this.getNumberFilterValues(c);
+        if (!numbers.length || numbers.some(v => !/^(?:[A-Za-zА-Яа-я]\d{10,11}|\d{9,11})$/.test(v))) error = "Hər sənədin tam nömrəsini yazın, məsələn C0000476122";
+      }
+      if (!error && !noValue && field.type === "number") {
+        const nums = present.map(v => Number(String(v).replace(",", ".")));
+        if (nums.some(v => !Number.isFinite(v)) || (nums.length === 2 && nums[0] > nums[1])) error = "Miqdar və ya interval düzgün deyil";
+      }
+      if (!error && !noValue && (field.type === "date" || c.fieldKey === "date")) {
+        const dates = present.map(v => window.C1Dates ? C1Dates.parse(String(v)) : null);
+        if (dates.some(v => !v) || (dates.length === 2 && dates[0] > dates[1])) error = "Tarix və ya interval düzgün deyil";
+      }
+      if (!error && !noValue && field.type === "select" && ["Равно", "Не равно"].includes(op) && !(field.options || []).some(v => String(typeof v === "object" ? v.value : v) === String(c.value))) error = "Siyahıdan düzgün dəyər seçin";
+      if (error) {
+        const input = document.getElementById(`ujFilterValInput_${idx}`) || document.getElementById(`ujFilterValInput_${idx}_from`);
+        if (input) { input.style.border = "1px solid #cc0000"; input.focus?.(); }
+        alert(`${idx + 1}. ${c.fieldLabel || c.fieldKey}: ${error}`);
+        return false;
+      }
+    }
+    return true;
+  },
+
   finishFilterEditing: function() {
     this.hideFilterAutocomplete();
 
@@ -1529,6 +2135,8 @@ const C1FilterComponent = {
         }
       }
     }
+
+    if (!this.validateCriteria(this.tempFilterCriteria)) return;
 
     this.activeFilters = JSON.parse(JSON.stringify(this.tempFilterCriteria));
     if (this.activeFilters.length > 0 && !this.activePresetName) {
@@ -1592,6 +2200,7 @@ const C1FilterComponent = {
 
   syncTempFiltersToStorage: function() {
     if (this.explicitGenerate) return;
+    if ((this.tempFilterCriteria || []).some(c => c && c.enabled !== false && c.fieldKey === "number" && ["Равно", "Не равно", "В списке", "Не в списке", "В группе из списка"].includes(c.operator || "Равно") && this.getNumberFilterValues(c).some(v => !/^(?:[A-Za-zА-Яа-я]\d{10,11}|\d{9,11})$/.test(v)))) return;
     try {
       if (this.tempFilterCriteria && this.tempFilterCriteria.length > 0) {
         localStorage.setItem(this.getActiveFiltersStorageKey(), JSON.stringify(this.tempFilterCriteria));
@@ -2029,6 +2638,7 @@ const C1FilterComponent = {
     const target = presets.find(p => p.id === presetId);
     if (!target) return;
 
+    if (!this.validateCriteria(target.criteria || [])) return;
     this.activeFilters = JSON.parse(JSON.stringify(target.criteria || []));
     this.activePresetName = target.name || "";
     this.saveActiveFiltersToStorage();
@@ -2048,7 +2658,8 @@ const C1FilterComponent = {
     if (willBeDefault) {
       presets.forEach(p => p.isDefault = false);
       target.isDefault = true;
-      this.activeFilters = JSON.parse(JSON.stringify(target.criteria || []));
+      if (!this.validateCriteria(target.criteria || [])) return;
+    this.activeFilters = JSON.parse(JSON.stringify(target.criteria || []));
       this.activePresetName = target.name || "";
       this.saveActiveFiltersToStorage();
     } else {
@@ -2105,9 +2716,9 @@ const C1FilterComponent = {
     });
   },
 
-  matchesCondition: function(item, crit) {
-    const key = crit.fieldKey;
-    let itemVal = item[key];
+  matchesCondition: function(item, crit, isServerFiltered = this.isServerFiltered) {
+    const key = (crit.fieldKey === "wms_status") ? "vms_status" : crit.fieldKey;
+    let itemVal = key === "vms_status" ? (item.vms_status ?? item.wms_status) : item[key];
     if(key === 'pogruzka_active_duplicate')itemVal=item.active_pogruzka_count!==undefined?Number(item.active_pogruzka_count)>1:item.pogruzka_duplicate===true;
     if (key === "pogruzka_duplicate" && item.pogruzka_has_duplicates !== undefined) {
       itemVal = item.pogruzka_has_duplicates;
@@ -2124,12 +2735,30 @@ const C1FilterComponent = {
 
     if (itemVal === undefined || itemVal === null) itemVal = "";
 
+    // 0. WMS / VMS status normalized matching (immune to Latin WMS vs Cyrillic ВМС and whitespace differences)
+    if (key === "vms_status") {
+      if (op === "Заполнено") return String(itemVal).trim() !== "";
+      if (op === "Не заполнено") return String(itemVal).trim() === "";
+      const normV = (v) => String(v || "").toLowerCase().replace(/wms/g, "вмс").replace(/[\s_]+/g, "");
+      const sItem = normV(itemVal);
+      const sTarget = normV(targetVal);
+      if (["В списке", "Не в списке"].includes(op)) {
+        const entries = crit.structuredFilter?.items?.length ? crit.structuredFilter.items.map(v => v.value) : String(targetVal || "").split(/[,;\n]+/);
+        const found = entries.some(value => normV(value) === sItem);
+        return op === "Не в списке" ? !found : found;
+      }
+      if (op === "Равно") return sItem === sTarget;
+      if (op === "Не равно") return sItem !== sTarget;
+      if (op === "Содержит" || op === "Начинается с") return sItem.includes(sTarget);
+      if (op === "Не содержит") return !sItem.includes(sTarget);
+    }
+
     // 1. Boolean operations (posted, deleted)
     if (key === "posted" || key === "deleted" || key === "pogruzka_duplicate" || key === "pogruzka_active_duplicate") {
       const bVal = Boolean(itemVal);
       if (op === "Заполнено") return true;
       if (op === "Не заполнено") return false;
-      const targetBool = (targetVal === "Да" || targetVal === "true" || targetVal === true);
+      const targetBool = ["да", "true", "1", "yes", "истина"].includes(String(targetVal).toLowerCase());
       if (op === "Равно") return bVal === targetBool;
       if (op === "Не равно") return bVal !== targetBool;
     }
@@ -2145,7 +2774,7 @@ const C1FilterComponent = {
         noms = (String(item.nomenclature).includes(";") ? String(item.nomenclature).split(";") : [String(item.nomenclature)]).map(n => n.trim().toLowerCase()).filter(Boolean);
       }
 
-      if (this.isServerFiltered && noms.length === 0) {
+      if (isServerFiltered && noms.length === 0) {
         return true;
       }
 
@@ -2172,7 +2801,7 @@ const C1FilterComponent = {
           if (/^содержит:\s*/i.test(tok)) {
             return { comp: "contains", value: tok.replace(/^содержит:\s*/i, "").trim() };
           }
-          return { comp: "equal", value: tok };
+          return { comp: ["Содержит", "Не содержит"].includes(op) ? "contains" : (op === "Начинается с" ? "starts" : "equal"), value: tok };
         });
       }
 
@@ -2181,26 +2810,12 @@ const C1FilterComponent = {
       const matchSingleNom = (entry, query, comp) => {
         if (!entry || !query) return false;
         const qRaw = query.toLowerCase().trim();
-        const q = qRaw.replace(/^\[[^\]]+\]\s*/, "").trim();
-        const qClean = q.replace(/^0+/, "");
-        const segments = entry.toLowerCase().split("|").map(s => s.trim());
-
-        if (comp === "equal") {
-          for (const seg of segments) {
-            if (!seg) continue;
-            const segClean = seg.replace(/^0+/, "");
-            if (seg === q || (qClean && segClean === qClean) || seg === qRaw) return true;
-            if (seg.length > 5 && q.length > 5 && (seg.includes(q) || q.includes(seg))) return true;
-          }
-          return entry === q || (qClean && entry.replace(/^0+/, "") === qClean) || (entry.length > 5 && q.length > 5 && entry.includes(q));
-        } else {
-          for (const seg of segments) {
-            if (!seg) continue;
-            const segClean = seg.replace(/^0+/, "");
-            if (seg.includes(q) || (qClean && segClean.includes(qClean)) || (qRaw && seg.includes(qRaw))) return true;
-          }
-          return entry.includes(q) || (qClean && entry.includes(qClean)) || (qRaw && entry.includes(qRaw));
-        }
+        const bracket = qRaw.match(/^\[([^\]]+)\]/);
+        const q = bracket && comp === "equal" ? bracket[1].trim() : qRaw;
+        const segments = entry.toLowerCase().split("|").map(v => v.trim());
+        if (comp === "equal") return segments.some(v => v === q);
+        if (comp === "starts") return segments.some(v => v.startsWith(q));
+        return segments.some(v => v.includes(q));
       };
 
       const docHasCriterion = (c) => {
@@ -2234,57 +2849,25 @@ const C1FilterComponent = {
 
     // 2. Filled / Not filled operators
     if (op === "Заполнено") {
+      if (["amount", "realization_count"].includes(key)) return Number(itemVal) !== 0;
+      if (key === "date") return Boolean(String(itemVal).trim()) && !String(itemVal).startsWith("01.01.0001");
       return String(itemVal).trim() !== "";
     }
     if (op === "Не заполнено") {
+      if (["amount", "realization_count"].includes(key)) return Number(itemVal) === 0;
+      if (key === "date") return !String(itemVal).trim() || String(itemVal).startsWith("01.01.0001");
       return String(itemVal).trim() === "";
     }
 
     // 3. List operators: ONLY semicolon separated
-    if (op === "В группе из списка" || op === "В списке") {
-      if (!targetVal) return true;
-      const parts = String(targetVal).split(";").map(s => s.trim().toLowerCase()).filter(Boolean);
-      const strVal = String(itemVal).trim().toLowerCase();
-      const codeVal = String(item[key + "_code"] || "").trim().toLowerCase();
-      const isCodeField = (key === "number" || key === "deal" || key === "obrabotka_number" || key === "kontragent_code");
-      const strClean = isCodeField ? strVal.replace(/^[a-zа-яё_]*0+/, "") : "";
-      return parts.some(p => {
-        let cleanP = p.replace(/^\[[^\]]+\]\s*/, "").trim();
-        let namePart = cleanP;
-        let codePart = "";
-        if (cleanP.includes(" - ")) {
-          const sub = cleanP.split(" - ");
-          namePart = sub[0].trim();
-          codePart = sub[sub.length - 1].trim();
-        }
-        const pClean = isCodeField ? cleanP.replace(/^[a-zа-яё_]*0+/, "") : "";
-        if (strVal === cleanP || strVal.includes(cleanP) || cleanP.includes(strVal)) return true;
-        if (namePart && (strVal === namePart || strVal.includes(namePart) || namePart.includes(strVal))) return true;
-        if (codePart && (codeVal === codePart || strVal.includes(codePart) || codeVal.includes(codePart))) return true;
-        if (isCodeField && strClean && pClean && strClean === pClean) return true;
-        return false;
-      });
+    if (key === "number" && ["Равно", "Не равно", "В списке", "Не в списке", "В группе из списка"].includes(op)) {
+      const current = String(itemVal ?? "").trim().toLowerCase();
+      const found = this.getNumberFilterValues(crit).some(v => v.toLowerCase() === current);
+      return ["Не равно", "Не в списке"].includes(op) ? !found : found;
     }
-    if (op === "Не в списке") {
-      if (!targetVal) return true;
-      const parts = String(targetVal).split(";").map(s => s.trim().toLowerCase()).filter(Boolean);
-      const strVal = String(itemVal).trim().toLowerCase();
-      const codeVal = String(item[key + "_code"] || "").trim().toLowerCase();
-      const anyMatch = parts.some(p => {
-        let cleanP = p.replace(/^\[[^\]]+\]\s*/, "").trim();
-        let namePart = cleanP;
-        let codePart = "";
-        if (cleanP.includes(" - ")) {
-          const sub = cleanP.split(" - ");
-          namePart = sub[0].trim();
-          codePart = sub[sub.length - 1].trim();
-        }
-        if (strVal === cleanP || strVal.includes(cleanP) || cleanP.includes(strVal)) return true;
-        if (namePart && (strVal === namePart || strVal.includes(namePart) || namePart.includes(strVal))) return true;
-        if (codePart && (codeVal === codePart || strVal.includes(codePart) || codeVal.includes(codePart))) return true;
-        return false;
-      });
-      return !anyMatch;
+    if (["В группе из списка", "В списке", "Не в списке"].includes(op)) {
+      const matched = this.matchesTextList(itemVal, crit);
+      return op === "Не в списке" ? !matched : matched;
     }
 
     // 4. Date comparisons
@@ -2310,8 +2893,8 @@ const C1FilterComponent = {
       if (dtItem !== null && dtTarget !== null) {
         const sItemDate = String(itemVal).trim().toLowerCase();
         const sTargetDate = String(targetVal).trim().toLowerCase();
-        if (op === "Равно") return sItemDate.startsWith(sTargetDate) || sItemDate.includes(sTargetDate) || (dtItem === dtTarget);
-        if (op === "Не равно") return !sItemDate.startsWith(sTargetDate) && dtItem !== dtTarget;
+        if (op === "Равно") return dtItem === dtTarget;
+        if (op === "Не равно") return dtItem !== dtTarget;
         if (op === "Больше") return dtItem > dtTarget;
         if (op === "Меньше") return dtItem < dtTarget;
         if (op === "Больше или равно") return dtItem >= dtTarget;
@@ -2321,6 +2904,13 @@ const C1FilterComponent = {
 
     // 5. Interval comparisons for numbers or general text
     if (op.startsWith("Интервал")) {
+      if (["amount", "realization_count"].includes(key)) {
+        const value = Number(itemVal);
+        const from = crit.valueFrom === undefined || String(crit.valueFrom).trim() === "" ? -Infinity : Number(String(crit.valueFrom).replace(",", "."));
+        const to = crit.valueTo === undefined || String(crit.valueTo).trim() === "" ? Infinity : Number(String(crit.valueTo).replace(",", "."));
+        const bounds = op.match(/\((>=|>),\s*(<=|<)\)/);
+        return Boolean(bounds) && (bounds[1] === ">=" ? value >= from : value > from) && (bounds[2] === "<=" ? value <= to : value < to);
+      }
       const sFrom = (crit.valueFrom !== undefined && crit.valueFrom !== "") ? String(crit.valueFrom) : (String(targetVal || "").split(/\s*(?:\.\.\.|—|-)\s*/)[0] || "");
       const sTo = (crit.valueTo !== undefined && crit.valueTo !== "") ? String(crit.valueTo) : (String(targetVal || "").split(/\s*(?:\.\.\.|—|-)\s*/)[1] !== undefined ? String(targetVal || "").split(/\s*(?:\.\.\.|—|-)\s*/)[1] : sFrom);
 
@@ -2351,13 +2941,12 @@ const C1FilterComponent = {
     const sTargetRaw = String(targetVal !== undefined && targetVal !== null ? targetVal : "").trim();
     const isStrictNumber = (str) => /^[-+]?\d+(\.\d+)?$/.test(str);
 
-    const isNumericComp = (key === "amount")
-      ? (!isNaN(parseFloat(itemVal)) && isStrictNumber(sTargetRaw))
-      : (isStrictNumber(sItemRaw) && isStrictNumber(sTargetRaw));
+    const isNumericComp = ["amount", "realization_count"].includes(key)
+      && isStrictNumber(sItemRaw) && isStrictNumber(sTargetRaw.replace(",", "."));
 
     if (isNumericComp) {
       const numItem = parseFloat(itemVal);
-      const numTarget = parseFloat(targetVal);
+      const numTarget = parseFloat(sTargetRaw.replace(",", "."));
       if (op === "Равно") return numItem === numTarget;
       if (op === "Не равно") return numItem !== numTarget;
       if (op === "Больше") return numItem > numTarget;
@@ -2383,8 +2972,17 @@ const C1FilterComponent = {
     return true;
   },
 
+  matchesTextList: function(value, crit) {
+    const current = String(value ?? "").trim().toLowerCase();
+    const structured = crit.structuredFilter || {};
+    const entries = structured.items?.length ? structured.items : String(crit.value || "").split(/[,;\n]+/).map(v => ({value:v.trim(),comp:"equal"})).filter(v => v.value);
+    const match = entry => entry.comp === "contains" ? current.includes(String(entry.value).trim().toLowerCase()) : current === String(entry.value).trim().toLowerCase();
+    return entries.length > 0 && (structured.matchAll ? entries.every(match) : entries.some(match));
+  },
+
   parseFullDateTimeMs: function(val, isEndDate = false) {
     if (val === undefined || val === null || val === "") return null;
+    if (window.C1Dates) return C1Dates.milliseconds(val, isEndDate);
     if (window.PeriodPicker && typeof PeriodPicker.parseDateObj === "function") {
       const dt = PeriodPicker.parseDateObj(String(val), isEndDate);
       if (dt) return dt.getTime();
@@ -2420,3 +3018,14 @@ const C1FilterComponent = {
 };
 
 window.C1FilterComponent = C1FilterComponent;
+
+window.addEventListener('c1-language-changed', () => {
+  if (typeof C1FilterComponent !== 'undefined') {
+    if (typeof C1FilterComponent.renderFilterAvailableFields === 'function') {
+      C1FilterComponent.renderFilterAvailableFields();
+    }
+    if (typeof C1FilterComponent.renderFilterCriteriaRows === 'function') {
+      C1FilterComponent.renderFilterCriteriaRows();
+    }
+  }
+});

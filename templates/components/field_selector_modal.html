@@ -10,17 +10,17 @@
     <div class="settings-header" ondblclick="toggleFieldSelectorMaximize()">
       <div class="settings-header-title">
         <span style="font-size: 13px; margin-right: 4px;">📊</span>
-        <span>Выбор поля</span>
+        <span data-i18n="field_select.title">Выбор поля</span>
       </div>
       <div class="window-titlebar-controls">
         <button class="window-btn-sys" title="Böyüt / Bərpa et" onclick="toggleFieldSelectorMaximize()">□</button>
-        <button class="window-btn-sys window-btn-close" onclick="closeFieldSelectorModal()" title="Закрыть">✕</button>
+        <button class="window-btn-sys window-btn-close" onclick="closeFieldSelectorModal()" title="Закрыть" data-i18n-title="common.close">✕</button>
       </div>
     </div>
 
     <!-- Tree Sub-header -->
     <div style="background: #f7f6f0; padding: 4px 8px; border-bottom: 1px solid #d4d0c8; font-size: 11px; font-weight: bold; color: #222;">
-      Доступные поля
+      <span data-i18n="filter.available_fields">Доступные поля</span>
     </div>
 
     <!-- Tree Body -->
@@ -228,10 +228,10 @@
     <!-- Window Footer Buttons -->
     <div style="display: flex; justify-content: flex-end; gap: 8px; padding: 8px 12px; background: #ece9d8; border-top: 1px solid #c0bfae;">
       <button class="btn-1c primary" onclick="confirmFieldSelection()" style="min-width: 65px; height: 24px; font-size: 11px;">
-        OK
+        <span data-i18n="common.ok">OK</span>
       </button>
       <button class="btn-1c" onclick="closeFieldSelectorModal()" style="min-width: 65px; height: 24px; font-size: 11px;">
-        Отмена
+        <span data-i18n="common.cancel">Отмена</span>
       </button>
     </div>
 

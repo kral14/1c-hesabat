@@ -5,6 +5,7 @@ services/audit_service.py
 Extracts document versions from РегистрСведений.ВерсииОбъектов and event log
 to provide a complete audit trail of modifications, amounts, users, and line item diffs.
 """
+from services.onec_dates import as_1c_date
 from services.audit_filters import DOCUMENT_TYPES, document_conditions, version_conditions, audit_field_map
 import base64
 import datetime
@@ -43,13 +44,13 @@ def get_audit_list(conn, payload):
     if date_from and payload.get("period_field", "change_date") == "change_date":
         dt_f = parse_query_datetime(date_from, is_end=False)
         if dt_f:
-            q.SetParameter("DateFrom", dt_f)
+            q.SetParameter("DateFrom", as_1c_date(dt_f))
             where_parts.append("Т.ДатаВерсии >= &DateFrom")
 
     if date_to and payload.get("period_field", "change_date") == "change_date":
         dt_t = parse_query_datetime(date_to, is_end=True)
         if dt_t:
-            q.SetParameter("DateTo", dt_t)
+            q.SetParameter("DateTo", as_1c_date(dt_t))
             where_parts.append("Т.ДатаВерсии <= &DateTo")
 
     if author_filter:
@@ -751,8 +752,8 @@ def get_event_timeline(conn, doc_ref, payload):
     date_to = parse_query_datetime(payload.get('date_to'), is_end=True)
     if date_from and date_to and date_from > date_to:
         raise ValueError('Başlanğıc tarix son tarixdən böyük ola bilməz.')
-    if date_from: filt.Вставить('ДатаНачала', date_from)
-    if date_to: filt.Вставить('ДатаОкончания', date_to)
+    if date_from: filt.Вставить('ДатаНачала', as_1c_date(date_from))
+    if date_to: filt.Вставить('ДатаОкончания', as_1c_date(date_to))
     conn.ВыгрузитьЖурналРегистрации(tz, filt, "", "")
     for idx in range(tz.Количество()):
         row = tz.Получить(idx)

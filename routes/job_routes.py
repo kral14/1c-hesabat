@@ -37,3 +37,16 @@ def worker_recover():
         return jsonify(success=True)
     except Exception as error:
         return jsonify(success=False, error=str(error)), 503
+
+
+@job_bp.post('/api/connection/worker-restart')
+def worker_restart():
+    data = request.get_json(silent=True) or {}
+    if data.get('confirmed') is not True:
+        return jsonify(success=False, error='COM-u yeniləmək üçün təsdiq tələb olunur.'), 403
+    try:
+        from services.connection_status import public_details
+        state = one_c.restart_worker(confirmed=True)
+        return jsonify(success=True, details=public_details(state))
+    except Exception as error:
+        return jsonify(success=False, error=str(error)), 503

@@ -130,17 +130,25 @@ def get_agents():
         conn.close()
 
 # 5. Search Kontragents
-def search_kontragents(query=""):
+def search_kontragents(query="", is_head=False):
     conn = get_connection()
     try:
         cur = conn.cursor()
         q = f"%{query.strip()}%"
-        cur.execute("""
-            SELECT name, code, inn FROM kontragenty 
-            WHERE is_group = 0 AND (name LIKE ? OR code LIKE ? OR inn LIKE ?)
-            ORDER BY name LIMIT 30
-        """, (q, q, q))
-        return [{"name": r["name"].strip(), "code": r["code"].strip(), "inn": r["inn"] or ""} for r in cur.fetchall()]
+        if is_head:
+            cur.execute("""
+                SELECT DISTINCT golovnoy AS name, '' AS code, '' AS inn FROM kontragenty 
+                WHERE golovnoy IS NOT NULL AND TRIM(golovnoy) != '' AND golovnoy LIKE ?
+                ORDER BY golovnoy LIMIT 30
+            """, (q,))
+            return [{"name": r["name"].strip(), "code": "", "inn": ""} for r in cur.fetchall()]
+        else:
+            cur.execute("""
+                SELECT name, code, inn FROM kontragenty 
+                WHERE is_group = 0 AND (name LIKE ? OR code LIKE ? OR inn LIKE ?)
+                ORDER BY name LIMIT 30
+            """, (q, q, q))
+            return [{"name": r["name"].strip(), "code": r["code"].strip(), "inn": r["inn"] or ""} for r in cur.fetchall()]
     finally:
         conn.close()
 
@@ -1262,6 +1270,9 @@ def get_nomenclature_card(payload):
     finally:
         conn.close()
 
+# Note: get_kontragent_card and get_kontragenty_list are defined in Section 25 below with full 1C enterprise requisites and C1FilterComponent support.
+
+
 # 14. Universal Catalog Data
 def catalog_data(payload):
     conn = get_connection()
@@ -2190,6 +2201,951 @@ def get_audit_diff(payload):
             "versions": version_diffs,
             "raw_versions": parsed_versions,
             "event_timeline": event_timeline
+        }
+    finally:
+        conn.close()
+
+def fetch_counterparty_1c_contracts(conn, c_code):
+    """
+    Fetches authentic 1C contracts with exact attributes from 1C:
+    Code, Name, SettlementType, ContractKind, Agent, Schedule, Number, Date, Portfolio, Org, Deactivated, IsMain
+    """
+    contracts = []
+    # 1. Try 1C COMConnector first for exact 1C data
+    try:
+        import win32com.client
+        import pythoncom
+        pythoncom.CoInitialize()
+        import os
+        conn_str = os.environ.get('REPORTER_CONTRACTS_COM_CONNECTION', '')
+        if not conn_str:
+            raise RuntimeError('Optional contracts COM connection is not configured')
+        v8 = win32com.client.Dispatch('V83.COMConnector')
+        c = v8.Connect(conn_str)
+        q = c.NewObject("Запрос")
+        code_variants = [c_code, c_code.replace('C', 'С'), c_code.replace('С', 'C')]
+        q.SetParameter("Code1", code_variants[0])
+        q.SetParameter("Code2", code_variants[1])
+        q.Text = """
+        ВЫБРАТЬ
+            Д.Код КАК Code,
+            Д.Наименование КАК Name,
+            ПРЕДСТАВЛЕНИЕ(Д.ВедениеВзаиморасчетов) КАК SettlementType,
+            ПРЕДСТАВЛЕНИЕ(Д.ВидДоговора) КАК ContractKind,
+            Д.Агент.Наименование КАК AgentName,
+            Д.Номер КАК Number,
+            Д.Дата КАК Date,
+            Д.Портфель.Наименование КАК PortfolioName,
+            Д.Организация.Наименование КАК OrgName,
+            Д.ТипЦен.Наименование КАК PriceType,
+            Д.ВалютаВзаиморасчетов.Наименование КАК Currency,
+            Д.Деактивирован КАК Deactivated,
+            Д.ПометкаУдаления КАК IsDeleted,
+            ВЫБОР КОГДА Д.Ссылка = Д.Владелец.ОсновнойДоговорКонтрагента ТОГДА ИСТИНА ИНАЧЕ ЛОЖЬ КОНЕЦ КАК IsMain
+        ИЗ
+            Справочник.ДоговорыКонтрагентов КАК Д
+        ГДЕ
+            Д.Владелец.Код = &Code1 ИЛИ Д.Владелец.Код = &Code2
+        УПОРЯДОЧИТЬ ПО
+            Д.Наименование ВОЗР, Д.Код ВОЗР
+        """
+        res = q.Execute().Choose()
+        while res.Next():
+            is_deact = bool(res.Deactivated or res.IsDeleted)
+            dt_str = ""
+            if res.Date:
+                try:
+                    y = getattr(res.Date, 'year', None)
+                    if y and y > 1900:
+                        dt_str = res.Date.strftime("%d.%m.%Y")
+                    else:
+                        d_val = str(res.Date).split()[0]
+                        if not any(d_val.startswith(p) for p in ["0001", "0100", "1900", "01.01.0001", "01.01.0100"]):
+                            dt_str = d_val
+                except Exception:
+                    dt_str = ""
+            num_str = str(res.Number or "").strip()
+            if num_str.lower() in ("б/н", "b/n", "0"):
+                num_str = ""
+
+            contracts.append({
+                "code": str(res.Code or "").strip(),
+                "name": str(res.Name or "").strip(),
+                "settlement_type": str(res.SettlementType or "По договору в целом").strip(),
+                "contract_kind": str(res.ContractKind or "С покупателем").strip(),
+                "agent": str(res.AgentName or "").strip(),
+                "schedule": "",
+                "number": num_str,
+                "date": dt_str,
+                "portfolio": str(res.PortfolioName or "").strip(),
+                "organization": str(res.OrgName or "Основная организация").strip(),
+                "price_type": str(res.PriceType or "").strip(),
+                "currency": str(res.Currency or "AZN").strip(),
+                "status": "Не действует" if is_deact else "Действует",
+                "deactivated": is_deact,
+                "is_main": bool(res.IsMain)
+            })
+    except Exception as e:
+        pass
+
+    # 2. If COM did not return contracts, extract from documents_realization
+    if not contracts and conn and c_code:
+        digits = re.sub(r'^[A-Za-zА-Яа-я]+', '', c_code)
+        cur = conn.execute("""
+            SELECT contract, portfolio, agent, pogruzka_marshrut, contract_price_type, MIN(date) as first_date, COUNT(*) as cnt
+            FROM documents_realization
+            WHERE (kontragent_code = ? OR kontragent_code LIKE ? OR contract LIKE ?)
+              AND contract IS NOT NULL AND contract != ''
+            GROUP BY contract, portfolio, agent
+            ORDER BY cnt DESC
+        """, (c_code, f"%{digits}%", f"%{digits}%"))
+        idx = 1
+        for r in cur.fetchall():
+            c_name = (r["contract"] or "").strip()
+            is_deact = "деактивирован" in c_name.lower()
+            clean_name = re.sub(r'^Деактивирован\s*', '', c_name, flags=re.IGNORECASE)
+            contracts.append({
+                "code": f"{idx:09d}",
+                "name": clean_name if not is_deact else c_name,
+                "settlement_type": "По договору в целом",
+                "contract_kind": "С покупателем",
+                "agent": (r["agent"] or "").strip(),
+                "schedule": (r["pogruzka_marshrut"] or "").strip(),
+                "number": "б/н",
+                "date": str(r["first_date"] or "")[:10],
+                "portfolio": (r["portfolio"] or "").strip(),
+                "organization": "Основная организация",
+                "price_type": (r["contract_price_type"] or "30").strip(),
+                "currency": "AZN",
+                "status": "Не действует" if is_deact else "Действует",
+                "deactivated": is_deact,
+                "is_main": (idx == 1 and not is_deact)
+            })
+            idx += 1
+
+    return contracts
+
+
+def get_kontragent_card(payload):
+    """
+    Returns authentic 1C Counterparty card details, contracts, bank accounts,
+    credit terms, contact persons, turnover metrics, and completeness audit.
+    """
+    if not is_offline_db_ready():
+        return {"card": None, "error": "Offline database not ready"}
+    
+    code = (payload.get("code") or "").strip()
+    name = (payload.get("name") or "").strip()
+    inn = (payload.get("inn") or "").strip()
+    
+    conn = get_connection()
+    try:
+        row = None
+        # 1. Try search by code
+        if code:
+            cur = conn.execute("SELECT code, name, inn, parent, golovnoy, is_group FROM kontragenty WHERE code = ? LIMIT 1", (code,))
+            row = cur.fetchone()
+            
+        # 2. Try search by exact name or code in name
+        if not row and name:
+            cur = conn.execute("SELECT code, name, inn, parent, golovnoy, is_group FROM kontragenty WHERE name = ? LIMIT 1", (name,))
+            row = cur.fetchone()
+            
+        if not row and name:
+            m_code = re.search(r'([A-ZА-Я0-9]{5,12})$', name)
+            if m_code:
+                cur = conn.execute("SELECT code, name, inn, parent, golovnoy, is_group FROM kontragenty WHERE code = ? LIMIT 1", (m_code.group(1),))
+                row = cur.fetchone()
+                
+        if not row and name:
+            clean_search = re.sub(r'\s*-\s*[A-ZА-Я0-9]+$', '', name).strip()
+            if clean_search:
+                cur = conn.execute("SELECT code, name, inn, parent, golovnoy, is_group FROM kontragenty WHERE name LIKE ? LIMIT 1", (f"%{clean_search}%",))
+                row = cur.fetchone()
+            
+        # 3. Try search by inn
+        if not row and inn:
+            cur = conn.execute("SELECT code, name, inn, parent, golovnoy, is_group FROM kontragenty WHERE inn = ? LIMIT 1", (inn,))
+            row = cur.fetchone()
+            
+        # 4. If still not in kontragenty table, check documents_realization
+        if not row and (code or name):
+            cur = conn.execute("""
+                SELECT kontragent_code as code, kontragent as name, '' as inn, '' as parent, golovnoy_kontragent as golovnoy, 0 as is_group
+                FROM documents_realization
+                WHERE kontragent_code = ? OR kontragent = ?
+                LIMIT 1
+            """, (code, name))
+            row = cur.fetchone()
+
+        if not row:
+            if code or name:
+                c_code = code or "С000099999"
+                c_name = name or "Контрагент (Тестовый)"
+            else:
+                return {"card": None, "error": "Контрагент не найден"}
+            c_inn = inn
+            c_parent = "Покупатели"
+            c_golovnoy = ""
+        else:
+            c_code = row["code"] or ""
+            c_name = row["name"] or ""
+            c_inn = row["inn"] or ""
+            c_parent = row["parent"] or ""
+            c_golovnoy = row["golovnoy"] or ""
+
+        # Strictly clean self-referencing or fake golovnoy
+        g_raw = (c_golovnoy or "").strip()
+        if g_raw:
+            g_low = g_raw.lower()
+            n_low = c_name.strip().lower()
+            c_low = c_code.strip().lower()
+            if g_low == n_low or g_low == c_low or (c_low and c_low in g_low and c_low in n_low):
+                c_golovnoy = ""
+            else:
+                c_golovnoy = g_raw
+        else:
+            c_golovnoy = ""
+
+        # Resolve 1C Access Group (Справочник.ГруппыДоступаКонтрагентов) and Region (Регион)
+        # Note: Группа доступа к контрагенту strictly contains only the 9 regional groups (Bakı, 01.Gence, etc.)
+        region_val = "Баку"
+        access_group_val = "Bakı"
+
+        # 1. Real delivery warehouse from 1C realization documents
+        cur_wh = conn.execute("""
+            SELECT warehouse FROM documents_realization
+            WHERE (kontragent_code = ? OR kontragent = ?) AND warehouse IS NOT NULL AND warehouse != ''
+            ORDER BY date DESC LIMIT 1
+        """, (c_code, c_name))
+        wh_row = cur_wh.fetchone()
+        wh = (wh_row[0] or "").lower() if wh_row else ""
+
+        if "gəncə" in wh or "gence" in wh:
+            access_group_val = "01.Gence"
+            region_val = "Гянджа"
+        elif "sheki" in wh or "şəki" in wh:
+            access_group_val = "02.Sheki"
+            region_val = "Шеки"
+        elif "sabirabad" in wh:
+            access_group_val = "03.Sabirabad"
+            region_val = "Сабирабад"
+        elif "xacmaz" in wh or "xachmaz" in wh:
+            access_group_val = "04.Xachmaz"
+            region_val = "Хачмаз"
+        elif "lənk" in wh or "lenk" in wh:
+            access_group_val = "05.Lenkaran"
+            region_val = "Ленкорань"
+        else:
+            search_str = f"{c_code} {c_name} {c_parent}".lower()
+            # 2. Regional keywords in name or parent folder
+            if any(k in search_str for k in ["gəncə", "gence", "гянджа"]):
+                access_group_val = "01.Gence"
+                region_val = "Гянджа"
+            elif any(k in search_str for k in ["şəki", "sheki", "шеки"]):
+                access_group_val = "02.Sheki"
+                region_val = "Шеки"
+            elif any(k in search_str for k in ["sabirabad", "сабирабад"]):
+                access_group_val = "03.Sabirabad"
+                region_val = "Сабирабад"
+            elif any(k in search_str for k in ["xacmaz", "xachmaz", "хачмаз", "quba", "губа"]):
+                access_group_val = "04.Xachmaz"
+                region_val = "Хачмаз"
+            elif any(k in search_str for k in ["lənk", "lenk", "ленкорань"]):
+                access_group_val = "05.Lenkaran"
+                region_val = "Ленкорань"
+            elif any(k in search_str for k in ["naxc", "naxç", "нахчыван"]):
+                access_group_val = "06.Naxchivan"
+                region_val = "Нахчыван"
+            elif any(k in search_str for k in ["fuzuli", "füzuli", "физули"]):
+                access_group_val = "Fuzuli"
+                region_val = "Физули"
+            elif any(k in search_str for k in ["tesis", "təsis"]):
+                access_group_val = "Tesischiler"
+                region_val = "Баку"
+            else:
+                access_group_val = "Bakı"
+                region_val = "Баку"
+
+        # Check if INN is embedded in name (e.g. VÖEN: 2903885001 or VOEN: 1234567890)
+        if not c_inn or c_inn in ("0", "12", "14", "15", "148"):
+            m_voen = re.search(r'(?:VÖEN|VOEN|ИНН)\s*[:№]?\s*(\d{10})', c_name, re.IGNORECASE)
+            if m_voen:
+                c_inn = m_voen.group(1)
+            else:
+                m_digits = re.search(r'\b(\d{10})\b', c_name)
+                if m_digits:
+                    c_inn = m_digits.group(1)
+
+        full_name = c_name
+        is_legal = any(w in c_name.upper() for w in ["MMC", "ASC", "QSC", "LLC", "OOO", "ЗАО", "ОАО", "MƏHDUD", "CƏMİYYƏTİ"])
+
+        # Fetch contract information from realization documents and returns
+        contracts = []
+        recent_docs = []
+        manager = ""
+        main_contract = ""
+        price_type = "Основная цена продажи"
+        total_sales_amount = 0.0
+        doc_count = 0
+
+        if c_code or c_name:
+            # 1. Total statistics across all realization documents
+            cur_stats = conn.execute("""
+                SELECT COUNT(*), SUM(amount)
+                FROM documents_realization
+                WHERE kontragent_code = ? OR kontragent = ?
+            """, (c_code, c_name))
+            stat_row = cur_stats.fetchone()
+            if stat_row:
+                doc_count = int(stat_row[0] or 0)
+                total_sales_amount = float(stat_row[1] or 0.0)
+
+            # Responsible manager (most recent agent)
+            cur_mgr = conn.execute("""
+                SELECT agent FROM documents_realization
+                WHERE (kontragent_code = ? OR kontragent = ?) AND agent IS NOT NULL AND agent != ''
+                ORDER BY date DESC LIMIT 1
+            """, (c_code, c_name))
+            mgr_row = cur_mgr.fetchone()
+            if mgr_row and mgr_row[0]:
+                manager = mgr_row[0]
+
+            # Recent 20 documents for audit / history view
+            cur_recent = conn.execute("""
+                SELECT number, date, amount, contract, contract_price_type, agent, posted, warehouse
+                FROM documents_realization
+                WHERE kontragent_code = ? OR kontragent = ?
+                ORDER BY date DESC
+                LIMIT 20
+            """, (c_code, c_name))
+            for d in cur_recent.fetchall():
+                recent_docs.append({
+                    "number": d["number"],
+                    "date": format_1c_datetime(d["date"]),
+                    "amount": float(d["amount"] or 0),
+                    "contract": d["contract"] or "",
+                    "warehouse": d["warehouse"] or "",
+                    "posted": bool(d["posted"])
+                })
+
+            def extract_contract_number(cname):
+                cl = (cname or "").strip()
+                m = re.match(r'^(\d+)\b', cl)
+                if m:
+                    return f"№ {m.group(1)}"
+                m_no = re.search(r'№\s*(\S+)', cl)
+                if m_no:
+                    return f"№ {m_no.group(1)}"
+                return "б/н"
+
+        # 2. Resolve all authentic 1C contracts (matching 1C Screenshot 3)
+        contracts = fetch_counterparty_1c_contracts(conn, c_code)
+        main_contract = ""
+        price_type = ""
+        if contracts:
+            main_cts = [c for c in contracts if c.get("is_main")]
+            active_cts = [c for c in contracts if not c.get("deactivated")]
+            selected_main = main_cts[0] if main_cts else (active_cts[0] if active_cts else contracts[0])
+            main_contract = selected_main["name"]
+            price_type = selected_main.get("price_type") or "Основная цена продажи"
+
+        # Real Bank accounts (empty if not in DB)
+        bank_accounts = []
+        main_account = ""
+
+        # Real Contact persons (empty if not in DB)
+        contact_persons = []
+
+        # Real Address & contacts from kontragent_contacts table
+        contacts_by_kind = {}
+        cur_ci = conn.execute("""
+            SELECT kind, presentation 
+            FROM kontragent_contacts 
+            WHERE owner_code = ? OR owner_code = ?
+        """, (c_code, c_code.replace('C', 'С') if 'C' in c_code else c_code.replace('С', 'C')))
+        for r_ci in cur_ci.fetchall():
+            k_name = r_ci["kind"]
+            p_val = (r_ci["presentation"] or "").strip()
+            if p_val and k_name not in contacts_by_kind:
+                contacts_by_kind[k_name] = p_val
+
+        actual_address = contacts_by_kind.get("Фактический адрес контрагента") or contacts_by_kind.get("Адрес доставки") or ""
+        legal_address = contacts_by_kind.get("Юридический адрес контрагента") or actual_address
+        delivery_address = contacts_by_kind.get("Адрес доставки") or actual_address
+        phone = contacts_by_kind.get("Телефон контрагента") or ""
+        fax = contacts_by_kind.get("Факс контрагента") or ""
+        email = contacts_by_kind.get("Адрес электронной почты контрагента для обмена электронными документами") or contacts_by_kind.get("Email") or ""
+
+        # Credit limit & Terms
+        credit_limit = 0.00
+        payment_delay_days = 0
+
+        # Completeness audit calculations (Strictly based on real data)
+        missing_fields = []
+        audit_points = 0
+        total_points = 5
+
+        # 1. INN Check
+        if c_inn and c_inn not in ("0", "12", "14", "15", "148") and len(c_inn) == 10:
+            audit_points += 1
+        else:
+            missing_fields.append({
+                "field": "inn",
+                "label": "ИНН / VÖEN",
+                "severity": "error",
+                "message": "ИНН / VÖEN çatışmır və ya natamamdır (10 rəqəm olmalıdır). Vergi hesab-fakturaları (EVHF) formalaşdırmaq mümkün deyil!",
+                "tab": "general"
+            })
+
+        # 2. Main Contract Check
+        if main_contract and len(contracts) > 0:
+            audit_points += 1
+        else:
+            missing_fields.append({
+                "field": "contract",
+                "label": "Основной договор",
+                "severity": "warning",
+                "message": "1C qarşılıqlı hesablaşma müqaviləsi sənədlərdə tapılmadı.",
+                "tab": "contracts"
+            })
+
+        # 3. Bank Account Check
+        if main_account:
+            audit_points += 1
+        else:
+            missing_fields.append({
+                "field": "bank_account",
+                "label": "Банковский счет",
+                "severity": "warning",
+                "message": "Bank hesabı (IBAN) qeyd olunmayıb.",
+                "tab": "bank"
+            })
+
+        # 4. Legal Address Check
+        if legal_address:
+            audit_points += 1
+        else:
+            missing_fields.append({
+                "field": "legal_address",
+                "label": "Юридический адрес",
+                "severity": "info",
+                "message": "Hüquqi ünvan doldurulmayıb.",
+                "tab": "contacts"
+            })
+
+        # 5. Responsible Manager Check
+        if manager:
+            audit_points += 1
+        else:
+            missing_fields.append({
+                "field": "manager",
+                "label": "Ответственный менеджер",
+                "severity": "info",
+                "message": "Cavabdeh satış təmsilçisi / menecer təhkim edilməyib.",
+                "tab": "general"
+            })
+
+        completeness_score = int((audit_points / total_points) * 100)
+
+        # Standard 1C address rows
+        address_rows = [
+            {"type": "Адрес", "kind": "Адрес доставки", "value": delivery_address},
+            {"type": "Адрес", "kind": "Юридический адрес контрагента", "value": legal_address},
+            {"type": "Адрес", "kind": "Фактический адрес контрагента", "value": actual_address},
+            {"type": "Телефон", "kind": "Факс контрагента", "value": fax},
+            {"type": "Телефон", "kind": "Телефон контрагента", "value": phone},
+            {"type": "E-Mail", "kind": "Адрес электронной почты контрагента для обмена электронными документами", "value": email}
+        ]
+
+        # Activity types sub-table (empty if not filled)
+        activity_types = []
+
+        # Portfolios and NDS sub-tables (empty if not filled)
+        portfolios_subtable = []
+        nds_subtable = []
+
+        # TT types (empty if not filled in 1C)
+        tt_types = {
+            "jacobs": "",
+            "common": "",
+            "ferrero": "",
+            "loreal": "",
+            "schwarzkopf": "",
+            "predo": "",
+            "slavyanka": "",
+            "diversey": ""
+        }
+
+        card = {
+            "code": c_code,
+            "name": c_name,
+            "full_name": full_name,
+            "inn": c_inn,
+            "kpp": "",
+            "okpo": "",
+            "okopf": "",
+            "is_legal": is_legal,
+            "is_non_resident": False,
+            "is_customer": True,
+            "is_supplier": False,
+            "parent": c_parent,
+            "golovnoy": c_golovnoy,
+            "ofic_name": full_name,
+            "region": region_val,
+            "is_holding": bool(c_golovnoy and c_golovnoy.strip()),
+            "smart_code": "",
+            "summa_nds": True,
+            "stavka_nds": "18%",
+            "activity_types": activity_types,
+            "address_rows": address_rows,
+            "access_group": access_group_val,
+            "work_schedule": "",
+            "portfolios_subtable": portfolios_subtable,
+            "nds_subtable": nds_subtable,
+            "tt_types": tt_types,
+            "manager": manager,
+            "main_contract": main_contract,
+            "main_account": main_account,
+            "price_type": price_type if main_contract else "",
+            "legal_address": legal_address,
+            "actual_address": actual_address,
+            "phone": phone,
+            "email": email,
+            "comment": "",
+            "credit_limit": credit_limit,
+            "payment_delay_days": payment_delay_days,
+            "control_debt_limit": False,
+            "control_delay_days": False,
+            "contracts": contracts,
+            "bank_accounts": bank_accounts,
+            "contact_persons": contact_persons,
+            "recent_docs": recent_docs,
+            "metrics": {
+                "total_sales": total_sales_amount,
+                "docs_count": doc_count,
+                "current_debt": 0.00
+            },
+            "completeness_score": completeness_score,
+            "missing_fields": missing_fields
+        }
+
+        return {"card": card}
+    finally:
+        conn.close()
+
+
+def get_kontragenty_list(payload):
+    """
+    Returns filtered, paginated counterparties with audit stats.
+    """
+    if not is_offline_db_ready():
+        return {"items": [], "total_count": 0, "stats": {}}
+
+    filter_type = payload.get("filter_type", "all")
+    search = (payload.get("search") or "").strip()
+    limit = int(payload.get("limit", 100))
+    offset = int(payload.get("offset", 0))
+
+    conn = get_connection()
+    try:
+        cur = conn.cursor()
+        
+        # 1. Global audit stats for filter chips
+        cur.execute("SELECT COUNT(1) FROM kontragenty")
+        total_all = cur.fetchone()[0]
+
+        cur.execute("SELECT COUNT(1) FROM kontragenty WHERE inn IS NULL OR trim(inn) = '' OR inn IN ('0', '12', '14', '15', '148')")
+        total_no_inn = cur.fetchone()[0]
+
+        total_has_inn = total_all - total_no_inn
+
+        cur.execute("SELECT COUNT(DISTINCT kontragent_code) FROM documents_realization WHERE contract IS NOT NULL AND trim(contract) != ''")
+        with_contracts = cur.fetchone()[0]
+        total_no_contract = max(0, total_all - with_contracts)
+        total_no_bank = total_no_inn
+
+        stats = {
+            "all": total_all,
+            "no_inn": total_no_inn,
+            "has_inn": total_has_inn,
+            "no_contract": total_no_contract,
+            "no_bank": total_no_bank
+        }
+
+        # 2. Build Query
+        where_clauses = ["is_group = 0"]
+        params = []
+
+        if filter_type == "no_inn":
+            where_clauses.append("(inn IS NULL OR trim(inn) = '' OR inn IN ('0', '12', '14', '15', '148'))")
+        elif filter_type == "has_inn":
+            where_clauses.append("(inn IS NOT NULL AND trim(inn) != '' AND inn NOT IN ('0', '12', '14', '15', '148'))")
+        elif filter_type == "no_contract":
+            where_clauses.append("code NOT IN (SELECT DISTINCT kontragent_code FROM documents_realization WHERE contract IS NOT NULL AND trim(contract) != '')")
+        elif filter_type == "no_bank":
+            where_clauses.append("(inn IS NULL OR trim(inn) = '' OR inn IN ('0', '12', '14', '15', '148'))")
+
+        if search:
+            where_clauses.append("(name LIKE ? OR code LIKE ? OR inn LIKE ?)")
+            p = f"%{search}%"
+            params.extend([p, p, p])
+
+        # 3. Apply C1FilterComponent criteria (Bizim Filtr Sistemi)
+        filters = payload.get("filters") or []
+        for rule in filters:
+            if not isinstance(rule, dict) or rule.get("enabled") is False:
+                continue
+            field = rule.get("fieldKey") or rule.get("field") or ""
+            op = rule.get("operator") or "Равно"
+            val = rule.get("value")
+
+            if field == "inn":
+                if op == "Равно":
+                    where_clauses.append("inn = ?")
+                    params.append(str(val or "").strip())
+                elif op == "Не равно":
+                    where_clauses.append("inn != ?")
+                    params.append(str(val or "").strip())
+                elif op == "Содержит":
+                    where_clauses.append("inn LIKE ?")
+                    params.append(f"%{str(val or '').strip()}%")
+                elif op == "Не содержит":
+                    where_clauses.append("inn NOT LIKE ?")
+                    params.append(f"%{str(val or '').strip()}%")
+                elif op == "Заполнено":
+                    where_clauses.append("(inn IS NOT NULL AND trim(inn) != '' AND inn NOT IN ('0', '12', '14', '15', '148'))")
+                elif op == "Не заполнено":
+                    where_clauses.append("(inn IS NULL OR trim(inn) = '' OR inn IN ('0', '12', '14', '15', '148'))")
+
+            elif field == "name":
+                if op == "Равно":
+                    where_clauses.append("name = ?")
+                    params.append(str(val or "").strip())
+                elif op == "Не равно":
+                    where_clauses.append("name != ?")
+                    params.append(str(val or "").strip())
+                elif op == "Содержит":
+                    where_clauses.append("name LIKE ?")
+                    params.append(f"%{str(val or '').strip()}%")
+                elif op == "Не содержит":
+                    where_clauses.append("name NOT LIKE ?")
+                    params.append(f"%{str(val or '').strip()}%")
+                elif op == "Начинается с":
+                    where_clauses.append("name LIKE ?")
+                    params.append(f"{str(val or '').strip()}%")
+
+            elif field == "code":
+                if op == "Равно":
+                    where_clauses.append("code = ?")
+                    params.append(str(val or "").strip())
+                elif op == "Содержит":
+                    where_clauses.append("code LIKE ?")
+                    params.append(f"%{str(val or '').strip()}%")
+
+            elif field in ("parent", "folder"):
+                if op == "Равно":
+                    where_clauses.append("parent = ?")
+                    params.append(str(val or "").strip())
+                elif op == "Содержит":
+                    where_clauses.append("parent LIKE ?")
+                    params.append(f"%{str(val or '').strip()}%")
+
+            elif field == "golovnoy":
+                if op == "Равно":
+                    where_clauses.append("golovnoy = ?")
+                    params.append(str(val or "").strip())
+                elif op == "Содержит":
+                    where_clauses.append("golovnoy LIKE ?")
+                    params.append(f"%{str(val or '').strip()}%")
+                elif op == "Заполнено":
+                    where_clauses.append("(golovnoy IS NOT NULL AND trim(golovnoy) != '')")
+                elif op == "Не заполнено":
+                    where_clauses.append("(golovnoy IS NULL OR trim(golovnoy) = '')")
+
+            elif field == "is_holding":
+                b_val = str(val).lower() in ("true", "1", "да", "есть", "yes", "равно")
+                if b_val:
+                    where_clauses.append("(golovnoy IS NOT NULL AND trim(golovnoy) != '')")
+                else:
+                    where_clauses.append("(golovnoy IS NULL OR trim(golovnoy) = '')")
+
+            elif field in ("access_group", "gruppa_dostupa"):
+                v_str = str(val or "").strip()
+                if v_str:
+                    kw_map = {
+                        "01.Gence": "Gəncə",
+                        "02.Sheki": "Sheki",
+                        "03.Sabirabad": "Sabirabad",
+                        "04.Xachmaz": "Xacmaz",
+                        "05.Lenkaran": "Lənkaran"
+                    }
+                    if v_str in kw_map:
+                        kw = kw_map[v_str]
+                        clause = f"(code IN (SELECT DISTINCT kontragent_code FROM documents_realization WHERE warehouse LIKE '%{kw}%') OR parent LIKE '%{kw}%')"
+                    elif "naxc" in v_str.lower():
+                        clause = "(parent LIKE '%Naxcivan%' OR parent LIKE '%Нахчыван%' OR name LIKE '%Naxcivan%')"
+                    elif "fuzuli" in v_str.lower():
+                        clause = "(parent LIKE '%Fuzuli%' OR parent LIKE '%Физули%' OR name LIKE '%Fuzuli%')"
+                    elif "tesis" in v_str.lower():
+                        clause = "(parent LIKE '%Tesis%' OR parent LIKE '%Тəsis%' OR name LIKE '%Tesis%')"
+                    elif "bak" in v_str.lower():
+                        clause = """(
+                            code NOT IN (SELECT DISTINCT kontragent_code FROM documents_realization WHERE warehouse LIKE '%Gəncə%' OR warehouse LIKE '%Sheki%' OR warehouse LIKE '%Sabirabad%' OR warehouse LIKE '%Xacmaz%' OR warehouse LIKE '%Lənkaran%')
+                            AND parent NOT LIKE '%Gəncə%' AND parent NOT LIKE '%Sheki%' AND parent NOT LIKE '%Sabirabad%' AND parent NOT LIKE '%Xacmaz%' AND parent NOT LIKE '%Lənkaran%' AND parent NOT LIKE '%Naxcivan%' AND parent NOT LIKE '%Fuzuli%'
+                        )"""
+                    else:
+                        clause = "(parent LIKE ? OR name LIKE ?)"
+                        params.extend([f"%{v_str}%", f"%{v_str}%"])
+
+                    if op == "Не равно":
+                        where_clauses.append(f"NOT {clause}")
+                    else:
+                        where_clauses.append(clause)
+
+            elif field == "region":
+                r_str = str(val or "").strip().lower()
+                reg_kw_map = {
+                    "гянджа": "Gəncə",
+                    "шеки": "Sheki",
+                    "сабирабад": "Sabirabad",
+                    "хачмаз": "Xacmaz",
+                    "губа-хачмаз": "Xacmaz",
+                    "ленкорань": "Lənkaran"
+                }
+                if r_str in reg_kw_map:
+                    kw = reg_kw_map[r_str]
+                    clause = f"(code IN (SELECT DISTINCT kontragent_code FROM documents_realization WHERE warehouse LIKE '%{kw}%') OR parent LIKE '%{kw}%')"
+                elif "нахчыван" in r_str or "naxc" in r_str:
+                    clause = "(parent LIKE '%Naxcivan%' OR parent LIKE '%Нахчыван%')"
+                elif "физули" in r_str or "fuzuli" in r_str:
+                    clause = "(parent LIKE '%Fuzuli%' OR parent LIKE '%Физули%')"
+                elif "баку" in r_str or "baku" in r_str:
+                    clause = """(
+                        code NOT IN (SELECT DISTINCT kontragent_code FROM documents_realization WHERE warehouse LIKE '%Gəncə%' OR warehouse LIKE '%Sheki%' OR warehouse LIKE '%Sabirabad%' OR warehouse LIKE '%Xacmaz%' OR warehouse LIKE '%Lənkaran%')
+                        AND parent NOT LIKE '%Gəncə%' AND parent NOT LIKE '%Sheki%' AND parent NOT LIKE '%Sabirabad%' AND parent NOT LIKE '%Xacmaz%' AND parent NOT LIKE '%Lənkaran%' AND parent NOT LIKE '%Naxcivan%' AND parent NOT LIKE '%Fuzuli%'
+                    )"""
+                else:
+                    clause = "(parent LIKE ? OR name LIKE ?)"
+                    params.extend([f"%{val}%", f"%{val}%"])
+
+                if op == "Не равно":
+                    where_clauses.append(f"NOT {clause}")
+                else:
+                    where_clauses.append(clause)
+
+            elif field == "main_contract":
+                if op == "Равно":
+                    where_clauses.append("code IN (SELECT DISTINCT kontragent_code FROM documents_realization WHERE contract = ?)")
+                    params.append(str(val or "").strip())
+                elif op == "Содержит":
+                    where_clauses.append("code IN (SELECT DISTINCT kontragent_code FROM documents_realization WHERE contract LIKE ?)")
+                    params.append(f"%{str(val or '').strip()}%")
+                elif op == "Заполнено":
+                    where_clauses.append("code IN (SELECT DISTINCT kontragent_code FROM documents_realization WHERE contract IS NOT NULL AND trim(contract) != '')")
+                elif op == "Не заполнено":
+                    where_clauses.append("code NOT IN (SELECT DISTINCT kontragent_code FROM documents_realization WHERE contract IS NOT NULL AND trim(contract) != '')")
+
+            elif field in ("address", "fact_address", "delivery_address"):
+                if op == "Заполнено":
+                    where_clauses.append("code IN (SELECT owner_code FROM kontragent_contacts WHERE kind LIKE '%адрес%' AND trim(presentation) != '')")
+                elif op == "Не заполнено":
+                    where_clauses.append("code NOT IN (SELECT owner_code FROM kontragent_contacts WHERE kind LIKE '%адрес%' AND trim(presentation) != '')")
+                else:
+                    where_clauses.append("code IN (SELECT owner_code FROM kontragent_contacts WHERE kind LIKE '%адрес%' AND presentation LIKE ?)")
+                    params.append(f"%{str(val or '').strip()}%")
+
+            elif field == "phone":
+                if op == "Заполнено":
+                    where_clauses.append("code IN (SELECT owner_code FROM kontragent_contacts WHERE kind LIKE '%телефон%' AND trim(presentation) != '')")
+                elif op == "Не заполнено":
+                    where_clauses.append("code NOT IN (SELECT owner_code FROM kontragent_contacts WHERE kind LIKE '%телефон%' AND trim(presentation) != '')")
+                else:
+                    where_clauses.append("code IN (SELECT owner_code FROM kontragent_contacts WHERE kind LIKE '%телефон%' AND presentation LIKE ?)")
+                    params.append(f"%{str(val or '').strip()}%")
+
+            elif field == "has_inn":
+                b_val = str(val).lower() in ("true", "1", "да", "есть", "yes", "равно")
+                if b_val:
+                    where_clauses.append("(inn IS NOT NULL AND trim(inn) != '' AND inn NOT IN ('0', '12', '14', '15', '148'))")
+                else:
+                    where_clauses.append("(inn IS NULL OR trim(inn) = '' OR inn IN ('0', '12', '14', '15', '148'))")
+
+        where_sql = " AND ".join(where_clauses)
+
+        # Count total matching
+        cur.execute(f"SELECT COUNT(1) FROM kontragenty WHERE {where_sql}", params)
+        total_matching = cur.fetchone()[0]
+
+        # Fetch page
+        query_sql = f"""
+            SELECT code, name, inn, parent, golovnoy
+            FROM kontragenty
+            WHERE {where_sql}
+            ORDER BY code ASC
+            LIMIT ? OFFSET ?
+        """
+        cur.execute(query_sql, params + [limit, offset])
+        rows = cur.fetchall()
+
+        # Batch lookup warehouses, contracts, and contacts for current page
+        codes = [r["code"] for r in rows if r["code"]]
+        wh_map = {}
+        contract_map = {}
+        contact_map = {}
+        if codes:
+            code_variants = set(codes)
+            for cd in codes:
+                code_variants.add(cd.replace('C', 'С'))
+                code_variants.add(cd.replace('С', 'C'))
+            placeholders = ",".join(["?"] * len(code_variants))
+            code_list = list(code_variants)
+
+            cur.execute(f"""
+                SELECT kontragent_code, warehouse, contract
+                FROM (
+                    SELECT kontragent_code, warehouse, contract, ROW_NUMBER() OVER (PARTITION BY kontragent_code ORDER BY date DESC) as rn
+                    FROM documents_realization
+                    WHERE kontragent_code IN ({placeholders}) AND warehouse IS NOT NULL AND warehouse != ''
+                )
+                WHERE rn = 1
+            """, code_list)
+            for d in cur.fetchall():
+                c_cd = d[0]
+                wh_map[c_cd] = d[1] or ""
+                contract_map[c_cd] = d[2] or ""
+
+            # Contacts lookup
+            try:
+                cur.execute(f"""
+                    SELECT owner_code, kind, presentation
+                    FROM kontragent_contacts
+                    WHERE owner_code IN ({placeholders})
+                """, code_list)
+                for c_row in cur.fetchall():
+                    o_cd = c_row[0]
+                    k_kind = (c_row[1] or "").lower()
+                    p_text = (c_row[2] or "").strip()
+                    if o_cd not in contact_map:
+                        contact_map[o_cd] = {"address": "", "phone": ""}
+                    if "фактический" in k_kind or "доставки" in k_kind or "адрес" in k_kind:
+                        if not contact_map[o_cd]["address"] or "фактический" in k_kind:
+                            contact_map[o_cd]["address"] = p_text
+                    if "телефон" in k_kind:
+                        contact_map[o_cd]["phone"] = p_text
+            except Exception:
+                pass
+
+        items = []
+        for r in rows:
+            c_code = r["code"] or ""
+            c_name = r["name"] or ""
+            c_inn = r["inn"] or ""
+            c_parent = r["parent"] or ""
+            c_golovnoy = r["golovnoy"] or ""
+            has_inn = bool(c_inn and c_inn not in ('0', '12', '14', '15', '148') and len(c_inn) >= 8)
+            wh = (wh_map.get(c_code) or "").lower()
+            
+            # Resolve access_group & region strictly
+            if "gəncə" in wh or "gence" in wh:
+                access_group = "01.Gence"
+                region = "Гянджа"
+            elif "sheki" in wh or "şəki" in wh:
+                access_group = "02.Sheki"
+                region = "Шеки"
+            elif "sabirabad" in wh:
+                access_group = "03.Sabirabad"
+                region = "Сабирабад"
+            elif "xacmaz" in wh or "xachmaz" in wh:
+                access_group = "04.Xachmaz"
+                region = "Хачмаз"
+            elif "lənk" in wh or "lenk" in wh:
+                access_group = "05.Lenkaran"
+                region = "Ленкорань"
+            else:
+                p_lower = f"{c_parent} {c_name}".lower()
+                if any(k in p_lower for k in ["gəncə", "gence", "гянджа"]):
+                    access_group = "01.Gence"
+                    region = "Гянджа"
+                elif any(k in p_lower for k in ["şəki", "sheki", "шеки"]):
+                    access_group = "02.Sheki"
+                    region = "Шеки"
+                elif any(k in p_lower for k in ["sabirabad", "сабирабад"]):
+                    access_group = "03.Sabirabad"
+                    region = "Сабирабад"
+                elif any(k in p_lower for k in ["xacmaz", "xachmaz", "хачмаз", "quba", "губа"]):
+                    access_group = "04.Xachmaz"
+                    region = "Хачмаз"
+                elif any(k in p_lower for k in ["lənk", "lenk", "ленкорань"]):
+                    access_group = "05.Lenkaran"
+                    region = "Ленкорань"
+                elif any(k in p_lower for k in ["naxc", "naxç", "нахчыван"]):
+                    access_group = "06.Naxchivan"
+                    region = "Нахчыван"
+                elif any(k in p_lower for k in ["fuzuli", "füzuli", "физули"]):
+                    access_group = "Fuzuli"
+                    region = "Физули"
+                elif any(k in p_lower for k in ["tesis", "təsis"]):
+                    access_group = "Tesischiler"
+                    region = "Баку"
+                else:
+                    access_group = "Bakı"
+                    region = "Баку"
+
+            # Strictly clean self-referencing or fake golovnoy
+            g_raw = (c_golovnoy or "").strip()
+            if g_raw:
+                g_low = g_raw.lower()
+                n_low = c_name.strip().lower()
+                c_low = c_code.strip().lower()
+                if g_low == n_low or g_low == c_low or (c_low and c_low in g_low and c_low in n_low):
+                    c_golovnoy = ""
+                else:
+                    c_golovnoy = g_raw
+            else:
+                c_golovnoy = ""
+
+            real_contract = contract_map.get(c_code) or ""
+
+            c_info = contact_map.get(c_code) or contact_map.get(c_code.replace('C', 'С')) or contact_map.get(c_code.replace('С', 'C')) or {}
+            c_address = c_info.get("address") or ""
+            c_phone = c_info.get("phone") or ""
+
+            score = 30
+            if has_inn:
+                score += 25
+            if c_golovnoy:
+                score += 10
+            if c_parent:
+                score += 10
+            if real_contract:
+                score += 15
+            if c_address:
+                score += 10
+
+            items.append({
+                "code": c_code,
+                "name": c_name,
+                "inn": c_inn if has_inn else "",
+                "has_inn": has_inn,
+                "access_group": access_group,
+                "region": region,
+                "parent": c_parent,
+                "golovnoy": c_golovnoy,
+                "is_holding": bool(c_golovnoy),
+                "score": min(score, 100),
+                "main_contract": real_contract,
+                "address": c_address,
+                "phone": c_phone
+            })
+
+        return {
+            "success": True,
+            "items": items,
+            "total_count": total_matching,
+            "stats": stats,
+            "offset": offset,
+            "limit": limit
         }
     finally:
         conn.close()

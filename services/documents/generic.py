@@ -8,6 +8,7 @@ Generic fallback handler for standard 1C document types:
 - СписаниеТоваров
 - ОприходованиеТоваров
 """
+from services.onec_dates import as_1c_date
 from services.documents.base import format_1c_datetime, parse_query_datetime, build_filter_conditions, narrow_search_to_column
 
 def get_generic_documents_list(conn, payload):
@@ -95,13 +96,13 @@ def get_generic_documents_list(conn, payload):
 
     dt_from = parse_query_datetime(date_from, is_end=False)
     if dt_from:
-        q_doc.SetParameter("DateFrom", dt_from)
+        q_doc.SetParameter("DateFrom", as_1c_date(dt_from))
         debug_params["DateFrom"] = str(dt_from)
         where_parts.append("Т.Дата >= &DateFrom")
 
     dt_to = parse_query_datetime(date_to, is_end=True)
     if dt_to:
-        q_doc.SetParameter("DateTo", dt_to)
+        q_doc.SetParameter("DateTo", as_1c_date(dt_to))
         debug_params["DateTo"] = str(dt_to)
         where_parts.append("Т.Дата <= &DateTo")
 
@@ -125,7 +126,7 @@ def get_generic_documents_list(conn, payload):
     if has_contract:
         field_map["contract"] = "Т.ДоговорКонтрагента.Наименование"
         field_map["agent"] = "Т.ДоговорКонтрагента.Агент.Наименование"
-    if has_resp: field_map["responsible"] = "ПРЕДСТАВЛЕНИЕ(Т.Ответственный)"
+    if has_resp: field_map["responsible"] = "Т.Ответственный.Наименование"
     if has_comm: field_map["comment"] = "Т.Комментарий"
 
     narrow_search_to_column(payload, where_parts, field_map, q_doc)
@@ -135,7 +136,7 @@ def get_generic_documents_list(conn, payload):
         try:
             dt_last = parse_query_datetime(last_date, is_end=False)
             if dt_last:
-                q_doc.SetParameter("LastDate", dt_last)
+                q_doc.SetParameter("LastDate", as_1c_date(dt_last))
                 q_doc.SetParameter("LastNumber", last_number or "")
                 where_parts.append("(Т.Дата < &LastDate ИЛИ (Т.Дата = &LastDate И Т.Номер < &LastNumber))")
                 offset = 0

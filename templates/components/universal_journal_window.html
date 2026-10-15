@@ -27,24 +27,24 @@
       
       <!-- 1. Document Type Selector Combobox -->
       <div style="display: flex; align-items: center; gap: 4px;">
-        <span style="font-size: 11px; font-weight: bold; color: #222;">Документ:</span>
+        <span style="font-size: 11px; font-weight: bold; color: #222;" data-i18n="uj.doc_label">Документ:</span>
         <select id="ujDocTypeSelect" class="select-1c" onchange="UniversalJournal.onDocTypeChange()" style="height: 24px; font-size: 11px; min-width: 210px; font-weight: 500; background: #fff; cursor: pointer;">
-          <option value="РеализацияТоваровУслуг" selected>🚚 Реализация товаров и услуг</option>
-          <option value="ПогрузкиМашин">🚛 Погрузка машин</option>
-          <option value="ВозвратТоваровОтПокупателя">🔄 Возврат товаров от покупателя</option>
-          <option value="УстановкаЦенНоменклатуры">📋 Установка цен номенклатуры</option>
-          <option value="ПоступлениеТоваровУслуг">📥 Поступление товаров и услуг</option>
-          <option value="ЗаказПокупателя">🛒 Заказ покупателя</option>
-          <option value="ИнвентаризацияТоваровНаСкладе">📦 Инвентаризация товаров на складе</option>
-          <option value="СписаниеТоваров">📉 Списание товаров</option>
-          <option value="ОприходованиеТоваров">📈 Оприходование товаров</option>
+          <option value="РеализацияТоваровУслуг" selected data-i18n="menu.docs.realizasiya">🚚 Реализация товаров и услуг</option>
+          <option value="ПогрузкиМашин" data-i18n="menu.docs.pogruzka">🚛 Погрузка машин</option>
+          <option value="ВозвратТоваровОтПокупателя" data-i18n="menu.docs.vozvrat">🔄 Возврат товаров от покупателя</option>
+          <option value="УстановкаЦенНоменклатуры" data-i18n="menu.docs.prices">📋 Установка цен номенклатуры</option>
+          <option value="ПоступлениеТоваровУслуг" data-i18n="menu.docs.postuplenie">📥 Поступление товаров и услуг</option>
+          <option value="ЗаказПокупателя" data-i18n="menu.docs.orders">🛒 Заказ покупателя</option>
+          <option value="ИнвентаризацияТоваровНаСкладе" data-i18n="menu.docs.inventory">📦 Инвентаризация товаров на складе</option>
+          <option value="СписаниеТоваров" data-i18n="menu.docs.spisanie">📉 Списание товаров</option>
+          <option value="ОприходованиеТоваров" data-i18n="menu.docs.oprixodovanie">📈 Оприходование товаров</option>
         </select>
       </div>
 
       <div class="mdi-tool-sep" style="height: 18px; width: 1px; background: #b0af9f; margin: 0 3px;"></div>
 
       <!-- 2. Period Selector Button (++) / (📅) -->
-      <button type="button" class="btn-1c" id="ujBtnPeriod" onclick="UniversalJournal.openPeriodPicker()" title="Установить интервал дат (Выберите период)" style="height: 24px; display: inline-flex; align-items: center; gap: 5px; padding: 0 7px; cursor: pointer; background: #ffffff;">
+      <button type="button" class="btn-1c" id="ujBtnPeriod" onclick="UniversalJournal.openPeriodPicker()" data-i18n-title="uj.period_title" title="Установить интервал дат (Выберите период)" style="height: 24px; display: inline-flex; align-items: center; gap: 5px; padding: 0 7px; cursor: pointer; background: #ffffff;">
         <span style="font-size: 12px;">📅</span>
         <span id="ujPeriodLabel" style="font-size: 11px; font-weight: 500; color: #003366;">(Весь период)</span>
       </button>
@@ -52,7 +52,7 @@
       <div class="mdi-tool-sep" style="height: 18px; width: 1px; background: #b0af9f; margin: 0 3px;"></div>
 
       <!-- 3. Edit Document Button (Green Pencil) & Refresh Button (F5) Side by Side -->
-      <button type="button" class="btn-1c" id="ujBtnEdit" onclick="UniversalJournal.editSelectedDocument()" title="Изменить / Редактировать документ (Двойной клик / Enter)" style="height: 24px; padding: 0 6px; display: inline-flex; align-items: center; justify-content: center; cursor: pointer;" disabled>
+      <button type="button" class="btn-1c" id="ujBtnEdit" onclick="UniversalJournal.editSelectedDocument()" data-i18n-title="uj.edit_title" title="Изменить / Редактировать документ (Двойной клик / Enter)" style="height: 24px; padding: 0 6px; display: inline-flex; align-items: center; justify-content: center; cursor: pointer;" disabled>
         <!-- Authentic 1C Green Pencil Icon -->
         <svg width="15" height="15" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
           <path d="M12.8 1.2a1.5 1.5 0 0 1 2.1 2.1L13.5 4.7 10.3 1.5l1.5-1.5z" fill="#388e3c"/>
@@ -62,12 +62,12 @@
       </button>
 
       <!-- Refresh Button (F5) - Icon Only right next to Edit -->
-      <button type="button" class="btn-1c" onclick="UniversalJournal.refresh()" title="Обновить список (F5)" style="height: 24px; padding: 0 6px; display: inline-flex; align-items: center; justify-content: center; cursor: pointer;">
+      <button type="button" class="btn-1c" onclick="UniversalJournal.refresh()" data-i18n-title="uj.refresh_title" title="Обновить список (F5)" style="height: 24px; padding: 0 6px; display: inline-flex; align-items: center; justify-content: center; cursor: pointer;">
         <span style="font-size: 13px;">🔄</span>
       </button>
 
       <!-- New / Duplicate Window Button (➕) right in the toolbar -->
-      <button type="button" class="btn-1c" onclick="UniversalJournal.duplicateWindow()" title="Открыть еще одно такое окно (Eyni jurnaldan yenisini aç)" style="height: 24px; padding: 0 6px; display: inline-flex; align-items: center; justify-content: center; cursor: pointer;">
+      <button type="button" class="btn-1c" onclick="UniversalJournal.duplicateWindow()" data-i18n-title="uj.new_window_title" title="Открыть еще одно такое окно (Eyni jurnaldan yenisini aç)" style="height: 24px; padding: 0 6px; display: inline-flex; align-items: center; justify-content: center; cursor: pointer;">
         <span style="font-size: 13px; font-weight: bold; color: #002060;">➕</span>
       </button>
 
@@ -75,7 +75,7 @@
 
       <!-- 8. 1C Filter System (4 Core Filter Actions from 1C 8.3) -->
       <!-- 8a. 1-ci ikon: Настройка списка (Отбор и сортировка) ilə Say Badgesi -->
-      <button type="button" class="btn-1c" id="ujBtnFilter" onclick="UniversalJournal.openFilterModal()" title="Настройка списка (Отбор и сортировка)..." style="height: 24px; padding: 0 6px; display: inline-flex; align-items: center; justify-content: center; cursor: pointer; background: #ffffff; position: relative;">
+      <button type="button" class="btn-1c" id="ujBtnFilter" onclick="UniversalJournal.openFilterModal()" data-i18n-title="uj.filter_title" title="Настройка списка (Отбор и сортировка)..." style="height: 24px; padding: 0 6px; display: inline-flex; align-items: center; justify-content: center; cursor: pointer; background: #ffffff; position: relative;">
         <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
           <rect x="2" y="3" width="8" height="11" rx="1" fill="#f8fafc" stroke="#78909c" stroke-width="1"/>
           <line x1="4" y1="6" x2="8" y2="6" stroke="#90a4ae" stroke-width="0.8"/>
@@ -89,7 +89,7 @@
       </button>
 
       <!-- 8b. 2-ci ikon: Отбор по значению в текущей колонке (Быстрый отбор) -->
-      <button type="button" class="btn-1c" id="ujBtnQuickFilter" onclick="UniversalJournal.filterByCurrentValue()" title="Отбор по значению в текущей колонке (F7)" style="height: 24px; padding: 0 6px; display: inline-flex; align-items: center; justify-content: center; cursor: pointer; background: #ffffff;">
+      <button type="button" class="btn-1c" id="ujBtnQuickFilter" onclick="UniversalJournal.filterByCurrentValue()" data-i18n-title="uj.quick_filter_title" title="Отбор по значению в текущей колонке (F7)" style="height: 24px; padding: 0 6px; display: inline-flex; align-items: center; justify-content: center; cursor: pointer; background: #ffffff;">
         <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
           <path d="M2.5 2.5 L13.5 2.5 L9.5 7.5 L9.5 13 L7.5 14 L7.5 7.5 Z" fill="#cfd8dc" stroke="#546e7a" stroke-width="1" stroke-linejoin="round"/>
           <rect x="8.5" y="8.5" width="6.5" height="6.5" rx="1" fill="#e1f5fe" stroke="#0288d1" stroke-width="1"/>
@@ -98,7 +98,7 @@
       </button>
 
       <!-- 8c. 3-cu ikon: Снять отбор по текущей колонке (Təkcə seçilmiş sütunun filtrini çıxarır) -->
-      <button type="button" class="btn-1c" id="ujBtnRemoveColumnFilter" onclick="UniversalJournal.removeFilterByCurrentColumn()" title="Снять отбор по текущей колонке" style="height: 24px; padding: 0 6px; display: inline-flex; align-items: center; justify-content: center; cursor: default; background: #ffffff; opacity: 0.4;" disabled>
+      <button type="button" class="btn-1c" id="ujBtnRemoveColumnFilter" onclick="UniversalJournal.removeFilterByCurrentColumn()" data-i18n-title="uj.remove_col_filter_title" title="Снять отбор по текущей колонке" style="height: 24px; padding: 0 6px; display: inline-flex; align-items: center; justify-content: center; cursor: default; background: #ffffff; opacity: 0.4;" disabled>
         <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
           <path d="M2.5 2.5 L13.5 2.5 L9.5 7.5 L9.5 13 L7.5 14 L7.5 7.5 Z" fill="#cfd8dc" stroke="#546e7a" stroke-width="1" stroke-linejoin="round"/>
           <rect x="8" y="9.5" width="7" height="4.5" rx="1" fill="#ffebee" stroke="#c62828" stroke-width="1"/>
@@ -107,7 +107,7 @@
       </button>
 
       <!-- 8d. 4-cu ikon: Отключить все отборы (Bütün filtrləri tam təmizləyir) -->
-      <button type="button" class="btn-1c" id="ujBtnClearFilter" onclick="UniversalJournal.clearFilter()" title="Отключить все отборы" style="height: 24px; padding: 0 6px; display: inline-flex; align-items: center; justify-content: center; cursor: default; background: #ffffff; opacity: 0.4;" disabled>
+      <button type="button" class="btn-1c" id="ujBtnClearFilter" onclick="UniversalJournal.clearFilter()" data-i18n-title="uj.clear_all_filters_title" title="Отключить все отборы" style="height: 24px; padding: 0 6px; display: inline-flex; align-items: center; justify-content: center; cursor: default; background: #ffffff; opacity: 0.4;" disabled>
         <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
           <path d="M2.5 2.5 L13.5 2.5 L9.5 7.5 L9.5 13 L7.5 14 L7.5 7.5 Z" fill="#cfd8dc" stroke="#546e7a" stroke-width="1" stroke-linejoin="round"/>
           <line x1="9.5" y1="9.5" x2="14.5" y2="14.5" stroke="#d32f2f" stroke-width="2.2" stroke-linecap="round"/>
@@ -116,7 +116,7 @@
       </button>
 
       <!-- 8e. Выбрать настройку (Папка с шестеренкой) -->
-      <button type="button" class="btn-1c" id="ujBtnRestorePreset" onclick="UniversalJournal.openPresetRestoreModal()" title="Выбрать настройку (Сохраненные фильтры)..." style="height: 24px; padding: 0 6px; display: inline-flex; align-items: center; justify-content: center; cursor: pointer; background: #ffffff;">
+      <button type="button" class="btn-1c" id="ujBtnRestorePreset" onclick="UniversalJournal.openPresetRestoreModal()" data-i18n-title="uj.restore_preset_title" title="Выбрать настройку (Сохраненные фильтры)..." style="height: 24px; padding: 0 6px; display: inline-flex; align-items: center; justify-content: center; cursor: pointer; background: #ffffff;">
         <svg width="15" height="15" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
           <path d="M1.5 3.5 C1.5 2.8 2 2.5 2.8 2.5 L6 2.5 L7.5 4 L13.5 4 C14.3 4 14.5 4.5 14.5 5.2 L14.5 12 C14.5 12.8 14 13.5 13 13.5 L2.5 13.5 C1.8 13.5 1.5 12.8 1.5 12 Z" fill="#fbc02d" stroke="#f57f17" stroke-width="1"/>
           <circle cx="11.5" cy="11.5" r="3.2" fill="#9e9e9e" stroke="#616161" stroke-width="0.8"/>
@@ -125,7 +125,7 @@
       </button>
 
       <!-- 8f. Сохранить настройку (Дискета с шестеренкой) -->
-      <button type="button" class="btn-1c" id="ujBtnSavePreset" onclick="UniversalJournal.openPresetSaveModal()" title="Сохранить настройку (Сохранить текущий фильтр)..." style="height: 24px; padding: 0 6px; display: inline-flex; align-items: center; justify-content: center; cursor: pointer; background: #ffffff;">
+      <button type="button" class="btn-1c" id="ujBtnSavePreset" onclick="UniversalJournal.openPresetSaveModal()" data-i18n-title="uj.save_preset_title" title="Сохранить настройку (Сохранить текущий фильтр)..." style="height: 24px; padding: 0 6px; display: inline-flex; align-items: center; justify-content: center; cursor: pointer; background: #ffffff;">
         <svg width="15" height="15" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
           <rect x="2" y="2" width="12" height="12" rx="1.5" fill="#90caf9" stroke="#1565c0" stroke-width="1.1"/>
           <rect x="4.5" y="2" width="7" height="4.5" fill="#fff" stroke="#90caf9" stroke-width="0.8"/>
@@ -139,18 +139,18 @@
       <!-- 9. Form Columns Settings Button -->
       <button type="button" class="btn-1c" id="ujBtnSettings" onclick="UniversalJournal.openFormSettingsModal()" title="Настройка формы / списка (колонки, видимость, порядок, ширина)..." style="height: 24px; padding: 0 8px; display: inline-flex; align-items: center; gap: 4px; cursor: pointer; background: #ffffff;">
         <span style="font-size: 12px;">⚙️</span>
-        <span style="font-size: 11px; font-weight: 500;">Колонки...</span>
+        <span style="font-size: 11px; font-weight: 500;" data-i18n="uj.btn_columns">Колонки...</span>
       </button>
 
       <!-- 10. Audit / Version History Button -->
       <button type="button" class="btn-1c" id="ujBtnAuditHistory" onclick="UniversalJournal.openAuditHistoryForSelected(event)" title="История изменений и аудит документа (Версии, кто изменил, что изменилось)..." style="height: 24px; padding: 0 8px; display: inline-flex; align-items: center; gap: 4px; cursor: pointer; background: #ffffff;">
         <span style="font-size: 12px;">🕒</span>
-        <span style="font-size: 11px; font-weight: 500;">История</span>
+        <span style="font-size: 11px; font-weight: 500;" data-i18n="uj.btn_history">История</span>
       </button>
 
       <!-- Search Filter Input Box with Integrated Action Icon inside (Lupa / Lupa ustunde X) -->
       <div class="uj-search-wrap" style="position: relative; display: flex; align-items: center; flex: 1; min-width: 180px; max-width: 320px; margin-left: 6px;">
-        <input type="text" id="ujSearchInput" class="input-1c uj-search-input" placeholder="Найти по всем колонкам..."
+        <input type="text" id="ujSearchInput" class="input-1c uj-search-input" placeholder="Найти по всем колонкам..." data-i18n-placeholder="uj.search_placeholder"
                style="width: 100%; height: 23px; padding: 2px 26px 2px 8px; font-size: 11px; border: 1px solid #7f9db9; border-radius: 2px; background: #ffffff; box-sizing: border-box;" 
                oninput="UniversalJournal.onSearchInput()"
                onkeydown="if(event.key==='Enter'){ event.preventDefault(); UniversalJournal.executeSearchOrFilter(); } else if(event.key==='Escape' || ((event.ctrlKey||event.metaKey) && event.key.toLowerCase()==='q')){ event.preventDefault(); UniversalJournal.clearSearch(); this.blur(); }">
@@ -177,10 +177,10 @@
     <div class="uj-table-wrapper" id="ujTableWrapper" tabindex="0" style="flex: 1; overflow: auto; background: #ffffff; position: relative;">
 
       <!-- Empty State -->
-      <div id="ujEmptyState" style="display: none; position: absolute; top: 32px; left: 0; right: 0; bottom: 24px; flex-direction: column; align-items: center; justify-content: center; pointer-events: none; color: #777; font-size: 12px; gap: 6px;">
+      <div id="ujEmptyState" style="display: none; position: absolute; top: 32px; left: 0; right: 0; bottom: 24px; flex-direction: column; align-items: center; justify-content: center; color: #777; font-size: 12px; gap: 6px; pointer-events: none;">
         <span style="font-size: 32px;">📭</span>
-        <span style="font-weight: bold;">Документы не найдены</span>
-        <span>Измените интервал дат или выберите другой вид документа.</span>
+        <span style="font-weight: bold;" data-i18n="uj.empty_title">Документы не найдены</span>
+        <span data-i18n="uj.empty_desc">Измените интервал дат или выберите другой вид документа.</span>
       </div>
 
       <!-- Documents Table -->
@@ -204,8 +204,8 @@
          ontouchmove="event.preventDefault(); event.stopPropagation();">
       <div style="background: #ffffff; border: 2px solid #316ac5; padding: 18px 28px; box-shadow: 0 4px 16px rgba(0,0,0,0.25); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; min-width: 250px; border-radius: 2px; pointer-events: auto;">
         <div class="spinner-1c"></div>
-        <div class="uj-loading-text" style="font-weight: bold; color: #004080; font-size: 12px; text-align: center;">1C: Məlumatlar sorğulanır...</div>
-        <button type="button" class="btn-cancel-loading uj-btn-cancel-loading" onclick="if(window.UniversalJournal) UniversalJournal.cancelLoad(this);" title="Sorğunu dayandır (Klaviatura: Pause)" style="cursor: pointer; pointer-events: auto;">
+        <div class="uj-loading-text" style="font-weight: bold; color: #004080; font-size: 12px; text-align: center;" data-i18n="uj.loading">1C: Məlumatlar sorğulanır...</div>
+        <button type="button" class="btn-cancel-loading uj-btn-cancel-loading" onclick="if(window.UniversalJournal) UniversalJournal.cancelLoad(this);" title="Sorğunu dayandır (Klaviatura: Pause)" style="cursor: pointer; pointer-events: auto;" data-i18n="uj.stop_loading">
           ⏹ Dayandır (Pause)
         </button>
       </div>
@@ -224,7 +224,7 @@
 
     <!-- Bottom 1C Status Bar -->
     <div class="mdi-window-status" style="background: #e5e2cf; border-top: 1px solid #b0af9f; padding: 3px 8px; display: flex; justify-content: space-between; align-items: center; font-size: 11px;">
-      <div id="ujStatusLeft" style="color: #222; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+      <div id="ujStatusLeft" style="color: #222; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" data-i18n="uj.status_ready">
         Готово
       </div>
       <div id="ujStatusRight" style="font-weight: bold; color: #003366; white-space: nowrap;">
@@ -238,20 +238,20 @@
 <div id="ujFindModal" role="dialog" aria-modal="true" aria-labelledby="ujFindTitle" style="display:none;position:fixed;inset:0;z-index:2147483000;background:rgba(0,0,0,.12);align-items:center;justify-content:center;">
   <div style="width:590px;max-width:95vw;background:#fffbef;border:1px solid #999;box-shadow:2px 3px 10px #777;font:13px Arial;color:#664600;">
     <div style="background:#ccc;color:#222;display:flex;justify-content:space-between;padding:3px 5px;">
-      <strong id="ujFindTitle">Отбор по колонке (Ctrl+F)</strong><button type="button" aria-label="Закрыть отбор" onclick="UniversalJournal.closeFindModal()">✕</button>
+      <strong id="ujFindTitle" data-i18n="find.title">Отбор по колонке (Ctrl+F)</strong><button type="button" aria-label="Закрыть отбор" onclick="UniversalJournal.closeFindModal()">✕</button>
     </div>
     <form onsubmit="event.preventDefault();UniversalJournal.submitFindModal()" style="padding:15px 12px;">
       <div style="display:grid;grid-template-columns:80px 1fr;gap:8px;align-items:center;">
-        <label for="ujFindColumn">Где искать:</label><select id="ujFindColumn" style="height:24px;" onchange="UniversalJournal.updateFindReferenceButtons()"></select>
-        <label for="ujFindText">Что искать:</label><div style="display:flex;"><input id="ujFindText" type="text" autocomplete="off" oninput="UniversalJournal.onFindTextInput()" onkeydown="UniversalJournal.onFindSuggestionKey(event)" style="height:24px;box-sizing:border-box;flex:1;min-width:0;"><button id="ujFindChoose" type="button" title="Выбрать из справочника" aria-label="Выбрать из справочника" onclick="UniversalJournal.chooseFindValue()">…</button><button id="ujFindInspect" type="button" title="Информация о выбранном элементе" aria-label="Информация о выбранном элементе" onclick="UniversalJournal.showFindValueInfo()">🔍</button></div>
-        <span>Как искать:</span><div style="display:flex;gap:10px;flex-wrap:wrap;">
-          <label><input type="radio" name="ujFindMatch" value="starts"> По началу строки</label>
-          <label><input type="radio" name="ujFindMatch" value="contains" checked> По части строки</label>
-          <label><input type="radio" name="ujFindMatch" value="exact"> По точному совпадению</label>
+        <label for="ujFindColumn" data-i18n="find.where">Где искать:</label><select id="ujFindColumn" style="height:24px;" onchange="UniversalJournal.updateFindReferenceButtons()"></select>
+        <label for="ujFindText" data-i18n="find.what">Что искать:</label><div style="display:flex;"><input id="ujFindText" type="text" autocomplete="off" oninput="UniversalJournal.onFindTextInput()" onkeydown="UniversalJournal.onFindSuggestionKey(event)" style="height:24px;box-sizing:border-box;flex:1;min-width:0;"><button id="ujFindChoose" type="button" title="Выбрать из справочника" data-i18n-title="find.choose_cat" aria-label="Выбрать из справочника" onclick="UniversalJournal.chooseFindValue()">…</button><button id="ujFindInspect" type="button" title="Информация о выбранном элементе" data-i18n-title="find.item_info" aria-label="Информация о выбранном элементе" onclick="UniversalJournal.showFindValueInfo()">🔍</button></div>
+        <span data-i18n="find.how">Как искать:</span><div style="display:flex;gap:10px;flex-wrap:wrap;">
+          <label><input type="radio" name="ujFindMatch" value="starts"> <span data-i18n="find.starts">По началу строки</span></label>
+          <label><input type="radio" name="ujFindMatch" value="contains" checked> <span data-i18n="find.contains">По части строки</span></label>
+          <label><input type="radio" name="ujFindMatch" value="exact"> <span data-i18n="find.exact">По точному совпадению</span></label>
         </div>
       </div>
       <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:52px;">
-        <button type="submit" class="btn-1c">Применить отбор</button><button type="button" class="btn-1c" onclick="UniversalJournal.closeFindModal()">Закрыть</button>
+        <button type="submit" class="btn-1c" data-i18n="find.apply">Применить отбор</button><button type="button" class="btn-1c" onclick="UniversalJournal.closeFindModal()" data-i18n="common.close">Закрыть</button>
       </div>
     </form>
   </div>

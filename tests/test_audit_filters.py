@@ -8,11 +8,11 @@ class Query:
 class AuditFiltersTests(unittest.TestCase):
     def test_combined_filters_have_distinct_parameters(self):
         q = Query()
-        filters = [{'fieldKey':k,'operator':'Равно','value':v} for k,v in [('number','0001'),('warehouse','WH'),('agent','A'),('portfolio','P')]]
+        filters = [{'fieldKey':k,'operator':'Равно','value':v} for k,v in [('number','C0000476122'),('warehouse','WH'),('agent','A'),('portfolio','P')]]
         parts = document_conditions(q, {'filters':filters}, 'РеализацияТоваровУслуг')
         self.assertEqual(len(parts),4)
         self.assertEqual(len(q.params),4)
-        self.assertEqual(q.params['af_0_p_crit_0'],'0001')
+        self.assertEqual(q.params['af_0_p_crit_0'],'C0000476122')
         self.assertIn('Т.ДоговорКонтрагента.Портфель.Наименование',parts[3])
         for i, part in enumerate(parts): self.assertIn(f'&af_{i}_p_crit_0',part)
     def test_reference_code_preserved(self):

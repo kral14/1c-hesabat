@@ -173,6 +173,7 @@ const ReportEngine = {
     }
 
     // Active indicators
+    const trPh = (p) => (window.C1I18n ? window.C1I18n.translatePhrase(p) : p);
     const indParts = [];
     const rawPTs = (data.price_types && data.price_types.length > 0)
       ? data.price_types
@@ -180,22 +181,22 @@ const ReportEngine = {
     const activePTs = rawPTs
       .map(p => (typeof p === "object" && p !== null) ? (p.name || p.code || "") : String(p))
       .filter(p => p && p !== "[object Object]");
-    if (config.indicators.showPrice) indParts.push(`Цена [${activePTs.join(", ")}]`);
-    if (config.indicators.barcodeUnit) indParts.push("Штрихкод (шт)");
-    if (config.indicators.barcodeBox) indParts.push("Штрихкод (кор)");
-    if (config.indicators.barcodeBlock) indParts.push("Штрихкод (упак)");
-    if (config.indicators.qtyStart) indParts.push("Начальный остаток");
-    if (config.indicators.qtyIn) indParts.push("Приход");
-    if (config.indicators.qtyOut) indParts.push("Расход");
-    if (config.indicators.qtyEnd) indParts.push("Конечный остаток");
-    if (config.indicators.qtyTurnover) indParts.push("Оборот");
-    if (config.indicators.showSum) indParts.push("Сумма");
+    if (config.indicators.showPrice) indParts.push(`${trPh("Цена")} [${activePTs.join(", ")}]`);
+    if (config.indicators.barcodeUnit) indParts.push(trPh("Штрихкод (шт)"));
+    if (config.indicators.barcodeBox) indParts.push(trPh("Штрихкод (кор)"));
+    if (config.indicators.barcodeBlock) indParts.push(trPh("Штрихкод (упак)"));
+    if (config.indicators.qtyStart) indParts.push(trPh("Начальный остаток"));
+    if (config.indicators.qtyIn) indParts.push(trPh("Приход"));
+    if (config.indicators.qtyOut) indParts.push(trPh("Расход"));
+    if (config.indicators.qtyEnd) indParts.push(trPh("Конечный остаток"));
+    if (config.indicators.qtyTurnover) indParts.push(trPh("Оборот"));
+    if (config.indicators.showSum) indParts.push(trPh("Сумма"));
     if (metaIndicators) {
-      metaIndicators.textContent = `Показатели(${indParts.join(", ")});`;
+      metaIndicators.textContent = `${trPh("Показатели")}(${indParts.join(", ")});`;
     }
 
     // Active groupings
-    const grpList = config.rowGroupings.map(g => `${g.field} (${g.type || "Элементы"})`);
+    const grpList = config.rowGroupings.map(g => `${trPh(g.field)} (${trPh(g.type || "Элементы")})`);
     if (metaGroupings) {
       metaGroupings.textContent = grpList.join("; ") + ";";
     }
@@ -212,7 +213,9 @@ const ReportEngine = {
           else if (f.comparison === "not_equal") op = "Не равно";
           else if (f.comparison === "in_list") op = "В группе из списка";
           else if (f.comparison === "contains") op = "Содержит";
-          return `${f.field} ${op} ${f.value};`;
+          const opDisplay = window.C1I18n ? window.C1I18n.translateOperator(op) : op;
+          const fieldDisplay = window.C1I18n ? window.C1I18n.translateColumn(f.field, f.field) : f.field;
+          return `${fieldDisplay} ${opDisplay} ${f.value};`;
         }).join("<br>");
         metaFiltersText.innerHTML = fText;
       } else {
@@ -230,12 +233,17 @@ const ReportEngine = {
     tbody.innerHTML = "";
     tfoot.innerHTML = "";
 
+    const _tCol = (k, fb) => (window.C1I18n ? window.C1I18n.translateColumn(k, fb) : fb);
+
+    this.lastReportData = data;
+    this.lastConfig = config;
+
     const activeQtyCols = [];
-    if (config.indicators.qtyStart) activeQtyCols.push({ id: "start_bal", title: "Начальный остаток" });
-    if (config.indicators.qtyIn) activeQtyCols.push({ id: "in_qty", title: "Приход" });
-    if (config.indicators.qtyOut) activeQtyCols.push({ id: "out_qty", title: "Расход" });
-    if (config.indicators.qtyEnd) activeQtyCols.push({ id: "end_bal", title: "Конечный остаток" });
-    if (config.indicators.qtyTurnover) activeQtyCols.push({ id: "turnover", title: "Оборот" });
+    if (config.indicators.qtyStart) activeQtyCols.push({ id: "start_bal", title: _tCol("qty_start", "Начальный остаток") });
+    if (config.indicators.qtyIn) activeQtyCols.push({ id: "in_qty", title: _tCol("qty_in", "Приход") });
+    if (config.indicators.qtyOut) activeQtyCols.push({ id: "out_qty", title: _tCol("qty_out", "Расход") });
+    if (config.indicators.qtyEnd) activeQtyCols.push({ id: "end_bal", title: _tCol("qty_end", "Конечный остаток") });
+    if (config.indicators.qtyTurnover) activeQtyCols.push({ id: "turnover", title: _tCol("turnover", "Оборот") });
 
     const showPrice = config.indicators?.showPrice ?? true;
     const showSum = config.indicators?.showSum ?? true;
@@ -262,37 +270,37 @@ const ReportEngine = {
     // Table Headers (Two Rows)
     const tr1 = document.createElement("tr");
     const groupingTitle = (config.rowGroupings && config.rowGroupings.length > 0)
-      ? config.rowGroupings.map(g => g.field).join("<br>")
-      : "Склад<br>Номенклатура";
+      ? config.rowGroupings.map(g => _tCol(g.field, g.field)).join("<br>")
+      : `${_tCol("warehouse", "Склад")}<br>${_tCol("nomenclature", "Номенклатура")}`;
 
     let barcodeHeaders = "";
-    if (showBcUnit) barcodeHeaders += '<th rowspan="2" style="width: 110px;">Штрихкод<br>(шт)</th>';
-    if (showBcBox) barcodeHeaders += '<th rowspan="2" style="width: 110px;">Штрихкод<br>(кор)</th>';
-    if (showBcBlock) barcodeHeaders += '<th rowspan="2" style="width: 110px;">Штрихкод<br>(упак)</th>';
+    if (showBcUnit) barcodeHeaders += `<th rowspan="2" style="width: 110px;">${_tCol("barcode", "Штрихкод")}<br>(${_tCol("barcode_unit", "шт")})</th>`;
+    if (showBcBox) barcodeHeaders += `<th rowspan="2" style="width: 110px;">${_tCol("barcode", "Штрихкод")}<br>(${_tCol("barcode_box", "кор")})</th>`;
+    if (showBcBlock) barcodeHeaders += `<th rowspan="2" style="width: 110px;">${_tCol("barcode", "Штрихкод")}<br>(${_tCol("barcode_block", "упак")})</th>`;
 
     let priceHeaders = "";
     if (showPrice) {
       priceTypes.forEach(pt => {
-        priceHeaders += `<th rowspan="2" style="width: 100px; background: #eef2f8;">Цена<br>(${escapeHtml(pt)})</th>`;
+        priceHeaders += `<th rowspan="2" style="width: 100px; background: #eef2f8;">${_tCol("price", "Цена")}<br>(${escapeHtml(pt)})</th>`;
       });
     }
 
     let sumHeaders = "";
     if (showSum) {
       priceTypes.forEach(pt => {
-        sumHeaders += `<th rowspan="2" style="width: 125px; background: #fdf6e7;">Сумма<br>(${escapeHtml(pt)})</th>`;
+        sumHeaders += `<th rowspan="2" style="width: 125px; background: #fdf6e7;">${_tCol("amount", "Сумма")}<br>(${escapeHtml(pt)})</th>`;
       });
     }
 
     tr1.innerHTML = `
-      <th rowspan="2" style="width: 80px;">Код</th>
-      <th rowspan="2" style="width: 100px;">Артикул</th>
+      <th rowspan="2" style="width: 80px;">${_tCol("code", "Код")}</th>
+      <th rowspan="2" style="width: 100px;">${_tCol("article", "Артикул")}</th>
       ${barcodeHeaders}
       <th rowspan="2" style="min-width: 320px; text-align: left;">${groupingTitle}</th>
-      <th rowspan="2" style="width: 70px;">С вход</th>
-      <th rowspan="2" style="width: 90px;">Номер</th>
+      <th rowspan="2" style="width: 70px;">${_tCol("v_vxod", "С вход")}</th>
+      <th rowspan="2" style="width: 90px;">${_tCol("number", "Номер")}</th>
       ${priceHeaders}
-      <th colspan="${activeQtyCols.length}" class="header-group">Количество</th>
+      <th colspan="${activeQtyCols.length}" class="header-group">${_tCol("qty", "Количество")}</th>
       ${sumHeaders}
     `;
     thead.appendChild(tr1);
@@ -774,5 +782,17 @@ function saveSettingsPreset() {
 window.addEventListener("resize", () => {
   if (typeof ReportEngine !== "undefined" && ReportEngine.renderGutterTreeBrackets) {
     ReportEngine.renderGutterTreeBrackets();
+  }
+});
+
+// Dinamik dil dəyişdikdə hesabat cədvəlinin başlıqlarını və metadatasını yenilə
+window.addEventListener("c1-language-changed", () => {
+  if (typeof ReportEngine !== "undefined" && ReportEngine.lastReportData && ReportEngine.lastConfig) {
+    ReportEngine.renderMetadata(ReportEngine.lastReportData, ReportEngine.lastConfig);
+    ReportEngine.renderTable(ReportEngine.lastReportData, ReportEngine.lastConfig);
+  }
+  const sheetMeta = document.getElementById("sheetMetadata");
+  if (sheetMeta && window.C1I18n) {
+    window.C1I18n.applyTranslations(sheetMeta);
   }
 });

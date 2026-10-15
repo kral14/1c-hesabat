@@ -13,7 +13,7 @@ const cursorClasses = new Set();
 const keydownHandlers = [];
 const context = vm.createContext({
   console, AbortController, setTimeout, clearTimeout,
-  window: { SessionManager: true, MdiManager: true },
+  window: { SessionManager: true, MdiManager: true, addEventListener() {} },
   SessionManager: { getCredentials: () => ({ server: 'Test1C', ref: 'Aztrade_test3', user: 'test' }) },
   MdiManager: { activeWindowId: 'universalJournalWindow' },
   document: { documentElement: { classList: { toggle: (key, enabled) => enabled ? cursorClasses.add(key) : cursorClasses.delete(key) } }, getElementById: id => elements[id] || null, addEventListener(type, handler) { if (type === 'keydown') keydownHandlers.push(handler); } },
@@ -23,6 +23,7 @@ const context = vm.createContext({
     reply: data => resolve({ json: async () => data })
   }))
 });
+vm.runInContext(fs.readFileSync('static/js/c1_dates.js', 'utf8'), context);
 vm.runInContext(fs.readFileSync('static/js/universal_journal.js', 'utf8') + '\nthis.journal = UniversalJournal;', context);
 const journal = context.journal;
 const originalSortBy = journal.sortBy;
@@ -43,10 +44,13 @@ const answer = (request, numbers, more = false) => request.reply({
 });
 
 (async () => {
-  assert.equal(journal.normalizeFindCustomerQuery('ROYAL-Sagan - С000024890 - С000024890'),'ROYAL-Sagan');
+  assert.equal(journal.normalizeFindCustomerQuery('ROYAL-Sagan - Р РЋ000024890 - Р РЋ000024890'),'ROYAL-Sagan');
   assert.equal(journal.normalizeFindCustomerQuery('ROYAL-Sagan'),'ROYAL-Sagan');
-  assert.equal(journal.normalizeFindCustomerQuery('С000024890'),'С000024890');
+  assert.equal(journal.normalizeFindCustomerQuery('Р РЋ000024890'),'Р РЋ000024890');
   journal.loadDocuments();
+  assert.equal(requests[0].payload.server, 'Test1C', 'initial request must include the active connection server');
+  assert.equal(requests[0].payload.ref, 'Aztrade_test3', 'initial request must include the active database');
+  assert.equal(requests[0].payload.user, 'test', 'initial request must include the active user');
   assert.equal(requests[0].payload.limit, 200, 'first package must prioritize visible rows');
   answer(requests.at(-1), ['A', 'B']);
   await flush();
@@ -63,7 +67,7 @@ const answer = (request, numbers, more = false) => request.reply({
   requests.at(-1).reply({success:true, columns:[], items:[{number:'B',date:'30.09.2026 21:00:00'}],
     debug_info:{parameters:{DateFrom:'2026-10-01 00:00:00',DateTo:'2026-10-31 23:59:59'}}});
   await flush();
-  assert.equal(journal.filteredItems.length, 1, 'server-scoped edge rows must survive a display-time boundary conversion');
+  assert.equal(journal.filteredItems.length, 0, 'out-of-period edge rows must remain hidden even when the server claims the requested scope');
   journal.loadDocuments({force:true});
   requests.at(-1).reply({success:true, columns:[], items:[{number:'B',date:'30.09.2026 21:00:00'}],
     debug_info:{parameters:{DateFrom:'2026-09-01 00:00:00',DateTo:'2026-09-30 23:59:59'}}});
@@ -107,7 +111,7 @@ const answer = (request, numbers, more = false) => request.reply({
   journal.loadDocuments();
   assert.equal(requests.length, 3, 'another section needs its own list');
   const stale = requests.at(-1);
-  journal.activeDocType = 'РеализацияТоваровУслуг';
+  journal.activeDocType = 'Р В Р ВµР В°Р В»Р С‘Р В·Р В°РЎвЂ Р С‘РЎРЏР СћР С•Р Р†Р В°РЎР‚Р С•Р Р†Р Р€РЎРѓР В»РЎС“Р С–';
   journal.loadDocuments();
   assert.equal(journal.items[0].number, 'C');
   answer(stale, ['STALE']);
@@ -163,7 +167,7 @@ const answer = (request, numbers, more = false) => request.reply({
   let filterRenders = 0;
   const apply = journal.applyFiltersAndSearch;
   journal.applyFiltersAndSearch = () => { filterRenders++; apply(); };
-  journal.activeFilters = [{ fieldKey: 'posted', comparison: 'Равно', value: true, enabled: true }];
+  journal.activeFilters = [{ fieldKey: 'posted', comparison: 'Р В Р В°Р Р†Р Р…Р С•', value: true, enabled: true }];
   journal.executeSearchOrFilter();
   const firstFilterPage = requests.at(-1);
   assert.equal(elements.ujLoadingState.style.display, 'flex');
@@ -267,7 +271,7 @@ const answer = (request, numbers, more = false) => request.reply({
   elements.ujFindModal = { style: {}, querySelectorAll: () => [] };
   elements.ujFindColumn = {};
   elements.ujFindText = { focus() {}, select() {} };
-  journal.columns = [{ key: 'kontragent', label: 'Контрагент' }];
+  journal.columns = [{ key: 'kontragent', label: 'Р С™Р С•Р Р…РЎвЂљРЎР‚Р В°Р С–Р ВµР Р…РЎвЂљ' }];
   journal.selectedColKey = 'kontragent';
   journal.selectedRow = { kontragent: 'BAZA MARKET' };
   elements.ujSearchInput.value = 'old search';
@@ -278,10 +282,10 @@ const answer = (request, numbers, more = false) => request.reply({
   const originalExecute = journal.executeSearchOrFilter;
   journal.executeSearchOrFilter = () => {};
   journal.activeFilters = [];
-  journal.commitColumnFilter({ fieldKey: 'kontragent', fieldLabel: 'Контрагент', comparison: 'Равно', operator: 'Равно', value: 'BAZA MARKET', enabled: true });
-  journal.commitColumnFilter({ fieldKey: 'warehouse', fieldLabel: 'Склад', comparison: 'Равно', operator: 'Равно', value: 'Warehouse A', enabled: true });
+  journal.commitColumnFilter({ fieldKey: 'kontragent', fieldLabel: 'Р С™Р С•Р Р…РЎвЂљРЎР‚Р В°Р С–Р ВµР Р…РЎвЂљ', comparison: 'Р В Р В°Р Р†Р Р…Р С•', operator: 'Р В Р В°Р Р†Р Р…Р С•', value: 'BAZA MARKET', enabled: true });
+  journal.commitColumnFilter({ fieldKey: 'warehouse', fieldLabel: 'Р РЋР С”Р В»Р В°Р Т‘', comparison: 'Р В Р В°Р Р†Р Р…Р С•', operator: 'Р В Р В°Р Р†Р Р…Р С•', value: 'Warehouse A', enabled: true });
   assert.equal(journal.activeFilters.length, 2, 'Ctrl+F filters must stack across columns');
-  journal.commitColumnFilter({ fieldKey: 'warehouse', fieldLabel: 'Склад', comparison: 'Равно', operator: 'Равно', value: 'Warehouse B', enabled: true });
+  journal.commitColumnFilter({ fieldKey: 'warehouse', fieldLabel: 'Р РЋР С”Р В»Р В°Р Т‘', comparison: 'Р В Р В°Р Р†Р Р…Р С•', operator: 'Р В Р В°Р Р†Р Р…Р С•', value: 'Warehouse B', enabled: true });
   assert.equal(journal.activeFilters.length, 2, 'editing the same column must update its condition');
   assert.equal(journal.activeFilters[0].value, 'BAZA MARKET', 'adding a warehouse must preserve the customer');
   journal.executeSearchOrFilter = originalExecute;
@@ -347,7 +351,7 @@ const answer = (request, numbers, more = false) => request.reply({
   journal.loadActiveFiltersFromStorage = () => {};
   let openingPeriod;
   journal.loadDocuments = function() { openingPeriod = [this.startDateStr, this.endDateStr]; };
-  journal.openDirect('РеализацияТоваровУслуг', {forceNew:true,windowId:'universalJournalWindow'});
+  journal.openDirect('Р В Р ВµР В°Р В»Р С‘Р В·Р В°РЎвЂ Р С‘РЎРЏР СћР С•Р Р†Р В°РЎР‚Р С•Р Р†Р Р€РЎРѓР В»РЎС“Р С–', {forceNew:true,windowId:'universalJournalWindow'});
   assert.deepEqual(openingPeriod, ['01.04.2026','30.04.2026'], 'first load must receive the remembered period');
   stored.set('uj_navigation_mode','edge');
   let navigationOptions;

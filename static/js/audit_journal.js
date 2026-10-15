@@ -206,9 +206,17 @@ const AuditJournal = {
       console.warn("[AuditJournal] Could not restore state from localStorage", e);
     }
 
-    // Əgər heç vaxt seçilməyibsə, sistemin ümumi PeriodPicker yaddaşına bax
-    if (window.PeriodPicker && typeof PeriodPicker.getRememberedPeriod === "function") {
-      const rem = PeriodPicker.getRememberedPeriod();
+    // Əgər heç vaxt seçilməyibsə, sistemin Audit üçün PeriodPicker yaddaşına bax
+    if (window.C1PeriodWidget && typeof C1PeriodWidget.getStoredPeriod === "function") {
+      const rem = C1PeriodWidget.getStoredPeriod("audit_journal");
+      if (rem && (rem.startDate || rem.endDate)) {
+        const clean = (s) => (s || "").trim().split(" ")[0];
+        this.startDateStr = clean(rem.startDate);
+        this.endDateStr = clean(rem.endDate);
+        return true;
+      }
+    } else if (window.PeriodPicker && typeof PeriodPicker.getRememberedPeriod === "function") {
+      const rem = PeriodPicker.getRememberedPeriod("audit_journal");
       if (rem && (rem.startDate || rem.endDate)) {
         const clean = (s) => (s || "").trim().split(" ")[0];
         this.startDateStr = clean(rem.startDate);
@@ -252,6 +260,9 @@ const AuditJournal = {
     // Restore controls without issuing a data request.
     this.updatePeriodLabel();
     this.markSettingsChanged();
+    if (window.C1I18n) {
+      window.C1I18n.applyTranslations(win);
+    }
   },
 
   isOpenAuditModal: function() {
@@ -358,10 +369,14 @@ const AuditJournal = {
       PeriodPicker.open({
         startDate: this.startDateStr,
         endDate: this.endDateStr,
+        contextKey: "audit_journal",
         onSelect: (sStr, eStr) => {
           const clean = (s) => (s || "").trim().split(" ")[0];
           this.startDateStr = clean(sStr);
           this.endDateStr = clean(eStr);
+          if (window.C1PeriodWidget && typeof C1PeriodWidget.setStoredPeriod === "function") {
+            C1PeriodWidget.setStoredPeriod("audit_journal", this.startDateStr, this.endDateStr);
+          }
           this.saveRememberedState();
           this.updatePeriodLabel();
           this.markSettingsChanged();
@@ -465,11 +480,7 @@ const AuditJournal = {
 
   buildListPayload: function() {
     const creds = window.SessionManager ? SessionManager.getCredentials() : {};
-    const formatDateForBackend = (value, isEnd) => {
-      if (!value) return '';
-      const [d,m,y] = value.split('.');
-      return `${y}-${m}-${d} ${isEnd ? '23:59:59' : '00:00:00'}`;
-    };
+    const formatDateForBackend = (value, isEnd) => C1Dates.toBackend(value, isEnd);
     return {...creds, doc_type:this.activeDocType,
       date_from:formatDateForBackend(this.startDateStr, false),
       date_to:formatDateForBackend(this.endDateStr, true),
@@ -541,6 +552,12 @@ const AuditJournal = {
     const inp = document.getElementById("ajSearchInput");
     if (inp) inp.value = "";
     this.onSearchInput("");
+  },
+
+  openFindModal: function() {
+    if (window.C1FindModal) {
+      C1FindModal.openForActiveWindow();
+    }
   },
 
   applyFilterAndSort: function() {
@@ -2652,4 +2669,16 @@ window.AuditJournal = AuditJournal;
 
 document.addEventListener("DOMContentLoaded", () => {
   AuditJournal.init();
+});
+
+// Synchronize AuditJournal when language toggles
+window.addEventListener('c1-language-changed', () => {
+  const win = document.getElementById("auditJournalWindow");
+  if (win && window.C1I18n) {
+    window.C1I18n.applyTranslations(win);
+  }
+  const protoWin = document.getElementById("auditProtocolWindow");
+  if (protoWin && window.C1I18n) {
+    window.C1I18n.applyTranslations(protoWin);
+  }
 });

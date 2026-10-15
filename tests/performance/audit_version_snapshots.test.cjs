@@ -3,6 +3,7 @@ const fs=require('node:fs');
 const vm=require('node:vm');
 const elements=new Map();
 const c=vm.createContext({console,window:{},document:{addEventListener(){},getElementById(id){return elements.get(id)||null;}}});
+c.window.addEventListener=()=>{};
 vm.runInContext(fs.readFileSync('static/js/audit_journal.js','utf8')+';globalThis.audit=AuditJournal;',c);
 const a=c.audit;
 const item=(code,total,discount=0)=>({code,name:code,qty:1,price:total,total,discount_manual:discount});

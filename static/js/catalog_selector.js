@@ -145,13 +145,17 @@ const CatalogSelector = {
       catTitle = "Справочник: Номенклатура";
       catIcon = "📦";
     }
-    const fullTitle = catTitle + (this.podborMode ? " (Подбор)" : "");
+    const translatedTitle = window.C1I18n ? window.C1I18n.translatePhrase(catTitle) : catTitle;
+    const podborSuffix = this.podborMode 
+      ? (window.C1I18n && window.C1I18n.getLanguage() === 'az' ? " (Seçim)" : " (Подбор)")
+      : "";
+    const fullTitle = translatedTitle + podborSuffix;
     let passwordButton = win.querySelector('.user-password-btn');
     if (!passwordButton) {
       passwordButton = document.createElement('button');
       passwordButton.type = 'button';
       passwordButton.className = 'btn-1c user-password-btn';
-      passwordButton.textContent = '🔑 Изменить пароль';
+      passwordButton.textContent = (window.C1I18n && window.C1I18n.getLanguage() === 'az') ? '🔑 Şifrəni dəyiş' : '🔑 Изменить пароль';
       passwordButton.onclick = () => UserPasswordManager.open(win);
       win.querySelector('.catalog-toolbar-left')?.appendChild(passwordButton);
     }
@@ -159,27 +163,37 @@ const CatalogSelector = {
 
     if (titleEl) titleEl.textContent = fullTitle;
     if (iconEl) iconEl.textContent = catIcon;
-    if (rootLabel) rootLabel.textContent = this.currentCatalog;
+    if (rootLabel) rootLabel.textContent = window.C1I18n ? window.C1I18n.translatePhrase(this.currentCatalog) : this.currentCatalog;
     if (btnSelectFolder) btnSelectFolder.style.display = "none";
 
     // Pəncərənin DOM-unu tam sıfırlayırıq ki, əvvəlki başqa kataloqdan qalan qovluq və sətirlər görünməsin
     const treeList = win ? win.querySelector("#catalogTreeList") : document.getElementById("catalogTreeList");
     if (treeList) {
+      const rootText = window.C1I18n ? window.C1I18n.translatePhrase(this.currentCatalog) : this.currentCatalog;
       treeList.innerHTML = `
         <li class="catalog-tree-item selected" onclick="CatalogSelector.selectFolder(this, '')">
           <span>📁</span>
-          <span id="catalogTreeRootLabel">${typeof escapeHtml === "function" ? escapeHtml(this.currentCatalog) : this.currentCatalog}</span>
+          <span id="catalogTreeRootLabel">${typeof escapeHtml === "function" ? escapeHtml(rootText) : rootText}</span>
         </li>
       `;
     }
     const itemsBody = win ? win.querySelector("#catalogItemsBody") : document.getElementById("catalogItemsBody");
     if (itemsBody) {
-      itemsBody.innerHTML = `<tr><td colspan="6" style="text-align: center; color: #888; padding: 20px;">Məlumatlar yüklənir...</td></tr>`;
+      const loadingMsg = (window.C1I18n && window.C1I18n.getLanguage() === 'ru') ? "Загрузка данных..." : "Məlumatlar yüklənir...";
+      itemsBody.innerHTML = `<tr><td colspan="6" style="text-align: center; color: #888; padding: 20px;">${loadingMsg}</td></tr>`;
     }
 
     if (banner) {
       banner.style.display = this.podborMode ? "flex" : "none";
-      if (podborCountEl) podborCountEl.textContent = "Seçilən: 0";
+      if (podborCountEl) {
+        const selCount = (this.podborItems && this.podborItems.size) || 0;
+        const cntPrefix = (window.C1I18n && window.C1I18n.getLanguage() === 'ru') ? "Выбрано: " : "Seçilən: ";
+        podborCountEl.textContent = cntPrefix + selCount;
+      }
+    }
+
+    if (window.C1I18n) {
+      window.C1I18n.applyTranslations(win);
     }
 
     if (stockPane) {
@@ -1515,3 +1529,16 @@ function escapeAttr(str) {
   if (!str) return "";
   return String(str).replace(/"/g, "&quot;").replace(/'/g, "&#39;");
 }
+
+// Synchronize open catalog windows on language change
+window.addEventListener('c1-language-changed', (e) => {
+  document.querySelectorAll(".mdi-window[id^='catalogWindowModal']").forEach(win => {
+    if (window.C1I18n) {
+      window.C1I18n.applyTranslations(win);
+      const titleEl = win.querySelector(".mdi-win-title-text, #catalogWindowTitle");
+      if (titleEl && titleEl.textContent) {
+        titleEl.textContent = window.C1I18n.translatePhrase(titleEl.textContent);
+      }
+    }
+  });
+});

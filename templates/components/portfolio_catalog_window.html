@@ -132,10 +132,19 @@
 
       <div class="mdi-tool-sep" style="height: 20px; width: 1px; background: #b0af9f; margin: 0 4px;"></div>
 
-      <!-- Search Input -->
-      <div class="pc-search-box" style="flex: 1; min-width: 180px; display: flex; align-items: center; position: relative;">
-        <input type="text" id="pcSearchInput" class="input-1c" placeholder="🔍 Cəld axtarış: ad, kod, artikul, cv, barkod..." style="width: 100%; height: 24px; padding-left: 6px; font-size: 11px;" oninput="PortfolioCatalog.onFilterChange()">
-        <button id="pcClearSearchBtn" onclick="PortfolioCatalog.clearSearch()" style="display: none; position: absolute; right: 4px; background: none; border: none; cursor: pointer; color: #888; font-weight: bold;">✕</button>
+      <!-- Universal C1SearchBox ("Найти") -->
+      <div id="pcSearchWrap" class="c1-search-box-wrap pc-search-box" style="flex: 1; min-width: 180px; max-width: 320px; display: flex; align-items: center; position: relative; box-sizing: border-box;">
+        <input type="text" id="pcSearchInput" class="input-1c c1-search-input" data-i18n-placeholder="cat.search_placeholder" placeholder="Найти по всем колонкам (Ctrl+Q)..."
+               style="width: 100%; height: 23px; padding: 2px 26px 2px 8px; font-size: 11px; border: 1px solid #7f9db9; border-radius: 2px; background: #ffffff; box-sizing: border-box; outline: none;"
+               oninput="PortfolioCatalog.onFilterChange()">
+        <button type="button" class="c1-search-action-btn" id="pcSearchActionBtn" title="Найти (Enter) / Очистить (Ctrl+Q)"
+                style="position: absolute; right: 3px; top: 50%; transform: translateY(-50%); width: 20px; height: 19px; border: none; background: transparent; cursor: pointer; display: flex; align-items: center; justify-content: center; padding: 0; outline: none;">
+          <svg class="c1-icon-search" width="13" height="13" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <circle cx="6.5" cy="6.5" r="4.5" stroke="#004080" stroke-width="1.8"/>
+            <line x1="10" y1="10" x2="14.5" y2="14.5" stroke="#004080" stroke-width="2" stroke-linecap="round"/>
+          </svg>
+          <span class="c1-icon-clear" style="display: none; color: #c62828; font-weight: bold; font-size: 13px; line-height: 13px;">✕</span>
+        </button>
       </div>
 
       <!-- Total Count Badge -->

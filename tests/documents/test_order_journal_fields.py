@@ -46,7 +46,7 @@ class OrderJournalFieldsTests(unittest.TestCase):
             ]})
         self.assertIn('ПРЕДСТАВЛЕНИЕ(Т.СкладГруппа) КАК Warehouse', conn.query.Text)
         self.assertIn('Т.ДоговорКонтрагента.Портфель.Наименование КАК Portfolio', conn.query.Text)
-        self.assertIn('Т.СкладГруппа.Наименование = &p_crit_0', conn.query.Text)
+        self.assertIn('ЕСТЬNULL(Т.СкладГруппа.Наименование, "") = &p_crit_0_0', conn.query.Text)
         self.assertNotIn('Т.Склад.Наименование', conn.query.Text)
         self.assertIn('warehouse', [c['key'] for c in result['columns']])
         self.assertIn('portfolio', [c['key'] for c in result['columns']])
@@ -61,9 +61,10 @@ class OrderJournalFieldsTests(unittest.TestCase):
 
     def test_absent_warehouse_does_not_generate_nonexistent_path(self):
         conn = Connection(None)
-        get_generic_documents_list(conn, {'doc_type':'ЗаказПокупателя', 'filters':[
-            {'fieldKey':'warehouse','operator':'Равно','value':'Test warehouse'}]})
-        self.assertNotIn('Т.Склад', conn.query.Text)
+        with self.assertRaisesRegex(ValueError, 'warehouse'):
+            get_generic_documents_list(conn, {'doc_type':'ЗаказПокупателя', 'filters':[
+                {'fieldKey':'warehouse','operator':'Равно','value':'Test warehouse'}]})
+        self.assertNotIn('Т.Склад', getattr(conn.query, 'Text', ''))
 
 
 if __name__ == '__main__': unittest.main()

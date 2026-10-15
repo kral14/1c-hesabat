@@ -33,21 +33,21 @@
         <!-- "Выбрать" Button -->
         <button class="btn-catalog-select" onclick="CatalogSelector.confirmSelection(true)" title="Seçilmiş elementi və ya qovluğu daxil et">
           <span style="font-size: 11px;">✔</span>
-          <span id="btnCatalogSelectText">Выбрать</span>
+          <span id="btnCatalogSelectText" data-i18n="common.select">Выбрать</span>
         </button>
 
         <!-- "Выбрать эту папку" Button (1C Standartı) -->
         <button class="btn-1c btn-select-current-folder" id="btnSelectCurrentFolder" onclick="CatalogSelector.confirmCurrentFolder()" style="display: none; height: 22px; padding: 0 8px; font-weight: bold; background: #e8f4fd; border: 1px solid #316ac5; color: #004080; white-space: nowrap;" title="Seçilmiş qovluğu sənədə/süzgəcə daxil et">
-          <span id="btnSelectCurrentFolderText">📁 Выбрать папку</span>
+          <span id="btnSelectCurrentFolderText" data-i18n="cat.select_folder">📁 Выбрать папку</span>
         </button>
 
         <button class="btn-actions" onclick="alert('1C Əməliyyat menyusu')">
-          <span>Действия</span>
+          <span data-i18n="common.actions">Действия</span>
           <span style="font-size: 8px;">▼</span>
         </button>
 
         <!-- 1C İyerarxik baxış düyməsi (Ağacı gizlət/göstər) -->
-        <button type="button" class="box-tool-btn btn-hierarchical" id="btnCatalogToggleTree" title="Иерархический просмотр (Дерево папок)" onclick="CatalogSelector.toggleTreePane()" style="height: 22px; width: 24px; padding: 0; display: inline-flex; align-items: center; justify-content: center;">
+        <button type="button" class="box-tool-btn btn-hierarchical" id="btnCatalogToggleTree" data-i18n-title="cat.hierarchical_view" title="Иерархический просмотр (Дерево папок)" onclick="CatalogSelector.toggleTreePane()" style="height: 22px; width: 24px; padding: 0; display: inline-flex; align-items: center; justify-content: center;">
           <svg width="14" height="14" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
             <rect x="2" y="2" width="4" height="4" rx="0.5" fill="#fbc02d" stroke="#f57f17" stroke-width="0.8"/>
             <rect x="8" y="2" width="6" height="4" rx="0.5" fill="#ffffff" stroke="#78909c" stroke-width="0.8"/>
@@ -57,7 +57,7 @@
           </svg>
         </button>
 
-        <button class="box-tool-btn" title="Обновить (F5)" onclick="CatalogSelector.reload()" style="height: 22px; width: 24px; padding: 0; display: inline-flex; align-items: center; justify-content: center;">🔄</button>
+        <button class="box-tool-btn" data-i18n-title="common.refresh" title="Обновить (F5)" onclick="CatalogSelector.reload()" style="height: 22px; width: 24px; padding: 0; display: inline-flex; align-items: center; justify-content: center;">🔄</button>
 
         <div style="width: 1px; height: 16px; background: #c0c0c0; margin: 0 2px;"></div>
 
@@ -70,7 +70,7 @@
       <!-- Search Group: Universal OneCSearchBox Component (Realizasiya Standartı) -->
       <div class="catalog-toolbar-right" style="display: flex; align-items: center; margin-left: auto;">
         <div id="catalogSearchWrap" class="c1-search-box-wrap" style="position: relative; display: flex; align-items: center; width: 280px; box-sizing: border-box;">
-          <input type="text" id="catalogSearchInput" class="input-1c c1-search-input" placeholder="Найти по всем колонкам (Ctrl+Q)..."
+          <input type="text" id="catalogSearchInput" class="input-1c c1-search-input" data-i18n-placeholder="cat.search_placeholder" placeholder="Найти по всем колонкам (Ctrl+Q)..."
                  style="width: 100%; height: 23px; padding: 2px 26px 2px 8px; font-size: 11px; border: 1px solid #7f9db9; border-radius: 2px; background: #ffffff; box-sizing: border-box; outline: none;"
                  autocomplete="off">
           <button type="button" class="c1-search-action-btn" id="catalogSearchActionBtn" title="Найти (Enter) / Очистить (Ctrl+Q)"
@@ -110,11 +110,11 @@
             <thead>
               <tr>
                 <th style="width: 30px; text-align: center;"></th>
-                <th style="width: 100px;">Код</th>
-                <th style="width: 110px;" id="colArtikulHeader">Артикул</th>
-                <th style="min-width: 280px;">Наименование</th>
-                <th style="width: 100px;">Вид ном.</th>
-                <th style="width: 80px;">Ед.</th>
+                <th style="width: 100px;" data-i18n="col.code">Код</th>
+                <th style="width: 110px;" id="colArtikulHeader" data-i18n="col.artikul">Артикул</th>
+                <th style="min-width: 280px;" data-i18n="col.name">Наименование</th>
+                <th style="width: 100px;" data-i18n="col.nom_type">Вид ном.</th>
+                <th style="width: 80px;" data-i18n="col.unit">Ед.</th>
               </tr>
             </thead>
             <tbody id="catalogItemsBody">
@@ -132,14 +132,14 @@
       <!-- Bottom Pane: Остатки товаров на складах (Screenshot 2) -->
       <div class="catalog-bottom-pane" id="catalogStockPane">
         <div class="catalog-bottom-header">
-          <span>Остатки товаров на складах</span>
+          <span data-i18n="cat.stock_title">Остатки товаров на складах</span>
           <span id="catalogSelectedPreviewTitle" style="font-weight: normal; color: #444;">Seçilmiş mal: -</span>
         </div>
 
         <div class="catalog-bottom-split">
           <!-- Prices Checklist -->
           <div class="catalog-prices-box" id="catalogPricesBox" style="min-width: 220px; max-width: 280px; overflow-y: auto;">
-            <div style="font-weight: bold; margin-bottom: 5px; color: #333; font-size: 11px;">Типы цен:</div>
+            <div data-i18n="cat.price_types" style="font-weight: bold; margin-bottom: 5px; color: #333; font-size: 11px;">Типы цен:</div>
             <div id="catalogPricesList" style="display: flex; flex-direction: column; gap: 2px;">
               <span style="color: #888; font-size: 11px; font-style: italic;">Mal seçildikdə qiymətlər əks olunacaq</span>
             </div>
@@ -153,11 +153,11 @@
                   <th style="width: 28px; text-align: center; padding: 2px;">
                     <input type="checkbox" id="catalogWhSelectAll" title="Bütün anbarları seç / təmizlə" onchange="CatalogSelector.toggleSelectAllWarehouses(this.checked)" style="cursor: pointer; margin: 0;">
                   </th>
-                  <th style="text-align: left; padding-left: 8px;">Характеристика / Склад</th>
-                  <th style="width: 105px; text-align: right;">Общий остаток</th>
-                  <th style="width: 115px; text-align: right; color: #002060;">Сумма</th>
-                  <th style="width: 95px; text-align: right;">Свободный</th>
-                  <th style="width: 95px; text-align: right;">В резерве</th>
+                  <th data-i18n="cat.col_wh_char" style="text-align: left; padding-left: 8px;">Характеристика / Склад</th>
+                  <th data-i18n="cat.col_total_stock" style="width: 105px; text-align: right;">Общий остаток</th>
+                  <th data-i18n="col.sum" style="width: 115px; text-align: right; color: #002060;">Сумма</th>
+                  <th data-i18n="cat.col_free_stock" style="width: 95px; text-align: right;">Свободный</th>
+                  <th data-i18n="cat.col_reserve" style="width: 95px; text-align: right;">В резерве</th>
                 </tr>
               </thead>
               <tbody id="catalogStockBody">
@@ -177,14 +177,14 @@
     <!-- Status Bar / Selection Footer -->
     <div class="settings-footer">
       <div>
-        <span>Aktiv Element: <b id="catalogSelectedLabel" style="color: #004080;">-</b></span>
+        <span><span data-i18n="cat.active_element_prefix">Aktiv Element:</span> <b id="catalogSelectedLabel" style="color: #004080;">-</b></span>
       </div>
       <div style="display: flex; gap: 6px;">
         <button class="btn-1c primary" onclick="CatalogSelector.confirmSelection(true)" style="min-width: 80px;">
-          <span>Выбрать</span>
+          <span data-i18n="common.select">Выбрать</span>
         </button>
         <button class="btn-1c" onclick="CatalogSelector.close(event)" style="min-width: 70px;">
-          <span>Отмена</span>
+          <span data-i18n="common.cancel">Отмена</span>
         </button>
       </div>
     </div>

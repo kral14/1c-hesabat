@@ -487,6 +487,7 @@ const OneCPeriodPicker = {
     this.init();
     const anchor = triggerBtn || event?.currentTarget || document.querySelector(".period-more-btn");
     if (!anchor) return;
+    this.currentTrigger = anchor;
 
     this.render();
 
@@ -518,25 +519,42 @@ const OneCPeriodPicker = {
   },
 
   setPeriod(startDate, endDate) {
-    const topStart = document.getElementById("topStartDateInput");
-    const topEnd = document.getElementById("topEndDateInput");
-    const dlgStart = document.getElementById("dlgStartDateInput");
-    const dlgEnd = document.getElementById("dlgEndDateInput");
-    const oaStart = document.getElementById("oaStartDateInput");
-    const oaEnd = document.getElementById("oaEndDateInput");
-    const oaDlgStart = document.getElementById("oaDlgStartDate");
-    const oaDlgEnd = document.getElementById("oaDlgEndDate");
+    const trigger = this.currentTrigger;
+    const isOrderAnalysis = !!(
+      (trigger && (trigger.closest("#orderAnalysisWindow") || trigger.closest("#orderAnalysisSettingsModal"))) ||
+      (typeof MdiManager !== "undefined" && MdiManager.activeWindowId === "orderAnalysisWindow")
+    );
 
-    if (topStart) { topStart.value = startDate; topStart._prevVal = startDate; }
-    if (topEnd) { topEnd.value = endDate; topEnd._prevVal = endDate; }
-    if (dlgStart) { dlgStart.value = startDate; dlgStart._prevVal = startDate; }
-    if (dlgEnd) { dlgEnd.value = endDate; dlgEnd._prevVal = endDate; }
-    if (oaStart) { oaStart.value = startDate; oaStart._prevVal = startDate; }
-    if (oaEnd) { oaEnd.value = endDate; oaEnd._prevVal = endDate; }
-    if (oaDlgStart) { oaDlgStart.value = startDate; oaDlgStart._prevVal = startDate; }
-    if (oaDlgEnd) { oaDlgEnd.value = endDate; oaDlgEnd._prevVal = endDate; }
+    if (isOrderAnalysis) {
+      const oaStart = document.getElementById("oaStartDateInput");
+      const oaEnd = document.getElementById("oaEndDateInput");
+      const oaDlgStart = document.getElementById("oaDlgStartDate");
+      const oaDlgEnd = document.getElementById("oaDlgEndDate");
+      if (oaStart) { oaStart.value = startDate; oaStart._prevVal = startDate; }
+      if (oaEnd) { oaEnd.value = endDate; oaEnd._prevVal = endDate; }
+      if (oaDlgStart) { oaDlgStart.value = startDate; oaDlgStart._prevVal = startDate; }
+      if (oaDlgEnd) { oaDlgEnd.value = endDate; oaDlgEnd._prevVal = endDate; }
+      if (window.OrderAnalysisReport && typeof OrderAnalysisReport.updatePeriodLabel === "function") {
+        OrderAnalysisReport.updatePeriodLabel();
+      }
+      if (window.C1PeriodWidget && typeof C1PeriodWidget.setStoredPeriod === "function") {
+        C1PeriodWidget.setStoredPeriod("order_analysis", startDate, endDate);
+      }
+    } else {
+      const topStart = document.getElementById("topStartDateInput");
+      const topEnd = document.getElementById("topEndDateInput");
+      const dlgStart = document.getElementById("dlgStartDateInput");
+      const dlgEnd = document.getElementById("dlgEndDateInput");
+      if (topStart) { topStart.value = startDate; topStart._prevVal = startDate; }
+      if (topEnd) { topEnd.value = endDate; topEnd._prevVal = endDate; }
+      if (dlgStart) { dlgStart.value = startDate; dlgStart._prevVal = startDate; }
+      if (dlgEnd) { dlgEnd.value = endDate; dlgEnd._prevVal = endDate; }
+      if (typeof syncDateInputsFromTop === "function") syncDateInputsFromTop();
+      if (window.C1PeriodWidget && typeof C1PeriodWidget.setStoredPeriod === "function") {
+        C1PeriodWidget.setStoredPeriod("universal_report", startDate, endDate);
+      }
+    }
 
-    if (typeof syncDateInputsFromTop === "function") syncDateInputsFromTop();
     this.close();
   },
 

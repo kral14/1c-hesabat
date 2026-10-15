@@ -3,6 +3,7 @@
 services/documents/pogruzka.py
 Dedicated handler for 'ПогрузкиМашин' (Loading Machine) documents.
 """
+from services.onec_dates import as_1c_date
 from services.documents.base import format_1c_datetime, parse_query_datetime, build_filter_conditions, narrow_search_to_column
 
 def get_pogruzka_list(conn, payload):
@@ -33,13 +34,13 @@ def get_pogruzka_list(conn, payload):
 
     dt_from = parse_query_datetime(date_from, is_end=False)
     if dt_from:
-        q_doc.SetParameter("DateFrom", dt_from)
+        q_doc.SetParameter("DateFrom", as_1c_date(dt_from))
         debug_params["DateFrom"] = str(dt_from)
         where_parts.append("Т.Дата >= &DateFrom")
 
     dt_to = parse_query_datetime(date_to, is_end=True)
     if dt_to:
-        q_doc.SetParameter("DateTo", dt_to)
+        q_doc.SetParameter("DateTo", as_1c_date(dt_to))
         debug_params["DateTo"] = str(dt_to)
         where_parts.append("Т.Дата <= &DateTo")
 
@@ -56,11 +57,25 @@ def get_pogruzka_list(conn, payload):
         where_parts.append(s_cond)
 
     field_map = {
+        "__doc_table": "Документ.ПогрузкиМашин",
         "marshrut": "Т.Маршрут",
-        "voditel": "ПРЕДСТАВЛЕНИЕ(Т.Водитель)",
-        "warehouse": "ПРЕДСТАВЛЕНИЕ(Т.Склад)",
-        "responsible": "ПРЕДСТАВЛЕНИЕ(Т.Ответственный)"
+        "voditel": "Т.Водитель.Наименование",
+        "warehouse": "Т.Склад.Наименование",
+        "responsible": "Т.Ответственный.Наименование"
     }
+    aggregate_join = ""
+    if any(isinstance(c, dict) and c.get('enabled') is not False and (c.get('fieldKey') or c.get('field')) in ('amount', 'realization_count') for c in filters):
+        aggregate_join = """
+        ЛЕВОЕ СОЕДИНЕНИЕ (
+            ВЫБРАТЬ СР.Ссылка КАК Ссылка,
+                КОЛИЧЕСТВО(РАЗЛИЧНЫЕ СР.Накладная) КАК RealizCount,
+                СУММА(СР.Накладная.СуммаДокумента) КАК TotalAmount
+            ИЗ Документ.ПогрузкиМашин.СписокРеализаций КАК СР
+            СГРУППИРОВАТЬ ПО СР.Ссылка
+        ) КАК ПА ПО Т.Ссылка = ПА.Ссылка
+        """
+        field_map['amount'] = 'ЕСТЬNULL(ПА.TotalAmount, 0)'
+        field_map['realization_count'] = 'ЕСТЬNULL(ПА.RealizCount, 0)'
     narrow_search_to_column(payload, where_parts, field_map, q_doc)
     build_filter_conditions(filters, q_doc, where_parts, debug_params, field_map)
 
@@ -68,7 +83,7 @@ def get_pogruzka_list(conn, payload):
         try:
             dt_last = parse_query_datetime(last_date, is_end=False)
             if dt_last:
-                q_doc.SetParameter("LastDate", dt_last)
+                q_doc.SetParameter("LastDate", as_1c_date(dt_last))
                 q_doc.SetParameter("LastNumber", last_number or "")
                 where_parts.append("(Т.Дата < &LastDate ИЛИ (Т.Дата = &LastDate И Т.Номер < &LastNumber))")
                 offset = 0
@@ -92,6 +107,7 @@ def get_pogruzka_list(conn, payload):
         ПРЕДСТАВЛЕНИЕ(Т.Ответственный) КАК Responsible
     ИЗ
         Документ.ПогрузкиМашин КАК Т
+    {aggregate_join}
     {where_sql}
     УПОРЯДОЧИТЬ ПО
         Т.Дата УБЫВ,

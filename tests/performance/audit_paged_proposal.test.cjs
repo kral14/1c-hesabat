@@ -1,6 +1,7 @@
 const assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm');
 const c=vm.createContext({console,window:{},AbortController,setTimeout:()=>1,clearTimeout(){},alert:message=>{throw Error(message)},document:{getElementById:()=>({textContent:''}),addEventListener(){}}});
 c.window=c;c.SessionManager={getCredentials:()=>({server:'Test1C',ref:'Aztrade_test3'})};
+c.addEventListener=()=>{};
 vm.runInContext(fs.readFileSync('static/js/audit_journal.js','utf8')+';globalThis.audit=AuditJournal;',c);
 (async()=>{
  const a=c.audit;a.buildListPayload=()=>({date_from:'2026-10-06',date_to:'2026-10-07 23:59:59'});

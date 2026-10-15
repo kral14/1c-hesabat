@@ -4,8 +4,10 @@ services/documents/realization.py
 Handler for 'РеализацияТоваровУслуг' (Sales Invoice) documents.
 High-performance batch querying without full-table scans.
 """
+from services.onec_dates import as_1c_date
 from services.documents.base import format_1c_datetime, parse_query_datetime, build_filter_conditions, narrow_search_to_column
 from time import perf_counter
+from services.driver_filter import load_driver_names, driver_condition
 
 def get_realization_list(conn, payload):
     timing_start = perf_counter()
@@ -46,13 +48,13 @@ def get_realization_list(conn, payload):
 
     dt_from = parse_query_datetime(date_from, is_end=False)
     if dt_from:
-        q_doc.SetParameter("DateFrom", dt_from)
+        q_doc.SetParameter("DateFrom", as_1c_date(dt_from))
         debug_params["DateFrom"] = str(dt_from)
         where_parts.append("Т.Дата >= &DateFrom")
 
     dt_to = parse_query_datetime(date_to, is_end=True)
     if dt_to:
-        q_doc.SetParameter("DateTo", dt_to)
+        q_doc.SetParameter("DateTo", as_1c_date(dt_to))
         debug_params["DateTo"] = str(dt_to)
         where_parts.append("Т.Дата <= &DateTo")
 
@@ -86,9 +88,49 @@ def get_realization_list(conn, payload):
         "warehouse": "Т.Склад.Наименование",
         "responsible": "Т.Ответственный.Наименование"
     }
+    related_selection_join = ""
+    related_period = []
+    if dt_from: related_period.append('П.Накладная.Дата >= &DateFrom')
+    if dt_to: related_period.append('П.Накладная.Дата <= &DateTo')
+    related_period_sql = 'ГДЕ ' + ' И '.join(related_period) if related_period else ''
+    active_keys = {(c.get('fieldKey') or c.get('field')) for c in filters if isinstance(c, dict) and c.get('enabled') is not False}
+    if active_keys & {'pogruzka_marshrut', 'pogruzka_voditel'}:
+        related_selection_join += f"""
+        ЛЕВОЕ СОЕДИНЕНИЕ (
+            ВЫБРАТЬ П.Накладная КАК Накладная,
+                МАКСИМУМ(ВЫБОР КОГДА НЕ П.Ссылка.ПометкаУдаления ТОГДА П.Ссылка.Маршрут ИНАЧЕ НЕОПРЕДЕЛЕНО КОНЕЦ) КАК ActiveMarshrut,
+                МАКСИМУМ(П.Ссылка.Маршрут) КАК AnyMarshrut,
+                МАКСИМУМ(ВЫБОР КОГДА НЕ П.Ссылка.ПометкаУдаления ТОГДА П.Ссылка.Водитель ИНАЧЕ НЕОПРЕДЕЛЕНО КОНЕЦ) КАК ActiveVoditelRef,
+                МАКСИМУМ(П.Ссылка.Водитель) КАК AnyVoditelRef
+            ИЗ Документ.ПогрузкиМашин.СписокРеализаций КАК П
+            {related_period_sql}
+            СГРУППИРОВАТЬ ПО П.Накладная
+        ) КАК ПФ ПО Т.Ссылка = ПФ.Накладная
+        """
+        for key, name in [('pogruzka_marshrut', 'Marshrut'), ('pogruzka_voditel', 'Voditel')]:
+            suffix = 'Ref.Наименование' if name == 'Voditel' else ''
+            field_map[key] = f'ЕСТЬNULL(ВЫБОР КОГДА ЕСТЬNULL(ПФ.Active{name}{suffix}, "") <> "" ТОГДА ПФ.Active{name}{suffix} ИНАЧЕ ПФ.Any{name}{suffix} КОНЕЦ, "")'
+    if 'obrabotka_number' in active_keys:
+        order_scope = related_period_sql.replace('П.Накладная.Дата', 'ТФ.Дата')
+        processing_scope = f'ГДЕ Обр.Заказ В (ВЫБРАТЬ ТФ.Сделка ИЗ Документ.РеализацияТоваровУслуг КАК ТФ {order_scope})' if order_scope else ''
+        related_selection_join += f"""
+        ЛЕВОЕ СОЕДИНЕНИЕ (
+            ВЫБРАТЬ Обр.Заказ КАК Заказ, МАКСИМУМ(Обр.Ссылка.Номер) КАК Номер
+            ИЗ Документ.ОбработкаЗаказов.ДанныеДляАнализа КАК Обр
+            {processing_scope}
+            СГРУППИРОВАТЬ ПО Обр.Заказ
+        ) КАК ОФ ПО Т.Сделка = ОФ.Заказ
+        """
+        field_map['obrabotka_number'] = 'ЕСТЬNULL(ОФ.Номер, "")'
     narrow_search_to_column(payload, where_parts, field_map, q_doc)
     other_filters = []
-    for crit in filters:
+    driver_names = None
+    for filter_index, crit in enumerate(filters):
+        if isinstance(crit, dict) and (crit.get('fieldKey') or crit.get('field')) == 'pogruzka_voditel':
+            if crit.get('enabled') is False: continue
+            if driver_names is None: driver_names = load_driver_names(conn)
+            where_parts.append(driver_condition(conn,q_doc,crit,driver_names,f'p_driver_{filter_index}',debug_params))
+            continue
         if not isinstance(crit, dict) or (crit.get("fieldKey") or crit.get("field")) not in ("pogruzka_duplicate","pogruzka_active_duplicate"):
             other_filters.append(crit)
             continue
@@ -123,7 +165,7 @@ def get_realization_list(conn, payload):
         try:
             dt_last = parse_query_datetime(last_date, is_end=False)
             if dt_last:
-                q_doc.SetParameter("LastDate", dt_last)
+                q_doc.SetParameter("LastDate", as_1c_date(dt_last))
                 q_doc.SetParameter("LastNumber", last_number or "")
                 where_parts.append("(Т.Дата < &LastDate ИЛИ (Т.Дата = &LastDate И Т.Номер < &LastNumber))")
                 offset = 0
@@ -134,6 +176,14 @@ def get_realization_list(conn, payload):
     fetch_total = (offset + limit_count + 1) if (limit_count and limit_count > 0) else 0
     first_clause = f"ПЕРВЫЕ {fetch_total}" if fetch_total > 0 else ""
     selection_order = "УПОРЯДОЧИТЬ ПО Т.Дата УБЫВ, Т.Номер УБЫВ" if first_clause else ""
+    # WMS predicates are evaluated while selecting the page, before enrichment.
+    selection_wms_join = ""
+    if any(isinstance(rule, dict) and rule.get('enabled') is not False
+           and (rule.get('fieldKey') or rule.get('field')) == 'vms_status' for rule in filters):
+        selection_wms_join = """
+        ЛЕВОЕ СОЕДИНЕНИЕ РегистрСведений.СтатусВМС.СрезПоследних КАК ВМС
+        ПО Т.Ссылка = ВМС.Документ1С
+        """
 
     q_doc.Text = f"""
     ВЫБРАТЬ {first_clause}
@@ -159,6 +209,8 @@ def get_realization_list(conn, payload):
     ПОМЕСТИТЬ ВТ_ВыбранныеДокументы
     ИЗ
         Документ.РеализацияТоваровУслуг КАК Т
+    {selection_wms_join}
+    {related_selection_join}
     {where_sql}
     {selection_order}
     ;

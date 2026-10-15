@@ -1201,7 +1201,11 @@ const PortfolioCatalog = {
   },
 
   onSearchHotkey: function() {
-    // Open authentic 1C Search Modal Dialog!
+    if (window.C1FindModal && typeof C1FindModal.openForActiveWindow === "function") {
+      const handled = C1FindModal.openForActiveWindow();
+      if (handled) return;
+    }
+    // Fallback: Open authentic 1C Search Modal Dialog!
     this.openFindModal();
   },
 

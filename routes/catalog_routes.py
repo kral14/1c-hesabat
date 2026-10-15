@@ -223,3 +223,47 @@ def get_nomenclature_stock_endpoint():
         print_server_error("/api/nomenclature/stock", e, data)
         return jsonify({"success": False, "error": str(e), "warehouses": [], "prices": []})
 
+@catalog_bp.route("/api/kontragent/card", methods=["POST", "GET"])
+@catalog_bp.route("/api/documents/kontragent_card", methods=["POST", "GET"])
+def get_kontragent_card_endpoint():
+    data = request.get_json(silent=True) or {}
+    if not data and request.args:
+        data = {
+            "code": request.args.get("code", ""),
+            "name": request.args.get("name", ""),
+            "inn": request.args.get("inn", "")
+        }
+    try:
+        try:
+            res = one_c.execute("get_kontragent_card", data)
+        except Exception as e_exec:
+            import offline_service
+            res = offline_service.get_kontragent_card(data)
+            
+        card = res.get("card") if isinstance(res, dict) else None
+        if not card:
+            return jsonify({"success": False, "error": "Контрагент не найден"})
+        return jsonify({"success": True, "card": card})
+    except Exception as e:
+        print_server_error("/api/kontragent/card", e, data)
+        return jsonify({"success": False, "error": str(e)})
+
+@catalog_bp.route("/api/kontragenty/list", methods=["POST", "GET"])
+def get_kontragenty_list_endpoint():
+    data = request.get_json(silent=True) or {}
+    if not data:
+        data = {
+            "filter_type": request.args.get("filter_type", "all"),
+            "search": request.args.get("search", ""),
+            "limit": int(request.args.get("limit", 100)),
+            "offset": int(request.args.get("offset", 0))
+        }
+    try:
+        import offline_service
+        res = offline_service.get_kontragenty_list(data)
+        return jsonify(res)
+    except Exception as e:
+        print_server_error("/api/kontragenty/list", e, data)
+        return jsonify({"success": False, "error": str(e), "items": [], "total_count": 0})
+
+

@@ -18,6 +18,8 @@ READ_ACTIONS = frozenset(('audit_history', 'get_audit_list', 'get_audit_diff', '
     'generate', 'order_analysis'))
 
 
+PROCESS_STARTED_AT = time.time()
+
 def main():
     from managed_runtime import runtime_lock
     from services.job_store import JobStore
@@ -94,13 +96,8 @@ def main():
                 data = json.loads(self.rfile.read(length) or b'{}')
                 if not isinstance(data, dict): raise ValueError('Invalid request')
                 if self.path == '/status':
-                    status = {'available': True, 'pid': os.getpid(), 'busy': worker.busy,
-                        'worker_alive': worker.is_alive(),
-                        'queued': worker.req_q.qsize(), 'session_count': len(worker.connections),
-                        'connection_generation': worker.connection_generation,
-                        'session_tokens': [f'{os.getpid()}:{id(conn)}' for conn in list(worker.connections.values())],
-                        'current_action': getattr(worker, 'current_action', ''),
-                        'action_age': max(0, time.monotonic()-getattr(worker, 'action_started', time.monotonic())) if worker.busy else 0}
+                    from services.connection_status import worker_snapshot
+                    status = worker_snapshot(worker, os.getpid(), PROCESS_STARTED_AT)
                     return self.reply(200, {'success': True, 'status': status})
                 if stopping.is_set(): raise RuntimeError('Worker is shutting down')
                 if self.path == '/execute':

@@ -88,7 +88,8 @@ const OperationTypeSelector = {
     });
 
     if (filtered.length === 0) {
-      tbody.innerHTML = `<tr><td colspan="3" style="text-align: center; color: #888; padding: 20px; font-style: italic;">Heç bir əməliyyat tapılmadı.</td></tr>`;
+      const emptyMsg = window.C1I18n ? C1I18n.t("op_type.empty") : "Heç bir əməliyyat tapılmadı.";
+      tbody.innerHTML = `<tr><td colspan="3" style="text-align: center; color: #888; padding: 20px; font-style: italic;">${emptyMsg}</td></tr>`;
       this.updateCount();
       return;
     }
@@ -159,7 +160,8 @@ const OperationTypeSelector = {
   updateCount() {
     const el = document.getElementById("opTypeSelectedCount");
     if (el) {
-      el.textContent = `Seçilmiş: ${this.selectedNames.size} əməliyyat növü`;
+      const template = window.C1I18n ? C1I18n.t("op_type.selected_count") : "Seçilmiş: {count} əməliyyat növü";
+      el.textContent = template.replace("{count}", this.selectedNames.size);
     }
   },
 
@@ -196,3 +198,13 @@ const OperationTypeSelector = {
     }
   }
 };
+
+window.addEventListener("c1-language-changed", () => {
+  const win = document.getElementById("operationTypeWindow");
+  if (win && window.C1I18n) {
+    C1I18n.applyTranslations(win);
+  }
+  if (OperationTypeSelector && typeof OperationTypeSelector.render === "function") {
+    OperationTypeSelector.render();
+  }
+});

@@ -6,6 +6,7 @@ Müştəri Sifarişləri və Müqayisəli Satış Analizi (Заказ vs Реа�
 Tamamilə müstəqil fayl kimi tərtib edilmişdir.
 """
 
+from services.onec_dates import as_1c_date, parse_calendar_date
 import os
 import re
 import datetime
@@ -18,63 +19,10 @@ ORDER_ANALYSIS_EXCEL = os.path.join(APP_DIR, "exports", "order_analysis_report.x
 
 
 def parse_date(date_str, is_end=False):
-    """Tarix sətirini (YYYY-MM-DD və ya DD.MM.YYYY, vaxt ilə və ya vaxtsız) datetime obyektinə çevirir."""
     if not date_str:
         now = datetime.datetime.now()
-        if is_end:
-            return datetime.datetime(now.year, now.month, now.day, 23, 59, 59)
-        return datetime.datetime(now.year, now.month, 1, 0, 0, 0)
-
-    date_str = str(date_str).strip()
-    try:
-        time_part = None
-        if " " in date_str:
-            parts = date_str.split(" ", 1)
-            date_part = parts[0].strip()
-            time_part = parts[1].strip()
-        elif "T" in date_str:
-            parts = date_str.split("T", 1)
-            date_part = parts[0].strip()
-            time_part = parts[1].strip()
-        else:
-            date_part = date_str
-
-        if "." in date_part:
-            d_parts = [int(p) for p in date_part.split(".") if p.strip()]
-            if len(d_parts) == 3:
-                d, m, y = d_parts
-            else:
-                raise ValueError(f"Invalid date: {date_part}")
-        elif "-" in date_part:
-            d_parts = [int(p) for p in date_part.split("-") if p.strip()]
-            if len(d_parts) == 3:
-                y, m, d = d_parts
-            else:
-                raise ValueError(f"Invalid date: {date_part}")
-        elif "/" in date_part:
-            d_parts = [int(p) for p in date_part.split("/") if p.strip()]
-            if len(d_parts) == 3:
-                d, m, y = d_parts
-            else:
-                raise ValueError(f"Invalid date: {date_part}")
-        else:
-            raise ValueError(f"Unknown date format: {date_str}")
-
-        hh, mm, ss = (23, 59, 59) if is_end else (0, 0, 0)
-        if time_part and ":" in time_part:
-            t_items = [int(x) for x in re.split(r"[:.]", time_part) if x.isdigit()]
-            if len(t_items) >= 2:
-                hh = t_items[0]
-                mm = t_items[1]
-                ss = t_items[2] if len(t_items) >= 3 else (59 if is_end else 0)
-
-        return datetime.datetime(y, m, d, hh, mm, ss)
-    except Exception as e:
-        print(f"⚠️ [ORDER_ANALYSIS parse_date ERROR] date_str='{date_str}': {e}", flush=True)
-        now = datetime.datetime.now()
-        if is_end:
-            return datetime.datetime(now.year, now.month, now.day, 23, 59, 59)
-        return datetime.datetime(now.year, now.month, 1, 0, 0, 0)
+        date_str = now.date() if is_end else now.date().replace(day=1)
+    return parse_calendar_date(date_str, is_end)
 
 
 def split_filter_item(raw_itm):
@@ -220,8 +168,8 @@ def handle_order_analysis(conn, payload, key, resp_q):
         })
 
         query = conn.NewObject("Запрос")
-        query.SetParameter("DateFrom", dt_from)
-        query.SetParameter("DateTo", dt_to)
+        query.SetParameter("DateFrom", as_1c_date(dt_from))
+        query.SetParameter("DateTo", as_1c_date(dt_to))
 
         # Detect warehouse attribute for returns
         try:

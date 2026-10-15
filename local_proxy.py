@@ -86,9 +86,12 @@ def forward_api(path):
             body_json = json.loads(req_data)
             filters = body_json.get("filters")
             if isinstance(filters, list):
-                safe_filters = [f for f in filters if f.get("fieldKey") != "vms_status" and f.get("field") != "vms_status"]
-                if len(safe_filters) != len(filters):
-                    body_json["filters"] = safe_filters
+                changed = False
+                for f in filters:
+                    if isinstance(f, dict) and f.get("fieldKey") == "wms_status":
+                        f["fieldKey"] = "vms_status"
+                        changed = True
+                if changed:
                     req_data = json.dumps(body_json).encode("utf-8")
                     headers["Content-Type"] = "application/json"
         except Exception:

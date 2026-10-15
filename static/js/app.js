@@ -5,7 +5,7 @@
 
 document.addEventListener("DOMContentLoaded", async () => {
   // Ensure document editor and detail modals NEVER pop up on clean startup or page reload
-  ["pogruzkaDocEditorWindow", "salesDocEditorWindow", "priceDocEditorWindow", "docVersionDiffWindow", "auditJournalWindow", "nomenclatureCardWindow"].forEach(id => {
+  ["pogruzkaDocEditorWindow", "salesDocEditorWindow", "priceDocEditorWindow", "docVersionDiffWindow", "auditJournalWindow", "nomenclatureCardWindow", "kontragentCardWindow", "kontragentyJournalWindow"].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.style.display = "none";
   });

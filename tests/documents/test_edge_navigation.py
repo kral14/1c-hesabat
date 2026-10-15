@@ -4,6 +4,31 @@ from services.documents.realization import get_realization_list
 from tests.documents.test_realization_query_limits import Connection
 
 class EdgeNavigationTests(unittest.TestCase):
+    def test_wms_uses_native_enum_key_and_retains_display_label(self):
+        for edge,direction in [('home','ВОЗР'),('end','УБЫВ')]:
+            with self.subTest(edge=edge):
+                initial,final = self.query(sort_field='vms_status',sort_ascending=True,navigation_edge=edge).split(';')
+                self.assertIn('ПРЕДСТАВЛЕНИЕ(ВМС.СтатусВМС) КАК StatusVMS',final)
+                self.assertIn('ВМС.СтатусВМС КАК SortStatusVMS',final)
+                order=final.split('УПОРЯДОЧИТЬ ПО')[-1]
+                self.assertIn('SortStatusVMS '+direction,order)
+                self.assertNotIn('ПРЕДСТАВЛЕНИЕ',order)
+                self.assertNotIn('ПЕРВЫЕ',initial)
+                self.assertIn('ПЕРВЫЕ 201',final)
+
+    def test_reference_presentations_sort_by_names_in_single_query(self):
+        for field,attribute,alias in [('warehouse','Склад','Warehouse'),('responsible','Ответственный','Responsible'),('voditel','Водитель','Voditel')]:
+            with self.subTest(field=field):
+                text=f'ВЫБРАТЬ Т.Ссылка КАК Ref, Т.Дата КАК Date, Т.Номер КАК Number, ПРЕДСТАВЛЕНИЕ(Т.{attribute}) КАК {alias} ИЗ Документ.ПогрузкиМашин КАК Т'
+                result=edge_query(text,dict(limit=20,sort_field=field,sort_ascending=True))
+                self.assertIn(f'Т.{attribute}.Наименование КАК Sort{alias}',result)
+                self.assertIn(f'УПОРЯДОЧИТЬ ПО Sort{alias} ВОЗР',result)
+                self.assertIn('ПЕРВЫЕ 21',result)
+
+    def test_mixed_wms_and_amount_sort_keep_independent_directions(self):
+        text=self.query(sort_rules=[{'field':'vms_status','ascending':True},{'field':'amount','ascending':False}])
+        self.assertIn('SortStatusVMS ВОЗР, Amount УБЫВ',text)
+
     def test_multiple_sort_directions_reversed_independently_for_end(self):
         rules=[{'field':'kontragent','ascending':True},{'field':'amount','ascending':False}]
         text=self.query(sort_rules=rules,navigation_edge='end')

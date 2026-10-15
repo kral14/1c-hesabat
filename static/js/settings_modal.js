@@ -421,29 +421,20 @@ function applySettingsAndGenerate() {
   onActionFormirovat();
 }
 
-// Date Synchronization between top toolbar and dialog
+// Date Synchronization between top toolbar and dialog (Universal Report)
 function syncDateInputsFromTop() {
   const topStart = document.getElementById("topStartDateInput")?.value;
   const topEnd = document.getElementById("topEndDateInput")?.value;
   const dlgStart = document.getElementById("dlgStartDateInput");
   const dlgEnd = document.getElementById("dlgEndDateInput");
-  const oaStart = document.getElementById("oaStartDateInput");
-  const oaEnd = document.getElementById("oaEndDateInput");
-  const oaDlgStart = document.getElementById("oaDlgStartDate");
-  const oaDlgEnd = document.getElementById("oaDlgEndDate");
 
   if (dlgStart && topStart) dlgStart.value = topStart;
   if (dlgEnd && topEnd) dlgEnd.value = topEnd;
-  if (oaStart && topStart) oaStart.value = topStart;
-  if (oaEnd && topEnd) oaEnd.value = topEnd;
-  if (oaDlgStart && topStart) oaDlgStart.value = topStart;
-  if (oaDlgEnd && topEnd) oaDlgEnd.value = topEnd;
 
-  if (window.OrderAnalysisReport && typeof OrderAnalysisReport.updatePeriodLabel === "function") {
-    OrderAnalysisReport.updatePeriodLabel();
-  }
-  if ((topStart || topEnd) && window.PeriodPicker && typeof PeriodPicker.saveExplicitPeriod === "function") {
-    PeriodPicker.saveExplicitPeriod(topStart, topEnd);
+  if (window.C1PeriodWidget && typeof C1PeriodWidget.setStoredPeriod === "function") {
+    C1PeriodWidget.setStoredPeriod("universal_report", topStart, topEnd);
+  } else if ((topStart || topEnd) && window.PeriodPicker && typeof PeriodPicker.saveExplicitPeriod === "function") {
+    PeriodPicker.saveExplicitPeriod(topStart, topEnd, "universal_report");
   }
 }
 

@@ -158,6 +158,8 @@ const OneCColumnSettings = {
       const fg = isSelected ? "#ffffff" : "#111111";
       const isChecked = (col.visible !== false);
 
+      const colLabel = window.C1I18n ? window.C1I18n.translateColumn(col.key, col.label) : (col.label || col.key);
+
       rowsHtml += `
         <tr style="background: ${bg}; color: ${fg}; height: 23px; cursor: pointer; user-select: none;"
             onclick="OneCColumnSettings.selectRow(${idx})">
@@ -170,17 +172,18 @@ const OneCColumnSettings = {
             📄
           </td>
           <td style="padding: 2px 6px; border: 1px solid #d4d0c8; font-size: 11px; font-weight: ${isSelected ? 'bold' : 'normal'}; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
-            ${this.escapeHtml(col.label || col.key)}
+            ${this.escapeHtml(colLabel)}
           </td>
         </tr>
       `;
     });
 
+    const _t = (k, d) => (window.C1I18n ? window.C1I18n.t(k, d) : d);
     const isAuto = selCol ? Boolean(selCol.autoWidth) : false;
     const widthVal = selCol ? (selCol.width || 100) : 100;
     const isVisible = selCol ? (selCol.visible !== false) : true;
-    const labelVal = selCol ? (selCol.label || "") : "";
-    const title = (this.currentOptions && this.currentOptions.title) || "Таблица";
+    const labelVal = selCol ? (window.C1I18n ? window.C1I18n.translateColumn(selCol.key, selCol.label) : (selCol.label || "")) : "";
+    const title = (this.currentOptions && this.currentOptions.title) || _t('col_settings.title', "Таблица");
 
     this.modalEl.innerHTML = `
       <div class="modal-window-1c" style="width: 630px; max-height: 85vh; display: flex; flex-direction: column; background: #f0eee3; border: 1px solid #7f9db9; box-shadow: 0 6px 24px rgba(0,0,0,0.4); font-family: Tahoma, 'MS Sans Serif', Arial, sans-serif; font-size: 11px; border-radius: 2px; overflow: hidden;">
@@ -189,36 +192,36 @@ const OneCColumnSettings = {
         <div class="modal-header-1c" style="background: linear-gradient(to bottom, #fdfdfe, #d6d9e0); padding: 5px 8px; border-bottom: 1px solid #a0a0a0; display: flex; align-items: center; justify-content: space-between; user-select: none;">
           <div style="font-weight: bold; color: #000; font-size: 11px; display: flex; align-items: center; gap: 6px;">
             <span>📋</span>
-            <span>Настройка формы: ${this.escapeHtml(title)}</span>
+            <span>${_t('col_settings.title', 'Настройка формы')}: ${this.escapeHtml(title)}</span>
           </div>
           <button type="button" class="window-btn-close" onclick="OneCColumnSettings.close()" style="width: 17px; height: 17px; border: 1px solid #7f9db9; background: #e5e2cf; cursor: pointer; font-size: 10px; line-height: 14px; padding: 0;">✕</button>
         </div>
 
         <!-- Toolbar (⇧ Вверх, ⇩ Вниз, ☑️ Все, ◻️ Снять, 🔄 Стандартные) -->
         <div style="padding: 4px 8px; background: #e5e2cf; border-bottom: 1px solid #b0af9f; display: flex; align-items: center; gap: 4px;">
-          <button type="button" class="btn-1c" onclick="OneCColumnSettings.moveColUp()" title="Переместить вверх (⇧)" style="height: 23px; padding: 0 7px; display: inline-flex; align-items: center; gap: 4px; font-weight: bold; font-size: 12px; color: #004080; cursor: pointer;">
+          <button type="button" class="btn-1c" onclick="OneCColumnSettings.moveColUp()" title="⇧" style="height: 23px; padding: 0 7px; display: inline-flex; align-items: center; gap: 4px; font-weight: bold; font-size: 12px; color: #004080; cursor: pointer;">
             <span>⇧</span>
-            <span style="font-size: 11px; font-weight: normal;">Вверх</span>
+            <span style="font-size: 11px; font-weight: normal;">${_t('col_settings.btn_up', 'Вверх')}</span>
           </button>
-          <button type="button" class="btn-1c" onclick="OneCColumnSettings.moveColDown()" title="Переместить вниз (⇩)" style="height: 23px; padding: 0 7px; display: inline-flex; align-items: center; gap: 4px; font-weight: bold; font-size: 12px; color: #004080; cursor: pointer;">
+          <button type="button" class="btn-1c" onclick="OneCColumnSettings.moveColDown()" title="⇩" style="height: 23px; padding: 0 7px; display: inline-flex; align-items: center; gap: 4px; font-weight: bold; font-size: 12px; color: #004080; cursor: pointer;">
             <span>⇩</span>
-            <span style="font-size: 11px; font-weight: normal;">Вниз</span>
+            <span style="font-size: 11px; font-weight: normal;">${_t('col_settings.btn_down', 'Вниз')}</span>
           </button>
 
           <div style="height: 18px; width: 1px; background: #b0af9f; margin: 0 4px;"></div>
 
-          <button type="button" class="btn-1c" onclick="OneCColumnSettings.toggleAll(true)" title="Показать все колонки" style="height: 23px; padding: 0 6px; font-size: 11px; cursor: pointer;">
-            ☑️ Все
+          <button type="button" class="btn-1c" onclick="OneCColumnSettings.toggleAll(true)" style="height: 23px; padding: 0 6px; font-size: 11px; cursor: pointer;">
+            ☑️ ${_t('col_settings.btn_select_all', 'Все')}
           </button>
-          <button type="button" class="btn-1c" onclick="OneCColumnSettings.toggleAll(false)" title="Снять все отметки" style="height: 23px; padding: 0 6px; font-size: 11px; cursor: pointer;">
-            ◻️ Снять
+          <button type="button" class="btn-1c" onclick="OneCColumnSettings.toggleAll(false)" style="height: 23px; padding: 0 6px; font-size: 11px; cursor: pointer;">
+            ◻️ ${_t('col_settings.btn_deselect_all', 'Снять')}
           </button>
 
           <div style="height: 18px; width: 1px; background: #b0af9f; margin: 0 4px;"></div>
 
-          <button type="button" class="btn-1c" onclick="OneCColumnSettings.resetToDefault()" title="Восстановить стандартные настройки" style="height: 23px; padding: 0 7px; display: inline-flex; align-items: center; gap: 4px; font-size: 11px; cursor: pointer;">
+          <button type="button" class="btn-1c" onclick="OneCColumnSettings.resetToDefault()" style="height: 23px; padding: 0 7px; display: inline-flex; align-items: center; gap: 4px; font-size: 11px; cursor: pointer;">
             <span>🔄</span>
-            <span>Стандартные настройки</span>
+            <span>${_t('col_settings.btn_reset', 'Стандартные настройки')}</span>
           </button>
         </div>
 
@@ -229,7 +232,7 @@ const OneCColumnSettings = {
           <div style="flex: 1.25; display: flex; flex-direction: column; background: #fff; border: 1px solid #7f9db9;">
             <div style="background: #e3dec9; padding: 3px 6px; font-weight: bold; font-size: 11px; border-bottom: 1px solid #b0af9f; display: flex; align-items: center; gap: 4px;">
               <span>📁</span>
-              <span>Элементы формы (Список колонок)</span>
+              <span>${_t('col_settings.col_header_name', 'Список колонок')}</span>
             </div>
             <div style="flex: 1; overflow-y: auto;">
               <table style="width: 100%; border-collapse: collapse;">
@@ -243,13 +246,13 @@ const OneCColumnSettings = {
           <!-- Right: Selected Column Properties (Свойства элемента) -->
           <div style="flex: 1; display: flex; flex-direction: column; background: #ffffff; border: 1px solid #7f9db9; padding: 8px;">
             <div style="font-weight: bold; color: #003366; font-size: 11px; border-bottom: 1px solid #d4d0c8; padding-bottom: 4px; margin-bottom: 8px;">
-              Свойства элемента:
+              ${_t('col_settings.group_selected', 'Свойства элемента')}:
             </div>
 
             ${selCol ? `
               <!-- 1. Column Label -->
               <div style="margin-bottom: 10px;">
-                <label style="display: block; margin-bottom: 2px; font-size: 11px; color: #333;">Заголовок колонки:</label>
+                <label style="display: block; margin-bottom: 2px; font-size: 11px; color: #333;">${_t('col_settings.label_caption', 'Заголовок колонки:')}</label>
                 <input type="text" id="csPropLabelInput" class="input-1c" value="${this.escapeHtml(labelVal)}"
                        oninput="OneCColumnSettings.updateSelectedProp('label', this.value)"
                        style="width: 100%; height: 22px; font-size: 11px; padding: 2px 6px; border: 1px solid #7f9db9;">
@@ -261,19 +264,19 @@ const OneCColumnSettings = {
                   <input type="checkbox" id="csPropVisibleInput" ${isVisible ? "checked" : ""}
                          onchange="OneCColumnSettings.updateSelectedProp('visible', this.checked)"
                          style="cursor: pointer;">
-                  <span>Отображать в списке (Видимость)</span>
+                  <span>${_t('col_settings.col_header_vis', 'Отображать в списке')}</span>
                 </label>
               </div>
 
               <!-- 3. Width Box -->
               <div style="border: 1px solid #d4d0c8; background: #fdfdfd; padding: 8px; border-radius: 2px; margin-bottom: 10px;">
-                <div style="font-weight: bold; font-size: 11px; color: #222; margin-bottom: 6px;">Ширина колонки:</div>
+                <div style="font-weight: bold; font-size: 11px; color: #222; margin-bottom: 6px;">${_t('col_settings.width_mode', 'Ширина колонки:')}</div>
                 
                 <div style="margin-bottom: 6px;">
                   <label style="display: inline-flex; align-items: center; gap: 5px; font-size: 11px; cursor: pointer; user-select: none;">
                     <input type="radio" name="csPropWidthRadio" value="auto" ${isAuto ? "checked" : ""}
                            onchange="OneCColumnSettings.updateSelectedProp('autoWidth', true)">
-                    <span>Автоматическая ширина (Авто)</span>
+                    <span>${_t('col_settings.width_auto', 'Автоматическая ширина (Авто)')}</span>
                   </label>
                 </div>
 
@@ -281,7 +284,7 @@ const OneCColumnSettings = {
                   <label style="display: inline-flex; align-items: center; gap: 5px; font-size: 11px; cursor: pointer; user-select: none;">
                     <input type="radio" name="csPropWidthRadio" value="custom" ${!isAuto ? "checked" : ""}
                            onchange="OneCColumnSettings.updateSelectedProp('autoWidth', false)">
-                    <span>Вручную (пикс.):</span>
+                    <span>${_t('col_settings.width_manual', 'Вручную (пикс.):')}</span>
                   </label>
                   <input type="number" id="csPropWidthInput" class="input-1c" value="${widthVal}" min="30" max="800" step="5"
                          oninput="OneCColumnSettings.updateSelectedProp('width', parseInt(this.value) || 100)"
@@ -291,11 +294,11 @@ const OneCColumnSettings = {
 
               <!-- Order hint -->
               <div style="color: #666; font-size: 10px; line-height: 1.4; margin-top: auto; background: #f7f6f0; padding: 6px; border: 1px dashed #d4d0c8;">
-                💡 <em>Используйте кнопки <strong>Вверх (⇧)</strong> и <strong>Вниз (⇩)</strong> для изменения порядка колонок.</em>
+                💡 <em>${_t('col_settings.help_hint', 'Используйте кнопки Вверх и Вниз для изменения порядка колонок.')}</em>
               </div>
             ` : `
               <div style="color: #777; font-size: 11px; padding: 20px; text-align: center;">
-                Выберите колонку слева для настройки
+                ${_t('col_settings.group_selected', 'Выберите колонку слева')}
               </div>
             `}
 
@@ -307,18 +310,18 @@ const OneCColumnSettings = {
         <div style="padding: 6px 10px; background: #e5e2cf; border-top: 1px solid #b0af9f; display: flex; justify-content: space-between; align-items: center;">
           <div>
             <button type="button" class="btn-1c" onclick="OneCColumnSettings.resetToDefault()" style="height: 24px; padding: 0 10px; font-size: 11px; cursor: pointer;">
-              Стандартные
+              ${_t('col_settings.btn_reset', 'Стандартные')}
             </button>
           </div>
           <div style="display: flex; gap: 6px;">
             <button type="button" class="btn-1c btn-1c-primary" onclick="OneCColumnSettings.saveAndClose()" style="height: 24px; min-width: 65px; font-weight: bold; cursor: pointer;">
-              ОК
+              ${_t('col_settings.btn_ok', 'ОК')}
             </button>
             <button type="button" class="btn-1c" onclick="OneCColumnSettings.applyChanges()" style="height: 24px; padding: 0 10px; cursor: pointer;">
-              Применить
+              ${_t('col_settings.btn_apply', 'Применить')}
             </button>
             <button type="button" class="btn-1c" onclick="OneCColumnSettings.close()" style="height: 24px; min-width: 65px; cursor: pointer;">
-              Отмена
+              ${_t('col_settings.btn_cancel', 'Отмена')}
             </button>
           </div>
         </div>

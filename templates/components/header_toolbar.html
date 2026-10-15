@@ -22,10 +22,10 @@
     
     <!-- Report Selector Combobox (Matching Document Journal) -->
     <div style="display: flex; align-items: center; gap: 4px; margin-right: 4px;">
-      <span style="font-size: 11px; font-weight: bold; color: #222;">Отчет:</span>
+      <span style="font-size: 11px; font-weight: bold; color: #222;" data-i18n="report.label_report">Отчет:</span>
       <select id="mainReportSwitcher" class="select-1c" onchange="switchReportWindow(this.value)" style="height: 24px; font-size: 11px; min-width: 220px; font-weight: bold; background: #fff; cursor: pointer; color: #002060;">
-        <option value="ТоварыНаСкладах" selected>📦 Товары на складах</option>
-        <option value="ЗаказПокупателяАнализ">🛒 Заказы покупателей (Анализ)</option>
+        <option value="ТоварыНаСкладах" selected data-i18n="report.opt_stock">📦 Товары на складах</option>
+        <option value="ЗаказПокупателяАнализ" data-i18n="report.opt_orders">🛒 Заказы покупателей (Анализ)</option>
       </select>
     </div>
 
@@ -34,38 +34,38 @@
     <!-- "Действия" Dropdown Button -->
     <div style="position: relative;">
       <button class="btn-actions" id="btnActionsDropdown" onclick="toggleActionsMenu(event)">
-        <span>Действия</span>
+        <span data-i18n="report.actions">Действия</span>
         <span style="font-size: 8px;">▼</span>
       </button>
 
       <!-- Dropdown Menu List -->
       <div id="actionsDropdownMenu" class="actions-dropdown">
         <a href="javascript:void(0)" class="actions-dropdown-item" onclick="executeCurrentReport()">
-          <span>▶</span> <span>Сформировать</span>
+          <span>▶</span> <span data-i18n="report.formirovat">Сформировать</span>
         </a>
         <a href="javascript:void(0)" class="actions-dropdown-item" onclick="openCurrentReportSettings(event)" onmousedown="event.stopPropagation()">
-          <span>⚙️</span> <span>Настройка...</span>
+          <span>⚙️</span> <span data-i18n="report.settings">Настройка...</span>
         </a>
         <div class="actions-dropdown-separator"></div>
         <a href="javascript:void(0)" class="actions-dropdown-item" onclick="openRestoreSettingsModal()">
-          <span>📥</span> <span>Восстановить настройку...</span>
+          <span>📥</span> <span data-i18n="report.restore">Восстановить настройку...</span>
         </a>
         <a href="javascript:void(0)" class="actions-dropdown-item" onclick="openSaveSettingsModal()">
-          <span>📤</span> <span>Сохранить настройку...</span>
+          <span>📤</span> <span data-i18n="report.save">Сохранить настройку...</span>
         </a>
         <a href="javascript:void(0)" class="actions-dropdown-item" onclick="resetToDefaultSettings()">
-          <span>↺</span> <span>Восстановить стандартные настройки</span>
+          <span>↺</span> <span data-i18n="report.reset">Восстановить стандартные настройки</span>
         </a>
         <div class="actions-dropdown-separator"></div>
         <a href="javascript:void(0)" class="actions-dropdown-item" onclick="exportReportToExcel()">
-          <span>📊</span> <span>Экспорт в Excel (.xlsx)</span>
+          <span>📊</span> <span data-i18n="menu.file.export_excel">Экспорт в Excel (.xlsx)</span>
         </a>
         <a href="javascript:void(0)" class="actions-dropdown-item" onclick="printReportSheet()">
-          <span>🖨️</span> <span>Печать...</span>
+          <span>🖨️</span> <span data-i18n="menu.file.print">Печать...</span>
         </a>
         <div class="actions-dropdown-separator"></div>
         <a href="javascript:void(0)" class="actions-dropdown-item" onclick="openLoginModal()">
-          <span>🔄</span> <span>Сменить базу / пользователя</span>
+          <span>🔄</span> <span data-i18n="menu.service.change_user">Сменить базу / пользователя</span>
         </a>
       </div>
     </div>
@@ -73,17 +73,17 @@
     <!-- "▶ Сформировать" Button -->
     <button class="btn-execute" id="btnMainFormirovat" onclick="executeCurrentReport()" title="Hesabatı formalaşdır (Ctrl+Enter)">
       <span class="play-arrow">▶</span>
-      <span>Сформировать</span>
+      <span data-i18n="report.formirovat">Сформировать</span>
     </button>
 
     <!-- "Настройка..." Button -->
     <button class="btn-settings" id="btnMainNastroyka" onclick="openCurrentReportSettings(event)" onmousedown="event.stopPropagation()" title="Hesabatın tənzimləmələri və süzgəcləri">
-      <span>Настройка...</span>
+      <span data-i18n="report.settings">Настройка...</span>
     </button>
 
     <!-- 1C Settings Preset Buttons (Image 3: Сохранить настройку / Восстановление настройки) -->
     <div class="toolbar-separator"></div>
-    <button class="tool-preset-btn" id="btnSaveSettingToolbar" onclick="openSaveSettingsModal()" title="Сохранить настройку... (Yadda saxla)">
+    <button class="tool-preset-btn" id="btnSaveSettingToolbar" onclick="openSaveSettingsModal()" data-i18n-title="report.save" title="Сохранить настройку... (Yadda saxla)">
       <svg width="18" height="18" viewBox="0 0 20 20" fill="none" style="vertical-align: middle;">
         <rect x="2.5" y="2.5" width="10" height="13" fill="#ffffff" stroke="#4878a8" stroke-width="1.1" rx="1"/>
         <line x1="4.5" y1="5.5" x2="10.5" y2="5.5" stroke="#90a4ae" stroke-width="1"/>
@@ -93,7 +93,7 @@
         <path d="M12,4 L8,8 L10.2,8 L10.2,12 L13.8,12 L13.8,8 L16,8 Z" fill="#2eb82e" stroke="#196619" stroke-width="0.8"/>
       </svg>
     </button>
-    <button class="tool-preset-btn" id="btnRestoreSettingToolbar" onclick="openRestoreSettingsModal()" title="Восстановление настройки... (Bərpa et)">
+    <button class="tool-preset-btn" id="btnRestoreSettingToolbar" onclick="openRestoreSettingsModal()" data-i18n-title="report.restore" title="Восстановление настройки... (Bərpa et)">
       <svg width="18" height="18" viewBox="0 0 20 20" fill="none" style="vertical-align: middle;">
         <rect x="7.5" y="2.5" width="10" height="13" fill="#ffffff" stroke="#4878a8" stroke-width="1.1" rx="1"/>
         <line x1="9.5" y1="5.5" x2="15.5" y2="5.5" stroke="#90a4ae" stroke-width="1"/>
@@ -107,19 +107,19 @@
     <div class="toolbar-separator"></div>
 
     <!-- Quick Toolbar Icon Buttons (from Screenshot 2) -->
-    <button class="tool-icon-btn" onclick="exportReportToExcel()" title="Excel / Табличный документ">
+    <button class="tool-icon-btn" onclick="exportReportToExcel()" data-i18n-title="menu.file.export_excel" title="Excel / Табличный документ">
       <span style="font-size: 13px;">📄</span>
     </button>
-    <button class="tool-icon-btn" onclick="toggleQuickFilters()" title="Отбор / Скрыть отборы">
+    <button class="tool-icon-btn" onclick="toggleQuickFilters()" data-i18n-title="uj.filter_title" title="Отбор / Скрыть отборы">
       <span style="font-size: 13px;">🔍</span>
     </button>
     <button class="tool-icon-btn active" title="Режим редактирования таблицы">
       <span style="font-size: 13px;">▦</span>
     </button>
-    <button class="tool-icon-btn" onclick="resetToDefaultSettings()" title="Восстановить значения">
+    <button class="tool-icon-btn" onclick="resetToDefaultSettings()" data-i18n-title="report.reset" title="Восстановить значения">
       <span style="font-size: 13px;">↩️</span>
     </button>
-    <button class="tool-icon-btn" onclick="show1CHelp()" title="Справка (F1)">
+    <button class="tool-icon-btn" onclick="show1CHelp()" data-i18n-title="menu.help.f1" title="Справка (F1)">
       <span style="font-size: 13px; font-weight: bold; color: #b86200;">❓</span>
     </button>
 
@@ -139,19 +139,19 @@
   <!-- Right: Date Pickers & Session Status -->
   <div class="toolbar-right">
     <div class="period-control-group">
-      <span class="period-label">Период с:</span>
+      <span class="period-label" data-i18n="rep_set.period_from">Период с:</span>
       <div class="period-input-wrapper">
         <input type="text" id="topStartDateInput" class="period-input-1c" value="01.09.2026" onchange="syncDateInputsFromTop()">
         <button class="period-cal-btn" onclick="pickDate('topStartDateInput', this)">📅</button>
       </div>
 
-      <span class="period-label">по:</span>
+      <span class="period-label" data-i18n="rep_set.period_to">по:</span>
       <div class="period-input-wrapper">
         <input type="text" id="topEndDateInput" class="period-input-1c" value="30.09.2026" onchange="syncDateInputsFromTop()">
         <button class="period-cal-btn" onclick="pickDate('topEndDateInput', this)">📅</button>
       </div>
 
-      <button class="period-more-btn" onclick="openPeriodSelectDialog(this)" title="Dövr seçimi">...</button>
+      <button class="period-more-btn" onclick="openPeriodSelectDialog(this)" data-i18n-title="pp.title" title="Dövr seçimi">...</button>
     </div>
   </div>
 </div>

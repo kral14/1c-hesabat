@@ -84,6 +84,8 @@ const MdiManager = {
     if (id.startsWith("priceDocEditorWindow")) return "priceDocEditor";
     if (id.startsWith("pogruzkaDocEditorWindow")) return "pogruzkaDocEditor";
     if (id.startsWith("nomenclatureCardWindow")) return "nomenclatureCard";
+    if (id.startsWith("kontragentCardWindow")) return "kontragentCard";
+    if (id.startsWith("kontragentyJournalWindow")) return "kontragentyJournal";
     if (id.startsWith("auditJournalWindow")) return "auditJournal";
     if (id.startsWith("portfolioCatalogWindow")) return "portfolioCatalog";
     if (id.startsWith("orderAnalysisWindow")) return "orderAnalysis";
@@ -122,7 +124,7 @@ const MdiManager = {
       Object.values(this.windows).forEach(w => {
         if (w.isOpen && !w.isMinimized && w.element && w.element.style.display !== "none") {
           // Never persist document editor windows or modal diffs across page reloads
-          if (["pogruzkaDocEditorWindow", "salesDocEditorWindow", "priceDocEditorWindow", "docVersionDiffWindow", "auditJournalWindow", "nomenclatureCardWindow"].includes(w.id)) {
+          if (["pogruzkaDocEditorWindow", "salesDocEditorWindow", "priceDocEditorWindow", "docVersionDiffWindow", "auditJournalWindow", "nomenclatureCardWindow", "kontragentCardWindow", "kontragentyJournalWindow"].includes(w.id)) {
             return;
           }
 
@@ -177,7 +179,7 @@ const MdiManager = {
 
       // Filter out any editor or modal windows so they NEVER pop up on reload
       list = list.filter(item => {
-        return !["pogruzkaDocEditorWindow", "salesDocEditorWindow", "priceDocEditorWindow", "docVersionDiffWindow", "auditJournalWindow", "nomenclatureCardWindow"].includes(item.id);
+        return !["pogruzkaDocEditorWindow", "salesDocEditorWindow", "priceDocEditorWindow", "docVersionDiffWindow", "auditJournalWindow", "nomenclatureCardWindow", "kontragentCardWindow", "kontragentyJournalWindow"].includes(item.id);
       });
       try {
         localStorage.setItem("1c_mdi_session_windows", JSON.stringify(list));
@@ -540,6 +542,36 @@ const MdiManager = {
       });
     }
 
+    // 13.1. Kontragent Item Card Window (Контрагенты / Элемент - starts hidden)
+    const kcWin = document.getElementById("kontragentCardWindow");
+    if (kcWin) {
+      this.registerWindow("kontragentCardWindow", {
+        title: "Контрагент (элемент)",
+        icon: "🏢",
+        element: kcWin,
+        isDefault: true,
+        startHidden: true,
+        closeFn: () => {
+          if (typeof KontragentCard !== "undefined" && KontragentCard.close) KontragentCard.close();
+        }
+      });
+    }
+
+    // 13.2. Kontragenty Directory & Audit Journal Window
+    const kjWin = document.getElementById("kontragentyJournalWindow");
+    if (kjWin) {
+      this.registerWindow("kontragentyJournalWindow", {
+        title: "Контрагенты (аудит)",
+        icon: "👥",
+        element: kjWin,
+        isDefault: true,
+        startHidden: true,
+        closeFn: () => {
+          if (typeof KontragentyJournal !== "undefined" && KontragentyJournal.close) KontragentyJournal.close();
+        }
+      });
+    }
+
     // 14. Sales Document Editor Window (Реализация товаров и услуг - starts hidden)
     const sdeWin = document.getElementById("salesDocEditorWindow");
     if (sdeWin) {
@@ -646,6 +678,47 @@ const MdiManager = {
       if (typeof this.saveOpenWindowsSession === "function") {
         this.saveOpenWindowsSession();
       }
+    });
+
+    // Reactive multi-language update for window titles and taskbar tabs
+    window.addEventListener("c1-language-changed", () => {
+      if (!window.C1I18n) return;
+      Object.values(this.windows).forEach(w => {
+        if (!w) return;
+        let transTitle = w.title;
+        if (w.id === "universalJournalWindow" || (typeof w.id === "string" && w.id.startsWith("ujWin_"))) {
+          const dt = (window.UniversalJournal && (window.UniversalJournal.instances?.[w.id]?.activeDocType || window.UniversalJournal.activeDocType)) || "РеализацияТоваровУслуг";
+          transTitle = window.C1I18n.translateDocType(dt);
+        } else if (w.id === "settingsWindowModal") {
+          transTitle = window.C1I18n.t("rep_set.title", "Настройка: Товары на складах");
+        } else if (w.id === "ujFilterWindow") {
+          transTitle = window.C1I18n.t("filter.window_title", "Настройка списка");
+        } else if (w.id === "mdiWindow-1") {
+          transTitle = window.C1I18n.t("menu.reports.stock", "Товары на складах");
+        } else if (w.title) {
+          transTitle = window.C1I18n.translatePhrase(w.title);
+        }
+        w.title = transTitle;
+
+        // Window Title text in DOM
+        const titleEl = document.getElementById(`${w.id}_titleText`) || (w.element && w.element.querySelector(".mdi-win-title-text"));
+        if (titleEl) titleEl.textContent = transTitle;
+
+        // Taskbar tab
+        const tab = document.getElementById(`tab-${w.id}`);
+        if (tab) {
+          const lbl = tab.querySelector(".mdi-tab-label");
+          if (lbl) lbl.textContent = this.formatTaskbarLabel(transTitle);
+          tab.title = transTitle;
+        }
+      });
+
+      // Also apply translations to all visible windows
+      Object.values(this.windows).forEach(w => {
+        if (w && w.isOpen && w.element) {
+          window.C1I18n.applyTranslations(w.element);
+        }
+      });
     });
   },
 
@@ -865,18 +938,21 @@ const MdiManager = {
   },
 
   formatTaskbarLabel(title) {
-    if (!title) return "Окно";
+    if (!title) return (window.C1I18n && window.C1I18n.getLanguage() === 'az') ? "Pəncərə" : "Окно";
     let s = String(title).trim();
     // 1. "Журнал документов: " prefiksini ləğv et -> birbaşa əsas ad (məs. "Реализация товаров и услуг")
-    s = s.replace(/^Журнал документов:\s*/i, "");
+    s = s.replace(/^(Журнал документов|Sənədlər jurnalı):\s*/i, "");
     // 2. "Настройка списка: " prefiksi varsa -> "Настройка списка"
-    if (/^Настройка списка:\s*/i.test(s)) {
-      s = "Настройка списка";
+    if (/^(Настройка списка|Siyahının tənzimlənməsi)/i.test(s)) {
+      return (window.C1I18n && window.C1I18n.getLanguage() === 'az') ? "Siyahının tənzimlənməsi" : "Настройка списка";
     }
     // 3. "Справочник." və ya "Справочник: " prefiksini ləğv et
-    s = s.replace(/^Справочник[.:]\s*/i, "");
+    s = s.replace(/^(Справочник[.:]|Soraqça[.:])\s*/i, "");
     // 4. "Отчет: " prefiksini ləğv et
-    s = s.replace(/^Отчет:\s*/i, "");
+    s = s.replace(/^(Отчет:|Hesabat:)\s*/i, "");
+    if (window.C1I18n && typeof window.C1I18n.translatePhrase === "function") {
+      s = window.C1I18n.translatePhrase(s);
+    }
     return s;
   },
 
@@ -1103,6 +1179,11 @@ const MdiManager = {
       }
 
       this.updateWindowTitlebar(id);
+      if (window.C1I18n && typeof window.C1I18n.applyTranslations === "function" && winObj.element) {
+        try {
+          window.C1I18n.applyTranslations(winObj.element);
+        } catch (i18nErr) {}
+      }
       this.updateWindowMenu();
       this.auditStack("activateWindow: " + id);
       this.saveOpenWindowsSession();
@@ -2399,6 +2480,12 @@ const MdiManager = {
     if (!topWin) return false;
 
     console.log(`[HOTKEY CTRL+F] Search in topmost window #${topWin.id} ("${topWin.title}", z=${topWin.element.style.zIndex || 0})`);
+
+    // 0. Universal C1FindModal across all journals and tables
+    if (window.C1FindModal && typeof C1FindModal.openForActiveWindow === "function") {
+      const handled = C1FindModal.openForActiveWindow();
+      if (handled) return true;
+    }
 
     // 0.5 Universal Journal Window (Bütün növlər və nüsxələr: universalJournalWindow, ujWin_...)
     const isUjWindow = (topWin.id === "universalJournalWindow") || 

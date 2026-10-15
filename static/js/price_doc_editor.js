@@ -692,6 +692,12 @@ const PriceDocEditor = {
     const sel = document.getElementById("pdeExcelPtSelect");
     if (sel) {
       sel.innerHTML = "";
+      if (this.priceTypes.length > 1) {
+        const optAll = document.createElement("option");
+        optAll.value = "__all_active__";
+        optAll.textContent = "⭐ Все типы цен документа (по существующим ценам)";
+        sel.appendChild(optAll);
+      }
       this.priceTypes.forEach(pt => {
         const opt = document.createElement("option");
         opt.value = pt;
@@ -978,16 +984,18 @@ const PriceDocEditor = {
     }
 
     const idType = document.getElementById("pdeExcelIdTypeSelect")?.value || "code";
-    let existingCount = 0;
-    let newCount = 0;
+    const onlyExistingPrices = document.getElementById("pdeExcelOnlyExistingPricesChk")?.checked ?? true;
+    const dontAddNew = document.getElementById("pdeExcelDontAddNewItemsChk")?.checked ?? true;
+    const targetPt = document.getElementById("pdeExcelPtSelect")?.value || "";
+
+    let willUpdateCount = 0;
+    let willAddCount = 0;
+    let skippedCount = 0;
     let html = "";
 
     this.excelParsedRows.forEach((row, idx) => {
-      const isExisting = row.isExisting;
-      if (isExisting) existingCount++;
-      else newCount++;
-
-      const itemInfo = row.item || (this.excelResolvedMap[row.rawCode] || null);
+      const existingItem = this.findItemByCodeOrArtikul(row.rawCode, idType);
+      const itemInfo = existingItem || row.item || (this.excelResolvedMap[row.rawCode] || null);
       const name = itemInfo ? itemInfo.name : "(1C-də axtarılır...)";
       const unit = itemInfo ? itemInfo.unit : "əd";
       
@@ -998,9 +1006,42 @@ const PriceDocEditor = {
         else if (itemInfo.code) displayCode = itemInfo.code;
       }
 
-      const statusBadge = isExisting 
-        ? `<span style="background: #e3f2fd; color: #0d47a1; padding: 1px 6px; border-radius: 2px; border: 1px solid #90caf9; font-weight: bold; font-size: 10px;">🔄 Yenilənəcək</span>`
-        : `<span style="background: #e8f5e9; color: #2e7d32; padding: 1px 6px; border-radius: 2px; border: 1px solid #a5d6a7; font-weight: bold; font-size: 10px;">➕ Yeni əlavə</span>`;
+      let statusBadge = "";
+      if (existingItem) {
+        let hasPrice = false;
+        let curPriceStr = "";
+
+        if (targetPt === "__all_active__") {
+          const matchedPts = (this.priceTypes || []).filter(pt => existingItem.prices && Number(existingItem.prices[pt]) > 0);
+          hasPrice = matchedPts.length > 0;
+          curPriceStr = matchedPts.map(pt => `${pt}: ${Number(existingItem.prices[pt]).toFixed(2)}`).join(", ");
+        } else {
+          const pVal = existingItem.prices ? existingItem.prices[targetPt] : null;
+          hasPrice = (pVal !== undefined && pVal !== null && Number(pVal) > 0);
+          if (hasPrice) curPriceStr = Number(pVal).toFixed(2);
+        }
+
+        if (hasPrice) {
+          statusBadge = `<span style="background: #e3f2fd; color: #0d47a1; padding: 1px 6px; border-radius: 2px; border: 1px solid #90caf9; font-weight: bold; font-size: 10px;" title="Cari qiymət: ${curPriceStr}">🔄 Yenilənəcək (${curPriceStr})</span>`;
+          willUpdateCount++;
+        } else {
+          if (onlyExistingPrices) {
+            statusBadge = `<span style="background: #fff7ed; color: #c2410c; padding: 1px 6px; border-radius: 2px; border: 1px solid #fdba74; font-weight: bold; font-size: 10px;" title="Sənəddə qiymət boşdur / 0-dır, referans qaydasına görə keçilir">⏭ Keçilir (qiymət boşdur)</span>`;
+            skippedCount++;
+          } else {
+            statusBadge = `<span style="background: #e0f2fe; color: #0369a1; padding: 1px 6px; border-radius: 2px; border: 1px solid #7dd3fc; font-weight: bold; font-size: 10px;">📝 Yazılacaq</span>`;
+            willUpdateCount++;
+          }
+        }
+      } else {
+        if (dontAddNew) {
+          statusBadge = `<span style="background: #f1f5f9; color: #64748b; padding: 1px 6px; border-radius: 2px; border: 1px solid #cbd5e1; font-weight: bold; font-size: 10px;" title="Sənəddə yoxdur, yeni mal əlavə edilmir">⏭ Keçilir (sənəddə yoxdur)</span>`;
+          skippedCount++;
+        } else {
+          statusBadge = `<span style="background: #e8f5e9; color: #2e7d32; padding: 1px 6px; border-radius: 2px; border: 1px solid #a5d6a7; font-weight: bold; font-size: 10px;">➕ Yeni əlavə</span>`;
+          willAddCount++;
+        }
+      }
 
       html += `
         <tr style="height: 20px; border-bottom: 1px solid #e0dfd5; background: ${idx % 2 === 1 ? '#fcfbf7' : '#fff'};">
@@ -1017,8 +1058,10 @@ const PriceDocEditor = {
     tbody.innerHTML = html;
 
     if (statTotal) statTotal.textContent = String(this.excelParsedRows.length);
-    if (statExisting) statExisting.textContent = String(existingCount);
-    if (statNew) statNew.textContent = String(newCount);
+    if (statExisting) {
+      statExisting.innerHTML = `${willUpdateCount} <span style="font-size: 10px; color: #b45309;">(Keçilən: ${skippedCount})</span>`;
+    }
+    if (statNew) statNew.textContent = String(willAddCount);
     if (btnApply) btnApply.disabled = false;
   },
 
@@ -1032,14 +1075,17 @@ const PriceDocEditor = {
       return;
     }
 
+    const onlyExistingPrices = document.getElementById("pdeExcelOnlyExistingPricesChk")?.checked ?? true;
+    const dontAddNew = document.getElementById("pdeExcelDontAddNewItemsChk")?.checked ?? true;
     const clearBeforeLoadChk = document.getElementById("pdeExcelClearBeforeLoadChk");
     const shouldClearBefore = clearBeforeLoadChk ? clearBeforeLoadChk.checked : false;
 
-    let clearedOldCount = 0;
     if (shouldClearBefore) {
       this.items.forEach(itm => {
-        if (itm.prices && itm.prices[targetPt] !== undefined) {
-          if (itm.prices[targetPt] > 0) clearedOldCount++;
+        if (!itm.prices) return;
+        if (targetPt === "__all_active__") {
+          (this.priceTypes || []).forEach(pt => { delete itm.prices[pt]; });
+        } else {
           delete itm.prices[targetPt];
         }
       });
@@ -1048,28 +1094,62 @@ const PriceDocEditor = {
     const idType = document.getElementById("pdeExcelIdTypeSelect")?.value || "code";
     let existingUpdated = 0;
     let newAdded = 0;
+    let skippedNoPrice = 0;
+    let skippedNotPresent = 0;
 
     this.excelParsedRows.forEach(row => {
       let itm = this.findItemByCodeOrArtikul(row.rawCode, idType);
 
       if (itm) {
         if (!itm.prices) itm.prices = {};
-        itm.prices[targetPt] = row.price;
-        existingUpdated++;
-      } else {
-        const resolved = row.item || this.excelResolvedMap[row.rawCode] || {};
-        const newItem = {
-          code: resolved.code || (idType === "code" ? row.rawCode : ""),
-          name: resolved.name || `Товар (${row.rawCode})`,
-          artikul: resolved.artikul || (idType === "artikul" ? row.rawCode : ""),
-          barcode: resolved.barcode || (idType === "barcode" ? row.rawCode : ""),
-          unit: resolved.unit || "əd",
-          prices: {
-            [targetPt]: row.price
+
+        if (targetPt === "__all_active__") {
+          let updatedInAny = false;
+          (this.priceTypes || []).forEach(pt => {
+            const oldVal = itm.prices[pt];
+            const hasOldPrice = (oldVal !== undefined && oldVal !== null && Number(oldVal) > 0);
+            if (!onlyExistingPrices || hasOldPrice) {
+              itm.prices[pt] = row.price;
+              updatedInAny = true;
+            }
+          });
+          if (updatedInAny) {
+            existingUpdated++;
+          } else {
+            skippedNoPrice++;
           }
-        };
-        this.items.push(newItem);
-        newAdded++;
+        } else {
+          const oldVal = itm.prices[targetPt];
+          const hasOldPrice = (oldVal !== undefined && oldVal !== null && Number(oldVal) > 0);
+          if (onlyExistingPrices && !hasOldPrice) {
+            skippedNoPrice++;
+          } else {
+            itm.prices[targetPt] = row.price;
+            existingUpdated++;
+          }
+        }
+      } else {
+        if (dontAddNew) {
+          skippedNotPresent++;
+        } else {
+          const resolved = row.item || this.excelResolvedMap[row.rawCode] || {};
+          const pricesObj = {};
+          if (targetPt === "__all_active__") {
+            (this.priceTypes || []).forEach(pt => { pricesObj[pt] = row.price; });
+          } else {
+            pricesObj[targetPt] = row.price;
+          }
+          const newItem = {
+            code: resolved.code || (idType === "code" ? row.rawCode : ""),
+            name: resolved.name || `Товар (${row.rawCode})`,
+            artikul: resolved.artikul || (idType === "artikul" ? row.rawCode : ""),
+            barcode: resolved.barcode || (idType === "barcode" ? row.rawCode : ""),
+            unit: resolved.unit || "əd",
+            prices: pricesObj
+          };
+          this.items.push(newItem);
+          newAdded++;
+        }
       }
     });
 
@@ -1079,14 +1159,19 @@ const PriceDocEditor = {
     this.renderTable();
     this.updateRowCount();
 
-    const emptyCount = this.items.filter(itm => !itm.prices || !itm.prices[targetPt] || itm.prices[targetPt] <= 0).length;
-
-    let msg = `✅ '${targetPt}' qiymət növü üzrə Excel yüklənməsi tamamlandı!\n\n` +
-      `• Excel-dən qiyməti yazılan mallar: ${existingUpdated + newAdded}\n`;
-    if (shouldClearBefore) {
-      msg += `• Qiyməti təmizlənib boş qalan mallar: ${emptyCount}\n`;
+    const ptDisplay = (targetPt === "__all_active__") ? "Bütün sənəd qiymət növləri" : `'${targetPt}'`;
+    let msg = `✅ ${ptDisplay} üzrə Excel yüklənməsi tamamlandı!\n\n` +
+      `• Qiyməti yenilənən mövcud mallar: ${existingUpdated}\n`;
+    if (newAdded > 0) {
+      msg += `• Sənədə yeni əlavə olunan mallar: ${newAdded}\n`;
     }
-    msg += `• Cəmi sənəddə mövcud mallar: ${this.items.length}`;
+    if (skippedNoPrice > 0) {
+      msg += `• Qiyməti əvvəlcədən boş/0 olduğu üçün toxunulmayan (keçilən) mallar: ${skippedNoPrice}\n`;
+    }
+    if (skippedNotPresent > 0) {
+      msg += `• Sənəddə mövcud olmadığı üçün əlavə edilməyən mallar: ${skippedNotPresent}\n`;
+    }
+    msg += `• Sənəddə cəmi mallar: ${this.items.length}`;
 
     alert(msg);
   },
@@ -1805,6 +1890,7 @@ const PriceDocEditor = {
   },
 
   closePriceTypesModal: function() {
+    this._pfPtPicking = false;
     const modal = document.getElementById("pdePriceTypesModal");
     if (modal) modal.style.display = "none";
   },
@@ -1923,6 +2009,16 @@ const PriceDocEditor = {
     const selected = this.ptModalItems.filter(x => x.checked).map(x => x.name);
     if (!selected.length) {
       alert("Heç bir qiymət növü seçilməyib! Ən azı bir qiymət növü seçin.");
+      return;
+    }
+
+    if (this._pfPtPicking) {
+      this._pfPtPicking = false;
+      const inp = document.getElementById("pdePfVal_pt");
+      if (inp) inp.value = selected.join("; ");
+      const chk = document.getElementById("pdePfChk_pt");
+      if (chk) chk.checked = true;
+      this.closePriceTypesModal();
       return;
     }
 
@@ -2501,6 +2597,258 @@ const PriceDocEditor = {
 
     if (shouldClose) {
       this.closeColumnSettingsModal();
+    }
+  },
+
+  // ==========================================
+  // Обработка: Формирование цен (Screenshots 2 & 3)
+  // ==========================================
+  _pfSelectedRowEl: null,
+  _pfPtPicking: false,
+
+  openPriceFormationModal: function() {
+    this.closeAllMenus();
+    const modal = document.getElementById("pdePriceFormationModal");
+    if (!modal) return;
+
+    modal.style.display = "flex";
+
+    // Set default price types value
+    const ptInput = document.getElementById("pdePfVal_pt");
+    const ptChk = document.getElementById("pdePfChk_pt");
+    if (ptInput) {
+      if (this.priceTypes && this.priceTypes.length) {
+        ptInput.value = this.priceTypes.join("; ");
+      } else {
+        ptInput.value = "";
+      }
+    }
+    if (ptChk) ptChk.checked = true;
+
+    // By default select first row
+    const firstRow = document.getElementById("pdePfRow_pt");
+    if (firstRow) {
+      this.selectPfRow(firstRow);
+    }
+  },
+
+  closePriceFormationModal: function() {
+    const modal = document.getElementById("pdePriceFormationModal");
+    if (modal) modal.style.display = "none";
+  },
+
+  selectPfRow: function(trEl) {
+    if (!trEl) return;
+    const allRows = document.querySelectorAll("#pdePfTableBody tr");
+    allRows.forEach(r => {
+      r.style.background = "#fff";
+      r.classList.remove("selected-pf-row");
+    });
+    trEl.style.background = "#e6f2ff";
+    trEl.classList.add("selected-pf-row");
+    this._pfSelectedRowEl = trEl;
+  },
+
+  togglePfAllCheckboxes: function(forceState) {
+    const chkHeader = document.getElementById("pdePfHeaderChk");
+    const state = (forceState !== undefined) ? forceState : (chkHeader ? !chkHeader.checked : true);
+    if (chkHeader && forceState === undefined) chkHeader.checked = state;
+
+    const rowChks = document.querySelectorAll("#pdePfTableBody input[type='checkbox']");
+    rowChks.forEach(c => c.checked = state);
+  },
+
+  addPfFilterRow: function() {
+    const field = prompt("Добавить отбор по полю (например: Склад, Организация, Номенклатура):", "Номенклатура");
+    if (!field || !field.trim()) return;
+
+    const tbody = document.getElementById("pdePfTableBody");
+    if (!tbody) return;
+
+    const rowId = "pdePfRow_custom_" + Date.now();
+    const tr = document.createElement("tr");
+    tr.id = rowId;
+    tr.style.height = "24px";
+    tr.style.borderBottom = "1px solid #e0dfd5";
+    tr.style.background = "#fff";
+    tr.onclick = () => PriceDocEditor.selectPfRow(tr);
+
+    tr.innerHTML = `
+      <td style="text-align: center; border-right: 1px solid #e0dfd5; padding: 2px;">
+        <input type="checkbox" checked style="cursor: pointer;">
+      </td>
+      <td style="padding: 2px 6px; border-right: 1px solid #e0dfd5; font-weight: 500;">${this.escapeHtml(field.trim())}</td>
+      <td style="padding: 2px 6px; border-right: 1px solid #e0dfd5;">
+        <select style="width: 100%; height: 20px; font-size: 11px; border: 1px solid #7f9db9;">
+          <option value="equal" selected>Равно</option>
+          <option value="in_list">В списке</option>
+          <option value="in_group">В группе</option>
+        </select>
+      </td>
+      <td style="padding: 2px 4px;">
+        <input type="text" placeholder="Значение..." style="width: 100%; height: 20px; box-sizing: border-box; border: 1px solid #7f9db9; padding: 0 5px; font-size: 11px;">
+      </td>
+    `;
+    tbody.appendChild(tr);
+    this.selectPfRow(tr);
+  },
+
+  deletePfSelectedRow: function() {
+    if (!this._pfSelectedRowEl) {
+      alert("Выберите строку для удаления.");
+      return;
+    }
+    // If it's one of the standard rows, uncheck and clear value instead of removing from DOM
+    if (["pdePfRow_pt", "pdePfRow_nom", "pdePfRow_ng", "pdePfRow_pg"].includes(this._pfSelectedRowEl.id)) {
+      const chk = this._pfSelectedRowEl.querySelector("input[type='checkbox']");
+      if (chk) chk.checked = false;
+      const inp = this._pfSelectedRowEl.querySelector("input[type='text']");
+      if (inp) inp.value = "";
+    } else {
+      this._pfSelectedRowEl.remove();
+      this._pfSelectedRowEl = null;
+    }
+  },
+
+  duplicatePfSelectedRow: function() {
+    if (!this._pfSelectedRowEl) return;
+    const clone = this._pfSelectedRowEl.cloneNode(true);
+    clone.id = "pdePfRow_copy_" + Date.now();
+    clone.onclick = () => PriceDocEditor.selectPfRow(clone);
+    this._pfSelectedRowEl.parentNode.insertBefore(clone, this._pfSelectedRowEl.nextSibling);
+    this.selectPfRow(clone);
+  },
+
+  openPfPriceTypesPicker: async function() {
+    this._pfPtPicking = true;
+    const currentVal = document.getElementById("pdePfVal_pt")?.value || "";
+    if (currentVal.trim()) {
+      const currentArr = currentVal.split(";").map(s => s.trim()).filter(Boolean);
+      this.priceTypes = currentArr;
+    }
+    await this.openPriceTypesModal();
+  },
+
+  openPfNomGroupPicker: function() {
+    const current = document.getElementById("pdePfVal_ng")?.value || "";
+    const val = prompt("Введите наименование номенклатурной группы (или несколько через точку с запятой ';'):", current);
+    if (val !== null) {
+      const inp = document.getElementById("pdePfVal_ng");
+      if (inp) inp.value = val.trim();
+      const chk = document.getElementById("pdePfChk_ng");
+      if (chk) chk.checked = !!val.trim();
+    }
+  },
+
+  openPfPriceGroupPicker: function() {
+    const current = document.getElementById("pdePfVal_pg")?.value || "";
+    const val = prompt("Введите наименование ценовой группы (или несколько через точку с запятой ';'):", current);
+    if (val !== null) {
+      const inp = document.getElementById("pdePfVal_pg");
+      if (inp) inp.value = val.trim();
+      const chk = document.getElementById("pdePfChk_pg");
+      if (chk) chk.checked = !!val.trim();
+    }
+  },
+
+  openPfNomPicker: function() {
+    const current = document.getElementById("pdePfVal_nom")?.value || "";
+    const val = prompt("Введите код или артикул товара (или несколько через точку с запятой ';'):", current);
+    if (val !== null) {
+      const inp = document.getElementById("pdePfVal_nom");
+      if (inp) inp.value = val.trim();
+      const chk = document.getElementById("pdePfChk_nom");
+      if (chk) chk.checked = !!val.trim();
+    }
+  },
+
+  executePriceFormation: async function() {
+    const chkPt = document.getElementById("pdePfChk_pt");
+    if (!chkPt || !chkPt.checked) {
+      alert("Zəhmət olmasa 'Тип цен' отборunu aktiv edin.");
+      return;
+    }
+
+    const ptVal = document.getElementById("pdePfVal_pt")?.value || "";
+    const priceTypes = ptVal.split(";").map(s => s.trim()).filter(Boolean);
+    if (!priceTypes.length) {
+      alert("Zəhmət olmasa ən azı bir qiymət növü (Тип цен) seçin.");
+      return;
+    }
+
+    const chkNom = document.getElementById("pdePfChk_nom");
+    const nomVal = (chkNom && chkNom.checked) ? (document.getElementById("pdePfVal_nom")?.value || "") : "";
+    const itemCodes = nomVal.split(";").map(s => s.trim()).filter(Boolean);
+
+    const chkNg = document.getElementById("pdePfChk_ng");
+    const ngVal = (chkNg && chkNg.checked) ? (document.getElementById("pdePfVal_ng")?.value || "") : "";
+    const nomGroups = ngVal.split(";").map(s => s.trim()).filter(Boolean);
+
+    const chkPg = document.getElementById("pdePfChk_pg");
+    const pgVal = (chkPg && chkPg.checked) ? (document.getElementById("pdePfVal_pg")?.value || "") : "";
+    const priceGroups = pgVal.split(";").map(s => s.trim()).filter(Boolean);
+
+    const includeZeroPrices = document.getElementById("pdePfIncludeZeroPricesChk")?.checked || false;
+    const docDate = document.getElementById("pdeDocDate")?.value || "";
+
+    const btnExec = document.getElementById("pdeBtnExecPf");
+    if (btnExec) {
+      btnExec.disabled = true;
+      btnExec.innerHTML = `<span>⏳ Формируется...</span>`;
+    }
+
+    try {
+      const creds = window.SessionManager ? SessionManager.getCredentials() : {};
+      const resp = await fetch("/api/documents/price_formation", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ...creds,
+          price_types: priceTypes,
+          nom_groups: nomGroups,
+          price_groups: priceGroups,
+          item_codes: itemCodes,
+          include_zero_prices: includeZeroPrices,
+          date: docDate
+        })
+      });
+
+      const res = await resp.json();
+      if (!res.success) {
+        alert("1C Xətası: " + (res.error || "Формирование цен xətası"));
+        return;
+      }
+
+      const newItems = res.items || [];
+      if (!newItems.length) {
+        alert("Göstərilən şərtlər üzrə 1C-dən heç bir mal tapılmadı.");
+        return;
+      }
+
+      // Update priceTypes on editor
+      this.priceTypes = priceTypes;
+      const disp = document.getElementById("pdePriceTypesDisplay");
+      if (disp) {
+        if ("value" in disp) disp.value = priceTypes.join("; ");
+        else disp.textContent = priceTypes.join("; ");
+      }
+
+      // Populate document items
+      this.items = newItems;
+      this.filteredItems = [...this.items];
+      this.renderTable();
+      this.updateRowCount();
+
+      this.closePriceFormationModal();
+      alert(`✅ "Формирование цен" tamamlandı!\n• Sənədə ${newItems.length} sayda mal və cari qiymətlər yükləndi.\n• Qiymət növləri: ${priceTypes.join(", ")}`);
+    } catch (err) {
+      console.error("Error executing price formation:", err);
+      alert("Xəta baş verdi: " + err.message);
+    } finally {
+      if (btnExec) {
+        btnExec.disabled = false;
+        btnExec.innerHTML = `<span>Выполнить</span>`;
+      }
     }
   }
 };

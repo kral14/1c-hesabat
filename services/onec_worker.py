@@ -26,6 +26,7 @@ class OneCService(threading.Thread):
         super().__init__(daemon=True)
         self.req_q = ActionQueue()
         self.connections = {}
+        self.connection_details = {}
         self.busy = False
         self.connection_generation = 0
         self.start()
@@ -95,7 +96,7 @@ class OneCService(threading.Thread):
                     elif action == "get_agents":
                         resp_q.put((True, offline_service.get_agents()))
                     elif action == "search_kontragents":
-                        resp_q.put((True, offline_service.search_kontragents(payload.get("query", ""))))
+                        resp_q.put((True, offline_service.search_kontragents(payload.get("query", ""), is_head=payload.get("is_head", False))))
                     elif action in ["search_nomenklatura", "search_nomenclature"]:
                         resp_q.put((True, offline_service.search_nomenklatura(payload.get("query", ""))))
                     elif action == "get_all_price_types":
@@ -114,6 +115,8 @@ class OneCService(threading.Thread):
                         resp_q.put((True, offline_service.get_batch_item_prices(payload)))
                     elif action == "get_nomenclature_card":
                         resp_q.put((True, offline_service.get_nomenclature_card(payload)))
+                    elif action == "get_kontragent_card":
+                        resp_q.put((True, offline_service.get_kontragent_card(payload)))
                     elif action == "get_nomenclature_stock":
                         resp_q.put((True, offline_service.get_nomenclature_stock(payload)))
                     elif action == "catalog_data":
@@ -247,9 +250,12 @@ class OneCService(threading.Thread):
                     conn = connector.Connect(conn_str)
                     self.connections[key] = conn
                     self.connection_generation += 1
+                    self.connection_details[key] = dict(server=str(server), ref=str(base), user=str(user), connected_at=time.time(), generation=self.connection_generation)
                     print(f"1C Session connected to [{server} / {base} / {user}] in {time.time() - t0:.2f} s", flush=True)
 
                 # Dispatch Action
+                from services.onec_dates import CalendarConnection
+                conn = CalendarConnection(conn)
                 payload = dict(payload, _resolved_user=user)
                 if action == "ping":
                     probe = conn.NewObject('Запрос')
@@ -291,6 +297,11 @@ class OneCService(threading.Thread):
                     import services.order_analysis_service
                     importlib.reload(services.order_analysis_service)
                     services.order_analysis_service.ORDER_ANALYSIS_HANDLERS[action](conn, payload, key, resp_q)
+                elif action in ["get_nomenclature_card", "get_kontragent_card"]:
+                    if action == "get_nomenclature_card":
+                        resp_q.put((True, offline_service.get_nomenclature_card(payload)))
+                    else:
+                        resp_q.put((True, offline_service.get_kontragent_card(payload)))
                 else:
                     raise ValueError(f"1C naməlum əməliyyat (Unknown Action): {action}")
 

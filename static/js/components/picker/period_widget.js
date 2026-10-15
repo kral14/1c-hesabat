@@ -11,11 +11,8 @@
 (function(window) {
   "use strict";
 
-  function toDateOnly(val) {
-    if (!val) return "";
-    const s = String(val).trim();
-    const m = s.match(/^(\d{1,2}\.\d{1,2}\.\d{4})/);
-    return m ? m[1] : s.split(" ")[0];
+  function toDateOnly(value) {
+    return C1Dates.dateOnly(value);
   }
 
   const C1PeriodWidget = {
@@ -36,7 +33,7 @@
       } else if (!s && e) {
         return `[ по ${e} ]`;
       }
-      return "(Весь период)";
+      return window.C1I18n ? C1I18n.t('uj.all_period', '(Весь период)') : '(Весь период)';
     },
 
     /**
@@ -45,9 +42,13 @@
     open: function(options = {}) {
       if (typeof window.PeriodPicker !== "undefined" && typeof window.PeriodPicker.open === "function") {
         window.PeriodPicker.open({
+          contextKey: options.contextKey || "",
           startDate: options.startDate || "",
           endDate: options.endDate || "",
           onSelect: (startStr, endStr) => {
+            if (options.contextKey) {
+              C1PeriodWidget.setStoredPeriod(options.contextKey, startStr, endStr);
+            }
             if (typeof options.onSelect === "function") {
               options.onSelect(startStr, endStr);
             }
@@ -56,6 +57,48 @@
       } else {
         console.warn("[C1PeriodWidget] PeriodPicker modalı tapılmadı.");
       }
+    },
+
+    /**
+     * Kontekst üzrə (məs. uj_РеализацияТоваровУслуг, audit_journal və s.) son seçilmiş dövrü qaytarır
+     */
+    getStoredPeriod: function(contextKey) {
+      if (!contextKey) return null;
+      try {
+        const raw = localStorage.getItem("1c_period_" + contextKey);
+        if (raw) {
+          const parsed = JSON.parse(raw);
+          if (parsed && (parsed.startDate || parsed.endDate)) return parsed;
+        }
+      } catch (e) {}
+      return null;
+    },
+
+    /**
+     * Kontekst üzrə son seçilmiş dövrü yadda saxlayır
+     */
+    setStoredPeriod: function(contextKey, startDate, endDate) {
+      if (!contextKey) return;
+      try {
+        localStorage.setItem("1c_period_" + contextKey, JSON.stringify({
+          startDate: startDate || "",
+          endDate: endDate || ""
+        }));
+      } catch (e) {}
+    },
+
+    /**
+     * Cari ay üzrə default başlanğıc və son tarixi qaytarır
+     */
+    getDefaultPeriod: function() {
+      const now = new Date();
+      const curYear = now.getFullYear();
+      const curMonth = String(now.getMonth() + 1).padStart(2, "0");
+      const lastDay = new Date(curYear, now.getMonth() + 1, 0).getDate();
+      return {
+        startDate: `01.${curMonth}.${curYear} 00:00:00`,
+        endDate: `${String(lastDay).padStart(2, "0")}.${curMonth}.${curYear} 23:59:59`
+      };
     },
 
     /**
@@ -71,6 +114,7 @@
 
       const updateLabel = (start, end) => {
         if (!labelEl) return;
+        labelEl.removeAttribute('data-i18n');
         const text = C1PeriodWidget.formatLabel(start, end);
         labelEl.textContent = text;
         if (text === "(Весь период)") {
@@ -80,9 +124,16 @@
         }
       };
 
-      // İlkin vəziyyəti tənzimləyirik
-      const initStart = typeof options.getStartDate === "function" ? options.getStartDate() : options.startDate;
-      const initEnd = typeof options.getEndDate === "function" ? options.getEndDate() : options.endDate;
+      // İlkin vəziyyəti tənzimləyirik: əgər ötürülməyibsə və contextKey varsa, kontekst yaddaşına bax
+      let initStart = typeof options.getStartDate === "function" ? options.getStartDate() : options.startDate;
+      let initEnd = typeof options.getEndDate === "function" ? options.getEndDate() : options.endDate;
+      if (options.contextKey && (initStart === undefined || initStart === "") && (initEnd === undefined || initEnd === "")) {
+        const stored = C1PeriodWidget.getStoredPeriod(options.contextKey);
+        if (stored) {
+          initStart = stored.startDate;
+          initEnd = stored.endDate;
+        }
+      }
       if (initStart !== undefined || initEnd !== undefined) {
         updateLabel(initStart, initEnd);
       }
@@ -95,10 +146,14 @@
         const currentEnd = typeof options.getEndDate === "function" ? options.getEndDate() : (options.endDate || "");
 
         C1PeriodWidget.open({
+          contextKey: options.contextKey || "",
           startDate: currentStart,
           endDate: currentEnd,
           onSelect: (startStr, endStr) => {
             updateLabel(startStr, endStr);
+            if (options.contextKey) {
+              C1PeriodWidget.setStoredPeriod(options.contextKey, startStr, endStr);
+            }
             if (typeof options.onSelect === "function") {
               options.onSelect(startStr, endStr);
             }
@@ -147,7 +202,16 @@
       let currentStart = config.startDate || "";
       let currentEnd = config.endDate || "";
 
+      if (config.contextKey && !currentStart && !currentEnd) {
+        const stored = C1PeriodWidget.getStoredPeriod(config.contextKey);
+        if (stored) {
+          currentStart = stored.startDate || "";
+          currentEnd = stored.endDate || "";
+        }
+      }
+
       const instance = C1PeriodWidget.bind(btn, {
+        contextKey: config.contextKey || "",
         labelElement: labelSpan,
         startDate: currentStart,
         endDate: currentEnd,
@@ -156,6 +220,9 @@
         onSelect: (startStr, endStr) => {
           currentStart = startStr;
           currentEnd = endStr;
+          if (config.contextKey) {
+            C1PeriodWidget.setStoredPeriod(config.contextKey, startStr, endStr);
+          }
           if (typeof config.onChange === "function") {
             config.onChange(startStr, endStr);
           }
@@ -172,6 +239,9 @@
         setDates: (s, e) => {
           currentStart = s;
           currentEnd = e;
+          if (config.contextKey) {
+            C1PeriodWidget.setStoredPeriod(config.contextKey, s, e);
+          }
           instance.updateLabel(s, e);
         },
         getDates: () => ({ startDate: currentStart, endDate: currentEnd })

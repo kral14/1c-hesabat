@@ -104,11 +104,12 @@
           <span>Заполнить</span>
           <span style="font-size: 8px;">▼</span>
         </button>
-        <div id="pdeZapMenu" style="display: none; position: absolute; top: 24px; left: 0; background: #fff; border: 1px solid #7f9db9; box-shadow: 2px 2px 10px rgba(0,0,0,0.25); z-index: 1000; min-width: 230px; padding: 4px 0;">
-          <a href="javascript:void(0)" onclick="PriceDocEditor.openExcelImportModal()" style="display: block; padding: 5px 10px; color: #1e7145; font-weight: bold; text-decoration: none; background: #f0fdf4;">📊 Загрузить цены из Excel...</a>
+        <div id="pdeZapMenu" style="display: none; position: absolute; top: 24px; left: 0; background: #fff; border: 1px solid #7f9db9; box-shadow: 2px 2px 10px rgba(0,0,0,0.25); z-index: 1000; min-width: 250px; padding: 4px 0;">
+          <a href="javascript:void(0)" onclick="PriceDocEditor.openPriceFormationModal()" style="display: block; padding: 6px 12px; color: #002060; font-weight: bold; text-decoration: none; background: #fffbe6; border-bottom: 1px solid #e0dfd5;">⚙️ По ценам номенклатуры (Формирование цен)...</a>
+          <a href="javascript:void(0)" onclick="PriceDocEditor.openExcelImportModal()" style="display: block; padding: 5px 12px; color: #1e7145; font-weight: bold; text-decoration: none; background: #f0fdf4;">📊 Загрузить цены из Excel...</a>
           <div style="height: 1px; background: #e0dfd5; margin: 3px 0;"></div>
-          <a href="javascript:void(0)" onclick="PriceDocEditor.fillByPortfolio()" style="display: block; padding: 4px 10px; color: #000; text-decoration: none;">📁 По портфелю...</a>
-          <a href="javascript:void(0)" onclick="PriceDocEditor.fillByNomGroup()" style="display: block; padding: 4px 10px; color: #000; text-decoration: none;">📑 По номенклатурной группе...</a>
+          <a href="javascript:void(0)" onclick="PriceDocEditor.fillByPortfolio()" style="display: block; padding: 4px 12px; color: #000; text-decoration: none;">📁 По портфелю...</a>
+          <a href="javascript:void(0)" onclick="PriceDocEditor.fillByNomGroup()" style="display: block; padding: 4px 12px; color: #000; text-decoration: none;">📑 По номенклатурной группе...</a>
           <div style="height: 1px; background: #e0dfd5; margin: 3px 0;"></div>
           <a href="javascript:void(0)" onclick="PriceDocEditor.fillCurrentPrices()" style="display: block; padding: 4px 10px; color: #000; text-decoration: none;">🔄 Заполнить по действующим ценам</a>
           <div style="height: 1px; background: #e0dfd5; margin: 3px 0;"></div>
@@ -327,15 +328,28 @@
             <span style="font-size: 10px; color: #64748b; white-space: nowrap;">(Excel-də 1-ci sütun)</span>
           </div>
 
+          <!-- Reference Matching Rule: Yalnız qiyməti olanları yenilə, boş olanları keç -->
+          <div style="margin-top: 8px; padding: 6px 10px; background: #fffbe6; border: 1px solid #ffd591; border-radius: 4px; display: flex; flex-direction: column; gap: 4px;">
+            <label style="display: flex; align-items: center; gap: 7px; font-size: 11px; font-weight: bold; color: #873800; cursor: pointer; user-select: none;">
+              <input type="checkbox" id="pdeExcelOnlyExistingPricesChk" checked onchange="PriceDocEditor.onExcelInputChanged()" style="cursor: pointer; width: 15px; height: 15px;">
+              <span>⚡ Обновлять только если цена уже установлена (пропускать если цена пустая / 0)</span>
+            </label>
+            <div style="font-size: 10px; color: #ad4e00; margin-left: 22px; line-height: 1.4;">
+              💡 <b>Referans qaydası:</b> Əgər cədvəldə bu malın qiyməti <b>əvvəlcədən var idisə</b>, yeni qiymətlə əvəz olunacaq. Əgər qiymət <b>yox idisə (boş idisə)</b>, toxunulmayacaq və boş saxlanılacaq!
+            </div>
+
+            <label style="display: flex; align-items: center; gap: 7px; font-size: 11px; font-weight: bold; color: #1e3a8a; cursor: pointer; user-select: none; margin-top: 2px;">
+              <input type="checkbox" id="pdeExcelDontAddNewItemsChk" checked onchange="PriceDocEditor.onExcelInputChanged()" style="cursor: pointer; width: 15px; height: 15px;">
+              <span>🚫 Не добавлять новые товары из Excel (обновлять только существующие строки в документе)</span>
+            </label>
+          </div>
+
           <!-- Clear before load checkbox option -->
-          <div style="margin-top: 8px; padding-top: 6px; border-top: 1px dashed #cbd5e1; display: flex; flex-direction: column; gap: 3px;">
+          <div style="margin-top: 6px; padding-top: 6px; border-top: 1px dashed #cbd5e1; display: flex; flex-direction: column; gap: 3px;">
             <label style="display: flex; align-items: center; gap: 6px; font-size: 11px; font-weight: bold; color: #0f172a; cursor: pointer; user-select: none;">
               <input type="checkbox" id="pdeExcelClearBeforeLoadChk" style="cursor: pointer; width: 15px; height: 15px;">
-              <span style="color: #991b1b;">Əvvəlcə bu qiymət növünün cədvəldəki bütün qiymətlərini sıfırla / boşalt (Очистить перед загрузкой)</span>
+              <span style="color: #991b1b;">Очистить перед загрузкой (bütün köhnə qiymətləri sıfırla)</span>
             </label>
-            <div style="font-size: 10px; color: #64748b; margin-left: 21px;">
-              💡 <b>Vacib:</b> Bu seçim aktiv olduqda, siyahıdakı bütün malların (məs: 1200 mal) bu sütundakı köhnə qiymətləri silinir və yalnız Excel-də olan mallara (məs: 600 mal) yeni qiymət yazılır. Excel-də olmayan malların qiyməti boş qalır!
-            </div>
           </div>
         </div>
 
@@ -834,6 +848,174 @@
             İmtina
           </button>
         </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Dedicated 1C Dialog: Обработка Формирование цен (Matching Screenshot 2) -->
+  <div id="pdePriceFormationModal" style="display: none; position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.45); z-index: 1400; align-items: center; justify-content: center; backdrop-filter: blur(1px);">
+    <div style="width: 760px; max-width: 95vw; background: #fdfcee; border: 2px solid #7f9db9; box-shadow: 0 10px 40px rgba(0,0,0,0.5); font-family: Tahoma, 'MS Sans Serif', Arial, sans-serif; font-size: 11px; display: flex; flex-direction: column; overflow: hidden; border-radius: 3px;">
+      
+      <!-- Titlebar -->
+      <div style="height: 28px; background: linear-gradient(180deg, #eae7d6 0%, #ded9c2 100%); border-bottom: 1px solid #b5b19c; display: flex; align-items: center; justify-content: space-between; padding: 0 10px; user-select: none;">
+        <div style="font-weight: 700; color: #1e293b; font-size: 12px; display: flex; align-items: center; gap: 6px;">
+          <span>⚙️</span>
+          <span>Обработка Формирование цен</span>
+        </div>
+        <button type="button" onclick="PriceDocEditor.closePriceFormationModal()" title="Закрыть" style="border: none; background: transparent; display: inline-flex; align-items: center; justify-content: center; width: 22px; height: 22px; border-radius: 4px; color: #475569; cursor: pointer; transition: all 0.15s ease;" onmouseover="this.style.background='#ef4444'; this.style.color='#fff';" onmouseout="this.style.background='transparent'; this.style.color='#475569';">✕</button>
+      </div>
+
+      <!-- Action Toolbar (➕ ❌ ✔ 🗐) -->
+      <div style="padding: 4px 8px; background: #e5e2cf; border-bottom: 1px solid #b0af9f; display: flex; align-items: center; gap: 4px;">
+        <button type="button" class="btn-modern-tool" onclick="PriceDocEditor.addPfFilterRow()" title="Добавить отбор (Ins)" style="height: 24px; width: 24px;">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#16a34a" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="12" y1="5" x2="12" y2="19"></line>
+            <line x1="5" y1="12" x2="19" y2="12"></line>
+          </svg>
+        </button>
+
+        <button type="button" class="btn-modern-tool" onclick="PriceDocEditor.deletePfSelectedRow()" title="Удалить отбор (Del)" style="height: 24px; width: 24px;">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#dc2626" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="18" y1="6" x2="6" y2="18"></line>
+            <line x1="6" y1="6" x2="18" y2="18"></line>
+          </svg>
+        </button>
+
+        <div style="height: 16px; width: 1px; background: #b0af9f; margin: 0 2px;"></div>
+
+        <button type="button" class="btn-modern-tool" onclick="PriceDocEditor.togglePfAllCheckboxes()" title="Установить / снять все флажки" style="height: 24px; width: 24px;">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="#ecfdf5" stroke="#16a34a" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="border-radius: 2px;">
+            <rect width="18" height="18" x="3" y="3" rx="3"/>
+            <path d="m9 12 2 2 4-4"/>
+          </svg>
+        </button>
+
+        <button type="button" class="btn-modern-tool" onclick="PriceDocEditor.duplicatePfSelectedRow()" title="Копировать строку (F9)" style="height: 24px; width: 24px;">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#475569" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <rect width="14" height="14" x="8" y="8" rx="2" ry="2"/>
+            <path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/>
+          </svg>
+        </button>
+      </div>
+
+      <!-- Filter Grid Table (Matching Screenshot 2) -->
+      <div style="height: 260px; overflow-y: auto; background: #ffffff; border: 1px solid #7f9db9; margin: 8px 10px;">
+        <table id="pdePfTable" style="width: 100%; border-collapse: collapse; font-size: 11px;">
+          <thead style="background: #e3dec9; border-bottom: 2px solid #5a5a5a; position: sticky; top: 0; z-index: 5;">
+            <tr style="height: 20px; text-align: left;">
+              <th style="padding: 2px 4px; border-right: 1px solid #d4d0c8; width: 30px; text-align: center;">
+                <input type="checkbox" id="pdePfHeaderChk" checked onclick="PriceDocEditor.togglePfAllCheckboxes(this.checked)" style="cursor: pointer;">
+              </th>
+              <th style="padding: 2px 6px; border-right: 1px solid #d4d0c8; width: 170px;">Поле</th>
+              <th style="padding: 2px 6px; border-right: 1px solid #d4d0c8; width: 130px;">Тип сравнения</th>
+              <th style="padding: 2px 6px;">Значение</th>
+            </tr>
+          </thead>
+          <tbody id="pdePfTableBody">
+            
+            <!-- Row 1: Тип цен (Default Checked) -->
+            <tr id="pdePfRow_pt" style="height: 24px; border-bottom: 1px solid #e0dfd5; background: #fff;" onclick="PriceDocEditor.selectPfRow(this)">
+              <td style="text-align: center; border-right: 1px solid #e0dfd5; padding: 2px;">
+                <input type="checkbox" id="pdePfChk_pt" checked style="cursor: pointer;">
+              </td>
+              <td style="padding: 2px 6px; font-weight: bold; color: #002060; border-right: 1px solid #e0dfd5;">Тип цен</td>
+              <td style="padding: 2px 6px; border-right: 1px solid #e0dfd5;">
+                <select id="pdePfComp_pt" style="width: 100%; height: 20px; font-size: 11px; border: 1px solid #7f9db9;">
+                  <option value="in_list" selected>В списке</option>
+                  <option value="equal">Равно</option>
+                </select>
+              </td>
+              <td style="padding: 2px 4px;">
+                <div style="display: flex; align-items: stretch; border: 1px solid #7f9db9; background: #fff; height: 21px;">
+                  <input type="text" id="pdePfVal_pt" readonly onclick="PriceDocEditor.openPfPriceTypesPicker()" style="flex: 1; border: none; padding: 0 5px; font-size: 11px; color: #002060; font-weight: 500; cursor: pointer; background: transparent; outline: none; text-overflow: ellipsis; white-space: nowrap; overflow: hidden;" title="Нажмите для выбора типов цен" placeholder="Выберите типы цен...">
+                  <button type="button" onclick="PriceDocEditor.openPfPriceTypesPicker()" class="btn-1c" title="Выбрать типы цен..." style="border: none; border-left: 1px solid #7f9db9; background: #e0dfd5; width: 22px; height: 100%; cursor: pointer; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 11px; padding: 0;">...</button>
+                </div>
+              </td>
+            </tr>
+
+            <!-- Row 2: Номенклатура -->
+            <tr id="pdePfRow_nom" style="height: 24px; border-bottom: 1px solid #e0dfd5; background: #fff;" onclick="PriceDocEditor.selectPfRow(this)">
+              <td style="text-align: center; border-right: 1px solid #e0dfd5; padding: 2px;">
+                <input type="checkbox" id="pdePfChk_nom" style="cursor: pointer;">
+              </td>
+              <td style="padding: 2px 6px; border-right: 1px solid #e0dfd5;">Номенклатура</td>
+              <td style="padding: 2px 6px; border-right: 1px solid #e0dfd5;">
+                <select id="pdePfComp_nom" style="width: 100%; height: 20px; font-size: 11px; border: 1px solid #7f9db9;">
+                  <option value="equal" selected>Равно</option>
+                  <option value="in_list">В списке</option>
+                  <option value="in_group">В группе</option>
+                </select>
+              </td>
+              <td style="padding: 2px 4px;">
+                <div style="display: flex; align-items: stretch; border: 1px solid #7f9db9; background: #fff; height: 21px;">
+                  <input type="text" id="pdePfVal_nom" placeholder="Все товары (или выберите конкретные)..." style="flex: 1; border: none; padding: 0 5px; font-size: 11px; outline: none;">
+                  <button type="button" onclick="PriceDocEditor.openPfNomPicker()" class="btn-1c" title="Выбрать товар..." style="border: none; border-left: 1px solid #7f9db9; background: #e0dfd5; width: 22px; height: 100%; cursor: pointer; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 11px; padding: 0;">...</button>
+                </div>
+              </td>
+            </tr>
+
+            <!-- Row 3: Номенклатурная группа -->
+            <tr id="pdePfRow_ng" style="height: 24px; border-bottom: 1px solid #e0dfd5; background: #fff;" onclick="PriceDocEditor.selectPfRow(this)">
+              <td style="text-align: center; border-right: 1px solid #e0dfd5; padding: 2px;">
+                <input type="checkbox" id="pdePfChk_ng" style="cursor: pointer;">
+              </td>
+              <td style="padding: 2px 6px; border-right: 1px solid #e0dfd5;">Номенклатурная группа</td>
+              <td style="padding: 2px 6px; border-right: 1px solid #e0dfd5;">
+                <select id="pdePfComp_ng" style="width: 100%; height: 20px; font-size: 11px; border: 1px solid #7f9db9;">
+                  <option value="in_list" selected>В списке</option>
+                  <option value="equal">Равно</option>
+                </select>
+              </td>
+              <td style="padding: 2px 4px;">
+                <div style="display: flex; align-items: stretch; border: 1px solid #7f9db9; background: #fff; height: 21px;">
+                  <input type="text" id="pdePfVal_ng" placeholder="Все группы (или выберите группы)..." style="flex: 1; border: none; padding: 0 5px; font-size: 11px; outline: none;">
+                  <button type="button" onclick="PriceDocEditor.openPfNomGroupPicker()" class="btn-1c" title="Выбрать группу..." style="border: none; border-left: 1px solid #7f9db9; background: #e0dfd5; width: 22px; height: 100%; cursor: pointer; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 11px; padding: 0;">...</button>
+                </div>
+              </td>
+            </tr>
+
+            <!-- Row 4: Ценовая группа -->
+            <tr id="pdePfRow_pg" style="height: 24px; border-bottom: 1px solid #e0dfd5; background: #fff;" onclick="PriceDocEditor.selectPfRow(this)">
+              <td style="text-align: center; border-right: 1px solid #e0dfd5; padding: 2px;">
+                <input type="checkbox" id="pdePfChk_pg" style="cursor: pointer;">
+              </td>
+              <td style="padding: 2px 6px; border-right: 1px solid #e0dfd5;">Ценовая группа</td>
+              <td style="padding: 2px 6px; border-right: 1px solid #e0dfd5;">
+                <select id="pdePfComp_pg" style="width: 100%; height: 20px; font-size: 11px; border: 1px solid #7f9db9;">
+                  <option value="equal" selected>Равно</option>
+                  <option value="in_list">В списке</option>
+                </select>
+              </td>
+              <td style="padding: 2px 4px;">
+                <div style="display: flex; align-items: stretch; border: 1px solid #7f9db9; background: #fff; height: 21px;">
+                  <input type="text" id="pdePfVal_pg" placeholder="Все ценовые группы..." style="flex: 1; border: none; padding: 0 5px; font-size: 11px; outline: none;">
+                  <button type="button" onclick="PriceDocEditor.openPfPriceGroupPicker()" class="btn-1c" title="Выбрать ценовую группу..." style="border: none; border-left: 1px solid #7f9db9; background: #e0dfd5; width: 22px; height: 100%; cursor: pointer; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 11px; padding: 0;">...</button>
+                </div>
+              </td>
+            </tr>
+
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Bottom Option: Включать товары, для которых цены не установлены (Matching Screenshot 2) -->
+      <div style="padding: 4px 12px; display: flex; align-items: center; gap: 8px;">
+        <label style="display: flex; align-items: center; gap: 6px; font-size: 11px; color: #222; cursor: pointer; user-select: none;">
+          <input type="checkbox" id="pdePfIncludeZeroPricesChk" style="cursor: pointer; width: 14px; height: 14px;">
+          <span>Включать товары, для которых цены не установлены</span>
+        </label>
+      </div>
+
+      <!-- Footer Bar: Выполнить | Закрыть (Matching Screenshot 2) -->
+      <div style="padding: 8px 14px; background: #fdfcee; border-top: 1px solid #e0dfd5; display: flex; justify-content: flex-end; align-items: center; gap: 10px; font-size: 11px;">
+        <button type="button" id="pdeBtnExecPf" class="btn-1c btn-1c-primary" onclick="PriceDocEditor.executePriceFormation()" style="height: 24px; min-width: 95px; font-weight: bold; background: linear-gradient(to bottom, #ffea88, #d8a020); border: 1px solid #7c6817; color: #000; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 4px;">
+          <span>Выполнить</span>
+        </button>
+
+        <button type="button" class="btn-1c" onclick="PriceDocEditor.closePriceFormationModal()" style="height: 24px; min-width: 75px; cursor: pointer;">
+          Закрыть
+        </button>
       </div>
 
     </div>

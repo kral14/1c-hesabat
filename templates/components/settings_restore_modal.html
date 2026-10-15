@@ -10,7 +10,7 @@
     <div class="preset-titlebar" ondblclick="togglePresetWindowMaximize(this)">
       <div class="preset-title-left">
         <span class="preset-title-icon">📥</span>
-        <span class="preset-title-text">Восстановление настройки</span>
+        <span class="preset-title-text" data-i18n="preset.restore_title">Восстановление настройки</span>
       </div>
       <div class="preset-titlebar-controls">
         <button class="preset-btn-max" onclick="togglePresetWindowMaximize(this)" title="Böyüt / Bərpa et">□</button>
@@ -22,14 +22,14 @@
     <div class="preset-modal-toolbar">
       <button class="preset-btn-select-main" onclick="confirmApplySelectedPreset()" title="Выбрать настройку">
         <span style="color: #2b7814; font-size: 11px;">✔</span>
-        <span>Выбрать</span>
+        <span data-i18n="common.select">Выбрать</span>
       </button>
 
       <div class="toolbar-separator" style="height: 18px;"></div>
 
       <button class="preset-btn-select-main" style="font-weight: normal;" onclick="toggleAllUsersPresets()" title="Настройки всех пользователей">
         <span>👤</span>
-        <span>Настройки всех пользователей</span>
+        <span data-i18n="preset.all_users">Настройки всех пользователей</span>
       </button>
     </div>
 
@@ -39,10 +39,10 @@
         <table class="preset-grid-table" id="presetRestoreTable">
           <thead>
             <tr>
-              <th style="min-width: 180px;">Наименование</th>
-              <th style="width: 70px;" class="th-center">Открыв...</th>
-              <th style="width: 70px;" class="th-center">Сохран...</th>
-              <th style="width: 130px;">Пользователь</th>
+              <th style="min-width: 180px;" data-i18n="col.name">Наименование</th>
+              <th style="width: 70px;" class="th-center" data-i18n="preset.col_open">Открыв...</th>
+              <th style="width: 70px;" class="th-center" data-i18n="preset.col_save">Сохран...</th>
+              <th style="width: 130px;" data-i18n="col.user">Пользователь</th>
             </tr>
           </thead>
           <tbody id="presetRestoreTableBody">
@@ -54,11 +54,11 @@
 
     <!-- Footer Controls -->
     <div class="preset-modal-footer">
-      <button class="btn-1c" onclick="resetToCleanDefault(); closeRestoreSettingsModal();" style="margin-right: auto; color: #b86200;">
+      <button class="btn-1c" onclick="resetToCleanDefault(); closeRestoreSettingsModal();" data-i18n="preset.clean_default" style="margin-right: auto; color: #b86200;">
         ↺ Стандартная настройка (Чистая)
       </button>
-      <button class="btn-1c" onclick="confirmApplySelectedPreset()" style="font-weight: bold; min-width: 75px;">ОК</button>
-      <button class="btn-1c" onclick="closeRestoreSettingsModal()" style="min-width: 65px;">Отмена</button>
+      <button class="btn-1c" onclick="confirmApplySelectedPreset()" data-i18n="common.ok" style="font-weight: bold; min-width: 75px;">ОК</button>
+      <button class="btn-1c" onclick="closeRestoreSettingsModal()" data-i18n="common.cancel" style="min-width: 65px;">Отмена</button>
     </div>
 
   </div>

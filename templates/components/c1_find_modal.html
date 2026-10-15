@@ -1,0 +1,104 @@
+<!-- ========================================================
+     1C:ENTERPRISE - UNIVERSAL FIND & COLUMN FILTER MODAL (Ctrl+F)
+     templates/components/c1_find_modal.html
+     Bütün jurnallar və cədvəllər üçün vahid 1C Axtarış Pəncərəsi
+     ======================================================== -->
+
+<div id="c1FindModal" role="dialog" aria-modal="true" aria-labelledby="c1FindTitle" 
+     style="display: none; position: fixed; inset: 0; z-index: 2147483000; background: rgba(0,0,0,0.20); align-items: center; justify-content: center;"
+     onmousedown="if(event.target === this) C1FindModal.close()">
+  
+  <div class="c1-find-dialog" 
+       style="width: 580px; max-width: 95vw; background: #fffbef; border: 1px solid #7f9db9; box-shadow: 2px 4px 18px rgba(0,0,0,0.35); font-family: Tahoma, 'MS Sans Serif', Arial, sans-serif; font-size: 11px; color: #222; border-radius: 2px; overflow: hidden;"
+       onmousedown="event.stopPropagation()">
+    
+    <!-- Titlebar -->
+    <div style="background: linear-gradient(180deg, #ece9d8 0%, #dcd7c8 100%); border-bottom: 1px solid #b0af9f; color: #111; display: flex; align-items: center; justify-content: space-between; padding: 4px 8px; user-select: none;">
+      <div style="display: flex; align-items: center; gap: 6px;">
+        <span style="font-size: 13px;">🔍</span>
+        <strong id="c1FindTitle" data-i18n="find.title" style="font-size: 11px; font-weight: bold; color: #002060;">Отбор по колонке (Ctrl+F)</strong>
+      </div>
+      <button type="button" aria-label="Закрыть" onclick="C1FindModal.close()" 
+              style="background: #e0ded5; border: 1px solid #7f9db9; width: 18px; height: 16px; font-size: 10px; line-height: 12px; cursor: pointer; display: flex; align-items: center; justify-content: center; padding: 0; border-radius: 2px;">
+        ✕
+      </button>
+    </div>
+
+    <!-- Form Body -->
+    <form id="c1FindForm" onsubmit="event.preventDefault(); C1FindModal.submit();" style="padding: 12px 14px; margin: 0; display: flex; flex-direction: column; gap: 10px;">
+      
+      <div style="display: grid; grid-template-columns: 90px 1fr; gap: 8px 10px; align-items: center;">
+        
+        <!-- Field 1: Где искать (Sütun seçimi) -->
+        <label for="c1FindColumn" data-i18n="find.where" style="font-weight: bold; color: #333;">Где искать:</label>
+        <select id="c1FindColumn" class="select-1c" style="width: 100%; height: 23px; font-size: 11px; border: 1px solid #7f9db9; background: #fff;" onchange="C1FindModal.onColumnChange()">
+          <!-- Populated dynamically via C1FindModal -->
+        </select>
+
+        <!-- Field 2: Что искать (Axtarış mətni) -->
+        <label for="c1FindText" data-i18n="find.what" style="font-weight: bold; color: #333;">Что искать:</label>
+        <div style="display: flex; align-items: center; gap: 2px; position: relative;">
+          <input type="text" id="c1FindText" class="input-1c" autocomplete="off" spellcheck="false"
+                 style="flex: 1; height: 23px; padding: 2px 6px; font-size: 11px; border: 1px solid #7f9db9; box-sizing: border-box; min-width: 0;"
+                 oninput="C1FindModal.onTextInput()" 
+                 onkeydown="C1FindModal.onInputKeydown(event)">
+          
+          <!-- Reference / Catalog Picker Button (...) -->
+          <button type="button" id="c1FindBtnChoose" class="btn-1c" title="Выбрать из справочника" data-i18n-title="find.choose_cat"
+                  onclick="C1FindModal.chooseFromCatalog()"
+                  style="width: 24px; height: 23px; padding: 0; font-weight: bold; font-size: 13px; display: inline-flex; align-items: center; justify-content: center;">
+            …
+          </button>
+          
+          <!-- View / Info Button (🔍) -->
+          <button type="button" id="c1FindBtnInspect" class="btn-1c" title="Информация о выбранном элементе" data-i18n-title="find.item_info"
+                  onclick="C1FindModal.showItemInfo()"
+                  style="width: 24px; height: 23px; padding: 0; font-size: 12px; display: inline-flex; align-items: center; justify-content: center;">
+            🔍
+          </button>
+        </div>
+
+        <!-- Field 3: Как искать (Müqayisə növü) -->
+        <span data-i18n="find.how" style="font-weight: bold; color: #333;">Как искать:</span>
+        <div style="display: flex; gap: 14px; flex-wrap: wrap; font-size: 11px; padding-top: 2px;">
+          <label style="display: inline-flex; align-items: center; gap: 4px; cursor: pointer;">
+            <input type="radio" name="c1FindMatch" value="starts" style="margin: 0; cursor: pointer;">
+            <span data-i18n="find.starts">По началу строки</span>
+          </label>
+          <label style="display: inline-flex; align-items: center; gap: 4px; cursor: pointer;">
+            <input type="radio" name="c1FindMatch" value="contains" checked style="margin: 0; cursor: pointer;">
+            <span data-i18n="find.contains">По части строки</span>
+          </label>
+          <label style="display: inline-flex; align-items: center; gap: 4px; cursor: pointer;">
+            <input type="radio" name="c1FindMatch" value="exact" style="margin: 0; cursor: pointer;">
+            <span data-i18n="find.exact">По точному совпадению</span>
+          </label>
+        </div>
+
+      </div>
+
+      <!-- Footer Buttons -->
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 20px; padding-top: 10px; border-top: 1px solid #d4d0c8;">
+        <!-- Left: Clear Filter Button (Ctrl+Q) -->
+        <button type="button" id="c1FindBtnClear" class="btn-1c" onclick="C1FindModal.clearFilter()" 
+                style="height: 24px; padding: 0 10px; color: #b91c1c; font-weight: 500; display: inline-flex; align-items: center; gap: 4px;">
+          <span>✕</span>
+          <span data-i18n="find.clear_filter">Снять отбор (Ctrl+Q)</span>
+        </button>
+
+        <!-- Right: Apply & Close -->
+        <div style="display: flex; gap: 8px;">
+          <button type="submit" class="btn-1c primary" id="c1FindBtnSubmit" style="height: 24px; min-width: 110px; font-weight: bold; background: #e3efd8; border-color: #6a9b56; color: #1b5e20;">
+            <span data-i18n="find.apply">Применить отбор</span>
+          </button>
+          <button type="button" class="btn-1c" onclick="C1FindModal.close()" style="height: 24px; min-width: 75px;">
+            <span data-i18n="common.close">Закрыть</span>
+          </button>
+        </div>
+      </div>
+
+    </form>
+
+  </div>
+
+</div>

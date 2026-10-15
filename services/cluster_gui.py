@@ -102,6 +102,28 @@ class ClusterSessionsGUI:
         info_lbl = tk.Label(info_frame, text=info_text, font=("Segoe UI", 9), fg="#334155", bg="#f1f5f9", justify=tk.LEFT)
         info_lbl.pack(anchor="w")
 
+        self.connection_notice = tk.Label(self.root, text='Proqramın COM bağlantısı yoxlanılır...',
+            font=('Segoe UI', 10, 'bold'), anchor='w', justify=tk.LEFT, wraplength=720,
+            bg='#eff6ff', fg='#1e40af', padx=14, pady=8)
+        self.connection_notice.pack(fill=tk.X)
+        self.connection_details = tk.Label(self.root, text='', font=('Segoe UI', 9),
+            anchor='w', justify=tk.LEFT, wraplength=720, bg='#f1f5f9', fg='#334155', padx=14, pady=6)
+        self.connection_details.pack(fill=tk.X)
+        self.session_notice = tk.Label(self.root, text='Sessiya siyahısı yüklənir...',
+            font=('Segoe UI', 10), anchor='w', justify=tk.LEFT, wraplength=720,
+            bg='#eff6ff', fg='#1e40af', padx=14, pady=8)
+        self.session_notice.pack(fill=tk.X)
+        def resize_notices(event):
+            if event.widget is self.root:
+                for label in (self.connection_notice,self.connection_details,self.session_notice):
+                    label.config(wraplength=max(300,event.width-40))
+        self.root.bind('<Configure>',resize_notices,add='+')
+
+        # Reserve room for controls before the expanding table. At Windows DPI
+        # scaling the old pack order could hide the reuse buttons and error bar.
+        footer_frame = tk.Frame(self.root)
+        footer_frame.pack(side=tk.BOTTOM,fill=tk.X)
+
         # 3. Cədvəl (Treeview)
         table_frame = tk.Frame(self.root, padx=14, pady=8)
         table_frame.pack(fill=tk.BOTH, expand=True)
@@ -130,7 +152,7 @@ class ClusterSessionsGUI:
         scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
 
         # 4. Düymələr Paneli
-        btn_frame = tk.Frame(self.root, padx=14, pady=12, bg="#f8fafc")
+        btn_frame = tk.Frame(footer_frame, padx=14, pady=12, bg="#f8fafc")
         btn_frame.pack(fill=tk.X)
 
         # Sol tərəf: Əməliyyat düymələri
@@ -196,15 +218,16 @@ class ClusterSessionsGUI:
         self.btn_skip.pack(side=tk.RIGHT)
 
         if self.backend_url:
-            reuse_frame = tk.Frame(self.root, padx=14, pady=4, bg='#f8fafc')
+            reuse_frame = tk.Frame(footer_frame, padx=14, pady=4, bg='#f8fafc')
             reuse_frame.pack(fill=tk.X)
             tk.Button(reuse_frame, text="Mövcud bağlantı ilə davam et", command=self._on_reuse,
                       font=("Segoe UI", 10, 'bold'), padx=8, pady=6).pack(side=tk.LEFT, fill=tk.X, expand=True)
-            tk.Button(reuse_frame, text='İlişmiş əlaqəni bərpa et', command=self._on_recover, padx=8,pady=6).pack(side=tk.RIGHT,padx=8)
+            self.btn_recover = tk.Button(reuse_frame, text='↻ COM-u yenilə', command=self._on_recover, padx=8,pady=6)
+            self.btn_recover.pack(side=tk.RIGHT,padx=8)
 
         # 5. Status Bar
         self.status_bar = tk.Label(
-            self.root, 
+            footer_frame,
             text="Sessiyalar oxunur...", 
             font=("Segoe UI", 9), 
             fg="#475569", 
@@ -216,9 +239,13 @@ class ClusterSessionsGUI:
         self.status_bar.pack(fill=tk.X, side=tk.BOTTOM)
 
     def _load_sessions(self):
+        self._load_connection_status()
         self._load_token = getattr(self, '_load_token', 0) + 1
         token = self._load_token
         self.status_bar.config(text='Sessiyalar oxunur...')
+        self.session_notice.config(text='Sessiya siyahısı yüklənir...',bg='#eff6ff',fg='#1e40af')
+        self.btn_terminate.config(state='disabled')
+        self.btn_clean_com.config(state='disabled')
         results = queue.Queue()
         def worker():
             try:
@@ -234,16 +261,82 @@ class ClusterSessionsGUI:
                 self.root.after(100, poll)
                 return
             if error:
-                self.status_bar.config(text='⚠️ Xəta: ' + error)
+                self._display_session_error(error)
             else:
                 self._display_sessions(sessions)
         threading.Thread(target=worker, daemon=True).start()
         self.root.after(100, poll)
 
+    def _load_connection_status(self):
+        if not self.backend_url:
+            self.connection_notice.config(text='COM bağlantısı bu klaster pəncərəsində ayrıca yoxlanmır.',bg='#f1f5f9',fg='#475569')
+            return
+        if getattr(self,'_connection_inflight',False): return
+        timer = getattr(self,'_connection_timer',None)
+        if timer: self.root.after_cancel(timer)
+        self._connection_timer = None
+        self._connection_inflight = True
+        results = queue.Queue()
+        def worker():
+            try: results.put((self._backend('api/connection/status'),None))
+            except Exception as error: results.put((None,str(error)))
+        def poll():
+            if not self.root.winfo_exists(): return
+            try: status,error = results.get_nowait()
+            except queue.Empty:
+                self.root.after(100,poll)
+                return
+            self._connection_inflight = False
+            self._display_connection_status(status,error)
+            self._connection_timer = self.root.after(5000,self._load_connection_status)
+        threading.Thread(target=worker,daemon=True).start()
+        self.root.after(100,poll)
+
+    def _display_connection_status(self,status,error=None):
+        target = f'{self.server_agent.rsplit(":",1)[0]} / {self.target_base}'
+        if error:
+            text,color,bg = f'COM bağlantısının vəziyyəti yoxlanmadı — {target}. {error[:160]}','#b91c1c','#fef2f2'
+        elif status.get('busy'):
+            text,color,bg = f'COM xidməti sorğu icra edir — {target}. Bağlantı hazırda ayrıca yoxlanmır.','#92400e','#fffbeb'
+        elif status.get('connected') is True:
+            text,color,bg = f'● COM bağlıdır — {target}. Mövcud bağlantı yoxlanıldı.','#166534','#ecfdf5'
+        elif status.get('worker_available') is False:
+            text,color,bg = f'● COM xidməti hazır deyil — {target}.','#b91c1c','#fef2f2'
+        else:
+            text,color,bg = f'● Seçilmiş bazaya COM bağlantısı yoxdur — {target}. “Bağlantını hazırla və davam et” ilə qoşulun.','#b91c1c','#fef2f2'
+        self.connection_notice.config(text=text,fg=color,bg=bg)
+        from datetime import datetime
+        details = (status or {}).get('details') or {}
+        def stamp(value):
+            return datetime.fromtimestamp(value).strftime('%d.%m.%Y %H:%M:%S') if value else '—'
+        lines = [f"COM prosesi: PID {details.get('pid') or '—'} · Başlama: {stamp(details.get('process_started_at'))}"]
+        for conn in details.get('connections') or []:
+            lines.append(f"Bağlantı: {conn.get('server', '—')} / {conn.get('ref', '—')} · İstifadəçi: {conn.get('user', '—')}"
+                         f" · Başlama: {stamp(conn.get('connected_at'))}")
+        lines.append(f"Sessiya sayı: {details.get('session_count') or 0} · Növbədə: {details.get('queued') or 0}"
+                     + (f" · Sorğu: {details.get('current_action')} ({int(details.get('action_age') or 0)} san.)" if details.get('busy') else ' · Sorğu icra edilmir'))
+        if not details.get('process_started_at'):
+            lines.append('Başlama vaxtları COM xidməti yeniləndikdən sonra görünəcək.')
+        if hasattr(self, 'connection_details'):
+            self.connection_details.config(text='\n'.join(lines))
+
+    def _display_session_error(self,error):
+        for item in self.tree.get_children(): self.tree.delete(item)
+        text = (f'Sessiya siyahısını oxumaq mümkün olmadı: {self.server_agent}.\n'
+                'Bu, bazada sessiya olmadığı demək deyil. Klaster idarəetmə portunun əlçatanlığını yoxlayın və “Yenilə” basın.')
+        self.session_notice.config(text=text,bg='#fef2f2',fg='#b91c1c')
+        self.status_bar.config(text='Sessiyalar yüklənmədi; baza bağlantısının vəziyyəti ayrıca yoxlanır.')
+        self.btn_terminate.config(state='disabled')
+        self.btn_clean_com.config(state='disabled')
+
     def _display_sessions(self, sessions):
         for item in self.tree.get_children(): self.tree.delete(item)
         if not sessions:
-            self.status_bar.config(text="✅ Aktiv sessiya yoxdur. Bütün lisenziyalar tam sərbəstdir.")
+            message = 'Seçilmiş bazada aktiv sessiya tapılmadı.'
+            self.status_bar.config(text=message)
+            self.session_notice.config(text=message,bg='#f1f5f9',fg='#475569')
+            self.btn_terminate.config(state='disabled')
+            self.btn_clean_com.config(state='disabled')
             return
 
         hanging_count = 0
@@ -273,6 +366,9 @@ class ClusterSessionsGUI:
         if hanging_count > 0:
             msg += f" (Bunlardan {hanging_count} ədədi lisenziyanı bloklayan asılı sessiyadır!)"
         self.status_bar.config(text=msg)
+        self.session_notice.config(text=msg,bg='#ecfdf5',fg='#166534')
+        self.btn_terminate.config(state='normal')
+        self.btn_clean_com.config(state='normal' if hanging_count else 'disabled')
 
 
     def _on_terminate(self):
@@ -337,14 +433,34 @@ class ClusterSessionsGUI:
         return result
 
     def _on_recover(self):
-        if not messagebox.askyesno('Təsdiq', 'Bu proqramın saxladığı 1C bağlantısı bağlanıb yenidən qurulacaq. Davam edilsin?', parent=self.root): return
-        try:
-            self._backend('api/connection/worker-recover', {'confirmed':True})
-            self._backend('api/ping_connection')
-            self.action = 'reuse'
-            self.root.destroy()
-        except Exception as error:
-            messagebox.showerror('Əlaqə bərpası', str(error), parent=self.root)
+        if getattr(self, '_recovering', False): return
+        if not messagebox.askyesno('COM-u yenilə',
+                'Proqramın COM prosesi və saxladığı bağlantılar bağlanacaq. İşləyən sorğu dayana bilər. '
+                f'Sonra {self.server_agent.rsplit(":",1)[0]} / {self.target_base} bazasına yenidən qoşulacaq. Davam edilsin?',
+                parent=self.root): return
+        self._recovering = True
+        self.btn_recover.config(state=tk.DISABLED)
+        self.connection_notice.config(text='COM yenilənir və bağlantı qurulur...', fg='#92400e', bg='#fffbeb')
+        results = queue.Queue()
+        def worker():
+            try:
+                self._backend('api/connection/worker-restart', {'confirmed':True})
+                self._backend('api/ping_connection')
+                results.put(None)
+            except Exception as error:
+                results.put(str(error))
+        def poll():
+            if not self.root.winfo_exists(): return
+            try: error = results.get_nowait()
+            except queue.Empty:
+                self.root.after(100,poll)
+                return
+            self._recovering = False
+            self.btn_recover.config(state=tk.NORMAL)
+            self._load_sessions()
+            if error: messagebox.showerror('COM yenilənməsi', error, parent=self.root)
+        threading.Thread(target=worker,daemon=True).start()
+        self.root.after(100,poll)
 
     def _on_reuse(self):
         try:

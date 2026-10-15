@@ -3,6 +3,7 @@
 services/documents/vozvrat.py
 Dedicated handler for 'ВозвратТоваровОтПокупателя' (Customer Returns) documents.
 """
+from services.onec_dates import as_1c_date
 from services.documents.base import format_1c_datetime, parse_query_datetime, build_filter_conditions, narrow_search_to_column
 
 def get_vozvrat_list(conn, payload):
@@ -25,6 +26,7 @@ def get_vozvrat_list(conn, payload):
         {"key": "amount", "label": "Сумма", "width": 110, "align": "right"},
         {"key": "warehouse", "label": "Склад", "width": 160, "align": "left"},
         {"key": "deal", "label": "Сделка / Заказ", "width": 130, "align": "left"},
+        {"key": "vms_status", "label": "Статус ВМС", "width": 140, "align": "left"},
         {"key": "contract", "label": "Договор", "width": 160, "align": "left"},
         {"key": "responsible", "label": "Ответственный", "width": 160, "align": "left"},
         {"key": "comment", "label": "Комментарий", "width": 200, "align": "left"}
@@ -36,15 +38,17 @@ def get_vozvrat_list(conn, payload):
 
     dt_from = parse_query_datetime(date_from, is_end=False)
     if dt_from:
-        q_doc.SetParameter("DateFrom", dt_from)
+        q_doc.SetParameter("DateFrom", as_1c_date(dt_from))
         debug_params["DateFrom"] = str(dt_from)
         where_parts.append("Т.Дата >= &DateFrom")
 
     dt_to = parse_query_datetime(date_to, is_end=True)
     if dt_to:
-        q_doc.SetParameter("DateTo", dt_to)
+        q_doc.SetParameter("DateTo", as_1c_date(dt_to))
         debug_params["DateTo"] = str(dt_to)
         where_parts.append("Т.Дата <= &DateTo")
+
+
 
     try:
         attr_names = set(str(a.Имя) for a in conn.Метаданные.Документы.ВозвратТоваровОтПокупателя.Реквизиты)
@@ -76,13 +80,19 @@ def get_vozvrat_list(conn, payload):
 
     field_map = {
         "__doc_table": "Документ.ВозвратТоваровОтПокупателя",
+        "number": "Т.Номер",
+        "date": "Т.Дата",
+        "amount": "Т.СуммаДокумента",
         "comment": "Т.Комментарий",
         "kontragent": "Т.Контрагент.Наименование",
+        "kontragent_code": "Т.Контрагент.Код",
         "golovnoy_kontragent": "Т.Контрагент.ГоловнойКонтрагент.Наименование",
         "golovnoy_kontragent_code": "Т.Контрагент.ГоловнойКонтрагент.Код",
         "agent": "Т.ДоговорКонтрагента.Агент.Наименование",
+        "portfolio": "Т.ДоговорКонтрагента.Портфель.Наименование",
         "warehouse": f"{wh_attr}.Наименование" if wh_attr else "",
         "deal": "Т.Сделка.Номер",
+        "vms_status": "ПОДСТРОКА(ПРЕДСТАВЛЕНИЕ(ВМС.СтатусВМС), 1, 100)",
         "contract": "Т.ДоговорКонтрагента.Наименование",
         "responsible": "Т.Ответственный.Наименование"
     }
@@ -93,7 +103,7 @@ def get_vozvrat_list(conn, payload):
         try:
             dt_last = parse_query_datetime(last_date, is_end=False)
             if dt_last:
-                q_doc.SetParameter("LastDate", dt_last)
+                q_doc.SetParameter("LastDate", as_1c_date(dt_last))
                 q_doc.SetParameter("LastNumber", last_number or "")
                 where_parts.append("(Т.Дата < &LastDate ИЛИ (Т.Дата = &LastDate И Т.Номер < &LastNumber))")
                 offset = 0
@@ -119,9 +129,12 @@ def get_vozvrat_list(conn, payload):
         Т.Сделка.Номер КАК Deal,
         Т.ДоговорКонтрагента.Наименование КАК Contract,
         ПРЕДСТАВЛЕНИЕ(Т.Ответственный) КАК Responsible,
-        Т.Комментарий КАК Comment
+        Т.Комментарий КАК Comment,
+        ПРЕДСТАВЛЕНИЕ(ВМС.СтатусВМС) КАК StatusVMS
     ИЗ
         Документ.ВозвратТоваровОтПокупателя КАК Т
+        ЛЕВОЕ СОЕДИНЕНИЕ РегистрСведений.СтатусВМС.СрезПоследних КАК ВМС
+        ПО Т.Ссылка = ВМС.Документ1С
     {where_sql}
     УПОРЯДОЧИТЬ ПО
         Т.Дата УБЫВ,
@@ -155,6 +168,7 @@ def get_vozvrat_list(conn, payload):
             "amount": float(res_doc.Amount or 0),
             "warehouse": str(res_doc.Warehouse or "").strip(),
             "deal": str(res_doc.Deal or "").strip(),
+            "vms_status": str(res_doc.StatusVMS or "").strip(),
             "contract": str(res_doc.Contract or "").strip(),
             "responsible": str(res_doc.Responsible or "").strip(),
             "comment": str(res_doc.Comment or "").strip(),
@@ -209,6 +223,26 @@ def get_vozvrat_list(conn, payload):
                     item["nomenclature"] = ", ".join(item["nomenclatures"][:5])
         except Exception as e:
             print(f"[VOZVRAT NOMENCLATURE BATCH ERROR] {e}")
+
+    # Apply vms_status filter in Python if specified
+    vms_crits = [f for f in filters if isinstance(f, dict) and (f.get("fieldKey") == "vms_status" or f.get("field") == "vms_status") and f.get("enabled") is not False]
+    if vms_crits:
+        filtered_items = []
+        for it in items:
+            v_actual = (it.get("vms_status") or "").strip().lower()
+            match = True
+            for c in vms_crits:
+                op = c.get("operator") or c.get("comparison") or "Равно"
+                val = str(c.get("value", "")).strip().lower()
+                if op == "Равно" and v_actual != val: match = False; break
+                elif op == "Не равно" and v_actual == val: match = False; break
+                elif op in ["Содержит", "Начинается с"] and val not in v_actual: match = False; break
+                elif op == "Не содержит" and val in v_actual: match = False; break
+                elif op == "Заполнено" and not v_actual: match = False; break
+                elif op == "Не заполнено" and v_actual: match = False; break
+            if match:
+                filtered_items.append(it)
+        items = filtered_items
 
     return {
         "items": items,
@@ -280,8 +314,24 @@ def get_vozvrat_details(conn, payload):
         "bu_record": bool(getattr(doc_obj, "ОтражатьВБухгалтерскомУчете", False)),
         "nu_record": bool(getattr(doc_obj, "ОтражатьВНалоговомУчете", False)),
         "account_settlement": str(getattr(getattr(doc_obj, "СчетУчетаРасчетовСКонтрагентом", None), "Код", "") or "").strip(),
-        "account_advance": str(getattr(getattr(doc_obj, "СчетУчетаРасчетовПоАвансам", None), "Код", "") or "").strip()
+        "account_advance": str(getattr(getattr(doc_obj, "СчетУчетаРасчетовПоАвансам", None), "Код", "") or "").strip(),
+        "vms_status": ""
     }
+
+    try:
+        qvms = conn.NewObject("Запрос")
+        qvms.SetParameter("DocRef", v_ref)
+        qvms.Text = """
+        ВЫБРАТЬ ПЕРВЫЕ 1
+            ПРЕДСТАВЛЕНИЕ(ВМС.СтатусВМС) КАК StatusVMS
+        ИЗ
+            РегистрСведений.СтатусВМС.СрезПоследних(, Документ1С = &DocRef) КАК ВМС
+        """
+        rvms = qvms.Execute().Choose()
+        if rvms.Next():
+            header_data["vms_status"] = str(rvms.StatusVMS or "").strip()
+    except Exception:
+        pass
 
     tovary = []
     if hasattr(doc_obj, "Товары"):

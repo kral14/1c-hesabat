@@ -14,12 +14,13 @@ const PeriodPicker = {
 
   open: function(options = {}) {
     this.activeCallback = options.onSelect || null;
+    this.activeContextKey = options.contextKey || this.resolveContextKey(options);
     this.startDateStr = options.startDate || "";
     this.endDateStr = options.endDate || "";
     this.rangeAnchor = null;
     this.isSelectingRange = false;
 
-    // Check remembered period if inputs are empty or if remember period is active
+    // Check remembered period for this specific context if inputs are empty
     const chk = document.getElementById("ppRememberPeriod");
     const isRememberActive = (localStorage.getItem("1c_remember_period_active") !== "false");
     if (chk) {
@@ -29,7 +30,7 @@ const PeriodPicker = {
         chk.addEventListener("change", () => {
           localStorage.setItem("1c_remember_period_active", chk.checked ? "true" : "false");
           if (!chk.checked) {
-            localStorage.removeItem("1c_remembered_period");
+            if (this.activeContextKey) localStorage.removeItem("1c_period_" + this.activeContextKey);
           } else {
             PeriodPicker.saveRememberedPeriod();
           }
@@ -38,7 +39,7 @@ const PeriodPicker = {
     }
 
     if (!this.startDateStr && !this.endDateStr && isRememberActive) {
-      const rem = this.getRememberedPeriod();
+      const rem = this.getRememberedPeriod(this.activeContextKey);
       if (rem) {
         this.startDateStr = rem.startDate || "";
         this.endDateStr = rem.endDate || "";
@@ -201,17 +202,8 @@ const PeriodPicker = {
     this.renderGrid();
   },
 
-  parseDateObj: function(str, isEnd) {
-    if (!str) return null;
-    const m = String(str).trim().match(/^(\d{1,2})\.(\d{1,2})\.(\d{4})(?:\s+(\d{1,2}):(\d{1,2}):(\d{1,2}))?/);
-    if (!m) return null;
-    const d = parseInt(m[1], 10);
-    const mo = parseInt(m[2], 10) - 1;
-    const y = parseInt(m[3], 10);
-    const hh = m[4] !== undefined ? parseInt(m[4], 10) : (isEnd ? 23 : 0);
-    const mm = m[5] !== undefined ? parseInt(m[5], 10) : (isEnd ? 59 : 0);
-    const ss = m[6] !== undefined ? parseInt(m[6], 10) : (isEnd ? 59 : 0);
-    return new Date(y, mo, d, hh, mm, ss);
+  parseDateObj: function(value, isEnd) {
+    return C1Dates.parse(value, isEnd);
   },
 
   validateAndSyncDates: function(which) {
@@ -835,31 +827,51 @@ const PeriodPicker = {
     this.renderGrid();
   },
 
-  saveRememberedPeriod: function() {
+  resolveContextKey: function(options = {}) {
+    if (options.contextKey) return options.contextKey;
+    if (options.docType) return "uj_" + options.docType;
+    if (window.MdiManager && typeof MdiManager.getTopmostVisibleWindow === "function") {
+      const topWin = MdiManager.getTopmostVisibleWindow();
+      if (topWin) {
+        if (topWin.id === "universalJournalWindow" || topWin.id.startsWith("ujWin_")) {
+          const inst = (window.UniversalJournal && typeof UniversalJournal.getActiveInstance === "function")
+            ? UniversalJournal.getActiveInstance(topWin.id)
+            : window.UniversalJournal;
+          return "uj_" + (inst?.activeDocType || "default");
+        }
+        if (topWin.id === "auditJournalWindow") return "audit_journal";
+        if (topWin.id === "orderAnalysisWindow") return "order_analysis";
+        if (topWin.id === "reportWindow") return "universal_report";
+        return topWin.id;
+      }
+    }
+    return "default";
+  },
+
+  saveRememberedPeriod: function(contextKey) {
     try {
       const chk = document.getElementById("ppRememberPeriod");
       const isChecked = chk ? chk.checked : (localStorage.getItem("1c_remember_period_active") !== "false");
-      if (isChecked) {
+      const ctx = contextKey || this.activeContextKey || this.resolveContextKey();
+      if (isChecked && ctx) {
         localStorage.setItem("1c_remember_period_active", "true");
-        localStorage.setItem("1c_remembered_period", JSON.stringify({
+        localStorage.setItem("1c_period_" + ctx, JSON.stringify({
           startDate: this.startDateStr,
           endDate: this.endDateStr
         }));
-      } else {
-        localStorage.setItem("1c_remember_period_active", "false");
-        localStorage.removeItem("1c_remembered_period");
+      } else if (ctx) {
+        localStorage.removeItem("1c_period_" + ctx);
       }
     } catch (e) {
       console.warn("Could not save remembered period to localStorage:", e);
     }
   },
 
-  saveExplicitPeriod: function(startDate, endDate) {
+  saveExplicitPeriod: function(startDate, endDate, contextKey) {
     try {
-      const isRememberActive = (localStorage.getItem("1c_remember_period_active") !== "false");
-      if (isRememberActive && (startDate || endDate)) {
-        localStorage.setItem("1c_remember_period_active", "true");
-        localStorage.setItem("1c_remembered_period", JSON.stringify({
+      const ctx = contextKey || this.activeContextKey || this.resolveContextKey();
+      if (ctx && (startDate || endDate)) {
+        localStorage.setItem("1c_period_" + ctx, JSON.stringify({
           startDate: startDate || "",
           endDate: endDate || ""
         }));
@@ -869,89 +881,25 @@ const PeriodPicker = {
     }
   },
 
-  getRememberedPeriod: function() {
+  getRememberedPeriod: function(contextKey) {
     try {
-      const isActive = localStorage.getItem("1c_remember_period_active");
-      if (isActive === "false") return null;
-      const saved = localStorage.getItem("1c_remembered_period");
-      if (saved) {
-        const obj = JSON.parse(saved);
-        if (obj && (obj.startDate || obj.endDate)) {
-          return obj;
+      const ctx = contextKey || this.activeContextKey || this.resolveContextKey();
+      if (ctx) {
+        const saved = localStorage.getItem("1c_period_" + ctx);
+        if (saved) {
+          const obj = JSON.parse(saved);
+          if (obj && (obj.startDate || obj.endDate)) {
+            return obj;
+          }
         }
       }
     } catch (e) {}
     return null;
   },
 
-  restoreSavedPeriod: function() {
-    try {
-      const rem = this.getRememberedPeriod();
-      if (!rem || (!rem.startDate && !rem.endDate)) return false;
-
-      const toDateOnly = (val) => {
-        if (!val) return "";
-        const s = String(val).trim();
-        const m = s.match(/^(\d{1,2}\.\d{1,2}\.\d{4})/);
-        return m ? m[1] : s.split(" ")[0];
-      };
-
-      const startFull = rem.startDate || "";
-      const endFull = rem.endDate || "";
-      const startDateOnly = toDateOnly(startFull);
-      const endDateOnly = toDateOnly(endFull);
-
-      // 1. Order Analysis inputs & label
-      const oaStart = document.getElementById("oaStartDateInput");
-      const oaEnd = document.getElementById("oaEndDateInput");
-      if (oaStart && startFull) oaStart.value = startFull;
-      if (oaEnd && endFull) oaEnd.value = endFull;
-
-      const oaLabel = document.getElementById("oaPeriodLabel");
-      if (oaLabel) {
-        if (window.C1PeriodWidget && typeof C1PeriodWidget.formatLabel === "function") {
-          oaLabel.textContent = C1PeriodWidget.formatLabel(startFull, endFull);
-        } else {
-          oaLabel.textContent = (startDateOnly && endDateOnly) ? `[ ${startDateOnly} - ${endDateOnly} ]` : "(Весь период)";
-        }
-        oaLabel.style.color = "#002060";
-      }
-
-      // 2. Top Toolbar inputs
-      const topStart = document.getElementById("topStartDateInput");
-      const topEnd = document.getElementById("topEndDateInput");
-      if (topStart && startDateOnly) topStart.value = startDateOnly;
-      if (topEnd && endDateOnly) topEnd.value = endDateOnly;
-
-      // 3. Settings modal inputs
-      const dlgStart = document.getElementById("dlgStartDateInput");
-      const dlgEnd = document.getElementById("dlgEndDateInput");
-      if (dlgStart && startDateOnly) dlgStart.value = startDateOnly;
-      if (dlgEnd && endDateOnly) dlgEnd.value = endDateOnly;
-
-      const oaDlgStart = document.getElementById("oaDlgStartDate");
-      const oaDlgEnd = document.getElementById("oaDlgEndDate");
-      if (oaDlgStart && startFull) oaDlgStart.value = startFull;
-      if (oaDlgEnd && endFull) oaDlgEnd.value = endFull;
-      const oaDlgLabel = document.getElementById("oaDlgPeriodLabel");
-      if (oaDlgLabel && window.C1PeriodWidget) {
-        oaDlgLabel.textContent = C1PeriodWidget.formatLabel(startFull, endFull);
-      }
-
-      // 4. Universal Journal
-      if (window.UniversalJournal) {
-        UniversalJournal.startDateStr = startFull;
-        UniversalJournal.endDateStr = endFull;
-        if (typeof UniversalJournal.updatePeriodLabel === "function") {
-          UniversalJournal.updatePeriodLabel();
-        }
-      }
-
-      return true;
-    } catch (e) {
-      console.warn("[PeriodPicker] restoreSavedPeriod error:", e);
-      return false;
-    }
+  restoreSavedPeriod: function(contextKey) {
+    // Qlobal tarix əzməsi ləğv edildi: hər pəncərə özünə məxsus dövrü saxlayır və bərpa edir.
+    return false;
   },
 
   confirm: function() {
@@ -966,7 +914,7 @@ const PeriodPicker = {
       this.endDateStr = inpEnd.value.trim();
     }
     this.validateAndSyncDates("start");
-    this.saveRememberedPeriod();
+    this.saveRememberedPeriod(this.activeContextKey);
     this.close();
     if (typeof this.activeCallback === "function") {
       this.activeCallback(this.startDateStr, this.endDateStr);
@@ -975,14 +923,3 @@ const PeriodPicker = {
 };
 
 window.PeriodPicker = PeriodPicker;
-
-// Auto-restore saved period as soon as DOM is ready
-if (typeof document !== "undefined") {
-  if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", () => {
-      PeriodPicker.restoreSavedPeriod();
-    });
-  } else {
-    PeriodPicker.restoreSavedPeriod();
-  }
-}

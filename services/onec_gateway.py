@@ -122,6 +122,26 @@ class OneCGateway:
             time.sleep(.15)
         raise TimeoutError('Bağlantı prosesi hələ dayanmayıb; yenidən yoxlayın.')
 
+    def restart_worker(self, confirmed=False):
+        if confirmed is not True:
+            raise PermissionError('COM-u yeniləmək üçün açıq təsdiq lazımdır.')
+        from services.worker_lifecycle import WorkerHandle
+        state = self.status(refresh=True)
+        if state.get('available'):
+            handle = WorkerHandle(state['pid'])
+            try:
+                try:
+                    self.shutdown_worker(confirmed=True)
+                except TimeoutError:
+                    handle.terminate()
+                if handle.handle and not handle.wait(2000):
+                    handle.terminate()
+            finally:
+                handle.close()
+        self._status_at = 0
+        self.ensure_worker()
+        return self.status(refresh=True)
+
     def close_all(self):
         # An API restart or Electron close must not destroy the independent COM owner.
         return None

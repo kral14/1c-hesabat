@@ -3,6 +3,7 @@
 services/documents/price.py
 Dedicated handler for 'УстановкаЦенНоменклатуры' documents and pricing registers.
 """
+from services.onec_dates import as_1c_date
 import datetime
 from services.documents.base import format_1c_datetime, parse_query_datetime
 from services.common import get_barcodes_map
@@ -270,7 +271,7 @@ def get_item_prices_dict(conn, payload):
                 if "." in d_part:
                     dp = d_part.split(".")
                     dt = datetime.datetime(int(dp[2]), int(dp[1]), int(dp[0]), 23, 59, 59)
-                    q_pr.SetParameter("DocDate", dt)
+                    q_pr.SetParameter("DocDate", as_1c_date(dt))
                     has_date = True
             except Exception:
                 pass
@@ -339,7 +340,7 @@ def get_batch_item_prices_dict(conn, payload):
             if "." in d_part:
                 dp = d_part.split(".")
                 dt = datetime.datetime(int(dp[2]), int(dp[1]), int(dp[0]), 23, 59, 59)
-                q_batch.SetParameter("DocDate", dt)
+                q_batch.SetParameter("DocDate", as_1c_date(dt))
                 has_date = True
         except Exception:
             pass
@@ -388,3 +389,154 @@ def get_batch_item_prices_dict(conn, payload):
         print("Batch prices error:", e_b)
 
     return {"prices_by_code": prices_by_code, "prices_by_name": prices_by_name}
+
+
+def form_price_document(conn, payload, key=None):
+    price_types = payload.get("price_types", [])
+    if isinstance(price_types, str):
+        price_types = [p.strip() for p in price_types.split(";") if p.strip()]
+    price_types = [str(p).strip() for p in price_types if str(p).strip()]
+    if not price_types:
+        raise ValueError("Zəhmət olmasa ən azı bir qiymət növü (Тип цен) seçin.")
+
+    nom_groups = payload.get("nom_groups", [])
+    if isinstance(nom_groups, str):
+        nom_groups = [g.strip() for g in nom_groups.split(";") if g.strip()]
+
+    price_groups = payload.get("price_groups", [])
+    if isinstance(price_groups, str):
+        price_groups = [g.strip() for g in price_groups.split(";") if g.strip()]
+
+    item_codes = payload.get("item_codes", [])
+    if isinstance(item_codes, str):
+        item_codes = [c.strip() for c in item_codes.split(";") if c.strip()]
+
+    include_zero_prices = bool(payload.get("include_zero_prices", False))
+    doc_date_str = str(payload.get("date") or "").strip()
+
+    arr_pts = conn.NewObject("Массив")
+    for pt in price_types:
+        arr_pts.Add(pt)
+
+    q_form = conn.NewObject("Запрос")
+    q_form.SetParameter("PriceTypes", arr_pts)
+
+    has_date = False
+    if doc_date_str:
+        try:
+            d_part = doc_date_str.split()[0]
+            if "." in d_part:
+                dp = d_part.split(".")
+                dt = datetime.datetime(int(dp[2]), int(dp[1]), int(dp[0]), 23, 59, 59)
+                q_form.SetParameter("DocDate", as_1c_date(dt))
+                has_date = True
+        except Exception:
+            pass
+
+    date_clause = "&DocDate" if has_date else ""
+
+    where_clauses = [
+        "НЕ Т.ЭтоГруппа",
+        "НЕ Т.ПометкаУдаления"
+    ]
+
+    if nom_groups:
+        arr_ng = conn.NewObject("Массив")
+        for g in nom_groups:
+            arr_ng.Add(g)
+        q_form.SetParameter("NomGroups", arr_ng)
+        where_clauses.append("Т.НоменклатурнаяГруппа.Наименование В (&NomGroups)")
+
+    if price_groups:
+        try:
+            arr_pg = conn.NewObject("Массив")
+            for g in price_groups:
+                arr_pg.Add(g)
+            q_form.SetParameter("PriceGroups", arr_pg)
+            where_clauses.append("Т.ЦеноваяГруппа.Наименование В (&PriceGroups)")
+        except Exception:
+            pass
+
+    if item_codes:
+        arr_ic = conn.NewObject("Массив")
+        for c in item_codes:
+            arr_ic.Add(c)
+        q_form.SetParameter("ItemCodes", arr_ic)
+        where_clauses.append("(Т.Код В (&ItemCodes) ИЛИ Т.Артикул В (&ItemCodes))")
+
+    where_sql = " И ".join(where_clauses)
+
+    b_map = {}
+    if key:
+        try:
+            b_map = get_barcodes_map(conn, key)
+        except Exception:
+            pass
+
+    q_form.Text = f"""
+    ВЫБРАТЬ
+        Т.Код КАК Code,
+        Т.Артикул КАК Artikul,
+        Т.Наименование КАК Name,
+        ВЫБОР
+            КОГДА Т.ЕдиницаХраненияОстатков ЕСТЬ НЕ NULL И Т.ЕдиницаХраненияОстатков <> ЗНАЧЕНИЕ(Справочник.КлассификаторЕдиницИзмерения.ПустаяСсылка)
+                ТОГДА Т.ЕдиницаХраненияОстатков.Наименование
+            КОГДА Т.БазоваяЕдиницаИзмерения ЕСТЬ НЕ NULL И Т.БазоваяЕдиницаИзмерения <> ЗНАЧЕНИЕ(Справочник.КлассификаторЕдиницИзмерения.ПустаяСсылка)
+                ТОГДА Т.БазоваяЕдиницаИзмерения.Наименование
+            ИНАЧЕ "шт"
+        КОНЕЦ КАК Unit,
+        Цены.ТипЦен.Наименование КАК PriceTypeName,
+        ЕСТЬNULL(Цены.Цена, 0) КАК Price
+    ИЗ
+        Справочник.Номенклатура КАК Т
+        ЛЕВОЕ СОЕДИНЕНИЕ РегистрСведений.ЦеныНоменклатуры.СрезПоследних(
+            {date_clause},
+            ТипЦен.Наименование В (&PriceTypes)
+        ) КАК Цены
+            ПО Т.Ссылка = Цены.Номенклатура
+    ГДЕ
+        {where_sql}
+    УПОРЯДОЧИТЬ ПО
+        Т.Наименование
+    """
+
+    item_dict = {}
+    item_order = []
+    sel = q_form.Execute().Choose()
+    while sel.Next():
+        c_code = str(getattr(sel, "Code", "") or "").strip()
+        if not c_code:
+            continue
+        c_name = str(getattr(sel, "Name", "") or "").strip()
+        c_art = str(getattr(sel, "Artikul", "") or "").strip()
+        c_unit = str(getattr(sel, "Unit", "шт") or "шт").strip()
+        pt_name = str(getattr(sel, "PriceTypeName", "") or "").strip()
+        p_val = float(getattr(sel, "Price", 0) or 0)
+
+        if c_code not in item_dict:
+            bc = ""
+            if c_name in b_map:
+                bc = b_map[c_name].get("unit") or b_map[c_name].get("box") or ""
+            item_dict[c_code] = {
+                "code": c_code,
+                "artikul": c_art,
+                "name": c_name,
+                "barcode": bc,
+                "unit": c_unit,
+                "prices": {}
+            }
+            item_order.append(c_code)
+
+        if pt_name and p_val > 0:
+            item_dict[c_code]["prices"][pt_name] = p_val
+
+    if not include_zero_prices:
+        items = [item_dict[c] for c in item_order if len(item_dict[c]["prices"]) > 0]
+    else:
+        items = [item_dict[c] for c in item_order]
+
+    return {
+        "price_types": price_types,
+        "items": items,
+        "total_items": len(items)
+    }

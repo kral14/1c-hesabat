@@ -1,0 +1,909 @@
+<!-- ========================================================
+     1C:ENTERPRISE - COUNTERPARTY ITEM CARD WINDOW (Карточка Контрагента)
+     templates/components/kontragent_card_window.html
+     1C 8.3 "Управление торговлей" tam orijinal ekran görüntüləri əsasında
+     ======================================================== -->
+
+<div class="mdi-window" id="kontragentCardWindow" style="display: none; top: 20px; left: 40px; width: 980px; height: 680px; min-width: 820px; min-height: 520px; z-index: 135; box-shadow: 0 8px 32px rgba(0,0,0,0.35);" onmousedown="MdiManager.activateWindow('kontragentCardWindow')">
+  
+  <!-- Window Header (1C Style) -->
+  <div class="mdi-window-header" ondblclick="MdiManager.toggleMaximize('kontragentCardWindow')" style="background: #e2decb; border-bottom: 1px solid #7f9db9; padding: 2px 6px; display: flex; align-items: center; justify-content: space-between; user-select: none;">
+    <div class="mdi-win-title-left" style="display: flex; align-items: center; gap: 6px;">
+      <span class="mdi-win-icon" style="font-size: 13px;">🏢</span>
+      <span class="mdi-win-title-text" id="kcWinTitle" style="font-weight: bold; font-family: Tahoma, 'MS Sans Serif', sans-serif; font-size: 11px; color: #000;">Контрагенты: Создание *</span>
+    </div>
+    <div class="mdi-win-controls">
+      <button class="mdi-win-btn mdi-win-btn-min" title="Свернуть" onclick="MdiManager.minimizeWindow('kontragentCardWindow')" onmousedown="event.stopPropagation()">_</button>
+      <button class="mdi-win-btn mdi-win-btn-max" title="Развернуть" onclick="MdiManager.toggleMaximize('kontragentCardWindow')" onmousedown="event.stopPropagation()">□</button>
+      <button class="mdi-win-btn mdi-win-btn-close" title="Закрыть" onclick="KontragentCard.close()" onmousedown="event.stopPropagation()">✕</button>
+    </div>
+  </div>
+
+  <!-- Window Body -->
+  <div class="mdi-window-body" style="background-color: #f0eee3; display: flex; flex-direction: column; height: 100%; overflow: hidden; font-family: Tahoma, 'MS Sans Serif', Arial, sans-serif; font-size: 11px; color: #000;">
+
+    <!-- 1. Top 1C Command Bar (Exact match to 1C screenshots) -->
+    <div style="padding: 2px 6px; background: #e5e2cf; border-bottom: 1px solid #b0af9f; display: flex; align-items: center; gap: 4px; flex-wrap: wrap; user-select: none;">
+      
+      <!-- Действия dropdown -->
+      <div style="position: relative; display: inline-block;">
+        <button type="button" class="btn-1c" onclick="KontragentCard.toggleActionsMenu(event)" style="height: 22px; padding: 0 6px; border: 1px solid #7f9db9; background: #ffffff; cursor: pointer; display: inline-flex; align-items: center; gap: 4px; font-size: 11px;">
+          <span>Действия</span>
+          <span style="font-size: 8px;">▾</span>
+        </button>
+        <div id="kcActionsMenu" style="display: none; position: absolute; top: 24px; left: 0; background: #ffffff; border: 1px solid #7f9db9; box-shadow: 2px 2px 8px rgba(0,0,0,0.25); z-index: 200; min-width: 190px; padding: 2px 0;">
+          <div onclick="KontragentCard.save(); KontragentCard.closeMenus();" style="padding: 4px 10px; cursor: pointer; display: flex; align-items: center; gap: 6px;" onmouseover="this.style.background='#316ac5'; this.style.color='#fff';" onmouseout="this.style.background='transparent'; this.style.color='#000';">
+            <span>💾</span> <span>Записать (Ctrl+S)</span>
+          </div>
+          <div onclick="KontragentCard.saveAndClose(); KontragentCard.closeMenus();" style="padding: 4px 10px; cursor: pointer; display: flex; align-items: center; gap: 6px;" onmouseover="this.style.background='#316ac5'; this.style.color='#fff';" onmouseout="this.style.background='transparent'; this.style.color='#000';">
+            <span>✓</span> <span>Записать и закрыть</span>
+          </div>
+          <div onclick="KontragentCard.refresh(); KontragentCard.closeMenus();" style="padding: 4px 10px; cursor: pointer; display: flex; align-items: center; gap: 6px;" onmouseover="this.style.background='#316ac5'; this.style.color='#fff';" onmouseout="this.style.background='transparent'; this.style.color='#000';">
+            <span>🔄</span> <span>Обновить</span>
+          </div>
+          <div style="height: 1px; background: #d4d0c8; margin: 2px 0;"></div>
+          <div onclick="KontragentCard.copyInn(); KontragentCard.closeMenus();" style="padding: 4px 10px; cursor: pointer; display: flex; align-items: center; gap: 6px;" onmouseover="this.style.background='#316ac5'; this.style.color='#fff';" onmouseout="this.style.background='transparent'; this.style.color='#000';">
+            <span>📑</span> <span>Скопировать ИНН / VÖEN</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Save 💾 -->
+      <button type="button" class="btn-1c" onclick="KontragentCard.save()" title="Записать (Ctrl+S)" style="height: 22px; width: 23px; padding: 0; display: inline-flex; align-items: center; justify-content: center; border: 1px solid #7f9db9; background: #ffffff; cursor: pointer;">
+        💾
+      </button>
+
+      <!-- Copy 📋 -->
+      <button type="button" class="btn-1c" onclick="KontragentCard.clone()" title="Скопировать (F9)" style="height: 22px; width: 23px; padding: 0; display: inline-flex; align-items: center; justify-content: center; border: 1px solid #7f9db9; background: #ffffff; cursor: pointer;">
+        📋
+      </button>
+
+      <!-- Перейти ▾ -->
+      <div style="position: relative; display: inline-block;">
+        <button type="button" class="btn-1c" onclick="KontragentCard.toggleGotoMenu(event)" style="height: 22px; padding: 0 6px; border: 1px solid #7f9db9; background: #ffffff; cursor: pointer; display: inline-flex; align-items: center; gap: 4px; font-size: 11px;">
+          <span>Перейти</span>
+          <span style="font-size: 8px;">▾</span>
+        </button>
+        <div id="kcGotoMenu" style="display: none; position: absolute; top: 24px; left: 0; background: #ffffff; border: 1px solid #7f9db9; box-shadow: 2px 2px 8px rgba(0,0,0,0.25); z-index: 200; min-width: 210px; padding: 2px 0;">
+          <div onclick="KontragentCard.switchTab('contracts'); KontragentCard.closeMenus();" style="padding: 4px 10px; cursor: pointer; display: flex; align-items: center; gap: 6px;" onmouseover="this.style.background='#316ac5'; this.style.color='#fff';" onmouseout="this.style.background='transparent'; this.style.color='#000';">
+            <span>📑</span> <span>Договоры контрагентов</span>
+          </div>
+          <div onclick="KontragentCard.switchTab('contacts'); KontragentCard.closeMenus();" style="padding: 4px 10px; cursor: pointer; display: flex; align-items: center; gap: 6px;" onmouseover="this.style.background='#316ac5'; this.style.color='#fff';" onmouseout="this.style.background='transparent'; this.style.color='#000';">
+            <span>📍</span> <span>Контактные лица</span>
+          </div>
+          <div onclick="KontragentCard.switchTab('prochee'); KontragentCard.closeMenus();" style="padding: 4px 10px; cursor: pointer; display: flex; align-items: center; gap: 6px;" onmouseover="this.style.background='#316ac5'; this.style.color='#fff';" onmouseout="this.style.background='transparent'; this.style.color='#000';">
+            <span>📁</span> <span>Прочее (Портфели и НДС)</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Отчеты ▾ -->
+      <button type="button" class="btn-1c" onclick="KontragentCard.openReports()" style="height: 22px; padding: 0 6px; border: 1px solid #7f9db9; background: #ffffff; cursor: pointer; display: inline-flex; align-items: center; gap: 4px; font-size: 11px;">
+        <span>Отчеты</span>
+        <span style="font-size: 8px;">▾</span>
+      </button>
+
+      <!-- Файлы -->
+      <button type="button" class="btn-1c" title="Присоединенные файлы" style="height: 22px; padding: 0 6px; border: 1px solid #7f9db9; background: #ffffff; cursor: pointer; display: inline-flex; align-items: center; gap: 4px; font-size: 11px;">
+        <span>📎 Файлы</span>
+      </button>
+
+      <!-- Создать ▾ -->
+      <button type="button" class="btn-1c" style="height: 22px; padding: 0 6px; border: 1px solid #7f9db9; background: #ffffff; cursor: pointer; display: inline-flex; align-items: center; gap: 4px; font-size: 11px;">
+        <span>Создать</span>
+        <span style="font-size: 8px;">▾</span>
+      </button>
+
+      <!-- ❓ Help -->
+      <button type="button" class="btn-1c" title="Справка 1С (F1)" style="height: 22px; width: 23px; padding: 0; display: inline-flex; align-items: center; justify-content: center; border: 1px solid #7f9db9; background: #ffffff; cursor: pointer; font-weight: bold; color: #1e3a8a;">
+        ❓
+      </button>
+
+      <!-- Audit Badge pill on right -->
+      <div id="kcAuditBadgeWrap" style="margin-left: auto; display: flex; align-items: center; gap: 4px; cursor: pointer;" onclick="KontragentCard.switchTab('audit')" title="Просмотреть полноту реквизитов контрагента">
+        <span id="kcAuditBadge" style="display: inline-flex; align-items: center; gap: 4px; padding: 1px 6px; border-radius: 2px; font-size: 10px; font-weight: bold; background: #dcfce7; color: #166534; border: 1px solid #bbf7d0;">
+          <span>🔍 Полнота:</span>
+          <span id="kcAuditPctText">...%</span>
+        </span>
+      </div>
+
+    </div>
+
+    <!-- 2. Main Top Attributes Row: Наименование & Код (Exactly as in screenshot 1) -->
+    <div style="padding: 6px 12px 4px 12px; background: #f0eee3; display: flex; align-items: center; gap: 10px;">
+      
+      <!-- Наименование -->
+      <div style="flex: 1; display: flex; align-items: center;">
+        <span style="width: 140px; min-width: 140px; max-width: 140px; color: #000; font-size: 11px; white-space: nowrap; user-select: none;">Наименование:</span>
+        <div style="flex: 1; position: relative;">
+          <input type="text" id="kcName" class="input-1c" style="width: 100%; height: 21px; border: 1px solid #7f9db9; padding: 0 6px; font-size: 11px; font-weight: bold; color: #000; background: #ffffff; box-sizing: border-box; outline: none;">
+        </div>
+      </div>
+
+      <!-- Код -->
+      <div style="display: flex; align-items: center; gap: 6px; width: 150px; margin-left: 10px;">
+        <span style="color: #000; font-size: 11px; white-space: nowrap; user-select: none;">Код:</span>
+        <input type="text" id="kcCode" readonly style="flex: 1; height: 21px; border: 1px solid #7f9db9; padding: 0 5px; background: #ffffff; font-family: monospace; font-size: 11px; color: #000; box-sizing: border-box; outline: none;">
+      </div>
+
+    </div>
+
+    <!-- 3. Authentic 1C Tab Strip (Exact 8 Tabs from screenshot) -->
+    <div style="background: #e0ded4; border-bottom: 1px solid #7f9db9; display: flex; align-items: flex-end; padding: 4px 8px 0 8px; gap: 2px; user-select: none;">
+      
+      <!-- Tab 1: Общие -->
+      <div class="kc-tab-btn active" id="kcTabBtn-general" onclick="KontragentCard.switchTab('general')">
+        <span>Общие</span>
+      </div>
+
+      <!-- Tab 2: Контакты -->
+      <div class="kc-tab-btn" id="kcTabBtn-contacts" onclick="KontragentCard.switchTab('contacts')">
+        <span>Контакты</span>
+      </div>
+
+      <!-- Tab 3: Счета и договоры -->
+      <div class="kc-tab-btn" id="kcTabBtn-contracts" onclick="KontragentCard.switchTab('contracts')">
+        <span>Счета и договоры</span>
+      </div>
+
+      <!-- Tab 4: События -->
+      <div class="kc-tab-btn" id="kcTabBtn-events" onclick="KontragentCard.switchTab('events')">
+        <span>События</span>
+      </div>
+
+      <!-- Tab 5: Свойства -->
+      <div class="kc-tab-btn" id="kcTabBtn-props" onclick="KontragentCard.switchTab('props')">
+        <span>Свойства</span>
+      </div>
+
+      <!-- Tab 6: Категории -->
+      <div class="kc-tab-btn" id="kcTabBtn-categories" onclick="KontragentCard.switchTab('categories')">
+        <span>Категории</span>
+      </div>
+
+      <!-- Tab 7: Прочее -->
+      <div class="kc-tab-btn" id="kcTabBtn-prochee" onclick="KontragentCard.switchTab('prochee')">
+        <span>Прочее</span>
+      </div>
+
+      <!-- Tab 8: Форматы RB -->
+      <div class="kc-tab-btn" id="kcTabBtn-rb" onclick="KontragentCard.switchTab('rb')">
+        <span>Форматы RB</span>
+      </div>
+
+      <!-- Tab 9: Аудит данных -->
+      <div class="kc-tab-btn" id="kcTabBtn-audit" onclick="KontragentCard.switchTab('audit')" style="margin-left: auto;">
+        <span>🔍 Аудит реквизитов</span>
+      </div>
+
+    </div>
+
+    <!-- 4. Scrollable Center Tab Panes -->
+    <div class="kc-tab-content" style="flex: 1; overflow-y: auto; overflow-x: hidden; background: #ffffff; border-bottom: 1px solid #7f9db9; padding: 8px 12px; position: relative;">
+      
+      <!-- ==========================================
+           TAB 1: ОБЩИЕ (Screenshot 1)
+           ========================================== -->
+      <div id="kcTabPane-general" class="kc-tab-pane" style="display: block;">
+        
+        <div style="display: flex; flex-direction: column; gap: 4px; font-size: 11px; font-family: Tahoma, 'Segoe UI', Arial, sans-serif;">
+          
+          <!-- Row 1: Юр./физ. лицо, Нерезидент, Покупатель, Поставщик -->
+          <div style="display: flex; align-items: center; height: 23px;">
+            <span style="width: 140px; min-width: 140px; max-width: 140px; color: #000; font-size: 11px; white-space: nowrap; user-select: none;">Юр. / физ. лицо:</span>
+            
+            <div style="display: flex; align-items: center; border: 1px solid #7f9db9; background: #ffffff; height: 21px; width: 125px; box-sizing: border-box;">
+              <input type="text" id="kcJurFiz" value="Юрлицо" readonly style="flex: 1; min-width: 0; border: none; height: 100%; padding: 0 4px; font-size: 11px; background: transparent; outline: none; color: #000;">
+              <button type="button" class="btn-1c" title="Выбрать" onclick="KontragentCard.toggleJurFiz()" style="border: none; border-left: 1px solid #7f9db9; background: #e0dfd5; width: 18px; height: 100%; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: bold; color: #333; padding: 0;" onmouseover="this.style.background='#c5c2b5'" onmouseout="this.style.background='#e0dfd5'">...</button>
+              <button type="button" class="btn-1c" title="Очистить" onclick="document.getElementById('kcJurFiz').value=''" style="border: none; border-left: 1px solid #7f9db9; background: #e0dfd5; width: 16px; height: 100%; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 10px; color: #b91c1c; padding: 0;" onmouseover="this.style.background='#c5c2b5'" onmouseout="this.style.background='#e0dfd5'">✕</button>
+            </div>
+
+            <label style="margin-left: 24px; display: inline-flex; align-items: center; gap: 5px; cursor: pointer; font-size: 11px; color: #000; user-select: none;">
+              <input type="checkbox" id="kcIsNonResident" style="margin: 0; cursor: pointer;">
+              <span>Нерезидент</span>
+            </label>
+
+            <label style="margin-left: 20px; display: inline-flex; align-items: center; gap: 5px; cursor: pointer; font-size: 11px; color: #000; user-select: none;">
+              <input type="checkbox" id="kcIsCustomer" checked style="margin: 0; cursor: pointer;">
+              <span>Покупатель</span>
+            </label>
+
+            <label style="margin-left: 20px; display: inline-flex; align-items: center; gap: 5px; cursor: pointer; font-size: 11px; color: #000; user-select: none;">
+              <input type="checkbox" id="kcIsSupplier" style="margin: 0; cursor: pointer;">
+              <span>Поставщик</span>
+            </label>
+          </div>
+
+          <!-- Row 2: ОКОПФ & Группа контрагента -->
+          <div style="display: flex; align-items: center; height: 23px;">
+            <span style="width: 140px; min-width: 140px; max-width: 140px; color: #000; font-size: 11px; white-space: nowrap; user-select: none;">ОКОПФ:</span>
+            
+            <div style="display: flex; align-items: center; border: 1px solid #7f9db9; background: #ffffff; height: 21px; width: 125px; box-sizing: border-box;">
+              <input type="text" id="kcOkopf" value="" style="flex: 1; min-width: 0; border: none; height: 100%; padding: 0 4px; font-size: 11px; background: transparent; outline: none; color: #000;">
+              <button type="button" class="btn-1c" title="Выбрать" style="border: none; border-left: 1px solid #7f9db9; background: #e0dfd5; width: 18px; height: 100%; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: bold; color: #333; padding: 0;" onmouseover="this.style.background='#c5c2b5'" onmouseout="this.style.background='#e0dfd5'">...</button>
+              <button type="button" class="btn-1c" title="Очистить" onclick="document.getElementById('kcOkopf').value=''" style="border: none; border-left: 1px solid #7f9db9; background: #e0dfd5; width: 16px; height: 100%; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 10px; color: #b91c1c; padding: 0;" onmouseover="this.style.background='#c5c2b5'" onmouseout="this.style.background='#e0dfd5'">✕</button>
+            </div>
+
+            <span style="margin-left: 20px; margin-right: 6px; color: #000; font-size: 11px; white-space: nowrap; user-select: none;">Группа контрагента:</span>
+            
+            <div style="flex: 1; min-width: 0; display: flex; align-items: center; border: 1px solid #7f9db9; background: #ffffff; height: 21px; box-sizing: border-box;">
+              <input type="text" id="kcParent" style="flex: 1; min-width: 0; border: none; height: 100%; padding: 0 5px; font-size: 11px; background: transparent; outline: none; color: #000;">
+              <button type="button" class="btn-1c" title="Выбрать группу в Справочнике Контрагенты" onclick="KontragentCard.openSpravochnikKontragenty()" style="border: none; border-left: 1px solid #7f9db9; background: #e0dfd5; width: 18px; height: 100%; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: bold; color: #333; padding: 0;" onmouseover="this.style.background='#c5c2b5'" onmouseout="this.style.background='#e0dfd5'">...</button>
+              <button type="button" class="btn-1c" title="Очистить" onclick="document.getElementById('kcParent').value=''" style="border: none; border-left: 1px solid #7f9db9; background: #e0dfd5; width: 16px; height: 100%; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 10px; color: #b91c1c; padding: 0;" onmouseover="this.style.background='#c5c2b5'" onmouseout="this.style.background='#e0dfd5'">✕</button>
+            </div>
+          </div>
+
+          <!-- Row 3: Полное наименование -->
+          <div style="display: flex; align-items: center; height: 23px;">
+            <span style="width: 140px; min-width: 140px; max-width: 140px; color: #000; font-size: 11px; white-space: nowrap; user-select: none;">Полное наименование:</span>
+            
+            <div style="flex: 1; min-width: 0; display: flex; align-items: center; border: 1px solid #7f9db9; background: #ffffff; height: 21px; box-sizing: border-box;">
+              <input type="text" id="kcFullName" style="flex: 1; min-width: 0; border: none; height: 100%; padding: 0 5px; font-size: 11px; background: transparent; outline: none; color: #000;">
+              <button type="button" class="btn-1c" title="История / Варианты" style="border: none; border-left: 1px solid #7f9db9; background: #e0dfd5; width: 18px; height: 100%; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 9px; color: #333; padding: 0;" onmouseover="this.style.background='#c5c2b5'" onmouseout="this.style.background='#e0dfd5'">▾</button>
+            </div>
+          </div>
+
+          <!-- Row 4: ИНН & КПП -->
+          <div style="display: flex; align-items: center; height: 23px;">
+            <span style="width: 140px; min-width: 140px; max-width: 140px; color: #000; font-size: 11px; white-space: nowrap; user-select: none;">ИНН:</span>
+            
+            <input type="text" id="kcInn" style="width: 125px; height: 21px; border: 1px solid #7f9db9; padding: 0 5px; font-size: 11px; font-family: monospace; font-weight: bold; box-sizing: border-box; outline: none; background: #ffffff; color: #000;">
+            
+            <button type="button" class="btn-1c" id="kcBtnSyncInn" title="Заполнить КПП / Реквизиты по ИНН" style="height: 21px; width: 22px; border: 1px solid #7f9db9; background: #e0dfd5; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 11px; color: #1e3a8a; margin-left: 4px; box-sizing: border-box;" onmouseover="this.style.background='#c5c2b5'" onmouseout="this.style.background='#e0dfd5'">➔</button>
+
+            <span style="margin-left: 20px; margin-right: 6px; color: #000; font-size: 11px; white-space: nowrap; user-select: none;">КПП:</span>
+            
+            <input type="text" id="kcKpp" style="width: 100px; height: 21px; border: 1px solid #7f9db9; padding: 0 5px; font-size: 11px; box-sizing: border-box; outline: none; background: #ffffff; color: #000;">
+          </div>
+
+          <!-- Row 5: Офиц. наименование & Регион -->
+          <div style="display: flex; align-items: center; height: 23px;">
+            <span style="width: 140px; min-width: 140px; max-width: 140px; color: #000; font-size: 11px; white-space: nowrap; user-select: none;">Офиц. наименование:</span>
+            
+            <input type="text" id="kcOficName" style="flex: 1.1; min-width: 0; height: 21px; border: 1px solid #7f9db9; padding: 0 5px; font-size: 11px; box-sizing: border-box; outline: none; background: #ffffff; color: #000;">
+
+            <span style="margin-left: 20px; margin-right: 6px; color: #000; font-size: 11px; white-space: nowrap; user-select: none;">Регион:</span>
+            
+            <div style="flex: 1; min-width: 0; display: flex; align-items: center; border: 1px solid #7f9db9; background: #ffffff; height: 21px; box-sizing: border-box;">
+              <input type="text" id="kcRegion" value="" style="flex: 1; min-width: 0; border: none; height: 100%; padding: 0 5px; font-size: 11px; background: transparent; outline: none; color: #000;">
+              <button type="button" class="btn-1c" title="Выбрать регион" onclick="KontragentCard.openAccessGroupSelector()" style="border: none; border-left: 1px solid #7f9db9; background: #e0dfd5; width: 18px; height: 100%; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: bold; color: #333; padding: 0;" onmouseover="this.style.background='#c5c2b5'" onmouseout="this.style.background='#e0dfd5'">...</button>
+              <button type="button" class="btn-1c" title="Очистить" onclick="document.getElementById('kcRegion').value=''" style="border: none; border-left: 1px solid #7f9db9; background: #e0dfd5; width: 16px; height: 100%; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 10px; color: #b91c1c; padding: 0;" onmouseover="this.style.background='#c5c2b5'" onmouseout="this.style.background='#e0dfd5'">✕</button>
+            </div>
+          </div>
+
+          <!-- Row 6: Входит в холдинг & Головной контрагент -->
+          <div style="display: flex; align-items: center; height: 23px;">
+            <div style="width: 140px; min-width: 140px; max-width: 140px;"></div>
+            
+            <label style="display: inline-flex; align-items: center; gap: 5px; cursor: pointer; font-size: 11px; color: #000; user-select: none; margin-right: 18px; white-space: nowrap;">
+              <input type="checkbox" id="kcIsHolding" onchange="KontragentCard.toggleHolding(this.checked)" style="margin: 0; cursor: pointer;">
+              <span style="font-weight: 500;">Входит в холдинг</span>
+            </label>
+
+            <!-- Головной контрагент input box -->
+            <div id="kcGolovnoyWrap" style="display: flex; flex: 1; min-width: 0; align-items: center;">
+              <span style="color: #000; font-size: 11px; white-space: nowrap; margin-right: 6px; user-select: none;">Головной контрагент:</span>
+              <div style="flex: 1; min-width: 0; display: flex; align-items: center; border: 1px solid #7f9db9; background: #ffffff; height: 21px; box-sizing: border-box;">
+                <input type="text" id="kcGolovnoy" style="flex: 1; min-width: 0; border: none; height: 100%; padding: 0 5px; font-size: 11px; font-weight: 500; background: transparent; outline: none; color: #000;">
+                <button type="button" class="btn-1c" title="Открыть головного контрагента" onclick="KontragentCard.openGolovnoyCard()" style="border: none; border-left: 1px solid #7f9db9; background: #e0dfd5; width: 20px; height: 100%; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 11px; color: #1e3a8a; padding: 0;" onmouseover="this.style.background='#c5c2b5'" onmouseout="this.style.background='#e0dfd5'">🔍</button>
+                <button type="button" class="btn-1c" title="Выбрать" onclick="KontragentCard.openGolovnoyCard()" style="border: none; border-left: 1px solid #7f9db9; background: #e0dfd5; width: 18px; height: 100%; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: bold; color: #333; padding: 0;" onmouseover="this.style.background='#c5c2b5'" onmouseout="this.style.background='#e0dfd5'">...</button>
+                <button type="button" class="btn-1c" title="Очистить" onclick="document.getElementById('kcGolovnoy').value=''" style="border: none; border-left: 1px solid #7f9db9; background: #e0dfd5; width: 16px; height: 100%; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 10px; color: #b91c1c; padding: 0;" onmouseover="this.style.background='#c5c2b5'" onmouseout="this.style.background='#e0dfd5'">✕</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Row 7: Смарт код, Сумма вкл. НДС, Ставка НДС -->
+          <div style="display: flex; align-items: center; height: 23px;">
+            <span style="width: 140px; min-width: 140px; max-width: 140px; color: #000; font-size: 11px; white-space: nowrap; user-select: none;">Смарт код:</span>
+            
+            <div style="display: flex; align-items: center; border: 1px solid #7f9db9; background: #ffffff; height: 21px; width: 250px; box-sizing: border-box;">
+              <input type="text" id="kcSmartCode" style="flex: 1; min-width: 0; border: none; height: 100%; padding: 0 4px; font-size: 11px; background: transparent; outline: none; color: #000;">
+              <button type="button" class="btn-1c" title="Очистить" onclick="document.getElementById('kcSmartCode').value=''" style="border: none; border-left: 1px solid #7f9db9; background: #e0dfd5; width: 16px; height: 100%; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 10px; color: #b91c1c; padding: 0;" onmouseover="this.style.background='#c5c2b5'" onmouseout="this.style.background='#e0dfd5'">✕</button>
+            </div>
+            
+            <button type="button" class="btn-1c" title="Проверить смарт-код" style="height: 21px; width: 22px; border: 1px solid #7f9db9; background: #e0dfd5; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 11px; color: #1e3a8a; margin-left: 4px; box-sizing: border-box;" onmouseover="this.style.background='#c5c2b5'" onmouseout="this.style.background='#e0dfd5'">➔</button>
+
+            <label style="margin-left: 20px; display: inline-flex; align-items: center; gap: 5px; cursor: pointer; font-size: 11px; color: #000; user-select: none;">
+              <input type="checkbox" id="kcSummaNds" checked style="margin: 0; cursor: pointer;">
+              <span>Сумма вкл. НДС</span>
+            </label>
+
+            <span style="margin-left: 20px; margin-right: 6px; color: #000; font-size: 11px; white-space: nowrap; user-select: none;">Ставка НДС:</span>
+            
+            <div style="display: flex; align-items: center; border: 1px solid #7f9db9; background: #ffffff; height: 21px; width: 95px; box-sizing: border-box;">
+              <input type="text" id="kcStavkaNds" value="18%" style="flex: 1; min-width: 0; border: none; height: 100%; padding: 0 4px; font-size: 11px; background: transparent; outline: none; color: #000;">
+              <button type="button" class="btn-1c" title="Выбрать ставку" style="border: none; border-left: 1px solid #7f9db9; background: #e0dfd5; width: 18px; height: 100%; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: bold; color: #333; padding: 0;" onmouseover="this.style.background='#c5c2b5'" onmouseout="this.style.background='#e0dfd5'">...</button>
+              <button type="button" class="btn-1c" title="Очистить" onclick="document.getElementById('kcStavkaNds').value=''" style="border: none; border-left: 1px solid #7f9db9; background: #e0dfd5; width: 16px; height: 100%; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 10px; color: #b91c1c; padding: 0;" onmouseover="this.style.background='#c5c2b5'" onmouseout="this.style.background='#e0dfd5'">✕</button>
+            </div>
+          </div>
+
+          <!-- Sub-table Section: [Виды деятельности] / [Как покупатель] (Screenshot 1 bottom area) -->
+          <div style="margin-top: 8px; border: 1px solid #c8c3b0; background: #faf8f2;">
+            
+            <!-- Sub-table Tabs Header -->
+            <div style="display: flex; align-items: center; background: #e8e5d6; border-bottom: 1px solid #c8c3b0; padding: 2px 4px 0 4px; gap: 2px;">
+              <button type="button" class="btn-1c active" id="kcSubTab-activity" onclick="KontragentCard.switchSubTab('activity')" style="height: 20px; padding: 0 8px; font-size: 10px; font-weight: bold; background: #ffffff; border: 1px solid #c8c3b0; border-bottom: 1px solid #fff; cursor: pointer;">
+                Виды деятельности
+              </button>
+              <button type="button" class="btn-1c" id="kcSubTab-buyer" onclick="KontragentCard.switchSubTab('buyer')" style="height: 20px; padding: 0 8px; font-size: 10px; background: #e0ded4; border: 1px solid #c8c3b0; border-bottom: 1px solid #c8c3b0; cursor: pointer;">
+                Как покупатель
+              </button>
+            </div>
+
+            <!-- Sub-table Toolbar -->
+            <div style="padding: 2px 6px; background: #f0eee3; border-bottom: 1px solid #d4d0c8; display: flex; align-items: center; gap: 4px;">
+              <button type="button" class="btn-1c" title="Добавить" style="height: 20px; width: 22px; padding: 0; background: #fff; border: 1px solid #7f9db9; cursor: pointer;">➕</button>
+              <button type="button" class="btn-1c" title="Изменить" style="height: 20px; width: 22px; padding: 0; background: #fff; border: 1px solid #7f9db9; cursor: pointer;">✏️</button>
+              <button type="button" class="btn-1c" title="Удалить" style="height: 20px; width: 22px; padding: 0; background: #fff; border: 1px solid #7f9db9; cursor: pointer; color: #b91c1c;">❌</button>
+              <button type="button" class="btn-1c" title="Скопировать" style="height: 20px; width: 22px; padding: 0; background: #fff; border: 1px solid #7f9db9; cursor: pointer;">🗐</button>
+              <div style="width: 1px; height: 14px; background: #b0af9f; margin: 0 2px;"></div>
+              <button type="button" class="btn-1c" title="Переместить вверх" style="height: 20px; width: 22px; padding: 0; background: #fff; border: 1px solid #7f9db9; cursor: pointer;">▲</button>
+              <button type="button" class="btn-1c" title="Переместить вниз" style="height: 20px; width: 22px; padding: 0; background: #fff; border: 1px solid #7f9db9; cursor: pointer;">▼</button>
+              <button type="button" class="btn-1c" title="Установить основным" style="height: 20px; padding: 0 6px; background: #fff; border: 1px solid #7f9db9; cursor: pointer; font-size: 10px;">
+                Установить основным
+              </button>
+            </div>
+
+            <!-- Sub-table Body -->
+            <div style="max-height: 120px; overflow-y: auto; background: #ffffff;">
+              <table style="width: 100%; border-collapse: collapse; font-size: 11px;">
+                <thead>
+                  <tr style="background: #ece9d8; border-bottom: 1px solid #7f9db9; height: 21px; text-align: left;">
+                    <th style="width: 30px; text-align: center; border-right: 1px solid #d4d0c8;">N</th>
+                    <th style="border-right: 1px solid #d4d0c8; padding: 0 6px;">Вид деятельности</th>
+                    <th style="width: 250px; padding: 0 6px;">Ответственный</th>
+                  </tr>
+                </thead>
+                <tbody id="kcActivityTableBody">
+                  <!-- Populated by JS -->
+                </tbody>
+              </table>
+            </div>
+
+          </div>
+
+        </div>
+
+      </div>
+
+      <!-- ==========================================
+           TAB 2: КОНТАКТЫ (Screenshot 2)
+           ========================================== -->
+      <div id="kcTabPane-contacts" class="kc-tab-pane" style="display: none;">
+        
+        <div style="display: flex; flex-direction: column; gap: 10px; font-size: 11px;">
+          
+          <!-- Section 1: Адреса и телефоны: -->
+          <div>
+            <div style="font-weight: bold; color: #7c2d12; margin-bottom: 4px;">Адреса и телефоны:</div>
+            
+            <div style="border: 1px solid #7f9db9; background: #ffffff;">
+              <!-- Toolbar -->
+              <div style="padding: 2px 6px; background: #f0eee3; border-bottom: 1px solid #d4d0c8; display: flex; align-items: center; gap: 4px;">
+                <button type="button" class="btn-1c" style="height: 20px; padding: 0 6px; background: #fff; border: 1px solid #7f9db9; cursor: pointer; font-size: 10px;">
+                  Действия ▾
+                </button>
+                <button type="button" class="btn-1c" title="Добавить" style="height: 20px; width: 22px; padding: 0; background: #fff; border: 1px solid #7f9db9; cursor: pointer;">➕</button>
+                <button type="button" class="btn-1c" title="Изменить" style="height: 20px; width: 22px; padding: 0; background: #fff; border: 1px solid #7f9db9; cursor: pointer;">✏️</button>
+                <button type="button" class="btn-1c" title="Удалить" style="height: 20px; width: 22px; padding: 0; background: #fff; border: 1px solid #7f9db9; cursor: pointer; color: #b91c1c;">❌</button>
+                <button type="button" class="btn-1c" title="История" style="height: 20px; width: 22px; padding: 0; background: #fff; border: 1px solid #7f9db9; cursor: pointer;">🗐</button>
+                <button type="button" class="btn-1c" title="Просмотреть" style="height: 20px; width: 22px; padding: 0; background: #fff; border: 1px solid #7f9db9; cursor: pointer;">🔍</button>
+                <div style="width: 1px; height: 14px; background: #b0af9f; margin: 0 2px;"></div>
+                <button type="button" class="btn-1c" title="Установить как основной" style="height: 20px; padding: 0 6px; background: #fff; border: 1px solid #7f9db9; cursor: pointer; font-size: 10px;">
+                  Основная
+                </button>
+              </div>
+
+              <!-- Table: Тип | Вид | Представление -->
+              <div style="max-height: 140px; overflow-y: auto;">
+                <table style="width: 100%; border-collapse: collapse; font-size: 11px;">
+                  <thead>
+                    <tr style="background: #ece9d8; border-bottom: 1px solid #7f9db9; height: 21px; text-align: left;">
+                      <th style="width: 80px; padding: 0 6px; border-right: 1px solid #d4d0c8;">Тип</th>
+                      <th style="width: 280px; padding: 0 6px; border-right: 1px solid #d4d0c8;">Вид</th>
+                      <th style="padding: 0 6px;">Представление</th>
+                    </tr>
+                  </thead>
+                  <tbody id="kcAddressesTableBody">
+                    <!-- Populated by JS -->
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+
+          <!-- Section 2: Контактные лица: -->
+          <div>
+            <div style="font-weight: bold; color: #7c2d12; margin-bottom: 4px;">Контактные лица:</div>
+
+            <div style="border: 1px solid #7f9db9; background: #ffffff;">
+              <!-- Toolbar -->
+              <div style="padding: 2px 6px; background: #f0eee3; border-bottom: 1px solid #d4d0c8; display: flex; align-items: center; gap: 4px;">
+                <button type="button" class="btn-1c" style="height: 20px; padding: 0 6px; background: #fff; border: 1px solid #7f9db9; cursor: pointer; font-size: 10px;">
+                  Действия ▾
+                </button>
+                <button type="button" class="btn-1c" title="Добавить контактное лицо" style="height: 20px; width: 22px; padding: 0; background: #fff; border: 1px solid #7f9db9; cursor: pointer;">➕</button>
+                <button type="button" class="btn-1c" title="Изменить" style="height: 20px; width: 22px; padding: 0; background: #fff; border: 1px solid #7f9db9; cursor: pointer;">✏️</button>
+                <button type="button" class="btn-1c" title="Удалить" style="height: 20px; width: 22px; padding: 0; background: #fff; border: 1px solid #7f9db9; cursor: pointer; color: #b91c1c;">❌</button>
+                <button type="button" class="btn-1c" style="height: 20px; padding: 0 6px; background: #fff; border: 1px solid #7f9db9; cursor: pointer; font-size: 10px;">
+                  Перейти ▾
+                </button>
+                <button type="button" class="btn-1c" title="Обновить" style="height: 20px; width: 22px; padding: 0; background: #fff; border: 1px solid #7f9db9; cursor: pointer;">🔄</button>
+                <button type="button" class="btn-1c" title="Установить основным" style="height: 20px; padding: 0 6px; background: #fff; border: 1px solid #7f9db9; cursor: pointer; font-size: 10px;">
+                  Установить основным
+                </button>
+                <button type="button" class="btn-1c" title="История" style="height: 20px; width: 22px; padding: 0; background: #fff; border: 1px solid #7f9db9; cursor: pointer;">🗐</button>
+              </div>
+
+              <!-- Table: Контактное лицо контрагента | Должность -->
+              <div style="max-height: 120px; overflow-y: auto;">
+                <table style="width: 100%; border-collapse: collapse; font-size: 11px;">
+                  <thead>
+                    <tr style="background: #ece9d8; border-bottom: 1px solid #7f9db9; height: 21px; text-align: left;">
+                      <th style="padding: 0 6px; border-right: 1px solid #d4d0c8;">Контактное лицо контрагента</th>
+                      <th style="width: 250px; padding: 0 6px;">▲ Должность</th>
+                    </tr>
+                  </thead>
+                  <tbody id="kcPersonsTableBody">
+                    <!-- Populated by JS -->
+                  </tbody>
+                </table>
+              </div>
+
+              <!-- Bottom info line: Телефоны: -->
+              <div style="padding: 4px 8px; background: #faf8f2; border-top: 1px solid #d4d0c8; display: flex; align-items: center; gap: 8px;">
+                <span style="color: #64748b; font-weight: bold; font-size: 10px;">Телефоны:</span>
+                <span id="kcContactPersonsPhones" style="font-weight: 500; color: #000;">+994 (50) 211-44-22, +994 (12) 498-77-00</span>
+              </div>
+            </div>
+          </div>
+
+        </div>
+
+      </div>
+
+      <!-- ==========================================
+           TAB 3: СЧЕТА И ДОГОВОРЫ
+           ========================================== -->
+      <div id="kcTabPane-contracts" class="kc-tab-pane" style="display: none;">
+        
+        <div style="display: flex; flex-direction: column; gap: 10px; font-size: 11px;">
+          
+          <!-- Section 1: Банковские счета -->
+          <div>
+            <div style="font-weight: bold; color: #002060; margin-bottom: 4px;">Банковские счета контрагента:</div>
+            <div style="border: 1px solid #7f9db9; background: #ffffff;">
+              <div style="padding: 2px 6px; background: #f0eee3; border-bottom: 1px solid #d4d0c8; display: flex; align-items: center; gap: 4px;">
+                <button type="button" class="btn-1c" title="Добавить счет" style="height: 20px; width: 22px; padding: 0; background: #fff; border: 1px solid #7f9db9; cursor: pointer;">➕</button>
+                <button type="button" class="btn-1c" title="Изменить" style="height: 20px; width: 22px; padding: 0; background: #fff; border: 1px solid #7f9db9; cursor: pointer;">✏️</button>
+                <button type="button" class="btn-1c" title="Удалить" style="height: 20px; width: 22px; padding: 0; background: #fff; border: 1px solid #7f9db9; cursor: pointer; color: #b91c1c;">❌</button>
+                <button type="button" class="btn-1c" title="Установить основным" style="height: 20px; padding: 0 6px; background: #fff; border: 1px solid #7f9db9; cursor: pointer; font-size: 10px;">
+                  Установить основным
+                </button>
+              </div>
+              <div style="max-height: 110px; overflow-y: auto;">
+                <table style="width: 100%; border-collapse: collapse; font-size: 11px;">
+                  <thead>
+                    <tr style="background: #ece9d8; border-bottom: 1px solid #7f9db9; height: 21px; text-align: left;">
+                      <th style="width: 220px; padding: 0 6px; border-right: 1px solid #d4d0c8;">Номер счета (IBAN)</th>
+                      <th style="padding: 0 6px; border-right: 1px solid #d4d0c8;">Банк</th>
+                      <th style="width: 90px; padding: 0 6px; border-right: 1px solid #d4d0c8;">БИК</th>
+                      <th style="width: 70px; padding: 0 6px; border-right: 1px solid #d4d0c8;">Валюта</th>
+                      <th style="width: 75px; text-align: center;">Основной</th>
+                    </tr>
+                  </thead>
+                  <tbody id="kcAccountsTableBody">
+                    <!-- Populated by JS -->
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+
+          <!-- Section 2: Договоры контрагентов (1C Screenshot 3) -->
+          <div>
+            <div style="font-weight: bold; color: #002060; margin-bottom: 4px;">Договоры контрагентов:</div>
+            <div style="border: 1px solid #7f9db9; background: #ffffff;">
+              <!-- 1C Authentic Toolbar (Screenshot 3) -->
+              <div style="padding: 2px 6px; background: #f0eee3; border-bottom: 1px solid #d4d0c8; display: flex; align-items: center; gap: 4px;">
+                <button type="button" class="btn-1c" style="height: 20px; padding: 0 6px; background: #fff; border: 1px solid #7f9db9; cursor: pointer; font-size: 10px;">
+                  Действия ▾
+                </button>
+                <button type="button" class="btn-1c" title="Добавить договор" style="height: 20px; width: 22px; padding: 0; background: #fff; border: 1px solid #7f9db9; cursor: pointer;">➕</button>
+                <button type="button" class="btn-1c" title="Добавить группу" style="height: 20px; width: 22px; padding: 0; background: #fff; border: 1px solid #7f9db9; cursor: pointer;">📁➕</button>
+                <button type="button" class="btn-1c" title="Изменить" style="height: 20px; width: 22px; padding: 0; background: #fff; border: 1px solid #7f9db9; cursor: pointer;">✏️</button>
+                <button type="button" class="btn-1c" title="Удалить" style="height: 20px; width: 22px; padding: 0; background: #fff; border: 1px solid #7f9db9; cursor: pointer; color: #b91c1c;">❌</button>
+                <button type="button" class="btn-1c" title="Установить пометку удаления / деактивировать" style="height: 20px; width: 22px; padding: 0; background: #fff; border: 1px solid #7f9db9; cursor: pointer; color: #b91c1c;">🚫</button>
+                <button type="button" class="btn-1c" title="Иерархический просмотр" style="height: 20px; width: 22px; padding: 0; background: #fff; border: 1px solid #7f9db9; cursor: pointer;">📁</button>
+                <button type="button" class="btn-1c" title="Обновить список договоров" onclick="KontragentCard.refreshCard()" style="height: 20px; width: 22px; padding: 0; background: #fff; border: 1px solid #7f9db9; cursor: pointer;">🔄</button>
+                <div style="width: 1px; height: 14px; background: #b0af9f; margin: 0 2px;"></div>
+                <button type="button" class="btn-1c" title="Установить основным" style="height: 20px; padding: 0 6px; background: #fff; border: 1px solid #7f9db9; cursor: pointer; font-size: 10px;">
+                  Основной
+                </button>
+              </div>
+
+              <!-- 1C Authentic 11 Columns (Screenshot 3) -->
+              <div style="max-height: 200px; overflow-y: auto; overflow-x: auto;">
+                <table style="width: 100%; border-collapse: collapse; font-size: 11px; white-space: nowrap;">
+                  <thead>
+                    <tr style="background: #ece9d8; border-bottom: 1px solid #7f9db9; height: 21px; text-align: left; position: sticky; top: 0; z-index: 2;">
+                      <th style="width: 28px; text-align: center; border-right: 1px solid #d4d0c8; padding: 0 2px;"></th>
+                      <th style="width: 70px; padding: 0 6px; border-right: 1px solid #d4d0c8;">Код</th>
+                      <th style="padding: 0 6px; border-right: 1px solid #d4d0c8; min-width: 220px;">▲ Наименование</th>
+                      <th style="width: 140px; padding: 0 6px; border-right: 1px solid #d4d0c8;">Ведение взаиморасчетов</th>
+                      <th style="width: 95px; padding: 0 6px; border-right: 1px solid #d4d0c8;">Вид договора</th>
+                      <th style="width: 160px; padding: 0 6px; border-right: 1px solid #d4d0c8;">Агент</th>
+                      <th style="width: 65px; padding: 0 6px; border-right: 1px solid #d4d0c8;">График...</th>
+                      <th style="width: 50px; text-align: center; padding: 0 4px; border-right: 1px solid #d4d0c8;">Номер</th>
+                      <th style="width: 70px; text-align: center; padding: 0 4px; border-right: 1px solid #d4d0c8;">Дата</th>
+                      <th style="width: 120px; padding: 0 6px; border-right: 1px solid #d4d0c8;">Портфель</th>
+                      <th style="width: 130px; padding: 0 6px;">Организация</th>
+                    </tr>
+                  </thead>
+                  <tbody id="kcContractsTableBody">
+                    <!-- Populated by JS -->
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+
+        </div>
+
+      </div>
+
+      <!-- ==========================================
+           TAB 7: ПРОЧЕЕ (Screenshot 3)
+           ========================================== -->
+      <div id="kcTabPane-prochee" class="kc-tab-pane" style="display: none;">
+        
+        <div style="display: flex; flex-direction: column; gap: 8px; font-size: 11px;">
+          
+          <!-- Field 1: Группа доступа к контрагенту -->
+          <div style="display: flex; align-items: center; height: 23px;">
+            <span style="width: 190px; min-width: 190px; max-width: 190px; color: #000; font-size: 11px; white-space: nowrap;">Группа доступа к контрагенту:</span>
+            <div style="flex: 1; min-width: 0; display: flex; align-items: center; border: 1px solid #7f9db9; background: #ffffff; height: 21px; box-sizing: border-box;">
+              <input type="text" id="kcAccessGroup" value="" style="flex: 1; min-width: 0; border: none; height: 100%; padding: 0 5px; font-size: 11px; background: transparent; outline: none; color: #000;">
+              <button type="button" class="btn-1c" title="Выбрать группу доступа" onclick="KontragentCard.openAccessGroupSelector()" style="border: none; border-left: 1px solid #7f9db9; background: #e0dfd5; width: 18px; height: 100%; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: bold; color: #333; padding: 0;" onmouseover="this.style.background='#c5c2b5'" onmouseout="this.style.background='#e0dfd5'">...</button>
+              <button type="button" class="btn-1c" title="Очистить" onclick="document.getElementById('kcAccessGroup').value=''" style="border: none; border-left: 1px solid #7f9db9; background: #e0dfd5; width: 16px; height: 100%; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 10px; color: #b91c1c; padding: 0;" onmouseover="this.style.background='#c5c2b5'" onmouseout="this.style.background='#e0dfd5'">✕</button>
+            </div>
+          </div>
+
+          <!-- Field 2: Расписание работы -->
+          <div style="display: flex; align-items: center; height: 23px;">
+            <span style="width: 190px; min-width: 190px; max-width: 190px; color: #000; font-size: 11px; white-space: nowrap;">Расписание работы:</span>
+            <input type="text" id="kcWorkSchedule" value="" style="flex: 1; min-width: 0; height: 21px; border: 1px solid #7f9db9; padding: 0 5px; font-size: 11px; box-sizing: border-box; outline: none; background: #ffffff; color: #000;">
+          </div>
+
+          <!-- Table 1: Портфели (Screenshot 3 top sub-table) -->
+          <div style="border: 1px solid #7f9db9; background: #ffffff; margin-top: 4px;">
+            <div style="padding: 2px 6px; background: #f0eee3; border-bottom: 1px solid #d4d0c8; display: flex; align-items: center; gap: 4px;">
+              <button type="button" class="btn-1c" style="height: 20px; padding: 0 6px; background: #fff; border: 1px solid #7f9db9; cursor: pointer; font-size: 10px;">
+                Действия ▾
+              </button>
+              <button type="button" class="btn-1c" title="Добавить" style="height: 20px; width: 22px; padding: 0; background: #fff; border: 1px solid #7f9db9; cursor: pointer;">➕</button>
+              <button type="button" class="btn-1c" title="Изменить" style="height: 20px; width: 22px; padding: 0; background: #fff; border: 1px solid #7f9db9; cursor: pointer;">✏️</button>
+              <button type="button" class="btn-1c" title="Удалить" style="height: 20px; width: 22px; padding: 0; background: #fff; border: 1px solid #7f9db9; cursor: pointer; color: #b91c1c;">❌</button>
+              <button type="button" class="btn-1c" title="Колонка" style="height: 20px; width: 22px; padding: 0; background: #fff; border: 1px solid #7f9db9; cursor: pointer;">(↔)</button>
+              <button type="button" class="btn-1c" title="Вниз" style="height: 20px; width: 22px; padding: 0; background: #fff; border: 1px solid #7f9db9; cursor: pointer;">▼</button>
+              <button type="button" class="btn-1c" title="Вверх" style="height: 20px; width: 22px; padding: 0; background: #fff; border: 1px solid #7f9db9; cursor: pointer;">▲</button>
+              <button type="button" class="btn-1c" title="Обновить" style="height: 20px; width: 22px; padding: 0; background: #fff; border: 1px solid #7f9db9; cursor: pointer;">🔄</button>
+            </div>
+            <div style="max-height: 100px; overflow-y: auto;">
+              <table style="width: 100%; border-collapse: collapse; font-size: 11px;">
+                <thead>
+                  <tr style="background: #ece9d8; border-bottom: 1px solid #7f9db9; height: 21px; text-align: left;">
+                    <th style="width: 100px; padding: 0 6px; border-right: 1px solid #d4d0c8;">Период</th>
+                    <th style="padding: 0 6px; border-right: 1px solid #d4d0c8;">▲ Портфель</th>
+                    <th style="width: 260px; padding: 0 6px;">Канал реализации</th>
+                  </tr>
+                </thead>
+                <tbody id="kcPortfoliosTableBody">
+                  <!-- Populated by JS -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- Table 2: Ставки НДС (Screenshot 3 bottom sub-table) -->
+          <div style="border: 1px solid #7f9db9; background: #ffffff;">
+            <div style="padding: 2px 6px; background: #f0eee3; border-bottom: 1px solid #d4d0c8; display: flex; align-items: center; gap: 4px;">
+              <button type="button" class="btn-1c" style="height: 20px; padding: 0 6px; background: #fff; border: 1px solid #7f9db9; cursor: pointer; font-size: 10px;">
+                Действия ▾
+              </button>
+              <button type="button" class="btn-1c" title="Добавить" style="height: 20px; width: 22px; padding: 0; background: #fff; border: 1px solid #7f9db9; cursor: pointer;">➕</button>
+              <button type="button" class="btn-1c" title="Изменить" style="height: 20px; width: 22px; padding: 0; background: #fff; border: 1px solid #7f9db9; cursor: pointer;">✏️</button>
+              <button type="button" class="btn-1c" title="Удалить" style="height: 20px; width: 22px; padding: 0; background: #fff; border: 1px solid #7f9db9; cursor: pointer; color: #b91c1c;">❌</button>
+              <button type="button" class="btn-1c" title="Колонка" style="height: 20px; width: 22px; padding: 0; background: #fff; border: 1px solid #7f9db9; cursor: pointer;">(↔)</button>
+              <button type="button" class="btn-1c" title="Вниз" style="height: 20px; width: 22px; padding: 0; background: #fff; border: 1px solid #7f9db9; cursor: pointer;">▼</button>
+              <button type="button" class="btn-1c" title="Вверх" style="height: 20px; width: 22px; padding: 0; background: #fff; border: 1px solid #7f9db9; cursor: pointer;">▲</button>
+              <button type="button" class="btn-1c" title="Обновить" style="height: 20px; width: 22px; padding: 0; background: #fff; border: 1px solid #7f9db9; cursor: pointer;">🔄</button>
+            </div>
+            <div style="max-height: 90px; overflow-y: auto;">
+              <table style="width: 100%; border-collapse: collapse; font-size: 11px;">
+                <thead>
+                  <tr style="background: #ece9d8; border-bottom: 1px solid #7f9db9; height: 21px; text-align: left;">
+                    <th style="width: 100px; padding: 0 6px; border-right: 1px solid #d4d0c8;">Период</th>
+                    <th style="padding: 0 6px; border-right: 1px solid #d4d0c8;">▲ Контрагент</th>
+                    <th style="width: 180px; padding: 0 6px;">Ставка НДС</th>
+                  </tr>
+                </thead>
+                <tbody id="kcNdsTableBody">
+                  <!-- Populated by JS -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+        </div>
+
+      </div>
+
+      <!-- ==========================================
+           TABS 4, 5, 6, 8: СОБЫТИЯ, СВОЙСТВА, КАТЕГОРИИ, ФОРМАТЫ RB
+           ========================================== -->
+      <div id="kcTabPane-events" class="kc-tab-pane" style="display: none;">
+        <div style="padding: 20px; text-align: center; color: #64748b; font-style: italic;">
+          События по контрагенту отсутствуют
+        </div>
+      </div>
+
+      <div id="kcTabPane-props" class="kc-tab-pane" style="display: none;">
+        <div style="padding: 20px; text-align: center; color: #64748b; font-style: italic;">
+          Дополнительные свойства контрагента не назначены
+        </div>
+      </div>
+
+      <div id="kcTabPane-categories" class="kc-tab-pane" style="display: none;">
+        <div style="padding: 20px; text-align: center; color: #64748b; font-style: italic;">
+          Категории контрагента не выбраны
+        </div>
+      </div>
+
+      <div id="kcTabPane-rb" class="kc-tab-pane" style="display: none;">
+        <div style="padding: 20px; text-align: center; color: #64748b; font-style: italic;">
+          Форматы RB не настроены
+        </div>
+      </div>
+
+      <!-- ==========================================
+           TAB 9: АУДИТ ПОЛНОТЫ ДАННЫХ
+           ========================================== -->
+      <div id="kcTabPane-audit" class="kc-tab-pane" style="display: none;">
+        <div style="display: flex; flex-direction: column; gap: 10px;">
+          <div style="background: #f8fafc; border: 1px solid #cbd5e1; border-left: 4px solid #2563eb; padding: 8px 12px; display: flex; align-items: center; justify-content: space-between;">
+            <div>
+              <div style="font-weight: bold; font-size: 12px; color: #0f172a;">Анализ полноты реквизитов контрагента</div>
+              <div style="font-size: 11px; color: #64748b;">Проверка готовности для официальных 1С документов и налоговых счетов-фактур (ЭСФ)</div>
+            </div>
+            <div style="text-align: right;">
+              <div style="font-size: 18px; font-weight: bold; color: #1e40af;" id="kcAuditScoreText">...%</div>
+            </div>
+          </div>
+
+          <div style="background: #e2e8f0; border-radius: 2px; height: 6px; overflow: hidden; width: 100%;">
+            <div id="kcAuditProgressBar" style="background: #2563eb; width: 0%; height: 100%; transition: width 0.3s ease;"></div>
+          </div>
+
+          <div id="kcAuditMissingList" style="display: flex; flex-direction: column; gap: 5px;"></div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- 5. Fixed Bottom Section (Shared across ALL tabs! Shown in ALL 3 screenshots) -->
+    <div style="padding: 6px 12px; background: #f0eee3; border-top: 1px solid #b0af9f; display: flex; flex-direction: column; gap: 4px; user-select: none;">
+      
+      <!-- Row 1: Комментарий -->
+      <div style="display: flex; align-items: center; height: 23px;">
+        <span style="width: 140px; min-width: 140px; max-width: 140px; color: #000; font-size: 11px; white-space: nowrap;">Комментарий:</span>
+        <div style="flex: 1; min-width: 0; display: flex; align-items: center; border: 1px solid #7f9db9; background: #ffffff; height: 21px; box-sizing: border-box;">
+          <input type="text" id="kcComment" style="flex: 1; min-width: 0; border: none; height: 100%; padding: 0 5px; font-size: 11px; background: transparent; outline: none; color: #000;">
+          <button type="button" class="btn-1c" title="Редактировать комментарий" style="border: none; border-left: 1px solid #7f9db9; background: #e0dfd5; width: 18px; height: 100%; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: bold; color: #333; padding: 0;" onmouseover="this.style.background='#c5c2b5'" onmouseout="this.style.background='#e0dfd5'">...</button>
+        </div>
+      </div>
+
+      <!-- Row 2: Тип ТТ (Jacobs) | Тип ТТ: -->
+      <div style="display: flex; align-items: center; height: 23px;">
+        <div style="flex: 1; min-width: 0; display: flex; align-items: center;">
+          <span style="width: 140px; min-width: 140px; max-width: 140px; color: #000; font-size: 11px; white-space: nowrap;">Тип ТТ (Jacobs):</span>
+          <div style="flex: 1; min-width: 0; display: flex; align-items: center; border: 1px solid #7f9db9; background: #ffffff; height: 21px; box-sizing: border-box;">
+            <input type="text" id="kcTtJacobs" value="" style="flex: 1; min-width: 0; border: none; height: 100%; padding: 0 5px; font-size: 11px; background: transparent; outline: none; color: #000;">
+            <button type="button" class="btn-1c" style="border: none; border-left: 1px solid #7f9db9; background: #e0dfd5; width: 18px; height: 100%; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: bold; color: #333; padding: 0;" onmouseover="this.style.background='#c5c2b5'" onmouseout="this.style.background='#e0dfd5'">...</button>
+            <button type="button" class="btn-1c" onclick="document.getElementById('kcTtJacobs').value=''" style="border: none; border-left: 1px solid #7f9db9; background: #e0dfd5; width: 16px; height: 100%; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 10px; color: #b91c1c; padding: 0;" onmouseover="this.style.background='#c5c2b5'" onmouseout="this.style.background='#e0dfd5'">✕</button>
+          </div>
+        </div>
+        <div style="flex: 1; min-width: 0; display: flex; align-items: center; margin-left: 20px;">
+          <span style="width: 120px; min-width: 120px; max-width: 120px; color: #000; font-size: 11px; white-space: nowrap;">Тип ТТ:</span>
+          <div style="flex: 1; min-width: 0; display: flex; align-items: center; border: 1px solid #7f9db9; background: #ffffff; height: 21px; box-sizing: border-box;">
+            <input type="text" id="kcTtCommon" value="" style="flex: 1; min-width: 0; border: none; height: 100%; padding: 0 5px; font-size: 11px; background: transparent; outline: none; color: #000;">
+            <button type="button" class="btn-1c" style="border: none; border-left: 1px solid #7f9db9; background: #e0dfd5; width: 18px; height: 100%; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: bold; color: #333; padding: 0;" onmouseover="this.style.background='#c5c2b5'" onmouseout="this.style.background='#e0dfd5'">...</button>
+            <button type="button" class="btn-1c" onclick="document.getElementById('kcTtCommon').value=''" style="border: none; border-left: 1px solid #7f9db9; background: #e0dfd5; width: 16px; height: 100%; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 10px; color: #b91c1c; padding: 0;" onmouseover="this.style.background='#c5c2b5'" onmouseout="this.style.background='#e0dfd5'">✕</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Row 3: Тип ТТ (Ferrero) | Тип ТТ (Лореаль) -->
+      <div style="display: flex; align-items: center; height: 23px;">
+        <div style="flex: 1; min-width: 0; display: flex; align-items: center;">
+          <span style="width: 140px; min-width: 140px; max-width: 140px; color: #000; font-size: 11px; white-space: nowrap;">Тип ТТ (Ferrero):</span>
+          <div style="flex: 1; min-width: 0; display: flex; align-items: center; border: 1px solid #7f9db9; background: #ffffff; height: 21px; box-sizing: border-box;">
+            <input type="text" id="kcTtFerrero" value="" style="flex: 1; min-width: 0; border: none; height: 100%; padding: 0 5px; font-size: 11px; background: transparent; outline: none; color: #000;">
+            <button type="button" class="btn-1c" style="border: none; border-left: 1px solid #7f9db9; background: #e0dfd5; width: 18px; height: 100%; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: bold; color: #333; padding: 0;" onmouseover="this.style.background='#c5c2b5'" onmouseout="this.style.background='#e0dfd5'">...</button>
+            <button type="button" class="btn-1c" onclick="document.getElementById('kcTtFerrero').value=''" style="border: none; border-left: 1px solid #7f9db9; background: #e0dfd5; width: 16px; height: 100%; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 10px; color: #b91c1c; padding: 0;" onmouseover="this.style.background='#c5c2b5'" onmouseout="this.style.background='#e0dfd5'">✕</button>
+          </div>
+        </div>
+        <div style="flex: 1; min-width: 0; display: flex; align-items: center; margin-left: 20px;">
+          <span style="width: 120px; min-width: 120px; max-width: 120px; color: #000; font-size: 11px; white-space: nowrap;">Тип ТТ (Лореаль):</span>
+          <div style="flex: 1; min-width: 0; display: flex; align-items: center; border: 1px solid #7f9db9; background: #ffffff; height: 21px; box-sizing: border-box;">
+            <input type="text" id="kcTtLoreal" value="" style="flex: 1; min-width: 0; border: none; height: 100%; padding: 0 5px; font-size: 11px; background: transparent; outline: none; color: #000;">
+            <button type="button" class="btn-1c" style="border: none; border-left: 1px solid #7f9db9; background: #e0dfd5; width: 18px; height: 100%; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: bold; color: #333; padding: 0;" onmouseover="this.style.background='#c5c2b5'" onmouseout="this.style.background='#e0dfd5'">...</button>
+            <button type="button" class="btn-1c" onclick="document.getElementById('kcTtLoreal').value=''" style="border: none; border-left: 1px solid #7f9db9; background: #e0dfd5; width: 16px; height: 100%; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 10px; color: #b91c1c; padding: 0;" onmouseover="this.style.background='#c5c2b5'" onmouseout="this.style.background='#e0dfd5'">✕</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Row 4: Тип ТТ (Schwarzkopf) | Тип ТТ (Predo) -->
+      <div style="display: flex; align-items: center; height: 23px;">
+        <div style="flex: 1; min-width: 0; display: flex; align-items: center;">
+          <span style="width: 140px; min-width: 140px; max-width: 140px; color: #000; font-size: 11px; white-space: nowrap;">Тип ТТ (Schwarzkopf):</span>
+          <div style="flex: 1; min-width: 0; display: flex; align-items: center; border: 1px solid #7f9db9; background: #ffffff; height: 21px; box-sizing: border-box;">
+            <input type="text" id="kcTtSchwarzkopf" value="" style="flex: 1; min-width: 0; border: none; height: 100%; padding: 0 5px; font-size: 11px; background: transparent; outline: none; color: #000;">
+            <button type="button" class="btn-1c" style="border: none; border-left: 1px solid #7f9db9; background: #e0dfd5; width: 18px; height: 100%; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: bold; color: #333; padding: 0;" onmouseover="this.style.background='#c5c2b5'" onmouseout="this.style.background='#e0dfd5'">...</button>
+            <button type="button" class="btn-1c" onclick="document.getElementById('kcTtSchwarzkopf').value=''" style="border: none; border-left: 1px solid #7f9db9; background: #e0dfd5; width: 16px; height: 100%; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 10px; color: #b91c1c; padding: 0;" onmouseover="this.style.background='#c5c2b5'" onmouseout="this.style.background='#e0dfd5'">✕</button>
+          </div>
+        </div>
+        <div style="flex: 1; min-width: 0; display: flex; align-items: center; margin-left: 20px;">
+          <span style="width: 120px; min-width: 120px; max-width: 120px; color: #000; font-size: 11px; white-space: nowrap;">Тип ТТ (Predo):</span>
+          <div style="flex: 1; min-width: 0; display: flex; align-items: center; border: 1px solid #7f9db9; background: #ffffff; height: 21px; box-sizing: border-box;">
+            <input type="text" id="kcTtPredo" value="" style="flex: 1; min-width: 0; border: none; height: 100%; padding: 0 5px; font-size: 11px; background: transparent; outline: none; color: #000;">
+            <button type="button" class="btn-1c" style="border: none; border-left: 1px solid #7f9db9; background: #e0dfd5; width: 18px; height: 100%; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: bold; color: #333; padding: 0;" onmouseover="this.style.background='#c5c2b5'" onmouseout="this.style.background='#e0dfd5'">...</button>
+            <button type="button" class="btn-1c" onclick="document.getElementById('kcTtPredo').value=''" style="border: none; border-left: 1px solid #7f9db9; background: #e0dfd5; width: 16px; height: 100%; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 10px; color: #b91c1c; padding: 0;" onmouseover="this.style.background='#c5c2b5'" onmouseout="this.style.background='#e0dfd5'">✕</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Row 5: Код славянка | Код diversey -->
+      <div style="display: flex; align-items: center; height: 23px;">
+        <div style="flex: 1; min-width: 0; display: flex; align-items: center;">
+          <span style="width: 140px; min-width: 140px; max-width: 140px; color: #000; font-size: 11px; white-space: nowrap;">Код славянка:</span>
+          <input type="text" id="kcCodeSlavyanka" value="" style="flex: 1; min-width: 0; height: 21px; border: 1px solid #7f9db9; padding: 0 5px; font-size: 11px; box-sizing: border-box; outline: none; background: #fff; color: #000;">
+        </div>
+        <div style="flex: 1; min-width: 0; display: flex; align-items: center; margin-left: 20px;">
+          <span style="width: 120px; min-width: 120px; max-width: 120px; color: #000; font-size: 11px; white-space: nowrap;">Код diversey:</span>
+          <input type="text" id="kcCodeDiversey" value="" style="flex: 1; min-width: 0; height: 21px; border: 1px solid #7f9db9; padding: 0 5px; font-size: 11px; box-sizing: border-box; outline: none; background: #fff; color: #000;">
+        </div>
+      </div>
+
+    </div>
+
+    <!-- 6. Bottom Right Dialog Action Buttons (Exact 1C buttons: ОК, Записать, Закрыть) -->
+    <div style="padding: 6px 12px; background: #e5e2cf; border-top: 1px solid #b0af9f; display: flex; align-items: center; justify-content: flex-end; gap: 8px; user-select: none;">
+      
+      <!-- ОК -->
+      <button type="button" class="btn-1c" onclick="KontragentCard.saveAndClose()" title="Сохранить и закрыть (Enter)" style="height: 23px; padding: 0 16px; font-weight: bold; background: #e0ded4; border: 1px solid #7f9db9; cursor: pointer; font-size: 11px; color: #000;">
+        ОК
+      </button>
+
+      <!-- Записать -->
+      <button type="button" class="btn-1c" onclick="KontragentCard.save()" title="Записать (Ctrl+S)" style="height: 23px; padding: 0 14px; background: #e0ded4; border: 1px solid #7f9db9; cursor: pointer; font-size: 11px; color: #000;">
+        Записать
+      </button>
+
+      <!-- Закрыть -->
+      <button type="button" class="btn-1c" onclick="KontragentCard.close()" title="Закрыть окно (Esc)" style="height: 23px; padding: 0 14px; background: #e0ded4; border: 1px solid #7f9db9; cursor: pointer; font-size: 11px; color: #000;">
+        Закрыть
+      </button>
+
+    </div>
+
+  </div>
+
+</div>
+
+<!-- Modal: Группы доступа контрагентов (Screenshot 2) -->
+<div id="kcAccessGroupModal" style="display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.35); z-index: 10001; align-items: center; justify-content: center;">
+  <div style="width: 590px; height: 390px; background: #ece9d8; border: 2px solid #0055ea; box-shadow: 0 8px 24px rgba(0,0,0,0.4); display: flex; flex-direction: column; font-family: Tahoma, 'Segoe UI', Arial, sans-serif; font-size: 11px; user-select: none;">
+    <!-- Titlebar -->
+    <div style="background: linear-gradient(to right, #0055ea, #3a93ff); color: #fff; height: 24px; padding: 0 6px; display: flex; align-items: center; justify-content: space-between; font-weight: bold; font-size: 11px;">
+      <div style="display: flex; align-items: center; gap: 6px;">
+        <span style="font-size: 10px; background: #fff; color: #0055ea; padding: 1px 3px; border-radius: 2px; font-weight: 900;">iii</span>
+        <span>Группы доступа контрагентов</span>
+      </div>
+      <div style="display: flex; gap: 2px;">
+        <button type="button" onclick="KontragentCard.closeAccessGroupSelector()" style="width: 18px; height: 18px; background: #e0dfd5; border: 1px solid #7f9db9; cursor: pointer; font-size: 10px; line-height: 1; display: flex; align-items: center; justify-content: center; color: #333; font-weight: bold;" title="Закрыть">✕</button>
+      </div>
+    </div>
+
+    <!-- Toolbar -->
+    <div style="background: #f0eee3; border-bottom: 1px solid #d4d0c8; padding: 2px 4px; display: flex; align-items: center; gap: 3px; font-size: 11px;">
+      <button type="button" class="btn-1c" onclick="KontragentCard.selectAccessGroup()" style="height: 22px; padding: 0 8px; background: #fff; border: 1px solid #7f9db9; cursor: pointer; font-weight: bold; color: #002060; display: flex; align-items: center; gap: 4px;">
+        <span style="color: #166534; font-size: 13px;">✔</span> Выбрать
+      </button>
+      <button type="button" class="btn-1c" style="height: 22px; padding: 0 6px; background: #fff; border: 1px solid #7f9db9; cursor: pointer;">
+        Действия ▾
+      </button>
+      <button type="button" class="btn-1c" title="Создать" style="height: 22px; width: 22px; padding: 0; background: #fff; border: 1px solid #7f9db9; cursor: pointer;">➕</button>
+      <button type="button" class="btn-1c" title="Создать группу" style="height: 22px; width: 22px; padding: 0; background: #fff; border: 1px solid #7f9db9; cursor: pointer;">🗂️</button>
+      <button type="button" class="btn-1c" title="Изменить" style="height: 22px; width: 22px; padding: 0; background: #fff; border: 1px solid #7f9db9; cursor: pointer;">✏️</button>
+      <button type="button" class="btn-1c" title="Удалить" style="height: 22px; width: 22px; padding: 0; background: #fff; border: 1px solid #7f9db9; cursor: pointer; color: #b91c1c;">❌</button>
+      <button type="button" class="btn-1c" title="Скопировать" style="height: 22px; width: 22px; padding: 0; background: #fff; border: 1px solid #7f9db9; cursor: pointer;">🗐</button>
+      <div style="width: 1px; height: 16px; background: #b0af9f; margin: 0 2px;"></div>
+      <button type="button" class="btn-1c" title="Иерархия" style="height: 22px; width: 22px; padding: 0; background: #fff; border: 1px solid #7f9db9; cursor: pointer;">📁</button>
+      <button type="button" class="btn-1c" title="Поиск" style="height: 22px; width: 22px; padding: 0; background: #fff; border: 1px solid #7f9db9; cursor: pointer;">🔍</button>
+      <button type="button" class="btn-1c" title="Отбор" style="height: 22px; width: 22px; padding: 0; background: #fff; border: 1px solid #7f9db9; cursor: pointer;">🎯</button>
+      <button type="button" class="btn-1c" title="Обновить" onclick="KontragentCard.renderAccessGroupModalTable()" style="height: 22px; width: 22px; padding: 0; background: #fff; border: 1px solid #7f9db9; cursor: pointer;">🔄</button>
+    </div>
+
+    <!-- Body: Two-panel split -->
+    <div style="flex: 1; display: flex; overflow: hidden; background: #fff; border: 1px solid #7f9db9; margin: 3px 4px;">
+      <!-- Left Panel: Tree View -->
+      <div style="width: 175px; min-width: 175px; border-right: 1px solid #d4d0c8; background: #fafaf8; display: flex; flex-direction: column;">
+        <div style="padding: 4px; display: flex; align-items: center; gap: 4px; background: #e0ded4; border-bottom: 1px solid #d4d0c8; font-weight: bold; font-size: 10px; color: #333;">
+          <span>📁 Группы доступа контраге...</span>
+        </div>
+        <div style="padding: 6px; font-size: 11px;">
+          <div style="display: flex; align-items: center; gap: 5px; padding: 3px 6px; background: #316ac5; color: #fff; border-radius: 2px; cursor: pointer;">
+            <span style="font-size: 10px;">➕</span>
+            <span>📁 Группы доступа</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Right Panel: Data Grid -->
+      <div style="flex: 1; display: flex; flex-direction: column; overflow: hidden; background: #fff;">
+        <!-- Grid Header -->
+        <div style="display: flex; height: 21px; background: #ece9d8; border-bottom: 1px solid #7f9db9; font-size: 11px; align-items: center;">
+          <div style="width: 24px; min-width: 24px; border-right: 1px solid #d4d0c8;"></div>
+          <div style="width: 70px; min-width: 70px; padding: 0 4px; border-right: 1px solid #d4d0c8; font-weight: normal; color: #333;">Код</div>
+          <div style="flex: 1; min-width: 0; padding: 0 4px; font-weight: normal; color: #333; display: flex; justify-content: space-between; align-items: center;">
+            <span>Наименование</span>
+            <span style="font-size: 9px; color: #666;">▲</span>
+          </div>
+        </div>
+
+        <!-- Grid Body -->
+        <div id="kcAccessGroupTableBody" style="flex: 1; overflow-y: auto; overflow-x: hidden;">
+          <!-- Populated by JS -->
+        </div>
+      </div>
+    </div>
+
+    <!-- Bottom Buttons Bar -->
+    <div style="padding: 4px 6px; background: #ece9d8; border-top: 1px solid #d4d0c8; display: flex; justify-content: flex-end; gap: 6px;">
+      <button type="button" class="btn-1c" onclick="KontragentCard.selectAccessGroup()" style="height: 22px; padding: 0 14px; background: #fff; border: 1px solid #7f9db9; cursor: pointer; font-weight: bold;">
+        OK
+      </button>
+      <button type="button" class="btn-1c" onclick="KontragentCard.closeAccessGroupSelector()" style="height: 22px; padding: 0 12px; background: #fff; border: 1px solid #7f9db9; cursor: pointer;">
+        Закрыть
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- 1C Tab Button Styling -->
+<style>
+  .kc-tab-btn {
+    padding: 3px 10px 4px 10px;
+    background: #e0ded4;
+    border: 1px solid #7f9db9;
+    border-bottom: none;
+    cursor: pointer;
+    font-size: 11px;
+    color: #222;
+    border-radius: 3px 3px 0 0;
+    margin-bottom: -1px;
+    transition: background 0.1s ease;
+    white-space: nowrap;
+  }
+  .kc-tab-btn:hover {
+    background: #edeae0;
+  }
+  .kc-tab-btn.active {
+    background: #ffffff !important;
+    border-bottom: 1px solid #ffffff !important;
+    font-weight: bold;
+    color: #000 !important;
+    z-index: 2;
+  }
+</style>

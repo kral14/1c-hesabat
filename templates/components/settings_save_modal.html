@@ -10,7 +10,7 @@
     <div class="preset-titlebar" ondblclick="togglePresetWindowMaximize(this)">
       <div class="preset-title-left">
         <span class="preset-title-icon">📤</span>
-        <span class="preset-title-text">Сохранение настройки</span>
+        <span class="preset-title-text" data-i18n="preset.save_title">Сохранение настройки</span>
       </div>
       <div class="preset-titlebar-controls">
         <button class="preset-btn-max" onclick="togglePresetWindowMaximize(this)" title="Böyüt / Bərpa et">□</button>
@@ -22,7 +22,7 @@
     <div class="preset-modal-toolbar">
       <button class="preset-btn-select-main" onclick="confirmSaveCurrentPreset()" title="Выбрать / Сохранить">
         <span style="color: #2b7814; font-size: 11px;">✔</span>
-        <span>Выбрать</span>
+        <span data-i18n="common.select">Выбрать</span>
       </button>
 
       <div class="toolbar-separator" style="height: 18px;"></div>
@@ -50,10 +50,10 @@
         <table class="preset-grid-table" id="presetSaveTable">
           <thead>
             <tr>
-              <th style="min-width: 180px;">Наименование</th>
-              <th style="width: 70px;" class="th-center">Открыв...</th>
-              <th style="width: 70px;" class="th-center">Сохран...</th>
-              <th style="width: 130px;">Пользователь</th>
+              <th style="min-width: 180px;" data-i18n="col.name">Наименование</th>
+              <th style="width: 70px;" class="th-center" data-i18n="preset.col_open">Открыв...</th>
+              <th style="width: 70px;" class="th-center" data-i18n="preset.col_save">Сохран...</th>
+              <th style="width: 130px;" data-i18n="col.user">Пользователь</th>
             </tr>
           </thead>
           <tbody id="presetSaveTableBody">
@@ -64,15 +64,15 @@
 
       <!-- Quick Name Input for Saving -->
       <div style="display: flex; align-items: center; gap: 8px; margin-top: 6px; padding: 4px; background: #fff; border: 1px solid #7f9db9;">
-        <span style="font-weight: 500;">Имя настройки:</span>
-        <input type="text" id="savePresetNameInput" style="flex: 1; height: 20px; font-size: 11px; padding: 1px 4px; border: 1px solid #7f9db9;" placeholder="Məsələn: Anbar Qaligi, Loreal Stok və s." onkeydown="if(event.key==='Enter') confirmSaveCurrentPreset()">
+        <span style="font-weight: 500;" data-i18n="preset.name_label">Имя настройки:</span>
+        <input type="text" id="savePresetNameInput" style="flex: 1; height: 20px; font-size: 11px; padding: 1px 4px; border: 1px solid #7f9db9;" data-i18n-placeholder="preset.name_placeholder" placeholder="Məsələn: Anbar Qaligi, Loreal Stok və s." onkeydown="if(event.key==='Enter') confirmSaveCurrentPreset()">
       </div>
     </div>
 
     <!-- Footer Controls -->
     <div class="preset-modal-footer">
-      <button class="btn-1c" onclick="confirmSaveCurrentPreset()" style="font-weight: bold; min-width: 75px;">ОК</button>
-      <button class="btn-1c" onclick="closeSaveSettingsModal()" style="min-width: 65px;">Отмена</button>
+      <button class="btn-1c" onclick="confirmSaveCurrentPreset()" data-i18n="common.ok" style="font-weight: bold; min-width: 75px;">ОК</button>
+      <button class="btn-1c" onclick="closeSaveSettingsModal()" data-i18n="common.cancel" style="min-width: 65px;">Отмена</button>
     </div>
 
   </div>

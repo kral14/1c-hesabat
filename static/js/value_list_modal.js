@@ -88,19 +88,25 @@ const ValueListModal = {
     // Search scope options
     const scopeSel = document.getElementById("vlSearchFieldSelect");
     if (scopeSel) {
+      const tScopeAll = window.C1I18n ? window.C1I18n.t('vl.scope_all', 'Все видимые поля') : 'Все видимые поля';
+      const tScopeName = window.C1I18n ? window.C1I18n.t('vl.scope_name', 'Наименование') : 'Наименование';
+      const tScopeArtikul = window.C1I18n ? window.C1I18n.t('vl.scope_artikul', 'Артикул') : 'Артикул';
+      const tScopeCode = window.C1I18n ? window.C1I18n.t('vl.scope_code', 'Код') : 'Код';
+      const tScopeBarcode = window.C1I18n ? window.C1I18n.t('vl.scope_barcode', 'Штрихкод') : 'Штрихкод';
+
       if (isNom) {
         scopeSel.innerHTML = `
-          <option value="all" selected>Все видимые поля</option>
-          <option value="name">Наименование</option>
-          <option value="artikul">Артикул</option>
-          <option value="code">Код</option>
-          <option value="barcode">Штрихкод</option>
+          <option value="all" selected>${tScopeAll}</option>
+          <option value="name">${tScopeName}</option>
+          <option value="artikul">${tScopeArtikul}</option>
+          <option value="code">${tScopeCode}</option>
+          <option value="barcode">${tScopeBarcode}</option>
         `;
       } else {
         scopeSel.innerHTML = `
-          <option value="all" selected>Все поля</option>
-          <option value="name">Наименование</option>
-          <option value="code">Код</option>
+          <option value="all" selected>${tScopeAll}</option>
+          <option value="name">${tScopeName}</option>
+          <option value="code">${tScopeCode}</option>
         `;
       }
       scopeSel.value = "all";
@@ -259,7 +265,11 @@ const ValueListModal = {
     const colSpanTotal = isNom ? 7 : 5;
 
     if (this.items.length === 0) {
-      tbody.innerHTML = `<tr><td colspan="${colSpanTotal}" style="color: #888; font-style: italic; padding: 25px 15px; text-align: center; user-select: none;">Siyahı boşdur.<br><br>Sətir yazmaq üçün <strong>[+]</strong> düyməsini basın,<br>və ya soraqçadan çoxsaylı seçmək üçün <strong>[Подбор]</strong> düyməsini basın.</td></tr>`;
+      const isAz = !window.C1I18n || window.C1I18n.getLanguage() === 'az';
+      const emptyMsg = isAz 
+        ? `Siyahı boşdur.<br><br>Sətir yazmaq üçün <strong>[+]</strong> düyməsini basın,<br>və ya soraqçadan çoxsaylı seçmək üçün <strong>[Seçim (Podbor)]</strong> düyməsini basın.`
+        : `Список пуст.<br><br>Нажмите <strong>[+]</strong> для добавления строки,<br>или <strong>[Подбор]</strong> для множественного выбора из справочника.`;
+      tbody.innerHTML = `<tr><td colspan="${colSpanTotal}" style="color: #888; font-style: italic; padding: 25px 15px; text-align: center; user-select: none;">${emptyMsg}</td></tr>`;
       return;
     }
 
@@ -322,8 +332,8 @@ const ValueListModal = {
         <td style="width: 85px; padding: 1px 3px; border-bottom: 1px solid #e8e8e8;">
           <select class="val-item-comp-sel" onchange="ValueListModal.changeRowComp(${idx}, this.value)"
                   style="width: 100%; height: 20px; font-size: 11px; border: 1px solid #7f9db9; background: #ffffff !important; color: #111111 !important; padding: 0 2px;">
-            <option value="equal" ${itemObj.comp === 'equal' ? 'selected' : ''}>Равно</option>
-            <option value="contains" ${itemObj.comp === 'contains' ? 'selected' : ''}>Содержит</option>
+            <option value="equal" ${itemObj.comp === 'equal' ? 'selected' : ''}>${window.C1I18n ? window.C1I18n.t('op.equal', 'Равно') : 'Равно'}</option>
+            <option value="contains" ${itemObj.comp === 'contains' ? 'selected' : ''}>${window.C1I18n ? window.C1I18n.t('op.contains', 'Содержит') : 'Содержит'}</option>
           </select>
         </td>
         <td style="width: 75px; text-align: center; font-family: monospace; font-size: 10px; color: #333; border-bottom: 1px solid #e8e8e8; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${escapeHtml(itemObj.code || '')}">
@@ -1016,3 +1026,14 @@ const ValueListModal = {
 };
 
 window.ValueListModal = ValueListModal;
+
+// Synchronize ValueListModal when language toggles
+window.addEventListener('c1-language-changed', () => {
+  const overlay = document.getElementById("valueListModalOverlay");
+  if (overlay && overlay.classList.contains("active")) {
+    ValueListModal.render();
+    if (window.C1I18n) {
+      window.C1I18n.applyTranslations(document.getElementById("valueListWindowModal"));
+    }
+  }
+});

@@ -374,6 +374,10 @@ const _UniversalJournalTarget = {
     if (inst) {
       inst.startDateStr = startDate;
       inst.endDateStr = endDate;
+      const docKey = "uj_" + (inst.activeDocType || "РеализацияТоваровУслуг");
+      if (window.C1PeriodWidget && typeof C1PeriodWidget.setStoredPeriod === "function") {
+        C1PeriodWidget.setStoredPeriod(docKey, startDate, endDate);
+      }
       inst.updatePeriodLabel();
       inst.loadDocuments({ force: true });
     }
@@ -383,13 +387,18 @@ const _UniversalJournalTarget = {
     const inst = this.getActiveInstance(e || (typeof window !== "undefined" ? window.event : null));
     if (!inst) return;
     this.lastActiveInstanceId = inst.windowId;
+    const docKey = "uj_" + (inst.activeDocType || "РеализацияТоваровУслуг");
     if (typeof PeriodPicker !== "undefined" && typeof PeriodPicker.open === "function") {
       PeriodPicker.open({
         startDate: inst.startDateStr,
         endDate: inst.endDateStr,
+        contextKey: docKey,
         onSelect: (start, end) => {
           inst.startDateStr = start;
           inst.endDateStr = end;
+          if (window.C1PeriodWidget && typeof C1PeriodWidget.setStoredPeriod === "function") {
+            C1PeriodWidget.setStoredPeriod(docKey, start, end);
+          }
           inst.updatePeriodLabel();
           inst.loadDocuments({ force: true });
         }
@@ -470,22 +479,29 @@ const _UniversalJournalTarget = {
   },
 
   init: function() {
-    // Check remembered period first (if "Запомнить выбранный период" was checked)
-    const remembered = (window.PeriodPicker && typeof PeriodPicker.getRememberedPeriod === "function") 
-      ? PeriodPicker.getRememberedPeriod() 
-      : null;
+    const docKey = "uj_" + (this.activeDocType || "РеализацияТоваровУслуг");
+    const remembered = (window.C1PeriodWidget && typeof C1PeriodWidget.getStoredPeriod === "function")
+      ? C1PeriodWidget.getStoredPeriod(docKey)
+      : (window.PeriodPicker && typeof PeriodPicker.getRememberedPeriod === "function" ? PeriodPicker.getRememberedPeriod(docKey) : null);
 
     if (remembered && (remembered.startDate || remembered.endDate)) {
       this.startDateStr = remembered.startDate || "";
       this.endDateStr = remembered.endDate || "";
     } else {
-      // Default period: Current month
-      const now = new Date();
-      const curYear = now.getFullYear();
-      const curMonth = String(now.getMonth() + 1).padStart(2, "0");
-      const lastDay = new Date(curYear, now.getMonth() + 1, 0).getDate();
-      this.startDateStr = `01.${curMonth}.${curYear}`;
-      this.endDateStr = `${String(lastDay).padStart(2, "0")}.${curMonth}.${curYear}`;
+      const def = (window.C1PeriodWidget && typeof C1PeriodWidget.getDefaultPeriod === "function")
+        ? C1PeriodWidget.getDefaultPeriod()
+        : null;
+      if (def) {
+        this.startDateStr = def.startDate || "";
+        this.endDateStr = def.endDate || "";
+      } else {
+        const now = new Date();
+        const curYear = now.getFullYear();
+        const curMonth = String(now.getMonth() + 1).padStart(2, "0");
+        const lastDay = new Date(curYear, now.getMonth() + 1, 0).getDate();
+        this.startDateStr = `01.${curMonth}.${curYear}`;
+        this.endDateStr = `${String(lastDay).padStart(2, "0")}.${curMonth}.${curYear}`;
+      }
     }
     this.updatePeriodLabel();
     this.loadActiveFiltersFromStorage();
@@ -494,18 +510,18 @@ const _UniversalJournalTarget = {
 
   getDocMeta: function(docType) {
     const metaMap = {
-      "РеализацияТоваровУслуг": { title: "Реализация товаров и услуг", icon: "🚚" },
-      "ВозвратТоваровОтПокупателя": { title: "Возврат товаров от покупателя", icon: "🔄" },
-      "ПогрузкиМашин": { title: "Погрузка машин", icon: "🚛" },
-      "ПогрузкаМашин": { title: "Погрузка машин", icon: "🚛" },
-      "УстановкаЦенНоменклатуры": { title: "Установка цен номенклатуры", icon: "🏷️" },
-      "ПоступлениеТоваровУслуг": { title: "Поступление товаров и услуг", icon: "📥" },
-      "ЗаказПокупателя": { title: "Заказ покупателя", icon: "🛒" },
-      "ИнвентаризацияТоваровНаСкладе": { title: "Инвентаризация товаров на складе", icon: "📦" },
-      "СписаниеТоваров": { title: "Списание товаров", icon: "📉" },
-      "ОприходованиеТоваров": { title: "Оприходование товаров", icon: "📈" }
+      "РеализацияТоваровУслуг": { title: (window.C1I18n ? window.C1I18n.t("menu.docs.realizasiya", "Реализация товаров и услуг") : "Реализация товаров и услуг"), icon: "🚚" },
+      "ВозвратТоваровОтПокупателя": { title: (window.C1I18n ? window.C1I18n.t("menu.docs.vozvrat", "Возврат товаров от покупателя") : "Возврат товаров от покупателя"), icon: "🔄" },
+      "ПогрузкиМашин": { title: (window.C1I18n ? window.C1I18n.t("menu.docs.pogruzka", "Погрузка машин") : "Погрузка машин"), icon: "🚛" },
+      "ПогрузкаМашин": { title: (window.C1I18n ? window.C1I18n.t("menu.docs.pogruzka", "Погрузка машин") : "Погрузка машин"), icon: "🚛" },
+      "УстановкаЦенНоменклатуры": { title: (window.C1I18n ? window.C1I18n.t("menu.docs.prices", "Установка цен номенклатуры") : "Установка цен номенклатуры"), icon: "🏷️" },
+      "ПоступлениеТоваровУслуг": { title: (window.C1I18n ? window.C1I18n.t("menu.docs.postuplenie", "Поступление товаров и услуг") : "Поступление товаров и услуг"), icon: "📥" },
+      "ЗаказПокупателя": { title: (window.C1I18n ? window.C1I18n.t("menu.docs.orders", "Заказ покупателя") : "Заказ покупателя"), icon: "🛒" },
+      "ИнвентаризацияТоваровНаСкладе": { title: (window.C1I18n ? window.C1I18n.t("menu.docs.inventory", "Инвентаризация товаров на складе") : "Инвентаризация товаров на складе"), icon: "📦" },
+      "СписаниеТоваров": { title: (window.C1I18n ? window.C1I18n.t("menu.docs.spisanie", "Списание товаров") : "Списание товаров"), icon: "📉" },
+      "ОприходованиеТоваров": { title: (window.C1I18n ? window.C1I18n.t("menu.docs.oprixodovanie", "Оприходование товаров") : "Оприходование товаров"), icon: "📈" }
     };
-    return metaMap[docType] || { title: docType || "Журнал документов", icon: "🗂️" };
+    return metaMap[docType] || { title: docType || (window.C1I18n ? window.C1I18n.t("uj.doc_journal", "Журнал документов") : "Журнал документов"), icon: "🗂️" };
   },
 
   open: function(defaultDocType) {
@@ -608,16 +624,31 @@ const _UniversalJournalTarget = {
       sel.value = targetType;
     }
 
-    const remembered = (window.PeriodPicker && typeof PeriodPicker.getRememberedPeriod === "function") 
-      ? PeriodPicker.getRememberedPeriod() 
-      : null;
+    const docKey = "uj_" + targetType;
+    const remembered = (window.C1PeriodWidget && typeof C1PeriodWidget.getStoredPeriod === "function")
+      ? C1PeriodWidget.getStoredPeriod(docKey)
+      : (window.PeriodPicker && typeof PeriodPicker.getRememberedPeriod === "function" ? PeriodPicker.getRememberedPeriod(docKey) : null);
 
     if (remembered && (remembered.startDate || remembered.endDate)) {
       this.startDateStr = remembered.startDate || "";
       this.endDateStr = remembered.endDate || "";
       this.updatePeriodLabel();
-    } else if (!this.startDateStr) {
-      this.init();
+    } else {
+      const def = (window.C1PeriodWidget && typeof C1PeriodWidget.getDefaultPeriod === "function")
+        ? C1PeriodWidget.getDefaultPeriod()
+        : null;
+      if (def) {
+        this.startDateStr = def.startDate || "";
+        this.endDateStr = def.endDate || "";
+      } else {
+        const now = new Date();
+        const curYear = now.getFullYear();
+        const curMonth = String(now.getMonth() + 1).padStart(2, "0");
+        const lastDay = new Date(curYear, now.getMonth() + 1, 0).getDate();
+        this.startDateStr = `01.${curMonth}.${curYear}`;
+        this.endDateStr = `${String(lastDay).padStart(2, "0")}.${curMonth}.${curYear}`;
+      }
+      this.updatePeriodLabel();
     }
 
     const win = document.getElementById("universalJournalWindow");
@@ -681,23 +712,34 @@ const _UniversalJournalTarget = {
     this.openDirect(sel.value);
   },
 
-  openPeriodPicker: function() {
-    const inst = this.getActiveInstance();
-    PeriodPicker.open({
-      startDate: inst.startDateStr,
-      endDate: inst.endDateStr,
-      onSelect: (startStr, endStr) => {
-        inst.startDateStr = startStr;
-        inst.endDateStr = endStr;
-        inst.updatePeriodLabel();
-        inst.loadDocuments({ force: true });
-      }
-    });
+  openPeriodPicker: function(e) {
+    const inst = this.getActiveInstance(e || (typeof window !== "undefined" ? window.event : null));
+    if (!inst) return;
+    this.lastActiveInstanceId = inst.windowId;
+    const docKey = "uj_" + (inst.activeDocType || "РеализацияТоваровУслуг");
+    if (typeof PeriodPicker !== "undefined" && typeof PeriodPicker.open === "function") {
+      PeriodPicker.open({
+        startDate: inst.startDateStr,
+        endDate: inst.endDateStr,
+        contextKey: docKey,
+        onSelect: (startStr, endStr) => {
+          inst.startDateStr = startStr;
+          inst.endDateStr = endStr;
+          if (window.C1PeriodWidget && typeof C1PeriodWidget.setStoredPeriod === "function") {
+            C1PeriodWidget.setStoredPeriod(docKey, startStr, endStr);
+          }
+          inst.updatePeriodLabel();
+          inst.loadDocuments({ force: true });
+        }
+      });
+    }
   },
 
   updatePeriodLabel: function() {
     const lbl = this.getEl("ujPeriodLabel");
     if (!lbl) return;
+    // This is a live period value, not the static "all period" translation.
+    lbl.removeAttribute("data-i18n");
 
     if (window.C1PeriodWidget) {
       lbl.textContent = C1PeriodWidget.formatLabel(this.startDateStr, this.endDateStr);
@@ -734,67 +776,16 @@ const _UniversalJournalTarget = {
     }
   },
 
-  formatDateForBackend: function(dStr, isEnd = false) {
-    if (!dStr) return "";
-    const s = String(dStr).trim();
-    const mDot = s.match(/^(\d{1,2})\.(\d{1,2})\.(\d{4})(?:\s+(\d{1,2}):(\d{1,2}):(\d{1,2}))?/);
-    if (mDot) {
-      const yyyy = mDot[3];
-      const mm = mDot[2].padStart(2, "0");
-      const dd = mDot[1].padStart(2, "0");
-      const timePart = mDot[4] !== undefined
-        ? `${mDot[4].padStart(2, "0")}:${mDot[5].padStart(2, "0")}:${mDot[6].padStart(2, "0")}`
-        : (isEnd ? "23:59:59" : "00:00:00");
-      return `${yyyy}-${mm}-${dd} ${timePart}`;
-    }
-    const mIso = s.match(/^(\d{4})[-/.](\d{1,2})[-/.](\d{1,2})(?:[T\s](\d{1,2}):(\d{1,2}):(\d{1,2}))?/);
-    if (mIso) {
-      const yyyy = mIso[1];
-      const mm = mIso[2].padStart(2, "0");
-      const dd = mIso[3].padStart(2, "0");
-      const timePart = mIso[4] !== undefined
-        ? `${mIso[4].padStart(2, "0")}:${mIso[5].padStart(2, "0")}:${mIso[6].padStart(2, "0")}`
-        : (isEnd ? "23:59:59" : "00:00:00");
-      return `${yyyy}-${mm}-${dd} ${timePart}`;
-    }
-    return s;
+  formatDateForBackend: function(value, isEnd = false) {
+    return C1Dates.toBackend(value, isEnd);
   },
 
-  formatDateTime: function(val) {
-    if (!val) return "";
-    const s = String(val).trim();
-    const mIso = s.match(/^(\d{4})[-/.](\d{1,2})[-/.](\d{1,2})(?:[T\s](\d{1,2}):(\d{1,2}):(\d{1,2}))?/);
-    if (mIso) {
-      const [_, y, m, d, hh, mm, ss] = mIso;
-      return `${String(d).padStart(2, "0")}.${String(m).padStart(2, "0")}.${y} ${hh || "00"}:${mm || "00"}:${ss || "00"}`;
-    }
-    const mDot = s.match(/^(\d{1,2})\.(\d{1,2})\.(\d{4})(?:\s+(\d{1,2}):(\d{1,2}):(\d{1,2}))?/);
-    if (mDot) {
-      const [_, d, m, y, hh, mm, ss] = mDot;
-      return `${String(d).padStart(2, "0")}.${String(m).padStart(2, "0")}.${y} ${hh || "00"}:${mm || "00"}:${ss || "00"}`;
-    }
-    return s;
+  formatDateTime: function(value) {
+    return C1Dates.display(value);
   },
 
-  parseFullDateTimeMs: function(dStr, isEnd = false) {
-    if (!dStr) return null;
-    const s = String(dStr).trim();
-    const mDot = s.match(/^(\d{1,2})\.(\d{1,2})\.(\d{4})(?:\s+(\d{1,2}):(\d{1,2})(?::(\d{1,2}))?)?/);
-    if (mDot) {
-      const hh = mDot[4] !== undefined ? parseInt(mDot[4], 10) : (isEnd ? 23 : 0);
-      const mm = mDot[5] !== undefined ? parseInt(mDot[5], 10) : (isEnd ? 59 : 0);
-      const ss = mDot[6] !== undefined ? parseInt(mDot[6], 10) : (isEnd ? 59 : 0);
-      return new Date(parseInt(mDot[3], 10), parseInt(mDot[2], 10) - 1, parseInt(mDot[1], 10), hh, mm, ss).getTime();
-    }
-    const mIso = s.match(/^(\d{4})[-/.](\d{1,2})[-/.](\d{1,2})(?:[T\s](\d{1,2}):(\d{1,2})(?::(\d{1,2}))?)?/);
-    if (mIso) {
-      const hh = mIso[4] !== undefined ? parseInt(mIso[4], 10) : (isEnd ? 23 : 0);
-      const mm = mIso[5] !== undefined ? parseInt(mIso[5], 10) : (isEnd ? 59 : 0);
-      const ss = mIso[6] !== undefined ? parseInt(mIso[6], 10) : (isEnd ? 59 : 0);
-      return new Date(parseInt(mIso[1], 10), parseInt(mIso[2], 10) - 1, parseInt(mIso[3], 10), hh, mm, ss).getTime();
-    }
-    const parsed = Date.parse(s);
-    return isNaN(parsed) ? null : parsed;
+  parseFullDateTimeMs: function(value, isEnd = false) {
+    return C1Dates.milliseconds(value, isEnd);
   },
 
   initialChunkLimit: 200,
@@ -1019,8 +1010,11 @@ const _UniversalJournalTarget = {
     this.setLoadingState(isShowLoading, loadingMsg);
 
     const hasNomFilter = activeCrits.some(c => c && c.fieldKey === "nomenclature" && c.enabled !== false);
+    const serverSafeFilters = activeCrits.map(c => {
+      if (c && c.fieldKey === "wms_status") return { ...c, fieldKey: "vms_status" };
+      return c;
+    });
     const creds = window.SessionManager ? SessionManager.getCredentials() : {};
-    const serverSafeFilters = activeCrits.filter(c => c && c.fieldKey !== "vms_status");
     const payload = {
       ...creds,
       doc_type: this.activeDocType,
@@ -1111,13 +1105,13 @@ const _UniversalJournalTarget = {
       let rawItems = data.items || [];
       const startMs = this.parseFullDateTimeMs(this.startDateStr, false);
       const endMs = this.parseFullDateTimeMs(this.endDateStr, true);
-      // Edge pages have already been restricted by the 1C query. Do not cut
-      // the bounded page again using the browser's interpretation of dates.
+      // Keep a client guard as well: server-side COM date conversion must not
+      // allow rows outside the user's requested calendar interval.
       const serverPeriod = data.debug_info?.parameters || {};
       const periodAppliedOnServer = this._edgeNavigation &&
         (!payload.date_from || serverPeriod.DateFrom === payload.date_from) &&
         (!payload.date_to || serverPeriod.DateTo === payload.date_to);
-      if (!periodAppliedOnServer && (startMs !== null || endMs !== null)) {
+      if (startMs !== null || endMs !== null) {
         rawItems = rawItems.filter(it => {
           const itMs = this.parseFullDateTimeMs(it.date);
           if (itMs === null) return true;
@@ -1144,14 +1138,16 @@ const _UniversalJournalTarget = {
           filteredCount: this.filteredItems.length, serverDebug: data.debug_info || null,
           periodAppliedOnServer: Boolean(periodAppliedOnServer),
           dateSamples: (data.items || []).slice(0, 3).map(item => item.date),
-          navigationEdge: this._edgeNavigation, error: null
+          navigationEdge: this._edgeNavigation, hasMore: this.hasMoreDocs,
+          sortField: payload.sort_field, sortAscending: payload.sort_ascending, sortRules: payload.sort_rules || [],
+          lastDate: data.items?.at(-1)?.date, error: null
         };
         console.log('[JOURNAL EDGE RESULT]', JSON.stringify(this.lastDiagnostics));
         const wrapper = this.getEl("ujTableWrapper");
         const atEnd = this._edgeNavigation === "end";
         if (wrapper) { wrapper.scrollTop = atEnd ? wrapper.scrollHeight : 0; this.updateVirtualRows(); }
         if (this.filteredItems.length) this.selectRow(atEnd ? this.filteredItems.length - 1 : 0);
-        this.updateStatus(`${atEnd ? "Son" : "İlk"} səhifə: ${this.items.length} sənəd. Qonşu səhifələr sürüşdürmə zamanı yüklənir.`);
+        this.updateStatus(`${atEnd ? "Son" : "İlk"} səhifə: ${this.items.length} sənəd. ${atEnd ? "Əvvəlki sənədlər üçün yuxarı sürüşdürün." : "Sonrakı sənədlər üçün aşağı sürüşdürün."}`);
         this.updateCountBadge(`Yüklənib: ${this.items.length}`);
         this.updateBottomLoadingState(false);
         return;
@@ -1320,11 +1316,22 @@ const _UniversalJournalTarget = {
         const scroll = wrapper?.scrollTop || 0;
         this.items = edge === "end" ? fresh.concat(this.items) : this.items.concat(fresh);
         this.hasMoreDocs = Boolean(data.has_more) && fresh.length > 0;
+        console.log('[JOURNAL EDGE PAGE RESULT]', JSON.stringify({edge, offset:payload.offset,
+          received:(data.items || []).length, added:fresh.length, loaded:this.items.length,
+          hasMore:this.hasMoreDocs, serverHasMore:Boolean(data.has_more),
+          firstDate:data.items?.[0]?.date, lastDate:data.items?.at(-1)?.date}));
+        if (data.has_more && !fresh.length) {
+          this.updateStatus('Növbəti səhifə əvvəlki sənədləri təkrar qaytardı. Siyahını yeniləyin.');
+        }
+
         this.applyFiltersAndSearch(true);
         if (wrapper && edge === "end") { wrapper.scrollTop = scroll + fresh.length * this.rowHeight; this.updateVirtualRows(); }
         this.updateCountBadge(`Yüklənib: ${this.items.length}`);
       }).catch(error=>{
-        if (session === this.currentLoadSessionId && error.name !== "AbortError") this.updateStatus(error.message);
+        if (session === this.currentLoadSessionId && error.name !== "AbortError") {
+          this.updateStatus(error.message);
+          console.error('[JOURNAL EDGE PAGE ERROR]', JSON.stringify({edge,offset:payload.offset,error:error.message}));
+        }
       }).finally(()=>{
         if (session === this.currentLoadSessionId) { this.isLoadingBackground=false; this.updateBottomLoadingState(false); }
       });
@@ -1588,6 +1595,46 @@ const _UniversalJournalTarget = {
     localStorage.setItem(this.getStorageKey(), JSON.stringify(toSave));
   },
 
+  ensureColumnExists: function(colKey, colLabel) {
+    if (!colKey || colKey === "status") return;
+    if (!Array.isArray(this.columns)) this.columns = [];
+
+    const existing = this.columns.find(c => c.key === colKey);
+    if (existing) {
+      if (existing.visible === false) {
+        existing.visible = true;
+        this.saveColumnsConfig();
+        this.renderTableHead();
+        this.renderTable();
+      }
+      return;
+    }
+
+    let align = "left";
+    let width = 140;
+    if (colKey.includes("amount") || colKey.includes("sum") || colKey.includes("count")) {
+      align = "right";
+      width = 110;
+    } else if (colKey.includes("date")) {
+      width = 145;
+    } else if (colKey.includes("number") || colKey.includes("kod") || colKey.includes("code")) {
+      width = 115;
+    }
+
+    this.columns.push({
+      key: colKey,
+      label: colLabel || colKey,
+      width: width,
+      align: align,
+      visible: true,
+      autoWidth: false
+    });
+
+    this.saveColumnsConfig();
+    this.renderTableHead();
+    this.renderTable();
+  },
+
   getVisibleColumns: function() {
     return (this.columns || []).filter(c => c.visible !== false);
   },
@@ -1620,6 +1667,15 @@ const _UniversalJournalTarget = {
     const wrapper = this.getEl("ujTableWrapper");
     if (!wrapper || wrapper._hasVirtualScroll) return;
     wrapper._hasVirtualScroll = true;
+    // A wheel at the boundary does not emit scroll (notably after Home/End).
+    // Still request the neighbouring page when the user tries to continue.
+    wrapper.addEventListener("wheel", event => {
+      if (!this._edgeNavigation || !this.hasMoreDocs || !event.deltaY) return;
+      const atBoundary = this._edgeNavigation === "end"
+        ? event.deltaY < 0 && wrapper.scrollTop <= 600
+        : event.deltaY > 0 && wrapper.scrollHeight - wrapper.scrollTop - wrapper.clientHeight <= 600;
+      if (atBoundary) this.fetchEdgeMore();
+    }, {passive:true});
     let draggingScrollbar = false;
     let scrollbarReleasedAt = 0;
     let lastScrollTop = wrapper.scrollTop;
@@ -1785,11 +1841,13 @@ const _UniversalJournalTarget = {
       const col = visibleCols[c];
       const wStyle = col.autoWidth ? "" : `width: ${col.width}px; min-width: ${col.width}px; max-width: ${col.width}px;`;
       const isSort = this.currentSortCol === col.key;
-      const arrow = isSort ? (this.currentSortAsc ? " ▴" : " ▾") : "";
+      const arrow = isSort ? `<svg class="c1-sort-steps" width="15" height="13" viewBox="0 0 15 13" style="margin-left:5px;vertical-align:middle" role="img" aria-label="${this.currentSortAsc ? 'Artan sıra' : 'Azalan sıra'}"><title>${this.currentSortAsc ? 'Artan sıra' : 'Azalan sıra'}</title><path d="${this.currentSortAsc ? 'M1 2h4M1 6.5h8M1 11h12' : 'M1 2h12M1 6.5h8M1 11h4'}" fill="none" stroke="currentColor" stroke-width="2"/></svg>` : "";
       const cursor = col.key === "status" ? "" : "cursor: pointer;";
       const isSearchActive = (this.activeSearchColKey === col.key);
       const searchClass = isSearchActive ? "uj-th-search-active" : "";
       const searchBadge = isSearchActive ? `<span class="uj-th-search-icon" title="Поиск в этой колонке (Отмена: Ctrl+Q)" style="margin-left: 4px; font-size: 11px; vertical-align: middle; line-height: 1;">🔍</span>` : "";
+
+      const displayLabel = window.C1I18n ? window.C1I18n.translateColumn(col.key, col.label) : col.label;
 
       html += `
         <th class="uj-th ${searchClass}" data-col-key="${col.key}" draggable="true"
@@ -1801,7 +1859,7 @@ const _UniversalJournalTarget = {
             ondragleave="UniversalJournal.onColDragLeave(event, this)"
             ondrop="UniversalJournal.onColDrop(event, '${col.key}')">
           <span style="display: inline-block; overflow: hidden; text-overflow: ellipsis; max-width: calc(100% - 10px); vertical-align: middle;">
-            ${this.escapeHtml(col.label)}${arrow}${searchBadge}
+            ${this.escapeHtml(displayLabel)}${arrow}${searchBadge}
           </span>
           <div class="uj-col-resizer" title="Потяните для изменения ширины"
                style="position: absolute; right: 0; top: 0; bottom: 0; width: 6px; cursor: col-resize; z-index: 5;"
@@ -1988,7 +2046,7 @@ const _UniversalJournalTarget = {
             📄
           </td>
           <td style="padding: 2px 6px; border: 1px solid #d4d0c8; font-size: 11px; font-weight: ${isSelected ? 'bold' : 'normal'};">
-            ${this.escapeHtml(col.label || col.key)}
+            ${this.escapeHtml(window.C1I18n ? window.C1I18n.translateColumn(col.key, col.label) : (col.label || col.key))}
           </td>
         </tr>
       `;
@@ -2142,6 +2200,10 @@ const _UniversalJournalTarget = {
 
       </div>
     `;
+
+    if (window.C1I18n) {
+      window.C1I18n.applyTranslations(modal);
+    }
   },
 
   selectFormSettingsRow: function(idx) {
@@ -2255,21 +2317,24 @@ const _UniversalJournalTarget = {
       { key: "number", label: "Номер", type: "text" },
       { key: "kontragent", label: "Контрагент", type: "text" },
       { key: "golovnoy_kontragent", label: "Головной контрагент", type: "text" },
+      { key: "kontragent_code", label: "Код контрагента", type: "text" },
+      { key: "portfolio", label: "Портфель", type: "text" },
+      { key: "contract", label: "Договор контрагента", type: "text" },
+      { key: "contract_price_type", label: "Тип цен", type: "text" },
+      { key: "deal", label: "Сделка / Заказ", type: "text" },
       { key: "agent", label: "Агент", type: "text" }
     ];
 
-    if (this.activeDocType === "ЗаказПокупателя") {
-      fields.push({ key: "portfolio", label: "Портфель", type: "text" });
+    const isVozvrat = (this.activeDocType === "ВозвратТоваровОтПокупателя");
+    if (isRealization || isVozvrat) {
+      fields.push(
+        { key: "vms_status", label: "Статус ВМС", type: "select", options: ["Выгружен", "Подтвержден WMS", "Есть расхождение"] }
+      );
     }
+
     if (isRealization) {
       fields.push(
-        { key: "kontragent_code", label: "Код контрагента", type: "text" },
-        { key: "portfolio", label: "Портфель", type: "text" },
-        { key: "deal", label: "Номер заказа", type: "text" },
         { key: "obrabotka_number", label: "Номер обработки", type: "text" },
-        { key: "vms_status", label: "Статус ВМС", type: "select", options: ["Выгружен", "Подтвержден WMS", "Новый", "В обработке", "Отменен", "Готов к отгрузке"] },
-        { key: "contract", label: "Договор контрагента", type: "text" },
-        { key: "contract_price_type", label: "Тип цен", type: "text" },
         { key: "pogruzka_marshrut", label: "Пагрузка маршрут", type: "text" },
         { key: "pogruzka_duplicate", label: "Погрузка машины: есть дубликаты (включая удалённые)", type: "boolean" },
         { key: "pogruzka_active_duplicate", label: "Погрузка машины: активные дубликаты (красные)", type: "boolean" },
@@ -2335,7 +2400,7 @@ const _UniversalJournalTarget = {
     });
 
     if (fieldKey === "vms_status") {
-      ["Выгружен", "Подтвержден WMS", "Новый", "В обработке", "Готов к отгрузке", "Отменен"].forEach(s => set.add(s));
+      ["Выгружен", "Подтвержден WMS", "Есть расхождение"].forEach(s => set.add(s));
     }
 
     return Array.from(set).sort((a, b) => a.localeCompare(b, "ru"));
@@ -2379,6 +2444,42 @@ const _UniversalJournalTarget = {
 
   selectAvailableField: function(key) {
     C1FilterComponent.selectAvailableField(key);
+  },
+
+  openAddAvailableFieldDialog: function() {
+    return C1FilterComponent.openAddAvailableFieldDialog();
+  },
+
+  closeAddAvailableFieldDialog: function() {
+    return C1FilterComponent.closeAddAvailableFieldDialog();
+  },
+
+  removeSelectedAvailableField: function() {
+    return C1FilterComponent.removeSelectedAvailableField();
+  },
+
+  filterAddAvailableFieldList: function(q) {
+    return C1FilterComponent.filterAddAvailableFieldList(q);
+  },
+
+  confirmAddAvailableField: function(k) {
+    return C1FilterComponent.confirmAddAvailableField(k);
+  },
+
+  toggleCustomFieldInput: function() {
+    return C1FilterComponent.toggleCustomFieldInput();
+  },
+
+  addCustomFieldSubmit: function() {
+    return C1FilterComponent.addCustomFieldSubmit();
+  },
+
+  resetAvailableFieldsToDefault: function() {
+    return C1FilterComponent.resetAvailableFieldsToDefault();
+  },
+
+  onAddAvailableFieldKeydown: function(e) {
+    return C1FilterComponent.onAddAvailableFieldKeydown(e);
   },
 
   addFilterCriterion: function(fieldKey) {
@@ -3353,6 +3454,53 @@ const _UniversalJournalTarget = {
   },
 
   openFindModal: function(initialText) {
+    if (window.C1FindModal) {
+      const avail = (typeof this.getAvailableFields === "function") ? this.getAvailableFields() : [];
+      const currentField = this.selectedColKey === "status" ? (this.selectedRow?.deleted ? "deleted" : "posted") : (this.selectedColKey || (avail[0] ? avail[0].key : "number"));
+      const existing = (this.activeFilters || []).find(c => c.fieldKey === currentField);
+      const cellValue = this.selectedRow?.[currentField];
+      const textVal = initialText !== undefined ? initialText : (cellValue !== undefined && cellValue !== null ? String(cellValue) : (existing?.value || ""));
+      const mode = existing ? ({ "Равно": "exact", "Начинается с": "starts", "Содержит": "contains" }[existing.comparison] || "contains") : "contains";
+
+      C1FindModal.open({
+        title: window.C1I18n ? C1I18n.t("find.title") : "Отбор по колонке (Ctrl+F)",
+        columns: avail.map(f => ({ key: f.key, label: f.label, type: f.type })),
+        currentColumn: currentField,
+        currentValue: textVal,
+        currentMatch: mode,
+        hasActiveFilter: Boolean(existing),
+        getDistinctValues: (colKey) => (typeof this.getDistinctFieldValues === "function" ? this.getDistinctFieldValues(colKey) : []),
+        onApply: (res) => {
+          const def = avail.find(f => f.key === res.fieldKey);
+          const op = (def?.type && def.type !== "text") ? "Равно" : res.comparison;
+          const criterion = {
+            fieldKey: res.fieldKey,
+            fieldLabel: def?.label || res.fieldLabel || res.fieldKey,
+            comparison: op,
+            operator: op,
+            value: res.value,
+            enabled: true
+          };
+          if (res.matchMode === "exact" && res.catalogItem?.value === res.value && ["kontragent", "golovnoy_kontragent"].includes(res.fieldKey)) {
+            criterion.referenceCode = res.catalogItem.code;
+            criterion.referenceName = res.value;
+          }
+          this.selectedColKey = res.fieldKey;
+          this.commitColumnFilter(criterion);
+        },
+        onClear: (colKey) => {
+          if (Array.isArray(this.activeFilters)) {
+            this.activeFilters = this.activeFilters.filter(c => c.fieldKey !== colKey);
+            this.saveActiveFiltersToStorage();
+            this.updateActiveFilterBadgeUI();
+            this.updateFilterButtonsState();
+            this.executeSearchOrFilter();
+          }
+        }
+      });
+      return;
+    }
+
     const modal = document.getElementById("ujFindModal");
     if (!modal) {
       console.warn("[UniversalJournal] #ujFindModal elementi DOM-da tapılmadı!");
@@ -3391,6 +3539,9 @@ const _UniversalJournalTarget = {
   },
 
   closeFindModal: function() {
+    if (window.C1FindModal) {
+      C1FindModal.close();
+    }
     this.hideFindSuggestions();
     const modal = document.getElementById("ujFindModal");
     if (modal) modal.style.display = "none";
@@ -4302,6 +4453,39 @@ document.addEventListener("DOMContentLoaded", function() {
     if (typeof UniversalJournal.renderFilterAvailableFields === "function") {
       UniversalJournal.renderFilterAvailableFields();
     }
+  }
+});
+
+// Dinamik dil dəyişdikdə cədvəl başlıqlarını və açıq jurnalları dərhal yenilə
+window.addEventListener('c1-language-changed', function() {
+  try {
+    if (window._UniversalJournalTarget && window._UniversalJournalTarget.instances) {
+      Object.values(window._UniversalJournalTarget.instances).forEach(inst => {
+        if (inst && typeof inst.updatePeriodLabel === "function") inst.updatePeriodLabel();
+        if (inst && typeof inst.renderTableHead === "function") {
+          inst.renderTableHead();
+        }
+        if (inst && typeof inst.renderStatusCount === "function") {
+          inst.renderStatusCount();
+        }
+        if (inst && inst.windowElement && window.C1I18n) {
+          window.C1I18n.applyTranslations(inst.windowElement);
+        }
+      });
+    }
+    if (window.UniversalJournal && typeof UniversalJournal.renderTableHead === "function") {
+      UniversalJournal.renderTableHead();
+    }
+    const filterWin = document.getElementById("ujFilterWindowModal");
+    if (filterWin && window.C1I18n) {
+      window.C1I18n.applyTranslations(filterWin);
+    }
+    const formSetModal = document.getElementById("ujFormSettingsModal");
+    if (formSetModal && formSetModal.style.display !== "none" && window.C1I18n) {
+      window.C1I18n.applyTranslations(formSetModal);
+    }
+  } catch (err) {
+    console.error("[UniversalJournal] Dil dəyişərkən xəta:", err);
   }
 });
 

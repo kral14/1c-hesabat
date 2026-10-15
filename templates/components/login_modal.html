@@ -10,7 +10,7 @@
     <div class="settings-header">
       <div class="settings-header-title">
         <div class="settings-header-icon" style="background: #c00000;">1C</div>
-        <span>1C:Enterprise - Giriş və Baza Seçimi</span>
+        <span data-i18n="login.title">1C:Enterprise - Giriş və Baza Seçimi</span>
       </div>
       <button class="window-btn-sys window-btn-close" onclick="closeLoginModal()">✕</button>
     </div>
@@ -21,7 +21,7 @@
       <!-- Base Selection -->
       <div style="margin-bottom: 12px;">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
-          <label style="font-weight: bold; color: #222; margin: 0;">
+          <label style="font-weight: bold; color: #222; margin: 0;" data-i18n="login.base_label">
             1C İnformasiya Bazası:
           </label>
           <span id="modalCustomBadge" style="font-size: 10px; color: #666;"></span>
@@ -31,7 +31,7 @@
             <option value="">Bazalar axtarılır...</option>
           </select>
           <button type="button" class="btn-1c" id="modalBtnDeleteBase" onclick="deleteCurrentBase()" title="Seçilmiş bazanı siyahıdan sil" style="height: 26px; padding: 0 10px; color: #b30000; font-weight: bold; white-space: nowrap; display: flex; align-items: center; gap: 4px;">
-            <span>🗑️ Sil</span>
+            <span data-i18n="login.delete_base">🗑️ Sil</span>
           </button>
         </div>
       </div>
@@ -39,35 +39,35 @@
       <!-- Advanced Server & Ref (Manual Entry & Custom Bases) -->
       <div style="margin-bottom: 12px; background: #f4f2e8; padding: 10px; border: 1px solid #c0bfae; border-radius: 3px;">
         <div style="font-size: 11px; font-weight: bold; color: #333; margin-bottom: 6px; display: flex; align-items: center; justify-content: space-between;">
-          <span>⚙️ Baza Parametrləri (Manual Daxiletmə):</span>
+          <span data-i18n="login.custom_title">⚙️ Baza Parametrləri (Manual Daxiletmə):</span>
         </div>
         <div style="margin-bottom: 6px;">
-          <label style="font-size: 10px; color: #555; display: block; margin-bottom: 2px;">Baza Adı / Təsvir (Seçim siyahısında görünən ad):</label>
+          <label style="font-size: 10px; color: #555; display: block; margin-bottom: 2px;" data-i18n="login.desc_label">Baza Adı / Təsvir (Seçim siyahısında görünən ad):</label>
           <input type="text" id="modalCustomTitle" class="input-1c" style="width: 100%; height: 24px;" placeholder="Məs: Aztrade Əsas Test Bazası">
         </div>
         <div style="display: flex; gap: 8px; margin-bottom: 8px;">
           <div style="flex: 1;">
-            <label style="font-size: 10px; color: #555; display: block; margin-bottom: 2px;">Server (Srvr):</label>
+            <label style="font-size: 10px; color: #555; display: block; margin-bottom: 2px;" data-i18n="login.server_label">Server (Srvr):</label>
             <input type="text" id="modalCustomServer" class="input-1c" style="width: 100%; height: 24px;" value="Test1C" placeholder="Server adı və ya IP">
           </div>
           <div style="flex: 1;">
-            <label style="font-size: 10px; color: #555; display: block; margin-bottom: 2px;">Baza (Ref):</label>
+            <label style="font-size: 10px; color: #555; display: block; margin-bottom: 2px;" data-i18n="login.ref_label">Baza (Ref):</label>
             <input type="text" id="modalCustomRef" class="input-1c" style="width: 100%; height: 24px;" value="Aztrade_test3" placeholder="Baza adı">
           </div>
         </div>
         <div style="display: flex; gap: 6px;">
           <button type="button" class="btn-1c" onclick="addCustomBase()" style="flex: 1; height: 26px; font-weight: bold; background: #eaf3e5; border-color: #6a9b56; color: #1b5e20;">
-            💾 Bazanı Əlavə Et / Yadda Saxla
+            <span data-i18n="login.add_base">💾 Bazanı Əlavə Et / Yadda Saxla</span>
           </button>
           <button type="button" class="btn-1c" onclick="reloadModalUsersForCustomDb()" style="height: 26px; padding: 0 12px;">
-            🔄 İstifadəçiləri Yenilə
+            <span data-i18n="login.reload_users">🔄 İstifadəçiləri Yenilə</span>
           </button>
         </div>
       </div>
 
       <!-- User Selection -->
       <div style="margin-bottom: 12px;">
-        <label style="display: block; font-weight: bold; margin-bottom: 4px; color: #222;">
+        <label style="display: block; font-weight: bold; margin-bottom: 4px; color: #222;" data-i18n="login.user_label">
           İstifadəçi:
         </label>
         <select id="modalUserSelect" class="input-1c" style="width: 100%; height: 26px;">
@@ -77,7 +77,7 @@
 
       <!-- Password -->
       <div style="margin-bottom: 16px;">
-        <label style="display: block; font-weight: bold; margin-bottom: 4px; color: #222;">
+        <label style="display: block; font-weight: bold; margin-bottom: 4px; color: #222;" data-i18n="login.password_label">
           Şifrə:
         </label>
         <input type="password" id="modalPasswordInput" class="input-1c" style="width: 100%; height: 26px;" value="15963" autocomplete="new-password" data-lpignore="true" onkeydown="if(event.key==='Enter') submitLoginModal()">
@@ -86,10 +86,10 @@
       <!-- Action Buttons -->
       <div style="display: flex; justify-content: flex-end; gap: 8px;">
         <button class="btn-1c primary" onclick="submitLoginModal()" style="padding: 4px 16px; height: 26px;">
-          <span>Giriş et</span>
+          <span data-i18n="login.submit">Giriş et</span>
         </button>
         <button class="btn-1c" onclick="closeLoginModal()" style="padding: 4px 16px; height: 26px;">
-          <span>Bağla</span>
+          <span data-i18n="common.close">Bağla</span>
         </button>
       </div>
 

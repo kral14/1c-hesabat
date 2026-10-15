@@ -759,3 +759,13 @@ function togglePresetWindowMaximize(el) {
     btn.title = isMax ? "Bərpa et" : "Böyüt";
   });
 }
+
+window.addEventListener("c1-language-changed", () => {
+  if (window.C1I18n) {
+    const saveWin = document.getElementById("settingsSaveModalWindow");
+    if (saveWin) C1I18n.applyTranslations(saveWin);
+    const restoreWin = document.getElementById("settingsRestoreModalWindow");
+    if (restoreWin) C1I18n.applyTranslations(restoreWin);
+  }
+});
+

@@ -213,22 +213,28 @@
       const currStart = sInput?.value || "01.08.2026";
       const currEnd = eInput?.value || "30.09.2026";
 
+      const ctxKey = this.key || "universal_report";
       const handleSelect = (start, end) => {
         if (sInput) sInput.value = start;
         if (eInput) eInput.value = end;
         this.syncDatesToTop();
+        if (window.C1PeriodWidget && typeof C1PeriodWidget.setStoredPeriod === "function") {
+          C1PeriodWidget.setStoredPeriod(ctxKey, start, end);
+        }
       };
 
       if (window.C1PeriodWidget) {
         C1PeriodWidget.open({
           startDate: currStart,
           endDate: currEnd,
+          contextKey: ctxKey,
           onSelect: handleSelect
         });
       } else if (window.PeriodPicker && typeof PeriodPicker.open === "function") {
         PeriodPicker.open({
           startDate: currStart,
           endDate: currEnd,
+          contextKey: ctxKey,
           onSelect: handleSelect
         });
       }
