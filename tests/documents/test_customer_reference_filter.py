@@ -12,10 +12,13 @@ class CustomerReferenceTests(unittest.TestCase):
             'value':'ROYAL-Sagan - С000024890 - С000024890','referenceCode':'С000024890'}],query,where,{}, {})
         self.assertEqual(where,['Т.Контрагент.Код = &p_ref_0'])
         self.assertEqual(query.parameters['p_ref_0'],'С000024890')
-    def test_free_text_keeps_name_search(self):
+    def test_typed_reference_name_uses_exact_match(self):
         query=Query();where=[]
-        build_filter_conditions([{'fieldKey':'kontragent','operator':'Содержит','value':'ROYAL-Sagan'}],query,where,{}, {})
-        self.assertIn('Т.Контрагент.Наименование ПОДОБНО',where[0])
-        self.assertEqual(query.parameters['p_crit_0'],'%ROYAL-Sagan%')
+        build_filter_conditions([{'fieldKey':'kontragent','operator':'Равно','value':'ROYAL-Sagan'}],query,where,{}, {})
+        self.assertIn('ЕСТЬNULL(Т.Контрагент.Наименование, "") =',where[0])
+        self.assertEqual(query.parameters['p_crit_0_0'],'ROYAL-Sagan')
+    def test_contains_is_not_a_reference_comparison(self):
+        with self.assertRaisesRegex(ValueError, 'müqayisə'):
+            build_filter_conditions([{'fieldKey':'kontragent','operator':'Содержит','value':'ROYAL-Sagan'}],Query(),[],{}, {})
 
 if __name__=='__main__': unittest.main()

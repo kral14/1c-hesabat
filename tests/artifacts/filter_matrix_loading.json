@@ -1,0 +1,706 @@
+{
+  "database": "Test1C / Aztrade_test3",
+  "document": "loading",
+  "mode": "query_execution",
+  "cases": [
+    {
+      "field": "date",
+      "operator": "Больше",
+      "status": "pass",
+      "rows": 0,
+      "row_present": false,
+      "seconds": 0.078
+    },
+    {
+      "field": "date",
+      "operator": "Больше или равно",
+      "status": "pass",
+      "rows": 0,
+      "row_present": true,
+      "seconds": 0.047
+    },
+    {
+      "field": "date",
+      "operator": "Заполнено",
+      "status": "pass",
+      "rows": 0,
+      "row_present": true,
+      "seconds": 0.078
+    },
+    {
+      "field": "date",
+      "operator": "Интервал (>, <)",
+      "status": "pass",
+      "rows": 0,
+      "row_present": false,
+      "seconds": 0.031
+    },
+    {
+      "field": "date",
+      "operator": "Интервал (>, <=)",
+      "status": "pass",
+      "rows": 0,
+      "row_present": false,
+      "seconds": 0.047
+    },
+    {
+      "field": "date",
+      "operator": "Интервал (>=, <)",
+      "status": "pass",
+      "rows": 0,
+      "row_present": false,
+      "seconds": 0.031
+    },
+    {
+      "field": "date",
+      "operator": "Интервал (>=, <=)",
+      "status": "pass",
+      "rows": 0,
+      "row_present": true,
+      "seconds": 0.047
+    },
+    {
+      "field": "date",
+      "operator": "Меньше",
+      "status": "pass",
+      "rows": 0,
+      "row_present": true,
+      "seconds": 0.078
+    },
+    {
+      "field": "date",
+      "operator": "Меньше или равно",
+      "status": "pass",
+      "rows": 0,
+      "row_present": true,
+      "seconds": 0.063
+    },
+    {
+      "field": "date",
+      "operator": "Не заполнено",
+      "status": "pass",
+      "rows": 0,
+      "row_present": false,
+      "seconds": 0.062
+    },
+    {
+      "field": "date",
+      "operator": "Не равно",
+      "status": "pass",
+      "rows": 0,
+      "row_present": true,
+      "seconds": 0.047
+    },
+    {
+      "field": "date",
+      "operator": "Равно",
+      "status": "pass",
+      "rows": 0,
+      "row_present": true,
+      "seconds": 0.032
+    },
+    {
+      "field": "number",
+      "operator": "Равно",
+      "status": "pass",
+      "rows": 0,
+      "row_present": true,
+      "seconds": 0.046
+    },
+    {
+      "field": "number",
+      "operator": "Не равно",
+      "status": "pass",
+      "rows": 0,
+      "row_present": true,
+      "seconds": 0.063
+    },
+    {
+      "field": "number",
+      "operator": "В списке",
+      "status": "pass",
+      "rows": 0,
+      "row_present": true,
+      "seconds": 0.015
+    },
+    {
+      "field": "number",
+      "operator": "Не в списке",
+      "status": "pass",
+      "rows": 0,
+      "row_present": true,
+      "seconds": 0.078
+    },
+    {
+      "field": "number",
+      "operator": "Содержит",
+      "status": "pass",
+      "rows": 0,
+      "row_present": true,
+      "seconds": 0.328
+    },
+    {
+      "field": "number",
+      "operator": "Не содержит",
+      "status": "pass",
+      "rows": 0,
+      "row_present": true,
+      "seconds": 0.094
+    },
+    {
+      "field": "number",
+      "operator": "Начинается с",
+      "status": "pass",
+      "rows": 0,
+      "row_present": true,
+      "seconds": 0.0
+    },
+    {
+      "field": "number",
+      "operator": "Заполнено",
+      "status": "pass",
+      "rows": 0,
+      "row_present": true,
+      "seconds": 0.063
+    },
+    {
+      "field": "number",
+      "operator": "Не заполнено",
+      "status": "pass",
+      "rows": 0,
+      "row_present": false,
+      "seconds": 0.016
+    },
+    {
+      "field": "number",
+      "operator": "В группе из списка",
+      "status": "pass",
+      "rows": 0,
+      "row_present": true,
+      "seconds": 0.015
+    },
+    {
+      "field": "marshrut",
+      "operator": "Равно",
+      "status": "pass",
+      "rows": 0,
+      "row_present": true,
+      "seconds": 0.063
+    },
+    {
+      "field": "marshrut",
+      "operator": "Не равно",
+      "status": "pass",
+      "rows": 0,
+      "row_present": true,
+      "seconds": 0.078
+    },
+    {
+      "field": "marshrut",
+      "operator": "В списке",
+      "status": "pass",
+      "rows": 0,
+      "row_present": true,
+      "seconds": 0.015
+    },
+    {
+      "field": "marshrut",
+      "operator": "Не в списке",
+      "status": "pass",
+      "rows": 0,
+      "row_present": true,
+      "seconds": 0.079
+    },
+    {
+      "field": "marshrut",
+      "operator": "Содержит",
+      "status": "pass",
+      "rows": 0,
+      "row_present": true,
+      "seconds": 0.062
+    },
+    {
+      "field": "marshrut",
+      "operator": "Не содержит",
+      "status": "pass",
+      "rows": 0,
+      "row_present": true,
+      "seconds": 0.078
+    },
+    {
+      "field": "marshrut",
+      "operator": "Начинается с",
+      "status": "pass",
+      "rows": 0,
+      "row_present": true,
+      "seconds": 0.047
+    },
+    {
+      "field": "marshrut",
+      "operator": "Заполнено",
+      "status": "pass",
+      "rows": 0,
+      "row_present": true,
+      "seconds": 0.047
+    },
+    {
+      "field": "marshrut",
+      "operator": "Не заполнено",
+      "status": "pass",
+      "rows": 0,
+      "row_present": true,
+      "seconds": 0.031
+    },
+    {
+      "field": "voditel",
+      "operator": "Равно",
+      "status": "fail",
+      "error": "(-2147352567, 'Exception occurred.', (1001, '1C:Enterprise 8.3.17.1549', '{(15, 70)}: Неверные параметры \"ПОДСТРОКА\"\\nГДЕ Т.Дата >= &DateFrom И Т.Дата <= &DateTo И ЕСТЬNULL(ПОДСТРОКА(<<?>>ПРЕДСТАВЛЕНИЕ(Т.Водитель), 1, 150), \"\") = &p_crit_0_0', None, 0, 0), None)",
+      "seconds": 0.015
+    },
+    {
+      "field": "voditel",
+      "operator": "Не равно",
+      "status": "fail",
+      "error": "(-2147352567, 'Exception occurred.', (1001, '1C:Enterprise 8.3.17.1549', '{(15, 70)}: Неверные параметры \"ПОДСТРОКА\"\\nГДЕ Т.Дата >= &DateFrom И Т.Дата <= &DateTo И ЕСТЬNULL(ПОДСТРОКА(<<?>>ПРЕДСТАВЛЕНИЕ(Т.Водитель), 1, 150), \"\") <> &p_crit_0_0', None, 0, 0), None)",
+      "seconds": 0.0
+    },
+    {
+      "field": "voditel",
+      "operator": "В списке",
+      "status": "fail",
+      "error": "(-2147352567, 'Exception occurred.', (1001, '1C:Enterprise 8.3.17.1549', '{(15, 71)}: Неверные параметры \"ПОДСТРОКА\"\\nГДЕ Т.Дата >= &DateFrom И Т.Дата <= &DateTo И (ЕСТЬNULL(ПОДСТРОКА(<<?>>ПРЕДСТАВЛЕНИЕ(Т.Водитель), 1, 150), \"\") = &p_crit_0_0)', None, 0, 0), None)",
+      "seconds": 0.0
+    },
+    {
+      "field": "voditel",
+      "operator": "Не в списке",
+      "status": "fail",
+      "error": "(-2147352567, 'Exception occurred.', (1001, '1C:Enterprise 8.3.17.1549', '{(15, 74)}: Неверные параметры \"ПОДСТРОКА\"\\nГДЕ Т.Дата >= &DateFrom И Т.Дата <= &DateTo И НЕ (ЕСТЬNULL(ПОДСТРОКА(<<?>>ПРЕДСТАВЛЕНИЕ(Т.Водитель), 1, 150), \"\") = &p_crit_0_0)', None, 0, 0), None)",
+      "seconds": 0.016
+    },
+    {
+      "field": "voditel",
+      "operator": "Содержит",
+      "status": "fail",
+      "error": "(-2147352567, 'Exception occurred.', (1001, '1C:Enterprise 8.3.17.1549', '{(15, 70)}: Неверные параметры \"ПОДСТРОКА\"\\nГДЕ Т.Дата >= &DateFrom И Т.Дата <= &DateTo И ЕСТЬNULL(ПОДСТРОКА(<<?>>ПРЕДСТАВЛЕНИЕ(Т.Водитель), 1, 150), \"\") ПОДОБНО &p_crit_0_0 СПЕЦСИМВОЛ \"~\"', None, 0, 0), None)",
+      "seconds": 0.0
+    },
+    {
+      "field": "voditel",
+      "operator": "Не содержит",
+      "status": "fail",
+      "error": "(-2147352567, 'Exception occurred.', (1001, '1C:Enterprise 8.3.17.1549', '{(15, 74)}: Неверные параметры \"ПОДСТРОКА\"\\nГДЕ Т.Дата >= &DateFrom И Т.Дата <= &DateTo И НЕ (ЕСТЬNULL(ПОДСТРОКА(<<?>>ПРЕДСТАВЛЕНИЕ(Т.Водитель), 1, 150), \"\") ПОДОБНО &p_crit_0_0 СПЕЦСИМВОЛ \"~\")', None, 0, 0), None)",
+      "seconds": 0.0
+    },
+    {
+      "field": "voditel",
+      "operator": "Начинается с",
+      "status": "fail",
+      "error": "(-2147352567, 'Exception occurred.', (1001, '1C:Enterprise 8.3.17.1549', '{(15, 70)}: Неверные параметры \"ПОДСТРОКА\"\\nГДЕ Т.Дата >= &DateFrom И Т.Дата <= &DateTo И ЕСТЬNULL(ПОДСТРОКА(<<?>>ПРЕДСТАВЛЕНИЕ(Т.Водитель), 1, 150), \"\") ПОДОБНО &p_crit_0_0 СПЕЦСИМВОЛ \"~\"', None, 0, 0), None)",
+      "seconds": 0.0
+    },
+    {
+      "field": "voditel",
+      "operator": "Заполнено",
+      "status": "fail",
+      "error": "(-2147352567, 'Exception occurred.', (1001, '1C:Enterprise 8.3.17.1549', '{(15, 70)}: Неверные параметры \"ПОДСТРОКА\"\\nГДЕ Т.Дата >= &DateFrom И Т.Дата <= &DateTo И ЕСТЬNULL(ПОДСТРОКА(<<?>>ПРЕДСТАВЛЕНИЕ(Т.Водитель), 1, 150), \"\") <> \"\"', None, 0, 0), None)",
+      "seconds": 0.0
+    },
+    {
+      "field": "voditel",
+      "operator": "Не заполнено",
+      "status": "fail",
+      "error": "(-2147352567, 'Exception occurred.', (1001, '1C:Enterprise 8.3.17.1549', '{(15, 70)}: Неверные параметры \"ПОДСТРОКА\"\\nГДЕ Т.Дата >= &DateFrom И Т.Дата <= &DateTo И ЕСТЬNULL(ПОДСТРОКА(<<?>>ПРЕДСТАВЛЕНИЕ(Т.Водитель), 1, 150), \"\") = \"\"', None, 0, 0), None)",
+      "seconds": 0.0
+    },
+    {
+      "field": "warehouse",
+      "operator": "Равно",
+      "status": "fail",
+      "error": "(-2147352567, 'Exception occurred.', (1001, '1C:Enterprise 8.3.17.1549', '{(15, 70)}: Неверные параметры \"ПОДСТРОКА\"\\nГДЕ Т.Дата >= &DateFrom И Т.Дата <= &DateTo И ЕСТЬNULL(ПОДСТРОКА(<<?>>ПРЕДСТАВЛЕНИЕ(Т.Склад), 1, 150), \"\") = &p_crit_0_0', None, 0, 0), None)",
+      "seconds": 0.015
+    },
+    {
+      "field": "warehouse",
+      "operator": "Не равно",
+      "status": "fail",
+      "error": "(-2147352567, 'Exception occurred.', (1001, '1C:Enterprise 8.3.17.1549', '{(15, 70)}: Неверные параметры \"ПОДСТРОКА\"\\nГДЕ Т.Дата >= &DateFrom И Т.Дата <= &DateTo И ЕСТЬNULL(ПОДСТРОКА(<<?>>ПРЕДСТАВЛЕНИЕ(Т.Склад), 1, 150), \"\") <> &p_crit_0_0', None, 0, 0), None)",
+      "seconds": 0.0
+    },
+    {
+      "field": "warehouse",
+      "operator": "В списке",
+      "status": "fail",
+      "error": "(-2147352567, 'Exception occurred.', (1001, '1C:Enterprise 8.3.17.1549', '{(15, 71)}: Неверные параметры \"ПОДСТРОКА\"\\nГДЕ Т.Дата >= &DateFrom И Т.Дата <= &DateTo И (ЕСТЬNULL(ПОДСТРОКА(<<?>>ПРЕДСТАВЛЕНИЕ(Т.Склад), 1, 150), \"\") = &p_crit_0_0)', None, 0, 0), None)",
+      "seconds": 0.0
+    },
+    {
+      "field": "warehouse",
+      "operator": "Не в списке",
+      "status": "fail",
+      "error": "(-2147352567, 'Exception occurred.', (1001, '1C:Enterprise 8.3.17.1549', '{(15, 74)}: Неверные параметры \"ПОДСТРОКА\"\\nГДЕ Т.Дата >= &DateFrom И Т.Дата <= &DateTo И НЕ (ЕСТЬNULL(ПОДСТРОКА(<<?>>ПРЕДСТАВЛЕНИЕ(Т.Склад), 1, 150), \"\") = &p_crit_0_0)', None, 0, 0), None)",
+      "seconds": 0.0
+    },
+    {
+      "field": "warehouse",
+      "operator": "Заполнено",
+      "status": "fail",
+      "error": "(-2147352567, 'Exception occurred.', (1001, '1C:Enterprise 8.3.17.1549', '{(15, 70)}: Неверные параметры \"ПОДСТРОКА\"\\nГДЕ Т.Дата >= &DateFrom И Т.Дата <= &DateTo И ЕСТЬNULL(ПОДСТРОКА(<<?>>ПРЕДСТАВЛЕНИЕ(Т.Склад), 1, 150), \"\") <> \"\"', None, 0, 0), None)",
+      "seconds": 0.0
+    },
+    {
+      "field": "warehouse",
+      "operator": "Не заполнено",
+      "status": "fail",
+      "error": "(-2147352567, 'Exception occurred.', (1001, '1C:Enterprise 8.3.17.1549', '{(15, 70)}: Неверные параметры \"ПОДСТРОКА\"\\nГДЕ Т.Дата >= &DateFrom И Т.Дата <= &DateTo И ЕСТЬNULL(ПОДСТРОКА(<<?>>ПРЕДСТАВЛЕНИЕ(Т.Склад), 1, 150), \"\") = \"\"', None, 0, 0), None)",
+      "seconds": 0.0
+    },
+    {
+      "field": "realization_count",
+      "operator": "Больше",
+      "status": "pass",
+      "rows": 0,
+      "row_present": true,
+      "seconds": 0.094
+    },
+    {
+      "field": "realization_count",
+      "operator": "Больше или равно",
+      "status": "pass",
+      "rows": 0,
+      "row_present": true,
+      "seconds": 0.093
+    },
+    {
+      "field": "realization_count",
+      "operator": "Заполнено",
+      "status": "pass",
+      "rows": 0,
+      "row_present": true,
+      "seconds": 0.079
+    },
+    {
+      "field": "realization_count",
+      "operator": "Интервал (>, <)",
+      "status": "pass",
+      "rows": 0,
+      "row_present": false,
+      "seconds": 1.718
+    },
+    {
+      "field": "realization_count",
+      "operator": "Интервал (>, <=)",
+      "status": "pass",
+      "rows": 0,
+      "row_present": false,
+      "seconds": 1.703
+    },
+    {
+      "field": "realization_count",
+      "operator": "Интервал (>=, <)",
+      "status": "pass",
+      "rows": 0,
+      "row_present": false,
+      "seconds": 1.704
+    },
+    {
+      "field": "realization_count",
+      "operator": "Интервал (>=, <=)",
+      "status": "pass",
+      "rows": 0,
+      "row_present": true,
+      "seconds": 0.093
+    },
+    {
+      "field": "realization_count",
+      "operator": "Меньше",
+      "status": "pass",
+      "rows": 0,
+      "row_present": true,
+      "seconds": 0.094
+    },
+    {
+      "field": "realization_count",
+      "operator": "Меньше или равно",
+      "status": "pass",
+      "rows": 0,
+      "row_present": true,
+      "seconds": 0.093
+    },
+    {
+      "field": "realization_count",
+      "operator": "Не заполнено",
+      "status": "pass",
+      "rows": 0,
+      "row_present": true,
+      "seconds": 1.75
+    },
+    {
+      "field": "realization_count",
+      "operator": "Не равно",
+      "status": "pass",
+      "rows": 0,
+      "row_present": true,
+      "seconds": 0.047
+    },
+    {
+      "field": "realization_count",
+      "operator": "Равно",
+      "status": "pass",
+      "rows": 0,
+      "row_present": true,
+      "seconds": 0.063
+    },
+    {
+      "field": "amount",
+      "operator": "Больше",
+      "status": "pass",
+      "rows": 0,
+      "row_present": true,
+      "seconds": 0.094
+    },
+    {
+      "field": "amount",
+      "operator": "Больше или равно",
+      "status": "pass",
+      "rows": 0,
+      "row_present": true,
+      "seconds": 0.093
+    },
+    {
+      "field": "amount",
+      "operator": "Заполнено",
+      "status": "pass",
+      "rows": 0,
+      "row_present": true,
+      "seconds": 0.094
+    },
+    {
+      "field": "amount",
+      "operator": "Интервал (>, <)",
+      "status": "pass",
+      "rows": 0,
+      "row_present": false,
+      "seconds": 1.344
+    },
+    {
+      "field": "amount",
+      "operator": "Интервал (>, <=)",
+      "status": "pass",
+      "rows": 0,
+      "row_present": false,
+      "seconds": 1.375
+    },
+    {
+      "field": "amount",
+      "operator": "Интервал (>=, <)",
+      "status": "pass",
+      "rows": 0,
+      "row_present": false,
+      "seconds": 1.359
+    },
+    {
+      "field": "amount",
+      "operator": "Интервал (>=, <=)",
+      "status": "pass",
+      "rows": 0,
+      "row_present": true,
+      "seconds": 1.36
+    },
+    {
+      "field": "amount",
+      "operator": "Меньше",
+      "status": "pass",
+      "rows": 0,
+      "row_present": true,
+      "seconds": 0.093
+    },
+    {
+      "field": "amount",
+      "operator": "Меньше или равно",
+      "status": "pass",
+      "rows": 0,
+      "row_present": true,
+      "seconds": 0.094
+    },
+    {
+      "field": "amount",
+      "operator": "Не заполнено",
+      "status": "pass",
+      "rows": 0,
+      "row_present": true,
+      "seconds": 0.141
+    },
+    {
+      "field": "amount",
+      "operator": "Не равно",
+      "status": "pass",
+      "rows": 0,
+      "row_present": true,
+      "seconds": 0.093
+    },
+    {
+      "field": "amount",
+      "operator": "Равно",
+      "status": "pass",
+      "rows": 0,
+      "row_present": true,
+      "seconds": 0.657
+    },
+    {
+      "field": "responsible",
+      "operator": "Равно",
+      "status": "fail",
+      "error": "(-2147352567, 'Exception occurred.', (1001, '1C:Enterprise 8.3.17.1549', '{(15, 70)}: Неверные параметры \"ПОДСТРОКА\"\\nГДЕ Т.Дата >= &DateFrom И Т.Дата <= &DateTo И ЕСТЬNULL(ПОДСТРОКА(<<?>>ПРЕДСТАВЛЕНИЕ(Т.Ответственный), 1, 150), \"\") = &p_crit_0_0', None, 0, 0), None)",
+      "seconds": 0.0
+    },
+    {
+      "field": "responsible",
+      "operator": "Не равно",
+      "status": "fail",
+      "error": "(-2147352567, 'Exception occurred.', (1001, '1C:Enterprise 8.3.17.1549', '{(15, 70)}: Неверные параметры \"ПОДСТРОКА\"\\nГДЕ Т.Дата >= &DateFrom И Т.Дата <= &DateTo И ЕСТЬNULL(ПОДСТРОКА(<<?>>ПРЕДСТАВЛЕНИЕ(Т.Ответственный), 1, 150), \"\") <> &p_crit_0_0', None, 0, 0), None)",
+      "seconds": 0.015
+    },
+    {
+      "field": "responsible",
+      "operator": "В списке",
+      "status": "fail",
+      "error": "(-2147352567, 'Exception occurred.', (1001, '1C:Enterprise 8.3.17.1549', '{(15, 71)}: Неверные параметры \"ПОДСТРОКА\"\\nГДЕ Т.Дата >= &DateFrom И Т.Дата <= &DateTo И (ЕСТЬNULL(ПОДСТРОКА(<<?>>ПРЕДСТАВЛЕНИЕ(Т.Ответственный), 1, 150), \"\") = &p_crit_0_0)', None, 0, 0), None)",
+      "seconds": 0.0
+    },
+    {
+      "field": "responsible",
+      "operator": "Не в списке",
+      "status": "fail",
+      "error": "(-2147352567, 'Exception occurred.', (1001, '1C:Enterprise 8.3.17.1549', '{(15, 74)}: Неверные параметры \"ПОДСТРОКА\"\\nГДЕ Т.Дата >= &DateFrom И Т.Дата <= &DateTo И НЕ (ЕСТЬNULL(ПОДСТРОКА(<<?>>ПРЕДСТАВЛЕНИЕ(Т.Ответственный), 1, 150), \"\") = &p_crit_0_0)', None, 0, 0), None)",
+      "seconds": 0.0
+    },
+    {
+      "field": "responsible",
+      "operator": "Заполнено",
+      "status": "fail",
+      "error": "(-2147352567, 'Exception occurred.', (1001, '1C:Enterprise 8.3.17.1549', '{(15, 70)}: Неверные параметры \"ПОДСТРОКА\"\\nГДЕ Т.Дата >= &DateFrom И Т.Дата <= &DateTo И ЕСТЬNULL(ПОДСТРОКА(<<?>>ПРЕДСТАВЛЕНИЕ(Т.Ответственный), 1, 150), \"\") <> \"\"', None, 0, 0), None)",
+      "seconds": 0.016
+    },
+    {
+      "field": "responsible",
+      "operator": "Не заполнено",
+      "status": "fail",
+      "error": "(-2147352567, 'Exception occurred.', (1001, '1C:Enterprise 8.3.17.1549', '{(15, 70)}: Неверные параметры \"ПОДСТРОКА\"\\nГДЕ Т.Дата >= &DateFrom И Т.Дата <= &DateTo И ЕСТЬNULL(ПОДСТРОКА(<<?>>ПРЕДСТАВЛЕНИЕ(Т.Ответственный), 1, 150), \"\") = \"\"', None, 0, 0), None)",
+      "seconds": 0.0
+    },
+    {
+      "field": "posted",
+      "operator": "Равно",
+      "status": "pass",
+      "rows": 0,
+      "row_present": false,
+      "seconds": 0.062
+    },
+    {
+      "field": "posted",
+      "operator": "Не равно",
+      "status": "pass",
+      "rows": 0,
+      "row_present": true,
+      "seconds": 0.063
+    },
+    {
+      "field": "deleted",
+      "operator": "Равно",
+      "status": "pass",
+      "rows": 0,
+      "row_present": true,
+      "seconds": 0.047
+    },
+    {
+      "field": "deleted",
+      "operator": "Не равно",
+      "status": "pass",
+      "rows": 0,
+      "row_present": true,
+      "seconds": 0.078
+    },
+    {
+      "field": "nomenclature",
+      "operator": "Равно",
+      "status": "pass",
+      "rows": 0,
+      "row_present": false,
+      "seconds": 1.016
+    },
+    {
+      "field": "nomenclature",
+      "operator": "Не равно",
+      "status": "pass",
+      "rows": 0,
+      "row_present": true,
+      "seconds": 0.093
+    },
+    {
+      "field": "nomenclature",
+      "operator": "В списке",
+      "status": "pass",
+      "rows": 0,
+      "row_present": false,
+      "seconds": 0.828
+    },
+    {
+      "field": "nomenclature",
+      "operator": "Не в списке",
+      "status": "pass",
+      "rows": 0,
+      "row_present": true,
+      "seconds": 0.063
+    },
+    {
+      "field": "nomenclature",
+      "operator": "Содержит",
+      "status": "pass",
+      "rows": 0,
+      "row_present": false,
+      "seconds": 1.359
+    },
+    {
+      "field": "nomenclature",
+      "operator": "Не содержит",
+      "status": "pass",
+      "rows": 0,
+      "row_present": true,
+      "seconds": 0.094
+    },
+    {
+      "field": "nomenclature",
+      "operator": "Начинается с",
+      "status": "pass",
+      "rows": 0,
+      "row_present": false,
+      "seconds": 0.89
+    },
+    {
+      "field": "nomenclature",
+      "operator": "Заполнено",
+      "status": "pass",
+      "rows": 0,
+      "row_present": true,
+      "seconds": 0.266
+    },
+    {
+      "field": "nomenclature",
+      "operator": "Не заполнено",
+      "status": "pass",
+      "rows": 0,
+      "row_present": true,
+      "seconds": 0.109
+    },
+    {
+      "field": "nomenclature",
+      "operator": "В группе из списка",
+      "status": "pass",
+      "rows": 0,
+      "row_present": false,
+      "seconds": 0.813
+    }
+  ]
+}

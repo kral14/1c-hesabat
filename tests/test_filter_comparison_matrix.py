@@ -4,6 +4,7 @@ import sqlite3
 import unittest
 from services.documents.base import build_filter_conditions
 from services.filter_policy import REFERENCES
+from tests.test_agent_filters import connection as agent_connection
 
 
 class Query:
@@ -26,9 +27,10 @@ class ComparisonMatrixTests(unittest.TestCase):
             for op, value, expected in cases + ([] if field in REFERENCES else text_cases):
                 with self.subTest(field=field, operator=op):
                     query, clauses = Query(), []
-                    build_filter_conditions([{'fieldKey': field, 'operator': op, 'value': value}], query, clauses, {}, {field: 'value'})
+                    build_filter_conditions([{'fieldKey': field, 'operator': op, 'value': value}], query, clauses, {}, {field: 'value'}, conn=agent_connection() if field.startswith('agent_sales_') else None)
                     self.assertEqual(len(clauses), 1, 'active condition must never be dropped')
                     sql = clauses[0].replace('ЕСТЬNULL', 'COALESCE').replace('ПОДОБНО', 'LIKE').replace('СПЕЦСИМВОЛ', 'ESCAPE').replace('НЕ ', 'NOT ').replace(' ИЛИ ', ' OR ').replace(' И ', ' AND ')
+                    sql = sql.replace('Т.ДоговорКонтрагента.Агент.ВидРеализации.Наименование','value').replace('Т.ДоговорКонтрагента.Агент.КаналСбыта.Наименование','value')
                     sql = re.sub(r'&(\w+)', r':\1', sql)
                     actual = [row[0] for row in database.execute('SELECT id FROM data WHERE ' + sql + ' ORDER BY id', query.parameters)]
                     self.assertEqual(actual, expected)

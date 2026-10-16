@@ -7,7 +7,7 @@ EQUALITY = {'Равно', 'Не равно'}
 EMPTY = {'Заполнено', 'Не заполнено'}
 COMPARISONS = EQUALITY | {'Меньше', 'Меньше или равно', 'Больше', 'Больше или равно'}
 INTERVALS = {'Интервал (>, <)', 'Интервал (>=, <=)', 'Интервал (>=, <)', 'Интервал (>, <=)'}
-REFERENCES = {'warehouse', 'portfolio', 'kontragent', 'golovnoy_kontragent', 'contract', 'organization', 'division', 'responsible', 'agent', 'currency', 'deal'}
+REFERENCES = {'agent_sales_type', 'agent_sales_group', 'warehouse', 'portfolio', 'kontragent', 'golovnoy_kontragent', 'contract', 'contract_price_type', 'organization', 'division', 'responsible', 'agent', 'currency', 'deal'}
 BOOLEANS = {'posted', 'deleted', 'pogruzka_duplicate', 'pogruzka_active_duplicate'}
 NUMBER_LISTS = {'В списке', 'Не в списке', 'В группе из списка'}
 
@@ -31,6 +31,7 @@ def validate_filters(filters, number_length=None):
         if rule.get('enabled') is False:
             continue
         key = rule.get('fieldKey') or rule.get('field')
+        key = 'vms_status' if key == 'wms_status' else key
         op = rule.get('operator') or rule.get('comparison') or 'Содержит'
         value = rule.get('value')
         allowed = EQUALITY | EMPTY | {'В списке', 'Не в списке', 'В группе из списка', 'Содержит', 'Не содержит', 'Начинается с'}
@@ -65,3 +66,34 @@ def validate_filters(filters, number_length=None):
                     error = 'Tarix, miqdar və ya interval düzgün deyil'
         if error:
             raise ValueError(f'{index + 1}. {key}: {error}')
+
+
+BASE_FIELDS = {'number', 'date', 'posted', 'deleted'}
+DOCUMENT_FIELDS = {
+    'РеализацияТоваровУслуг': BASE_FIELDS | {'kontragent', 'kontragent_code', 'golovnoy_kontragent', 'golovnoy_kontragent_code', 'agent', 'agent_sales_type', 'agent_sales_group', 'amount', 'warehouse', 'responsible', 'comment', 'portfolio', 'contract', 'contract_price_type', 'deal', 'vms_status', 'nomenclature', 'pogruzka_marshrut', 'pogruzka_voditel', 'pogruzka_duplicate', 'pogruzka_active_duplicate', 'obrabotka_number'},
+    'ВозвратТоваровОтПокупателя': BASE_FIELDS | {'kontragent', 'kontragent_code', 'golovnoy_kontragent', 'golovnoy_kontragent_code', 'agent', 'agent_sales_type', 'agent_sales_group', 'amount', 'warehouse', 'responsible', 'comment', 'portfolio', 'contract', 'deal', 'vms_status', 'nomenclature'},
+    'ПогрузкиМашин': BASE_FIELDS | {'marshrut', 'voditel', 'warehouse', 'responsible', 'amount', 'realization_count', 'nomenclature'},
+}
+
+
+def normalize_filters(filters):
+    if not isinstance(filters, list):
+        raise ValueError('Filtr siyahı olmalıdır')
+    result = []
+    for rule in filters:
+        if not isinstance(rule, dict):
+            raise ValueError('Yanlış filtr sətri')
+        rule = dict(rule)
+        key = rule.get('fieldKey') or rule.get('field')
+        key = 'vms_status' if key == 'wms_status' else key
+        rule['fieldKey'] = rule['field'] = key
+        rule['operator'] = rule.get('operator') or rule.get('comparison') or 'Содержит'
+        result.append(rule)
+    validate_filters(result)
+    return result
+
+
+def validate_supported_fields(filters, supported):
+    for rule in filters:
+        if rule.get('enabled') is not False and rule['fieldKey'] not in supported:
+            raise ValueError('Filtr sahəsi bu sənəddə dəstəklənmir: ' + str(rule['fieldKey']))

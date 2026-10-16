@@ -1,0 +1,847 @@
+{
+  "database": "Test1C / Aztrade_test3",
+  "document": "return",
+  "mode": "query_execution",
+  "cases": [
+    {
+      "field": "date",
+      "operator": "Больше",
+      "status": "pass",
+      "rows": 0,
+      "row_present": false,
+      "seconds": 0.11
+    },
+    {
+      "field": "date",
+      "operator": "Больше или равно",
+      "status": "pass",
+      "rows": 0,
+      "row_present": true,
+      "seconds": 0.11
+    },
+    {
+      "field": "date",
+      "operator": "Заполнено",
+      "status": "pass",
+      "rows": 0,
+      "row_present": true,
+      "seconds": 0.11
+    },
+    {
+      "field": "date",
+      "operator": "Интервал (>, <)",
+      "status": "pass",
+      "rows": 0,
+      "row_present": false,
+      "seconds": 0.109
+    },
+    {
+      "field": "date",
+      "operator": "Интервал (>, <=)",
+      "status": "pass",
+      "rows": 0,
+      "row_present": false,
+      "seconds": 0.109
+    },
+    {
+      "field": "date",
+      "operator": "Интервал (>=, <)",
+      "status": "pass",
+      "rows": 0,
+      "row_present": false,
+      "seconds": 0.109
+    },
+    {
+      "field": "date",
+      "operator": "Интервал (>=, <=)",
+      "status": "pass",
+      "rows": 0,
+      "row_present": true,
+      "seconds": 0.11
+    },
+    {
+      "field": "date",
+      "operator": "Меньше",
+      "status": "pass",
+      "rows": 0,
+      "row_present": false,
+      "seconds": 0.125
+    },
+    {
+      "field": "date",
+      "operator": "Меньше или равно",
+      "status": "pass",
+      "rows": 0,
+      "row_present": true,
+      "seconds": 0.109
+    },
+    {
+      "field": "date",
+      "operator": "Не заполнено",
+      "status": "pass",
+      "rows": 0,
+      "row_present": false,
+      "seconds": 0.609
+    },
+    {
+      "field": "date",
+      "operator": "Не равно",
+      "status": "pass",
+      "rows": 0,
+      "row_present": false,
+      "seconds": 0.032
+    },
+    {
+      "field": "date",
+      "operator": "Равно",
+      "status": "pass",
+      "rows": 0,
+      "row_present": true,
+      "seconds": 0.015
+    },
+    {
+      "field": "number",
+      "operator": "Равно",
+      "status": "pass",
+      "rows": 0,
+      "row_present": true,
+      "seconds": 0.125
+    },
+    {
+      "field": "number",
+      "operator": "Не равно",
+      "status": "pass",
+      "rows": 0,
+      "row_present": false,
+      "seconds": 0.11
+    },
+    {
+      "field": "number",
+      "operator": "В списке",
+      "status": "pass",
+      "rows": 0,
+      "row_present": true,
+      "seconds": 0.031
+    },
+    {
+      "field": "number",
+      "operator": "Не в списке",
+      "status": "pass",
+      "rows": 0,
+      "row_present": false,
+      "seconds": 0.109
+    },
+    {
+      "field": "number",
+      "operator": "Содержит",
+      "status": "pass",
+      "rows": 0,
+      "row_present": true,
+      "seconds": 0.125
+    },
+    {
+      "field": "number",
+      "operator": "Не содержит",
+      "status": "pass",
+      "rows": 0,
+      "row_present": false,
+      "seconds": 0.109
+    },
+    {
+      "field": "number",
+      "operator": "Начинается с",
+      "status": "pass",
+      "rows": 0,
+      "row_present": true,
+      "seconds": 0.016
+    },
+    {
+      "field": "number",
+      "operator": "Заполнено",
+      "status": "pass",
+      "rows": 0,
+      "row_present": true,
+      "seconds": 0.016
+    },
+    {
+      "field": "number",
+      "operator": "Не заполнено",
+      "status": "pass",
+      "rows": 0,
+      "row_present": false,
+      "seconds": 0.016
+    },
+    {
+      "field": "number",
+      "operator": "В группе из списка",
+      "status": "pass",
+      "rows": 0,
+      "row_present": true,
+      "seconds": 0.016
+    },
+    {
+      "field": "kontragent",
+      "operator": "Равно",
+      "status": "pass",
+      "rows": 0,
+      "row_present": true,
+      "seconds": 0.109
+    },
+    {
+      "field": "kontragent",
+      "operator": "Не равно",
+      "status": "pass",
+      "rows": 0,
+      "row_present": false,
+      "seconds": 0.125
+    },
+    {
+      "field": "kontragent",
+      "operator": "В списке",
+      "status": "pass",
+      "rows": 0,
+      "row_present": true,
+      "seconds": 0.016
+    },
+    {
+      "field": "kontragent",
+      "operator": "Не в списке",
+      "status": "pass",
+      "rows": 0,
+      "row_present": false,
+      "seconds": 0.125
+    },
+    {
+      "field": "kontragent",
+      "operator": "Заполнено",
+      "status": "pass",
+      "rows": 0,
+      "row_present": true,
+      "seconds": 0.031
+    },
+    {
+      "field": "kontragent",
+      "operator": "Не заполнено",
+      "status": "pass",
+      "rows": 0,
+      "row_present": false,
+      "seconds": 0.016
+    },
+    {
+      "field": "golovnoy_kontragent",
+      "operator": "Равно",
+      "status": "pass",
+      "rows": 0,
+      "row_present": true,
+      "seconds": 0.125
+    },
+    {
+      "field": "golovnoy_kontragent",
+      "operator": "Не равно",
+      "status": "pass",
+      "rows": 0,
+      "row_present": false,
+      "seconds": 0.109
+    },
+    {
+      "field": "golovnoy_kontragent",
+      "operator": "В списке",
+      "status": "pass",
+      "rows": 0,
+      "row_present": true,
+      "seconds": 0.032
+    },
+    {
+      "field": "golovnoy_kontragent",
+      "operator": "Не в списке",
+      "status": "pass",
+      "rows": 0,
+      "row_present": false,
+      "seconds": 0.11
+    },
+    {
+      "field": "golovnoy_kontragent",
+      "operator": "Заполнено",
+      "status": "pass",
+      "rows": 0,
+      "row_present": true,
+      "seconds": 0.031
+    },
+    {
+      "field": "golovnoy_kontragent",
+      "operator": "Не заполнено",
+      "status": "pass",
+      "rows": 0,
+      "row_present": false,
+      "seconds": 0.031
+    },
+    {
+      "field": "agent",
+      "operator": "Равно",
+      "status": "pass",
+      "rows": 0,
+      "row_present": true,
+      "seconds": 0.109
+    },
+    {
+      "field": "agent",
+      "operator": "Не равно",
+      "status": "pass",
+      "rows": 0,
+      "row_present": false,
+      "seconds": 0.125
+    },
+    {
+      "field": "agent",
+      "operator": "В списке",
+      "status": "pass",
+      "rows": 0,
+      "row_present": true,
+      "seconds": 0.016
+    },
+    {
+      "field": "agent",
+      "operator": "Не в списке",
+      "status": "pass",
+      "rows": 0,
+      "row_present": false,
+      "seconds": 0.109
+    },
+    {
+      "field": "agent",
+      "operator": "Заполнено",
+      "status": "pass",
+      "rows": 0,
+      "row_present": true,
+      "seconds": 0.031
+    },
+    {
+      "field": "agent",
+      "operator": "Не заполнено",
+      "status": "pass",
+      "rows": 0,
+      "row_present": false,
+      "seconds": 0.016
+    },
+    {
+      "field": "amount",
+      "operator": "Больше",
+      "status": "pass",
+      "rows": 0,
+      "row_present": false,
+      "seconds": 0.469
+    },
+    {
+      "field": "amount",
+      "operator": "Больше или равно",
+      "status": "pass",
+      "rows": 0,
+      "row_present": true,
+      "seconds": 0.125
+    },
+    {
+      "field": "amount",
+      "operator": "Заполнено",
+      "status": "pass",
+      "rows": 0,
+      "row_present": true,
+      "seconds": 0.125
+    },
+    {
+      "field": "amount",
+      "operator": "Интервал (>, <)",
+      "status": "pass",
+      "rows": 0,
+      "row_present": false,
+      "seconds": 0.125
+    },
+    {
+      "field": "amount",
+      "operator": "Интервал (>, <=)",
+      "status": "pass",
+      "rows": 0,
+      "row_present": false,
+      "seconds": 0.109
+    },
+    {
+      "field": "amount",
+      "operator": "Интервал (>=, <)",
+      "status": "pass",
+      "rows": 0,
+      "row_present": false,
+      "seconds": 0.125
+    },
+    {
+      "field": "amount",
+      "operator": "Интервал (>=, <=)",
+      "status": "pass",
+      "rows": 0,
+      "row_present": true,
+      "seconds": 0.125
+    },
+    {
+      "field": "amount",
+      "operator": "Меньше",
+      "status": "pass",
+      "rows": 0,
+      "row_present": false,
+      "seconds": 0.109
+    },
+    {
+      "field": "amount",
+      "operator": "Меньше или равно",
+      "status": "pass",
+      "rows": 0,
+      "row_present": true,
+      "seconds": 0.125
+    },
+    {
+      "field": "amount",
+      "operator": "Не заполнено",
+      "status": "pass",
+      "rows": 0,
+      "row_present": false,
+      "seconds": 0.125
+    },
+    {
+      "field": "amount",
+      "operator": "Не равно",
+      "status": "pass",
+      "rows": 0,
+      "row_present": false,
+      "seconds": 0.11
+    },
+    {
+      "field": "amount",
+      "operator": "Равно",
+      "status": "pass",
+      "rows": 0,
+      "row_present": true,
+      "seconds": 0.125
+    },
+    {
+      "field": "warehouse",
+      "operator": "Равно",
+      "status": "pass",
+      "rows": 0,
+      "row_present": true,
+      "seconds": 0.109
+    },
+    {
+      "field": "warehouse",
+      "operator": "Не равно",
+      "status": "pass",
+      "rows": 0,
+      "row_present": false,
+      "seconds": 0.11
+    },
+    {
+      "field": "warehouse",
+      "operator": "В списке",
+      "status": "pass",
+      "rows": 0,
+      "row_present": true,
+      "seconds": 0.031
+    },
+    {
+      "field": "warehouse",
+      "operator": "Не в списке",
+      "status": "pass",
+      "rows": 0,
+      "row_present": false,
+      "seconds": 0.11
+    },
+    {
+      "field": "warehouse",
+      "operator": "Заполнено",
+      "status": "pass",
+      "rows": 0,
+      "row_present": true,
+      "seconds": 0.031
+    },
+    {
+      "field": "warehouse",
+      "operator": "Не заполнено",
+      "status": "pass",
+      "rows": 0,
+      "row_present": false,
+      "seconds": 0.031
+    },
+    {
+      "field": "deal",
+      "operator": "Равно",
+      "status": "pass",
+      "rows": 0,
+      "row_present": false,
+      "seconds": 0.125
+    },
+    {
+      "field": "deal",
+      "operator": "Не равно",
+      "status": "pass",
+      "rows": 0,
+      "row_present": true,
+      "seconds": 0.125
+    },
+    {
+      "field": "deal",
+      "operator": "В списке",
+      "status": "pass",
+      "rows": 0,
+      "row_present": false,
+      "seconds": 0.032
+    },
+    {
+      "field": "deal",
+      "operator": "Не в списке",
+      "status": "pass",
+      "rows": 0,
+      "row_present": true,
+      "seconds": 0.109
+    },
+    {
+      "field": "deal",
+      "operator": "Заполнено",
+      "status": "pass",
+      "rows": 0,
+      "row_present": false,
+      "seconds": 0.031
+    },
+    {
+      "field": "deal",
+      "operator": "Не заполнено",
+      "status": "pass",
+      "rows": 0,
+      "row_present": true,
+      "seconds": 0.031
+    },
+    {
+      "field": "vms_status",
+      "operator": "Равно",
+      "status": "pass",
+      "rows": 0,
+      "row_present": false,
+      "seconds": 0.125
+    },
+    {
+      "field": "vms_status",
+      "operator": "Не равно",
+      "status": "pass",
+      "rows": 0,
+      "row_present": true,
+      "seconds": 0.11
+    },
+    {
+      "field": "vms_status",
+      "operator": "В списке",
+      "status": "pass",
+      "rows": 0,
+      "row_present": false,
+      "seconds": 0.031
+    },
+    {
+      "field": "vms_status",
+      "operator": "Не в списке",
+      "status": "pass",
+      "rows": 0,
+      "row_present": true,
+      "seconds": 0.031
+    },
+    {
+      "field": "vms_status",
+      "operator": "Заполнено",
+      "status": "pass",
+      "rows": 0,
+      "row_present": false,
+      "seconds": 0.125
+    },
+    {
+      "field": "vms_status",
+      "operator": "Не заполнено",
+      "status": "pass",
+      "rows": 0,
+      "row_present": true,
+      "seconds": 0.11
+    },
+    {
+      "field": "contract",
+      "operator": "Равно",
+      "status": "pass",
+      "rows": 0,
+      "row_present": true,
+      "seconds": 0.125
+    },
+    {
+      "field": "contract",
+      "operator": "Не равно",
+      "status": "pass",
+      "rows": 0,
+      "row_present": false,
+      "seconds": 0.109
+    },
+    {
+      "field": "contract",
+      "operator": "В списке",
+      "status": "pass",
+      "rows": 0,
+      "row_present": true,
+      "seconds": 0.031
+    },
+    {
+      "field": "contract",
+      "operator": "Не в списке",
+      "status": "pass",
+      "rows": 0,
+      "row_present": false,
+      "seconds": 0.11
+    },
+    {
+      "field": "contract",
+      "operator": "Заполнено",
+      "status": "pass",
+      "rows": 0,
+      "row_present": true,
+      "seconds": 0.031
+    },
+    {
+      "field": "contract",
+      "operator": "Не заполнено",
+      "status": "pass",
+      "rows": 0,
+      "row_present": false,
+      "seconds": 0.031
+    },
+    {
+      "field": "responsible",
+      "operator": "Равно",
+      "status": "pass",
+      "rows": 0,
+      "row_present": true,
+      "seconds": 0.11
+    },
+    {
+      "field": "responsible",
+      "operator": "Не равно",
+      "status": "pass",
+      "rows": 0,
+      "row_present": false,
+      "seconds": 0.125
+    },
+    {
+      "field": "responsible",
+      "operator": "В списке",
+      "status": "pass",
+      "rows": 0,
+      "row_present": true,
+      "seconds": 0.062
+    },
+    {
+      "field": "responsible",
+      "operator": "Не в списке",
+      "status": "pass",
+      "rows": 0,
+      "row_present": false,
+      "seconds": 0.125
+    },
+    {
+      "field": "responsible",
+      "operator": "Заполнено",
+      "status": "pass",
+      "rows": 0,
+      "row_present": true,
+      "seconds": 0.016
+    },
+    {
+      "field": "responsible",
+      "operator": "Не заполнено",
+      "status": "pass",
+      "rows": 0,
+      "row_present": false,
+      "seconds": 0.016
+    },
+    {
+      "field": "comment",
+      "operator": "Равно",
+      "status": "pass",
+      "rows": 0,
+      "row_present": true,
+      "seconds": 0.281
+    },
+    {
+      "field": "comment",
+      "operator": "Не равно",
+      "status": "pass",
+      "rows": 0,
+      "row_present": false,
+      "seconds": 0.125
+    },
+    {
+      "field": "comment",
+      "operator": "В списке",
+      "status": "pass",
+      "rows": 0,
+      "row_present": true,
+      "seconds": 0.031
+    },
+    {
+      "field": "comment",
+      "operator": "Не в списке",
+      "status": "pass",
+      "rows": 0,
+      "row_present": false,
+      "seconds": 0.032
+    },
+    {
+      "field": "comment",
+      "operator": "Содержит",
+      "status": "pass",
+      "rows": 0,
+      "row_present": true,
+      "seconds": 0.031
+    },
+    {
+      "field": "comment",
+      "operator": "Не содержит",
+      "status": "pass",
+      "rows": 0,
+      "row_present": false,
+      "seconds": 0.016
+    },
+    {
+      "field": "comment",
+      "operator": "Начинается с",
+      "status": "pass",
+      "rows": 0,
+      "row_present": true,
+      "seconds": 0.031
+    },
+    {
+      "field": "comment",
+      "operator": "Заполнено",
+      "status": "pass",
+      "rows": 0,
+      "row_present": true,
+      "seconds": 0.125
+    },
+    {
+      "field": "comment",
+      "operator": "Не заполнено",
+      "status": "pass",
+      "rows": 0,
+      "row_present": false,
+      "seconds": 0.125
+    },
+    {
+      "field": "posted",
+      "operator": "Равно",
+      "status": "pass",
+      "rows": 0,
+      "row_present": false,
+      "seconds": 0.109
+    },
+    {
+      "field": "posted",
+      "operator": "Не равно",
+      "status": "pass",
+      "rows": 0,
+      "row_present": true,
+      "seconds": 0.125
+    },
+    {
+      "field": "deleted",
+      "operator": "Равно",
+      "status": "pass",
+      "rows": 0,
+      "row_present": true,
+      "seconds": 0.11
+    },
+    {
+      "field": "deleted",
+      "operator": "Не равно",
+      "status": "pass",
+      "rows": 0,
+      "row_present": false,
+      "seconds": 0.125
+    },
+    {
+      "field": "nomenclature",
+      "operator": "Равно",
+      "status": "pass",
+      "rows": 0,
+      "row_present": true,
+      "seconds": 2.359
+    },
+    {
+      "field": "nomenclature",
+      "operator": "Не равно",
+      "status": "pass",
+      "rows": 0,
+      "row_present": false,
+      "seconds": 0.141
+    },
+    {
+      "field": "nomenclature",
+      "operator": "В списке",
+      "status": "pass",
+      "rows": 0,
+      "row_present": false,
+      "seconds": 0.172
+    },
+    {
+      "field": "nomenclature",
+      "operator": "Не в списке",
+      "status": "pass",
+      "rows": 0,
+      "row_present": true,
+      "seconds": 0.187
+    },
+    {
+      "field": "nomenclature",
+      "operator": "Содержит",
+      "status": "pass",
+      "rows": 0,
+      "row_present": true,
+      "seconds": 0.14
+    },
+    {
+      "field": "nomenclature",
+      "operator": "Не содержит",
+      "status": "pass",
+      "rows": 0,
+      "row_present": false,
+      "seconds": 0.141
+    },
+    {
+      "field": "nomenclature",
+      "operator": "Начинается с",
+      "status": "pass",
+      "rows": 0,
+      "row_present": true,
+      "seconds": 0.031
+    },
+    {
+      "field": "nomenclature",
+      "operator": "Заполнено",
+      "status": "pass",
+      "rows": 0,
+      "row_present": true,
+      "seconds": 0.157
+    },
+    {
+      "field": "nomenclature",
+      "operator": "Не заполнено",
+      "status": "pass",
+      "rows": 0,
+      "row_present": false,
+      "seconds": 0.125
+    },
+    {
+      "field": "nomenclature",
+      "operator": "В группе из списка",
+      "status": "pass",
+      "rows": 0,
+      "row_present": false,
+      "seconds": 0.031
+    }
+  ]
+}

@@ -35,12 +35,22 @@ def is_url_active(url, timeout=2.5):
     except Exception:
         return False
 
+def read_runtime_status(url=LOCAL_SERVER_URL, attempts=1):
+    # Readiness must never wait for COM or consume a client license.
+    for attempt in range(attempts):
+        try:
+            with urllib.request.urlopen(url.rstrip('/')+'/api/runtime/status?worker=0',timeout=3) as response:
+                result=json.load(response)
+                if isinstance(result,dict) and isinstance(result.get('auto_reload'),bool): return result
+        except (OSError,ValueError):
+            pass
+        if attempt+1<attempts: time.sleep(.3)
+    return None
+
+
 def is_server_running(url=LOCAL_SERVER_URL):
-    try:
-        with urllib.request.urlopen(url+'/api/runtime/status',timeout=1.0) as response:
-            return response.status==200
-    except Exception:
-        return is_url_active(url, timeout=1.0)
+    return read_runtime_status(url) is not None or is_url_active(url,timeout=2)
+
 
 def is_proxy_running():
     try:
@@ -95,14 +105,13 @@ def ensure_proxy_server(office_url):
 
 def ensure_server(target_url):
     if is_server_running(LOCAL_SERVER_URL):
-        try:
-            with urllib.request.urlopen(LOCAL_SERVER_URL + '/api/runtime/status', timeout=1) as response:
-                if json.load(response).get('auto_reload'):
-                    print('✅ Avtomatik yenilənən arxa plan xidməti artıq işləyir.', flush=True)
-                    return True
-        except (OSError, ValueError):
-            pass
-        stop_legacy_local_server()
+        state=read_runtime_status(LOCAL_SERVER_URL,attempts=3)
+        if state is None:
+            raise RuntimeError('5050 xidməti cavab verir, lakin vəziyyəti hələ oxunmadı. Bir az sonra “Yenilə” basın. Heç bir proses bağlanmadı.')
+        if state.get('auto_reload'):
+            print('✅ Avtomatik yenilənən arxa plan xidməti artıq işləyir.',flush=True)
+            return True
+        stop_legacy_local_server(port=urlparse(LOCAL_SERVER_URL).port or 5050)
 
     print("🔄 Avtomatik yenilənən arxa plan xidməti başladılır. Electron açıq qalacaq.", flush=True)
 

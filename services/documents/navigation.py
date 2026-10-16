@@ -71,8 +71,8 @@ class EdgeQuery:
 class EdgeConnection:
     def __init__(self, conn, payload): self.conn, self.payload, self.first = conn, payload, True
     def __getattr__(self, name): return getattr(self.conn, name)
-    def NewObject(self, kind):
-        obj = self.conn.NewObject(kind)
+    def NewObject(self, kind, *args):
+        obj = self.conn.NewObject(kind, *args)
         if kind == 'Запрос' and self.first:
             self.first = False
             return EdgeQuery(obj, self.payload)

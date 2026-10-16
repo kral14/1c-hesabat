@@ -1,9 +1,9 @@
 # Continue at home
 
-Agent filters requested but not implemented yet:
+Agent filters implemented; live verification on the test database remains:
 - Agent > Вид реализации, selected from Виды реализации (CAT, GR, OPT, PS, RG, TOP, VS, VS JDE).
 - Agent > Группа реализации, selected from Группы реализации (Region MT, Region TT, KK, Опт, Спецканал, TT Баку).
-- Confirm actual metadata relationship to agent attributes / table sections before generating queries. Do not confuse sales type with sales channel.
+- Metadata reference types resolve scalar attributes and table sections at query time. Group table membership takes priority over the sales channel when available. Missing or ambiguous metadata produces an explicit error.
 
 Journal edge pagination: boundary wheel handling and paging diagnostics added. Mocked paging 200 -> 400 -> 401 passed; live reproduction remains to verify.
 

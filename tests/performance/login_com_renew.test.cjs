@@ -1,0 +1,34 @@
+const assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm');
+const elements={modalBtnRenewCom:{textContent:'COM-u yenilə',disabled:false},modalConnStatus:{textContent:''},modalCustomServer:{value:'Test1C'},modalCustomRef:{value:'Aztrade_test3'},modalCustomTitle:{value:'Test'},modalUserSelect:{value:'Tester'},modalPasswordInput:{value:'secret'}};
+const controls=Object.values(elements);
+elements.loginModalOverlay={style:{display:'flex'},querySelectorAll:()=>controls};
+let pending;const calls=[];let fail=false;
+const ctx=vm.createContext({console,AbortController,setTimeout,clearTimeout,window:{},document:{getElementById:id=>elements[id]||null},fetch:(url,options)=>{
+ calls.push({url,body:JSON.parse(options.body)});
+ return new Promise(resolve=>{pending=()=>resolve({ok:!fail,json:async()=>fail?{success:false,error:'test failure'}:{success:true,details:{pid:42}}});});}});
+ctx.window=ctx;
+vm.runInContext(fs.readFileSync('static/js/session.js','utf8')+';globalThis.manager=SessionManager;',ctx);
+const sm=ctx.manager;const auth=[];
+sm.setConnectionStatus=()=>{};
+sm.authenticate=async(...args)=>{auth.push(args);return true;};
+(async()=>{
+ const first=ctx.renewComFromLogin();
+ assert.equal(elements.modalBtnRenewCom.disabled,true);
+ await ctx.renewComFromLogin();assert.equal(calls.length,1,'repeat click while busy must not overlap');
+ pending();await first;
+ assert.equal(auth.length,1);assert.equal(auth[0][2],'Test1C');assert.equal(auth[0][3],'Aztrade_test3');
+ assert.equal(calls[0].body.confirmed,true);
+ assert.equal(elements.loginModalOverlay.style.display,'flex','window must stay open');
+ assert.equal(elements.modalBtnRenewCom.disabled,false);
+ assert.match(elements.modalConnStatus.textContent,/PID 42/);
+ const second=ctx.renewComFromLogin();pending();await second;
+ assert.equal(calls.length,2,'each subsequent completed click must restart again');
+ fail=true;const third=ctx.renewComFromLogin();pending();await third;
+ assert.equal(auth.length,2,'restart failure must not attempt login');
+ assert.equal(elements.modalBtnRenewCom.disabled,false);
+ assert.match(elements.modalConnStatus.textContent,/test failure/);
+ assert.equal(sm._recovering,false);
+ elements.modalCustomRef.value='';await ctx.renewComFromLogin();
+ assert.equal(calls.length,3,'missing base must not restart');
+ console.log('Login COM renewal: repeated clicks, selected credentials, busy guard and failures passed.');
+})().catch(error=>{console.error(error);process.exitCode=1;});

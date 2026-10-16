@@ -3,6 +3,8 @@
 services/documents/pogruzka.py
 Dedicated handler for 'ПогрузкиМашин' (Loading Machine) documents.
 """
+from services.filter_policy_loader import normalize_filters, validate_supported_fields, DOCUMENT_FIELDS
+from services.document_filter_metadata import reference_filter_fields
 from services.onec_dates import as_1c_date
 from services.documents.base import format_1c_datetime, parse_query_datetime, build_filter_conditions, narrow_search_to_column
 
@@ -12,7 +14,10 @@ def get_pogruzka_list(conn, payload):
     search_str = payload.get("search", "").strip()
     offset = int(payload.get("offset", 0))
     limit_count = int(payload.get("limit", 0))
-    filters = payload.get("filters", [])
+    filters = normalize_filters(payload.get("filters", []))
+    optional_field_map = reference_filter_fields(conn, "ПогрузкиМашин")
+    supported_fields = set(DOCUMENT_FIELDS["ПогрузкиМашин"]) | set(optional_field_map) | {"artikul", "barcode"}
+    validate_supported_fields(filters, supported_fields)
     last_date = payload.get("last_date", "").strip()
     last_number = payload.get("last_number", "").strip()
 
@@ -63,6 +68,7 @@ def get_pogruzka_list(conn, payload):
         "warehouse": "Т.Склад.Наименование",
         "responsible": "Т.Ответственный.Наименование"
     }
+    field_map.update(optional_field_map)
     aggregate_join = ""
     if any(isinstance(c, dict) and c.get('enabled') is not False and (c.get('fieldKey') or c.get('field')) in ('amount', 'realization_count') for c in filters):
         aggregate_join = """
@@ -180,6 +186,7 @@ def get_pogruzka_list(conn, payload):
     return {
         "items": items,
         "columns": columns,
+        "supported_filter_fields": sorted(supported_fields),
         "total_count": len(items),
         "doc_title": "Погрузки машин",
         "has_more": (len(items) >= limit_count) if limit_count else False,

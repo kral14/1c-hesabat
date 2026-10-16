@@ -1,0 +1,38 @@
+[
+  {
+    "level": "log",
+    "message": "[JOURNAL PAGE REQUEST] ujWin_РеализацияТоваровУслуг: period=2026-04-01 00:00:00..2026-04-30 23:59:59, limit=10000, offset=200, cursor=22.04.2026 09:00:27|C00004453813",
+    "timestamp": "2026-10-12T05:11:41.432Z",
+    "url": "http://127.0.0.1:5050/static/js/mdi_manager.js?v=10.5"
+  },
+  {
+    "level": "log",
+    "message": "[JOURNAL PAGE RESULT] ujWin_РеализацияТоваровУслуг: received=10000, inPeriod=10000, added=10000, loaded=10200, hasMore=true, cursor=14.04.2026 09:00:01|C00004443931, ms=6493",
+    "timestamp": "2026-10-12T05:11:47.924Z",
+    "url": "http://127.0.0.1:5050/static/js/mdi_manager.js?v=10.5"
+  },
+  {
+    "level": "log",
+    "message": "[JOURNAL PAGE REQUEST] ujWin_РеализацияТоваровУслуг: period=2026-04-01 00:00:00..2026-04-30 23:59:59, limit=10000, offset=10200, cursor=14.04.2026 09:00:01|C00004443931",
+    "timestamp": "2026-10-12T05:11:47.963Z",
+    "url": "http://127.0.0.1:5050/static/js/mdi_manager.js?v=10.5"
+  },
+  {
+    "level": "log",
+    "message": "[JOURNAL PAGE RESULT] ujWin_РеализацияТоваровУслуг: received=10000, inPeriod=10000, added=10000, loaded=20200, hasMore=true, cursor=04.04.2026 09:00:03|C00004434947, ms=9363",
+    "timestamp": "2026-10-12T05:11:57.324Z",
+    "url": "http://127.0.0.1:5050/static/js/mdi_manager.js?v=10.5"
+  },
+  {
+    "level": "log",
+    "message": "[JOURNAL PAGE REQUEST] ujWin_РеализацияТоваровУслуг: period=2026-04-01 00:00:00..2026-04-30 23:59:59, limit=10000, offset=20200, cursor=04.04.2026 09:00:03|C00004434947",
+    "timestamp": "2026-10-12T05:11:57.364Z",
+    "url": "http://127.0.0.1:5050/static/js/mdi_manager.js?v=10.5"
+  },
+  {
+    "level": "log",
+    "message": "[JOURNAL PAGE RESULT] ujWin_РеализацияТоваровУслуг: received=3609, inPeriod=3589, added=3589, loaded=23789, hasMore=false, cursor=31.03.2026 23:00:01|C00004429907, ms=5626",
+    "timestamp": "2026-10-12T05:12:02.991Z",
+    "url": "http://127.0.0.1:5050/static/js/mdi_manager.js?v=10.5"
+  }
+]

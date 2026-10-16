@@ -4,6 +4,7 @@ services/documents/base.py
 Shared utility functions for 1C document query handlers.
 """
 from services.onec_dates import as_1c_date, parse_calendar_date, format_calendar_date
+from services.filter_policy_loader import normalize_filters, validate_supported_fields
 from services.filter_policy import validate_filters, number_values
 from services.filter_sql import text_condition
 import datetime
@@ -34,15 +35,17 @@ def parse_query_datetime(val, is_end=False):
     return parse_calendar_date(val, is_end)
 
 
-def build_filter_conditions(filters, q_doc, where_parts, debug_params, field_map=None):
+def build_filter_conditions(filters, q_doc, where_parts, debug_params, field_map=None, conn=None):
     """
     Translates UI filter rules into 1C query conditions safely and accurately.
     field_map: dict of UI field key -> 1C SQL expression (e.g. {'kontragent': 'Т.Контрагент.Наименование'})
     """
-    if not filters or not isinstance(filters, list):
+    if filters is None or filters == []:
         return
 
-    validate_filters(filters)
+    filters = normalize_filters(filters)
+    if field_map and "__supported_fields" in field_map:
+        validate_supported_fields(filters, field_map["__supported_fields"])
 
     mapping = {
         "number": "Т.Номер",
@@ -68,6 +71,11 @@ def build_filter_conditions(filters, q_doc, where_parts, debug_params, field_map
         if not isinstance(crit, dict) or crit.get("enabled") is False:
             continue
         f_field = str(crit.get("field") or crit.get("fieldKey") or "").strip()
+        if f_field in ('agent_sales_type','agent_sales_group'):
+            from services.agent_filters import condition
+            if conn is None: raise ValueError('Agent təsnifatı üçün 1C bağlantısı tələb olunur')
+            where_parts.append(condition(conn,q_doc,crit,f'p_agent_{idx}',debug_params))
+            continue
         f_op = str(crit.get("operator") or crit.get("comparison") or "Содержит").strip()
         f_val = crit.get("value", "")
         if crit.get('referenceCode') and f_field in ('kontragent','golovnoy_kontragent') and f_op == 'Равно' and (crit.get('referenceName') is None or crit['referenceName'] == f_val):
@@ -77,7 +85,7 @@ def build_filter_conditions(filters, q_doc, where_parts, debug_params, field_map
             where_parts.append(f'{expression} = &{param_key}')
             continue
 
-        if f_field in ["nomenclature", "nomenklatura", "goods", "tovar"]:
+        if f_field in ["nomenclature", "nomenklatura", "goods", "tovar", "artikul", "barcode"]:
             doc_table = mapping.get("__doc_table") or "Документ.РеализацияТоваровУслуг"
             param_key = f"p_crit_{idx}"
             
@@ -93,8 +101,14 @@ def build_filter_conditions(filters, q_doc, where_parts, debug_params, field_map
                 subquery_from = f"{doc_table}.Товары КАК ТТ"
                 link_field = "ТТ.Ссылка"
 
+            attribute_expression = None
+            if f_field == 'artikul': attribute_expression = 'ТТ.Номенклатура.Артикул'
+            if f_field == 'barcode':
+                subquery_from += ' ЛЕВОЕ СОЕДИНЕНИЕ РегистрСведений.Штрихкоды КАК ШК ПО ШК.Владелец = ТТ.Номенклатура'
+                attribute_expression = 'ШК.Штрихкод'
             if f_op in ["Заполнено", "Не заполнено"]:
-                cond = f"Т.Ссылка В (ВЫБРАТЬ {link_field} ИЗ {subquery_from} ГДЕ ТТ.Номенклатура <> ЗНАЧЕНИЕ(Справочник.Номенклатура.ПустаяСсылка))"
+                filled = text_condition(q_doc, attribute_expression, {'operator': 'Заполнено'}, param_key, debug_params) if attribute_expression else 'ТТ.Номенклатура <> ЗНАЧЕНИЕ(Справочник.Номенклатура.ПустаяСсылка)'
+                cond = f"Т.Ссылка В (ВЫБРАТЬ {link_field} ИЗ {subquery_from} ГДЕ {filled})"
                 where_parts.append(cond if f_op == "Заполнено" else f"НЕ ({cond})")
                 continue
             positive_op = {"Не равно": "Равно", "Не содержит": "Содержит", "Не в списке": "В списке"}.get(f_op, f_op)
@@ -106,10 +120,15 @@ def build_filter_conditions(filters, q_doc, where_parts, debug_params, field_map
             document_matches = []
             for token_index, entry in enumerate(entries):
                 value = str(entry.get('value') or '').strip()
+                selected_code = str(entry.get('code') or '').strip() if entry.get('comp', 'equal') == 'equal' else ''
                 bracket = re.match(r'^\[([^\]]+)\]\s*(.*)$', value)
                 token_op = 'Содержит' if entry.get('comp') == 'contains' else ('Начинается с' if positive_op == 'Начинается с' else 'Равно')
-                fields = [('Код', bracket[1])] if bracket and token_op == 'Равно' else [(name, value) for name in ('Наименование', 'Код', 'Артикул')]
-                conditions = [text_condition(q_doc, f'ТТ.Номенклатура.{name}', {'operator': token_op, 'value': token}, f'{param_key}_{token_index}_{i}', debug_params) for i, (name, token) in enumerate(fields)]
+                fields = [('Код', selected_code)] if selected_code and token_op == 'Равно' else [('Код', bracket[1])] if bracket and token_op == 'Равно' else [(name, value) for name in ('Наименование', 'Код', 'Артикул')]
+                if attribute_expression:
+                    token = entry.get(f_field) if entry.get('comp', 'equal') == 'equal' and entry.get(f_field) else value
+                    conditions = [text_condition(q_doc, attribute_expression, {'operator': token_op, 'value': token}, f'{param_key}_{token_index}', debug_params)]
+                else:
+                    conditions = [text_condition(q_doc, f'ТТ.Номенклатура.{name}', {'operator': token_op, 'value': token}, f'{param_key}_{token_index}_{i}', debug_params) for i, (name, token) in enumerate(fields)]
                 document_matches.append(f"Т.Ссылка В (ВЫБРАТЬ {link_field} ИЗ {subquery_from} ГДЕ ({' ИЛИ '.join(conditions)}))")
             if not document_matches: raise ValueError('Məhsul filtrinin dəyərini daxil edin')
             join = ' И ' if structured.get('matchAll') else ' ИЛИ '

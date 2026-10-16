@@ -392,24 +392,20 @@ def get_batch_item_prices_dict(conn, payload):
 
 
 def form_price_document(conn, payload, key=None):
-    price_types = payload.get("price_types", [])
-    if isinstance(price_types, str):
-        price_types = [p.strip() for p in price_types.split(";") if p.strip()]
-    price_types = [str(p).strip() for p in price_types if str(p).strip()]
-    if not price_types:
-        raise ValueError("Zəhmət olmasa ən azı bir qiymət növü (Тип цен) seçin.")
-
-    nom_groups = payload.get("nom_groups", [])
-    if isinstance(nom_groups, str):
-        nom_groups = [g.strip() for g in nom_groups.split(";") if g.strip()]
-
-    price_groups = payload.get("price_groups", [])
-    if isinstance(price_groups, str):
-        price_groups = [g.strip() for g in price_groups.split(";") if g.strip()]
-
-    item_codes = payload.get("item_codes", [])
-    if isinstance(item_codes, str):
-        item_codes = [c.strip() for c in item_codes.split(";") if c.strip()]
+    from services.price_formation_filters import values,validate,condition
+    price_types = values(payload.get("price_types", []))
+    comp_pt = str(payload.get("comp_pt", "in_list")).strip().lower()
+    validate(comp_pt,price_types,hierarchical=False)
+    if not price_types: raise ValueError("Ən azı bir qiymət növü seçin.")
+    if comp_pt in ('not_equal','not_in_list'):
+        all_types = get_all_price_types_list(conn)
+        if not all_types: raise ValueError("Qiymət növlərinin tam siyahısı alınmadı.")
+        excluded = set(price_types)
+        price_types = [row['name'] for row in all_types if row['name'] not in excluded]
+        if not price_types: return dict(price_types=[],items=[],total_items=0)
+    nom_groups = values(payload.get("nom_groups", []))
+    price_groups = values(payload.get("price_groups", []))
+    items = values(payload.get("items", []) or payload.get("item_codes", []))
 
     include_zero_prices = bool(payload.get("include_zero_prices", False))
     doc_date_str = str(payload.get("date") or "").strip()
@@ -421,17 +417,11 @@ def form_price_document(conn, payload, key=None):
     q_form = conn.NewObject("Запрос")
     q_form.SetParameter("PriceTypes", arr_pts)
 
-    has_date = False
-    if doc_date_str:
-        try:
-            d_part = doc_date_str.split()[0]
-            if "." in d_part:
-                dp = d_part.split(".")
-                dt = datetime.datetime(int(dp[2]), int(dp[1]), int(dp[0]), 23, 59, 59)
-                q_form.SetParameter("DocDate", as_1c_date(dt))
-                has_date = True
-        except Exception:
-            pass
+    has_date = bool(doc_date_str)
+    if has_date:
+        dt = parse_query_datetime(doc_date_str, True)
+        if dt is None: raise ValueError("Sənəd tarixi düzgün deyil.")
+        q_form.SetParameter("DocDate", as_1c_date(dt))
 
     date_clause = "&DocDate" if has_date else ""
 
@@ -440,29 +430,16 @@ def form_price_document(conn, payload, key=None):
         "НЕ Т.ПометкаУдаления"
     ]
 
-    if nom_groups:
-        arr_ng = conn.NewObject("Массив")
-        for g in nom_groups:
-            arr_ng.Add(g)
-        q_form.SetParameter("NomGroups", arr_ng)
-        where_clauses.append("Т.НоменклатурнаяГруппа.Наименование В (&NomGroups)")
+    comp_nom = str(payload.get("comp_nom", "equal")).strip().lower()
+    comp_ng = str(payload.get("comp_ng", "in_list")).strip().lower()
+    comp_pg = str(payload.get("comp_pg", "equal")).strip().lower()
 
-    if price_groups:
-        try:
-            arr_pg = conn.NewObject("Массив")
-            for g in price_groups:
-                arr_pg.Add(g)
-            q_form.SetParameter("PriceGroups", arr_pg)
-            where_clauses.append("Т.ЦеноваяГруппа.Наименование В (&PriceGroups)")
-        except Exception:
-            pass
-
-    if item_codes:
-        arr_ic = conn.NewObject("Массив")
-        for c in item_codes:
-            arr_ic.Add(c)
-        q_form.SetParameter("ItemCodes", arr_ic)
-        where_clauses.append("(Т.Код В (&ItemCodes) ИЛИ Т.Артикул В (&ItemCodes))")
+    for expression,catalog,entries,op,prefix,article in (
+        ('Т.НоменклатурнаяГруппа','НоменклатурныеГруппы',nom_groups,comp_ng,'NomGroups',False),
+        ('Т.ЦеноваяГруппа','ЦеновыеГруппы',price_groups,comp_pg,'PriceGroups',False),
+        ('Т','Номенклатура',items,comp_nom,'ItemsList',True)):
+        clause = condition(conn,q_form,expression,catalog,entries,op,prefix,article)
+        if clause: where_clauses.append(clause)
 
     where_sql = " И ".join(where_clauses)
 

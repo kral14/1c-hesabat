@@ -1,0 +1,83 @@
+{
+  "database": "Test1C / Aztrade_test3",
+  "document": "ПогрузкиМашин",
+  "date": "10.07.2026",
+  "nonempty_fixtures": {
+    "warehouse": true,
+    "responsible": true
+  },
+  "cases": [
+    {
+      "field": "warehouse",
+      "operator": "Равно",
+      "status": "pass",
+      "rows": 1
+    },
+    {
+      "field": "warehouse",
+      "operator": "Не равно",
+      "status": "pass",
+      "rows": 0
+    },
+    {
+      "field": "warehouse",
+      "operator": "В списке",
+      "status": "pass",
+      "rows": 1
+    },
+    {
+      "field": "warehouse",
+      "operator": "Не в списке",
+      "status": "pass",
+      "rows": 0
+    },
+    {
+      "field": "warehouse",
+      "operator": "Заполнено",
+      "status": "pass",
+      "rows": 1
+    },
+    {
+      "field": "warehouse",
+      "operator": "Не заполнено",
+      "status": "pass",
+      "rows": 0
+    },
+    {
+      "field": "responsible",
+      "operator": "Равно",
+      "status": "pass",
+      "rows": 1
+    },
+    {
+      "field": "responsible",
+      "operator": "Не равно",
+      "status": "pass",
+      "rows": 0
+    },
+    {
+      "field": "responsible",
+      "operator": "В списке",
+      "status": "pass",
+      "rows": 1
+    },
+    {
+      "field": "responsible",
+      "operator": "Не в списке",
+      "status": "pass",
+      "rows": 0
+    },
+    {
+      "field": "responsible",
+      "operator": "Заполнено",
+      "status": "pass",
+      "rows": 1
+    },
+    {
+      "field": "responsible",
+      "operator": "Не заполнено",
+      "status": "pass",
+      "rows": 0
+    }
+  ]
+}

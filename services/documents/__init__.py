@@ -47,6 +47,9 @@ def handle_get_documents_list(conn, payload, key, resp_q):
     if payload.get('navigation_edge') == 'end':
         res['items'].reverse()
     res['navigation_edge'] = payload.get('navigation_edge')
+    res['server_filter_fields'] = [r.get('fieldKey') or r.get('field') for r in payload.get('filters',[])
+        if r.get('enabled') is not False and (r.get('fieldKey') or r.get('field')) in ('agent_sales_type','agent_sales_group','artikul','barcode','organization','division','currency','contract_price_type','portfolio','kontragent_code','golovnoy_kontragent_code')]
+
     resp_q.put((True, res))
 
 

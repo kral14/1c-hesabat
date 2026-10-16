@@ -1,0 +1,1928 @@
+--- a/app.py
++++ b/app.py
+@@ -26,6 +26,7 @@
+ from routes.catalog_routes import catalog_bp
+ from routes.document_routes import document_bp
+ from routes.order_analysis_routes import order_analysis_bp
++from routes.job_routes import job_bp
+ 
+ import os
+ 
+@@ -42,7 +43,8 @@
+ 
+ @app.get('/api/runtime/status')
+ def runtime_status():
+-    return {'auto_reload': os.environ.get('REPORTER_AUTO_RELOAD') == '1', 'pid': os.getpid()}
++    return {'auto_reload': os.environ.get('REPORTER_AUTO_RELOAD') == '1', 'pid': os.getpid(),
++            'independent_worker': True, 'worker': one_c.status()}
+ app.config['SEND_FILE_MAX_AGE_DEFAULT'] = 0
+ 
+ @app.after_request
+@@ -86,6 +88,7 @@
+     return response
+ 
+ app.register_blueprint(base_bp)
++app.register_blueprint(job_bp)
+ app.register_blueprint(report_bp)
+ app.register_blueprint(catalog_bp)
+ app.register_blueprint(document_bp)
+--- a/managed_runtime.py
++++ b/managed_runtime.py
+@@ -48,21 +48,17 @@
+         from app import app
+         application, port, host = app, 5050, '127.0.0.1'
+     import threading
+-    if not proxy:
+-        import socket
+-        import ipaddress
+-        from werkzeug.serving import make_server
+-        # Separate loopback and office-LAN listeners: do not bind the wildcard
+-        # address, which failed localhost readiness on this Windows machine.
++    sys.path.insert(0, str(ROOT/'.runtime-deps'))
++    from waitress import serve
++    port = int(os.environ.get('REPORTER_PROXY_PORT' if proxy else 'REPORTER_API_PORT', port))
++    listen = f'127.0.0.1:{port}'
++    if not proxy and os.environ.get('REPORTER_LOOPBACK_ONLY') != '1':
++        import socket, ipaddress
++        lan_ip = os.environ.get('REPORTER_LAN_HOST') or socket.gethostbyname(socket.gethostname())
+         try:
+-            lan_ip=os.environ.get('REPORTER_LAN_HOST') or socket.gethostbyname(socket.gethostname())
+-            address=ipaddress.ip_address(lan_ip)
+-            if address.is_private and not address.is_loopback:
+-                lan_server=make_server(lan_ip,port,application,threaded=True)
+-                threading.Thread(target=lan_server.serve_forever,daemon=True).start()
+-                print(f'Office LAN listener: http://{lan_ip}:{port}',flush=True)
+-        except (OSError,ValueError) as error:
+-            print(f'Office LAN listener unavailable: {error}',flush=True)
++            address = ipaddress.ip_address(lan_ip)
++            if address.is_private and not address.is_loopback: listen += f' {lan_ip}:{port}'
++        except ValueError: pass
+     def stop_on_request():
+         stop_file=Path(sys.argv[sys.argv.index('--stop-file')+1])
+         while not stop_file.exists(): time.sleep(.25)
+@@ -71,7 +67,7 @@
+             one_c.close_all()
+         os._exit(0)
+     threading.Thread(target=stop_on_request,daemon=True).start()
+-    application.run(host=host,port=port,debug=False,use_reloader=False,threaded=True)
++    serve(application, listen=listen, threads=8, channel_timeout=120)
+ 
+ def stop_child(process):
+     if process.poll() is not None: return
+@@ -83,7 +79,7 @@
+ def main():
+     proxy='--proxy' in sys.argv
+     if '--child' in sys.argv: child_main(proxy);return 0
+-    lock=runtime_lock(5051 if proxy else 5050)
++    lock=runtime_lock(int(os.environ.get('REPORTER_PROXY_PORT' if proxy else 'REPORTER_API_PORT', 5051 if proxy else 5050)))
+     if lock is None:
+         print('Existing runtime supervisor is already running.',flush=True);return 0
+     environment=dict(os.environ)
+@@ -100,7 +96,10 @@
+     try:
+         while True:
+             if process.poll() is not None:
+-                print(f'Runtime child exited ({process.returncode}).',flush=True);return process.returncode or 1
++                print(f'HTTP child exited ({process.returncode}); restarting API without stopping COM worker.',flush=True)
++                time.sleep(2)
++                process=start()
++                continue
+             current=source_signature()
+             if current!=signature:
+                 signature=current;changed_at=time.monotonic()
+--- a/run.py
++++ b/run.py
+@@ -24,8 +24,8 @@
+ sys.path.insert(0, app_dir)
+ 
+ OFFICE_SERVER_URL = os.environ.get("OFFICE_SERVER_URL", "http://172.16.1.63:5050")
+-LOCAL_SERVER_URL = "http://127.0.0.1:5050"
+-PROXY_SERVER_URL = "http://127.0.0.1:5051"
++LOCAL_SERVER_URL = f"http://127.0.0.1:{int(os.environ.get('REPORTER_API_PORT', 5050))}"
++PROXY_SERVER_URL = f"http://127.0.0.1:{int(os.environ.get('REPORTER_PROXY_PORT', 5051))}"
+ 
+ def is_url_active(url, timeout=2.5):
+     try:
+@@ -44,7 +44,7 @@
+ 
+ def is_proxy_running():
+     try:
+-        req = urllib.request.Request("http://127.0.0.1:5051/ping")
++        req = urllib.request.Request(PROXY_SERVER_URL + '/ping')
+         with urllib.request.urlopen(req, timeout=0.5) as resp:
+             return resp.status == 200
+     except Exception:
+--- a/local_proxy.py
++++ b/local_proxy.py
+@@ -18,11 +18,12 @@
+ 
+ # Daimi HTTP/TCP Connection Pool (Hər dəfə yenidən TCP/TLS qurulmasını aradan qaldırır)
+ proxy_session = requests.Session()
++proxy_session.trust_env = os.environ.get('REPORTER_TRUST_HTTP_PROXY') == '1'
+ retries = Retry(
+     total=3,
+     backoff_factor=0.3,
+     status_forcelist=[502, 503, 504],
+-    allowed_methods=frozenset(["GET", "POST", "PUT", "DELETE", "PATCH", "HEAD", "OPTIONS"]),
++    allowed_methods=frozenset(["GET", "HEAD", "OPTIONS"]),
+     raise_on_status=False
+ )
+ adapter = HTTPAdapter(pool_connections=50, pool_maxsize=50, max_retries=retries, pool_block=False)
+--- /dev/null
++++ b/requirements-runtime.txt
+@@ -0,0 +1 @@
++waitress==3.0.2
+--- a/services/onec_service.py
++++ b/services/onec_service.py
+@@ -1,319 +1,10 @@
+-# -*- coding: utf-8 -*-
+-import os
+-import sys
+-import time
+-import queue
+-import threading
+-import atexit
+-import win32com.client
+-import pythoncom
+-import database
+-import offline_service
+-import virtual_1c
+-from services.common import print_server_error
+-from services.catalog_handlers import CATALOG_HANDLERS
+-from services.report_handlers import REPORT_HANDLERS
+-from services.document_handlers import DOCUMENT_HANDLERS
+-from services.order_analysis_service import ORDER_ANALYSIS_HANDLERS
++"""API facade: API restart never owns or closes the persistent COM session."""
++from services.onec_gateway import OneCGateway
++one_c = OneCGateway()
++service = one_c
+ 
+-class OneCService(threading.Thread):
+-    def __init__(self):
+-        super().__init__(daemon=True)
+-        self.req_q = queue.Queue()
+-        self.connections = {}
+-        self.busy = False
+-        self.start()
+-
+-    def run(self):
+-        connector = None
+-        has_com = False
+-        try:
+-            pythoncom.CoInitialize()
+-            connector = win32com.client.Dispatch("V83.COMConnector")
+-            has_com = True
+-            print("1C Dedicated STA Worker Thread Ready.", flush=True)
+-        except Exception as e_com:
+-            print(f"⚠️ [1C COM CONNECTOR TAPILMADI] {e_com}", flush=True)
+-            if offline_service.is_offline_db_ready():
+-                print("🟢 [VIRTUAL 1C AKTİV EDİLDİ] Sistem 'data/offline_1c_data.db' SQLite bazasına Virtual 1C:Enterprise kimi bağlandı!", flush=True)
+-                connector = virtual_1c.Virtual1CConnector()
+-            else:
+-                print("❌ [OFFLINE BAZA YOXDUR] 'data/offline_1c_data.db' faylı tapılmadı.", flush=True)
+-
+-        while True:
+-            self.busy = False
+-            action, payload, resp_q = self.req_q.get()
+-            self.busy = True
+-            deadline = payload.pop('_queue_deadline', None)
+-            if deadline is not None and time.monotonic() >= deadline:
+-                resp_q.put((False, TimeoutError('Sorğu növbədə gözləyərkən vaxtı bitdi.')))
+-                continue
+-            if action == "shutdown":
+-                print("1C Worker shutting down: releasing COM sessions...", flush=True)
+-                for k in list(self.connections.keys()):
+-                    self.connections[k] = None
+-                self.connections.clear()
+-                connector = None
+-                try:
+-                    pythoncom.CoUninitialize()
+-                except Exception:
+-                    pass
+-                resp_q.put((True, "Closed"))
+-                break
+-
+-            # Offline route detection
+-            active_base = database.get_active_base() or {}
+-            base_ref = payload.get("ref") or active_base.get("ref") or ""
+-            is_real_com = has_com and (connector is not None) and not isinstance(connector, virtual_1c.Virtual1CConnector)
+-            use_offline = (not is_real_com) or payload.get("force_offline") or ("offline" in str(base_ref).lower())
+-
+-            if use_offline and offline_service.is_offline_db_ready():
+-                try:
+-                    if action == "connection_probe":
+-                        resp_q.put((True, {"connected": True, "offline": True}))
+-                    elif action == "ping":
+-                        resp_q.put((True, "pong"))
+-                    elif action == "get_users":
+-                        resp_q.put((True, offline_service.get_users()))
+-                    elif action == "get_portfolios":
+-                        resp_q.put((True, offline_service.get_portfolios()))
+-                    elif action == "get_agents":
+-                        resp_q.put((True, offline_service.get_agents()))
+-                    elif action == "search_kontragents":
+-                        resp_q.put((True, offline_service.search_kontragents(payload.get("query", ""))))
+-                    elif action in ["search_nomenklatura", "search_nomenclature"]:
+-                        resp_q.put((True, offline_service.search_nomenklatura(payload.get("query", ""))))
+-                    elif action == "get_all_price_types":
+-                        resp_q.put((True, offline_service.get_all_price_types()))
+-                    elif action == "get_documents_list":
+-                        if payload.get("navigation_edge") or payload.get("sort_rules"):
+-                            raise ValueError("Server sıralaması və sürətli Home/End offline rejimdə hələ dəstəklənmir. Sıralama qaydalarını söndürüb bütün məlumat rejimini seçin.")
+-                        resp_q.put((True, offline_service.get_documents_list(payload)))
+-                    elif action in ["get_price_document", "get_document_details"]:
+-                        resp_q.put((True, offline_service.get_document_details(payload)))
+-                    elif action == "save_price_document":
+-                        resp_q.put((True, offline_service.save_price_document(payload)))
+-                    elif action == "resolve_nomenclature_batch":
+-                        resp_q.put((True, offline_service.resolve_nomenclature_batch(payload)))
+-                    elif action == "get_batch_item_prices":
+-                        resp_q.put((True, offline_service.get_batch_item_prices(payload)))
+-                    elif action == "get_nomenclature_card":
+-                        resp_q.put((True, offline_service.get_nomenclature_card(payload)))
+-                    elif action == "get_nomenclature_stock":
+-                        resp_q.put((True, offline_service.get_nomenclature_stock(payload)))
+-                    elif action == "catalog_data":
+-                        resp_q.put((True, offline_service.catalog_data(payload)))
+-                    elif action == "get_audit_list":
+-                        import importlib
+-                        importlib.reload(offline_service)
+-                        resp_q.put((True, offline_service.get_audit_list(payload)))
+-                    elif action == "get_audit_diff":
+-                        import importlib
+-                        importlib.reload(offline_service)
+-                        resp_q.put((True, offline_service.get_audit_diff(payload)))
+-                    elif action == "get_portfolio_catalog_filters":
+-                        resp_q.put((True, offline_service.get_portfolio_catalog_filters()))
+-                    elif action == "get_portfolio_catalog_items":
+-                        resp_q.put((True, offline_service.get_portfolio_catalog_items(payload)))
+-                    elif action == "get_reports":
+-                        resp_q.put((True, {
+-                            "user_reports": [
+-                                {
+-                                    "setting_name": "Satış Hesabatı (Universal)",
+-                                    "object_name": "Отчет.Продажи",
+-                                    "description": "Offline Satış Dövriyyəsi",
+-                                    "is_direct": True
+-                                },
+-                                {
+-                                    "setting_name": "Qiymət Təyini Jurnalı",
+-                                    "object_name": "Документ.УстановкаЦенНоменклатуры",
+-                                    "description": "Offline Qiymət Sənədləri"
+-                                }
+-                            ],
+-                            "warehouse_reports": [
+-                                {
+-                                    "setting_name": "Anbar Qalıqları Hesabatı",
+-                                    "object_name": "Отчет.ТоварыНаСкладах",
+-                                    "description": "Offline Anbar Qalıqları"
+-                                }
+-                            ]
+-                        }))
+-                    elif action in ["generate", "direct_calculate"]:
+-                        resp_q.put((True, {"headers": [], "rows": [], "total_count": 0, "excel_file": ""}))
+-                    elif action == "universal_sales":
+-                        resp_q.put((True, offline_service.universal_sales(payload)))
+-                    elif action == "universal_report":
+-                        resp_q.put((True, offline_service.universal_report(payload)))
+-                    elif action == "order_analysis":
+-                        import importlib
+-                        import services.order_analysis_service
+-                        importlib.reload(services.order_analysis_service)
+-                        resp_q.put((True, services.order_analysis_service.handle_order_analysis_offline(payload)))
+-                    else:
+-                        resp_q.put((False, RuntimeError(f"Offline rejimdə '{action}' dəstəklənmir")))
+-                except Exception as e_off:
+-                    print_server_error(f"OneCService.offline [{action}]", e_off, payload)
+-                    resp_q.put((False, e_off))
+-                continue
+-
+-            if connector is None:
+-                resp_q.put((False, RuntimeError("Bu kompüterdə 1C COMConnector quraşdırılmayıb və offline baza tapılmadı.")))
+-                continue
+-
+-            try:
+-                active_base = database.get_active_base() or {}
+-                server = payload.get("server") or active_base.get("server") or "Test1C"
+-                base = payload.get("ref") or active_base.get("ref") or "Aztrade_test3"
+-                user = payload.get("user") or active_base.get("user") or "Nesib"
+-                pwd = payload.get("password") or active_base.get("password") or "15963"
+-                if str(user).strip().lower() in ["nesib admin", "nesibadmin", "nəsib"]:
+-                    user = "Nesib"
+-                key = f"{server.lower()}_{base.lower()}_{user.lower()}_{pwd}"
+-
+-                if payload.pop('_reset_connection', False):
+-                    self.connections.pop(key, None)
+-                conn = self.connections.get(key)
+-                if conn is not None:
+-                    # Check connection liveness using valid COMConnector method String(1)
+-                    try:
+-                        if action == 'ping' or payload.get('_login'):
+-                            probe = conn.NewObject('Запрос')
+-                            probe.Text = 'ВЫБРАТЬ 1 КАК Alive'
+-                            try: probe.Execute()
+-                            finally: probe = None
+-                        else:
+-                            _ = conn.String(1)
+-                    except Exception as e_hb:
+-                        print(f"🔄 [1C SESSIYA BƏRPASI] COM sessiyası qırılıb ({e_hb}), yenidən qoşulur...", flush=True)
+-                        self.connections.pop(key, None)
+-                        conn = None
+-
+-                if action == 'connection_probe':
+-                    if conn is None:
+-                        resp_q.put((True, {'connected': False, 'error': '1C sessiyası aktiv deyil. Yenidən qoşulun.'}))
+-                        continue
+-                    try:
+-                        probe = conn.NewObject('Запрос')
+-                        probe.Text = 'ВЫБРАТЬ 1 КАК Alive'
+-                        probe.Execute()
+-                    except Exception:
+-                        self.connections.pop(key, None)
+-                        raise
+-                    finally:
+-                        probe = None
+-                    resp_q.put((True, {'connected': True}))
+-                    continue
+-
+-                if conn is None:
+-                    # Release previous connection to prevent 1C license exhaustion (1 concurrent license limit)
+-                    for old_key in list(self.connections.keys()):
+-                        if old_key != key:
+-                            print(f"🔄 [1C BAZA DƏYİŞDİ] Köhnə COM sessiya azad edilir: {old_key} -> Yeni: {key}", flush=True)
+-                            self.connections[old_key] = None
+-                            self.connections.pop(old_key, None)
+-
+-                    t0 = time.time()
+-                    conn_str = f'Srvr="{server}";Ref="{base}";Usr="{user}";Pwd="{pwd}";'
+-                    conn = connector.Connect(conn_str)
+-                    self.connections[key] = conn
+-                    print(f"1C Session connected to [{server} / {base} / {user}] in {time.time() - t0:.2f} s", flush=True)
+-
+-                # Dispatch Action
+-                payload = dict(payload, _resolved_user=user)
+-                if action == "ping":
+-                    probe = conn.NewObject('Запрос')
+-                    probe.Text = 'ВЫБРАТЬ 1 КАК Alive'
+-                    probe.Execute()
+-                    probe = None
+-                    resp_q.put((True, "pong"))
+-                elif action in CATALOG_HANDLERS:
+-                    if action in ["user_accounts", "change_user_password"]:
+-                        import importlib
+-                        import services.user_passwords
+-                        importlib.reload(services.user_passwords)
+-                        if action == "user_accounts":
+-                            services.user_passwords.list_accounts(conn, payload, key, resp_q)
+-                        else:
+-                            services.user_passwords.change_password(conn, payload, key, resp_q)
+-                    else:
+-                        CATALOG_HANDLERS[action](conn, payload, key, resp_q)
+-                elif action in REPORT_HANDLERS:
+-                    if action == "generate":
+-                        REPORT_HANDLERS[action](conn, payload, key, resp_q, req_q=self.req_q)
+-                    else:
+-                        REPORT_HANDLERS[action](conn, payload, key, resp_q)
+-                elif action in DOCUMENT_HANDLERS:
+-                    if action in ["get_audit_list", "get_audit_diff", "get_audit_events"]:
+-                        import importlib
+-                        import services.audit_service
+-                        importlib.reload(services.audit_service)
+-                        if action == "get_audit_list":
+-                            resp_q.put((True, services.audit_service.get_audit_list(conn, payload)))
+-                        elif action == 'get_audit_events':
+-                            resp_q.put((True, services.audit_service.get_audit_event_page(conn,payload)))
+-                        else:
+-                            resp_q.put((True, services.audit_service.get_document_version_diff(conn, payload)))
+-                    else:
+-                        DOCUMENT_HANDLERS[action](conn, payload, key, resp_q)
+-                elif action in ORDER_ANALYSIS_HANDLERS:
+-                    import importlib
+-                    import services.order_analysis_service
+-                    importlib.reload(services.order_analysis_service)
+-                    services.order_analysis_service.ORDER_ANALYSIS_HANDLERS[action](conn, payload, key, resp_q)
+-                else:
+-                    raise ValueError(f"1C naməlum əməliyyat (Unknown Action): {action}")
+-
+-            except Exception as e:
+-                err_str = str(e)
+-                if any(k in err_str for k in ["Сеанс отсутствует", "ClusterDistribImpl", "Соединение разорвано"]):
+-                    print(f"⚠️ [1C BİLDİRİŞ] 1C sessiyası server tərəfindən bağlanıb, avtomatik bərpa edilir...", flush=True)
+-                    try:
+-                        self.connections.pop(key, None)
+-                    except Exception:
+-                        pass
+-                else:
+-                    print_server_error(f"OneCService.run [Action: {action}]", e, payload)
+-                resp_q.put((False, e))
+-
+-    def execute(self, action, payload, retry=2, timeout=None):
+-        for attempt in range(retry + 1):
+-            resp_q = queue.Queue()
+-            queued_payload = dict(payload)
+-            if timeout is not None: queued_payload['_queue_deadline'] = time.monotonic() + timeout
+-            self.req_q.put((action, queued_payload, resp_q))
+-            try:
+-                ok, result = resp_q.get(timeout=timeout)
+-            except queue.Empty:
+-                raise TimeoutError('1C sorğusu vaxtında cavab vermədi. Serverdə davam edən sorğu bitdikdən sonra yenidən yoxlayın.')
+-            if ok:
+-                return result
+-            err_str = str(result)
+-            if "Не обнаружено свободной лицензии" in err_str:
+-                if attempt < retry:
+-                    print(f"⏳ [1C LİSENZİYA GÖZLƏNİLİR] 1C sessiyasının azad olunması gözlənilir, 2.5s sonra yenidən yoxlanılır (cəhd {attempt + 1}/{retry + 1})...", flush=True)
+-                    time.sleep(2.5)
+-                    continue
+-                print("⚠️ [1C LİSENZİYA MƏŞĞUL] Lisenziya limiti tam doludur.", flush=True)
+-                raise result
+-            if attempt < retry and any(k in err_str for k in ["Сеанс отсутствует", "ClusterDistribImpl", "Соединение разорвано"]):
+-                print(f"⚠️ [1C BİLDİRİŞ] 1C sessiyası qırıldı, avtomatik yenidən qoşulur və '{action}' təkrar icra edilir (cəhd {attempt + 1})...", flush=True)
+-                # COM references must be released on the owning STA worker, not an HTTP thread.
+-                payload = dict(payload, _reset_connection=True)
+-                time.sleep(1.0)
+-                continue
+-            print_server_error(f"OneCService.execute [Action: {action}]", result, payload)
+-            if isinstance(result, BaseException):
+-                raise result
+-            raise RuntimeError(str(result))
+-
+-    def close_all(self):
+-        try:
+-            resp_q = queue.Queue()
+-            self.req_q.put(("shutdown", {}, resp_q))
+-            resp_q.get(timeout=2.0)
+-        except Exception:
+-            pass
+-
+-one_c = OneCService()
+-service = one_c
+-atexit.register(one_c.close_all)
++def __getattr__(name):
++    if name in ('OneCService', 'win32com', 'pythoncom', 'database'):
++        from services import onec_worker
++        return getattr(onec_worker, name)
++    raise AttributeError(name)
+--- /dev/null
++++ b/services/onec_worker.py
+@@ -0,0 +1,346 @@
++# -*- coding: utf-8 -*-
++import os
++import sys
++import time
++import queue
++import threading
++import atexit
++import hashlib
++import datetime
++from services.action_queue import ActionQueue
++from services.onec_result_queue import ResultQueue
++from services.documents.base import parse_query_datetime
++import win32com.client
++import pythoncom
++import database
++import offline_service
++import virtual_1c
++from services.common import print_server_error
++from services.catalog_handlers import CATALOG_HANDLERS
++from services.report_handlers import REPORT_HANDLERS
++from services.document_handlers import DOCUMENT_HANDLERS
++from services.order_analysis_service import ORDER_ANALYSIS_HANDLERS
++
++class OneCService(threading.Thread):
++    def __init__(self):
++        super().__init__(daemon=True)
++        self.req_q = ActionQueue()
++        self.connections = {}
++        self.busy = False
++        self.connection_generation = 0
++        self.start()
++
++    def run(self):
++        connector = None
++        has_com = False
++        try:
++            pythoncom.CoInitialize()
++            connector = win32com.client.Dispatch("V83.COMConnector")
++            has_com = True
++            print("1C Dedicated STA Worker Thread Ready.", flush=True)
++        except Exception as e_com:
++            print(f"⚠️ [1C COM CONNECTOR TAPILMADI] {e_com}", flush=True)
++            if offline_service.is_offline_db_ready():
++                print("🟢 [VIRTUAL 1C AKTİV EDİLDİ] Sistem 'data/offline_1c_data.db' SQLite bazasına Virtual 1C:Enterprise kimi bağlandı!", flush=True)
++                connector = virtual_1c.Virtual1CConnector()
++            else:
++                print("❌ [OFFLINE BAZA YOXDUR] 'data/offline_1c_data.db' faylı tapılmadı.", flush=True)
++
++        while True:
++            self.busy = False
++            action, payload, resp_q = self.req_q.get()
++            self.busy = True
++            deadline = payload.pop('_queue_deadline', None)
++            if deadline is not None and time.monotonic() >= deadline:
++                resp_q.put((False, TimeoutError('Sorğu növbədə gözləyərkən vaxtı bitdi.')))
++                continue
++            if action == "shutdown":
++                print("1C Worker shutting down: releasing COM sessions...", flush=True)
++                for k in list(self.connections.keys()):
++                    self.connections[k] = None
++                self.connections.clear()
++                connector = None
++                try:
++                    pythoncom.CoUninitialize()
++                except Exception:
++                    pass
++                resp_q.put((True, "Closed"))
++                break
++
++            callback = getattr(self, 'on_action_start', None)
++            job_id = payload.pop('_job_id', None)
++            self.current_action = action
++            self.action_started = time.monotonic()
++            if callback and job_id:
++                try: callback(job_id)
++                except Exception as error:
++                    resp_q.put((False, error))
++                    continue
++            # Offline route detection
++            active_base = database.get_active_base() or {}
++            base_ref = payload.get("ref") or active_base.get("ref") or ""
++            is_real_com = has_com and (connector is not None) and not isinstance(connector, virtual_1c.Virtual1CConnector)
++            use_offline = (not is_real_com) or payload.get("force_offline") or ("offline" in str(base_ref).lower())
++
++            if use_offline and offline_service.is_offline_db_ready():
++                try:
++                    if action == "connection_probe":
++                        resp_q.put((True, {"connected": True, "offline": True}))
++                    elif action == "ping":
++                        resp_q.put((True, "pong"))
++                    elif action == "get_users":
++                        resp_q.put((True, offline_service.get_users()))
++                    elif action == "get_portfolios":
++                        resp_q.put((True, offline_service.get_portfolios()))
++                    elif action == "get_agents":
++                        resp_q.put((True, offline_service.get_agents()))
++                    elif action == "search_kontragents":
++                        resp_q.put((True, offline_service.search_kontragents(payload.get("query", ""))))
++                    elif action in ["search_nomenklatura", "search_nomenclature"]:
++                        resp_q.put((True, offline_service.search_nomenklatura(payload.get("query", ""))))
++                    elif action == "get_all_price_types":
++                        resp_q.put((True, offline_service.get_all_price_types()))
++                    elif action == "get_documents_list":
++                        if payload.get("navigation_edge") or payload.get("sort_rules"):
++                            raise ValueError("Server sıralaması və sürətli Home/End offline rejimdə hələ dəstəklənmir. Sıralama qaydalarını söndürüb bütün məlumat rejimini seçin.")
++                        resp_q.put((True, offline_service.get_documents_list(payload)))
++                    elif action in ["get_price_document", "get_document_details"]:
++                        resp_q.put((True, offline_service.get_document_details(payload)))
++                    elif action == "save_price_document":
++                        resp_q.put((True, offline_service.save_price_document(payload)))
++                    elif action == "resolve_nomenclature_batch":
++                        resp_q.put((True, offline_service.resolve_nomenclature_batch(payload)))
++                    elif action == "get_batch_item_prices":
++                        resp_q.put((True, offline_service.get_batch_item_prices(payload)))
++                    elif action == "get_nomenclature_card":
++                        resp_q.put((True, offline_service.get_nomenclature_card(payload)))
++                    elif action == "get_nomenclature_stock":
++                        resp_q.put((True, offline_service.get_nomenclature_stock(payload)))
++                    elif action == "catalog_data":
++                        resp_q.put((True, offline_service.catalog_data(payload)))
++                    elif action == "get_audit_list":
++                        import importlib
++                        importlib.reload(offline_service)
++                        resp_q.put((True, offline_service.get_audit_list(payload)))
++                    elif action == "get_audit_diff":
++                        import importlib
++                        importlib.reload(offline_service)
++                        resp_q.put((True, offline_service.get_audit_diff(payload)))
++                    elif action == 'get_audit_events':
++                        first = parse_query_datetime(payload.get('date_from'))
++                        last = parse_query_datetime(payload.get('date_to'), is_end=True)
++                        cursor = parse_query_datetime(payload.get('cursor')) or first
++                        if not first or not last or not cursor or cursor < first or cursor > last:
++                            raise ValueError('Audit üçün düzgün tarix aralığı seçin.')
++                        end = min(last, cursor.replace(hour=23,minute=59,second=59,microsecond=0))
++                        history = offline_service.get_audit_diff(payload).get('event_timeline', [])
++                        events = []
++                        for event in history:
++                            stamp = parse_query_datetime(event.get('date') or event.get('datetime'))
++                            if stamp and cursor <= stamp <= end: events.append(event)
++                        following = end + datetime.timedelta(seconds=1)
++                        resp_q.put((True, {'events':events, 'next_cursor':following.strftime('%Y-%m-%d %H:%M:%S') if following <= last else '',
++                            'scanned_to':end.strftime('%d.%m.%Y %H:%M:%S')}))
++                    elif action == "get_portfolio_catalog_filters":
++                        resp_q.put((True, offline_service.get_portfolio_catalog_filters()))
++                    elif action == "get_portfolio_catalog_items":
++                        resp_q.put((True, offline_service.get_portfolio_catalog_items(payload)))
++                    elif action == "get_reports":
++                        resp_q.put((True, {
++                            "user_reports": [
++                                {
++                                    "setting_name": "Satış Hesabatı (Universal)",
++                                    "object_name": "Отчет.Продажи",
++                                    "description": "Offline Satış Dövriyyəsi",
++                                    "is_direct": True
++                                },
++                                {
++                                    "setting_name": "Qiymət Təyini Jurnalı",
++                                    "object_name": "Документ.УстановкаЦенНоменклатуры",
++                                    "description": "Offline Qiymət Sənədləri"
++                                }
++                            ],
++                            "warehouse_reports": [
++                                {
++                                    "setting_name": "Anbar Qalıqları Hesabatı",
++                                    "object_name": "Отчет.ТоварыНаСкладах",
++                                    "description": "Offline Anbar Qalıqları"
++                                }
++                            ]
++                        }))
++                    elif action in ["generate", "direct_calculate"]:
++                        resp_q.put((True, {"headers": [], "rows": [], "total_count": 0, "excel_file": ""}))
++                    elif action == "universal_sales":
++                        resp_q.put((True, offline_service.universal_sales(payload)))
++                    elif action == "universal_report":
++                        resp_q.put((True, offline_service.universal_report(payload)))
++                    elif action == "order_analysis":
++                        import importlib
++                        import services.order_analysis_service
++                        importlib.reload(services.order_analysis_service)
++                        resp_q.put((True, services.order_analysis_service.handle_order_analysis_offline(payload)))
++                    else:
++                        resp_q.put((False, RuntimeError(f"Offline rejimdə '{action}' dəstəklənmir")))
++                except Exception as e_off:
++                    print_server_error(f"OneCService.offline [{action}]", e_off, payload)
++                    resp_q.put((False, e_off))
++                continue
++
++            if connector is None:
++                resp_q.put((False, RuntimeError("Bu kompüterdə 1C COMConnector quraşdırılmayıb və offline baza tapılmadı.")))
++                continue
++
++            try:
++                active_base = database.get_active_base() or {}
++                server = payload.get("server") or active_base.get("server") or "Test1C"
++                base = payload.get("ref") or active_base.get("ref") or "Aztrade_test3"
++                user = payload.get("user") or active_base.get("user") or "Nesib"
++                pwd = str(payload.get('password') or '') if 'password' in payload else (active_base.get('password') or '15963')
++                if str(user).strip().lower() in ["nesib admin", "nesibadmin", "nəsib"]:
++                    user = "Nesib"
++                key = f"{server.lower()}_{base.lower()}_{user.lower()}_{hashlib.sha256(pwd.encode()).hexdigest()}"
++
++                if payload.pop('_reset_connection', False):
++                    self.connections.pop(key, None)
++                conn = self.connections.get(key)
++                if conn is not None:
++                    # Check connection liveness using valid COMConnector method String(1)
++                    try:
++                        if action == 'ping' or payload.get('_login'):
++                            probe = conn.NewObject('Запрос')
++                            probe.Text = 'ВЫБРАТЬ 1 КАК Alive'
++                            try: probe.Execute()
++                            finally: probe = None
++                        else:
++                            _ = conn.String(1)
++                    except Exception as e_hb:
++                        print(f"🔄 [1C SESSIYA BƏRPASI] COM sessiyası qırılıb ({e_hb}), yenidən qoşulur...", flush=True)
++                        self.connections.pop(key, None)
++                        conn = None
++
++                if action == 'connection_probe':
++                    if conn is None:
++                        resp_q.put((True, {'connected': False, 'error': '1C sessiyası aktiv deyil. Yenidən qoşulun.'}))
++                        continue
++                    try:
++                        probe = conn.NewObject('Запрос')
++                        probe.Text = 'ВЫБРАТЬ 1 КАК Alive'
++                        probe.Execute()
++                    except Exception:
++                        self.connections.pop(key, None)
++                        raise
++                    finally:
++                        probe = None
++                    resp_q.put((True, {'connected': True}))
++                    continue
++
++                if conn is None:
++                    # Release previous connection to prevent 1C license exhaustion (1 concurrent license limit)
++                    for old_key in list(self.connections.keys()):
++                        if old_key != key:
++                            print(f"🔄 [1C BAZA DƏYİŞDİ] Köhnə COM sessiya azad edilir: {old_key} -> Yeni: {key}", flush=True)
++                            self.connections[old_key] = None
++                            self.connections.pop(old_key, None)
++
++                    t0 = time.time()
++                    conn_str = f'Srvr="{server}";Ref="{base}";Usr="{user}";Pwd="{pwd}";'
++                    conn = connector.Connect(conn_str)
++                    self.connections[key] = conn
++                    self.connection_generation += 1
++                    print(f"1C Session connected to [{server} / {base} / {user}] in {time.time() - t0:.2f} s", flush=True)
++
++                # Dispatch Action
++                payload = dict(payload, _resolved_user=user)
++                if action == "ping":
++                    probe = conn.NewObject('Запрос')
++                    probe.Text = 'ВЫБРАТЬ 1 КАК Alive'
++                    probe.Execute()
++                    probe = None
++                    resp_q.put((True, "pong"))
++                elif action in CATALOG_HANDLERS:
++                    if action in ["user_accounts", "change_user_password"]:
++                        import importlib
++                        import services.user_passwords
++                        importlib.reload(services.user_passwords)
++                        if action == "user_accounts":
++                            services.user_passwords.list_accounts(conn, payload, key, resp_q)
++                        else:
++                            services.user_passwords.change_password(conn, payload, key, resp_q)
++                    else:
++                        CATALOG_HANDLERS[action](conn, payload, key, resp_q)
++                elif action in REPORT_HANDLERS:
++                    if action == "generate":
++                        REPORT_HANDLERS[action](conn, payload, key, resp_q, req_q=self.req_q)
++                    else:
++                        REPORT_HANDLERS[action](conn, payload, key, resp_q)
++                elif action in DOCUMENT_HANDLERS:
++                    if action in ["get_audit_list", "get_audit_diff", "get_audit_events"]:
++                        import importlib
++                        import services.audit_service
++                        importlib.reload(services.audit_service)
++                        if action == "get_audit_list":
++                            resp_q.put((True, services.audit_service.get_audit_list(conn, payload)))
++                        elif action == 'get_audit_events':
++                            resp_q.put((True, services.audit_service.get_audit_event_page(conn,payload)))
++                        else:
++                            resp_q.put((True, services.audit_service.get_document_version_diff(conn, payload)))
++                    else:
++                        DOCUMENT_HANDLERS[action](conn, payload, key, resp_q)
++                elif action in ORDER_ANALYSIS_HANDLERS:
++                    import importlib
++                    import services.order_analysis_service
++                    importlib.reload(services.order_analysis_service)
++                    services.order_analysis_service.ORDER_ANALYSIS_HANDLERS[action](conn, payload, key, resp_q)
++                else:
++                    raise ValueError(f"1C naməlum əməliyyat (Unknown Action): {action}")
++
++            except Exception as e:
++                err_str = str(e)
++                if any(k in err_str for k in ["Сеанс отсутствует", "ClusterDistribImpl", "Соединение разорвано"]):
++                    print(f"⚠️ [1C BİLDİRİŞ] 1C sessiyası server tərəfindən bağlanıb, avtomatik bərpa edilir...", flush=True)
++                    try:
++                        self.connections.pop(key, None)
++                    except Exception:
++                        pass
++                else:
++                    print_server_error(f"OneCService.run [Action: {action}]", e, payload)
++                resp_q.put((False, e))
++
++    def execute(self, action, payload, retry=2, timeout=None):
++        for attempt in range(retry + 1):
++            resp_q = ResultQueue()
++            queued_payload = dict(payload)
++            if timeout is not None: queued_payload['_queue_deadline'] = time.monotonic() + timeout
++            self.req_q.put((action, queued_payload, resp_q))
++            try:
++                ok, result = resp_q.get(timeout=timeout)
++            except queue.Empty:
++                raise TimeoutError('1C sorğusu vaxtında cavab vermədi. Serverdə davam edən sorğu bitdikdən sonra yenidən yoxlayın.')
++            if ok:
++                return result
++            err_str = str(result)
++            if "Не обнаружено свободной лицензии" in err_str:
++                if attempt < retry:
++                    print(f"⏳ [1C LİSENZİYA GÖZLƏNİLİR] 1C sessiyasının azad olunması gözlənilir, 2.5s sonra yenidən yoxlanılır (cəhd {attempt + 1}/{retry + 1})...", flush=True)
++                    time.sleep(2.5)
++                    continue
++                print("⚠️ [1C LİSENZİYA MƏŞĞUL] Lisenziya limiti tam doludur.", flush=True)
++                raise result
++            if attempt < retry and any(k in err_str for k in ["Сеанс отсутствует", "ClusterDistribImpl", "Соединение разорвано"]):
++                print(f"⚠️ [1C BİLDİRİŞ] 1C sessiyası qırıldı, avtomatik yenidən qoşulur və '{action}' təkrar icra edilir (cəhd {attempt + 1})...", flush=True)
++                # COM references must be released on the owning STA worker, not an HTTP thread.
++                payload = dict(payload, _reset_connection=True)
++                time.sleep(1.0)
++                continue
++            print_server_error(f"OneCService.execute [Action: {action}]", result, payload)
++            if isinstance(result, BaseException):
++                raise result
++            raise RuntimeError(str(result))
++
++    def close_all(self):
++        try:
++            resp_q = queue.Queue()
++            self.req_q.put(("shutdown", {}, resp_q))
++            resp_q.get(timeout=2.0)
++        except Exception:
++            pass
+--- /dev/null
++++ b/services/onec_gateway.py
+@@ -0,0 +1,127 @@
++"""HTTP process facade for the independent, loopback-only COM owner."""
++import os
++import secrets
++import subprocess
++import sys
++import threading
++import time
++from pathlib import Path
++import requests
++
++ROOT = Path(__file__).resolve().parents[1]
++
++
++class WorkerUnavailable(RuntimeError):
++    pass
++
++
++class QueueView:
++    def __init__(self, gateway): self.gateway = gateway
++    def empty(self): return self.gateway.status().get('queued', 0) == 0
++
++
++class OneCGateway:
++    def __init__(self, port=None, root=None, auto_start=True):
++        self.root = Path(root or ROOT)
++        self.port = int(port or os.environ.get('REPORTER_WORKER_PORT', 5052))
++        self.url = f'http://127.0.0.1:{self.port}'
++        self.auto_start = auto_start
++        self.req_q = QueueView(self)
++        self._lock = threading.Lock()
++        self._http = threading.local()
++        self._status = None
++        self._status_at = 0
++
++    def key(self):
++        path = self.root / 'logs' / f'worker-{self.port}.key'
++        path.parent.mkdir(parents=True, exist_ok=True)
++        try:
++            with path.open('x', encoding='ascii') as file: file.write(secrets.token_hex(32))
++        except FileExistsError:
++            pass
++        key = path.read_text(encoding='ascii').strip()
++        if len(key) != 64: raise WorkerUnavailable('Worker authentication key is invalid')
++        return key
++
++    def request(self, path, data=None, timeout=5):
++        try:
++            if not hasattr(self._http, 'session'):
++                self._http.session = requests.Session()
++                self._http.session.trust_env = False
++            response = self._http.session.post(self.url + path, json=data or {},
++                headers={'X-Worker-Key': self.key()}, timeout=(1.5, timeout))
++            body = response.json()
++        except (requests.RequestException, ValueError) as error:
++            raise WorkerUnavailable('1C bağlantı prosesi əlçatan deyil.') from error
++        if not response.ok or not body.get('success'):
++            if body.get('error_type') == 'TimeoutError': raise TimeoutError(body.get('error'))
++            if body.get('error_type') == 'PermissionError': raise PermissionError(body.get('error'))
++            if body.get('error_type') == 'ValueError': raise ValueError(body.get('error'))
++            raise RuntimeError(body.get('error') or 'Worker request failed')
++        return body
++
++    def status(self, refresh=False):
++        if not refresh and self._status is not None and time.monotonic()-self._status_at < .2:
++            return self._status
++        try: status = self.request('/status', timeout=2)['status']
++        except WorkerUnavailable: status = {'available': False, 'busy': False, 'queued': 0, 'session_count': 0, 'session_tokens': []}
++        self._status, self._status_at = status, time.monotonic()
++        return status
++
++    @property
++    def busy(self): return self.status().get('busy', False)
++
++    @property
++    def connections(self):
++        # Compatibility diagnostics only. COM objects never leave their owner process.
++        return {token: token for token in self.status().get('session_tokens', [])}
++
++    def ensure_worker(self):
++        if self.status(refresh=True).get('available'): return
++        if not self.auto_start: raise WorkerUnavailable('1C bağlantı prosesi başlamayıb.')
++        with self._lock:
++            if self.status(refresh=True).get('available'): return
++            self.key()
++            flags = subprocess.CREATE_NO_WINDOW if os.name == 'nt' else 0
++            env = dict(os.environ, REPORTER_WORKER_PORT=str(self.port))
++            with (self.root/'logs'/f'worker-{self.port}.log').open('ab') as output:
++                subprocess.Popen([sys.executable, str(self.root/'services'/'onec_worker_process.py')],
++                    cwd=self.root, env=env, creationflags=flags, stdout=output, stderr=subprocess.STDOUT)
++            deadline = time.monotonic()+15
++            while time.monotonic() < deadline:
++                if self.status(refresh=True).get('available'): return
++                time.sleep(.2)
++            raise WorkerUnavailable('1C bağlantı prosesi başlamadı; worker loqunu yoxlayın.')
++
++    def execute(self, action, payload, retry=2, timeout=None):
++        self.ensure_worker()
++        timeout = timeout if timeout is not None else 300
++        if not (action.startswith(('get_', 'search_', 'find_', 'resolve_')) or action in ('ping', 'connection_probe', 'universal_report', 'universal_sales', 'generate', 'order_analysis')):
++            retry = 0
++        result = self.request('/execute', {'action': action, 'payload': payload, 'retry': retry, 'timeout': timeout}, timeout=timeout+5)
++        self._status_at = 0
++        return result['result']
++
++    def start_job(self, action, payload, request_id, token):
++        self.ensure_worker()
++        return self.request('/jobs/start', {'action': action, 'payload': payload, 'request_id': request_id, 'token': token}, timeout=5)
++
++    def job(self, job_id, token, after=-1):
++        self.ensure_worker()
++        return self.request('/jobs/status', {'job_id': job_id, 'token': token, 'after': after}, timeout=5)['job']
++
++    def shutdown_worker(self, confirmed=False):
++        if not confirmed: raise PermissionError('Sessiyanı bağlamaq üçün açıq təsdiq lazımdır.')
++        result = self.request('/shutdown', {'confirmed': True}, timeout=5)
++        deadline = time.monotonic()+8
++        while time.monotonic() < deadline:
++            try: self.request('/status', timeout=1)
++            except WorkerUnavailable:
++                self._status_at = 0
++                return result
++            time.sleep(.15)
++        raise TimeoutError('Bağlantı prosesi hələ dayanmayıb; yenidən yoxlayın.')
++
++    def close_all(self):
++        # An API restart or Electron close must not destroy the independent COM owner.
++        return None
+--- /dev/null
++++ b/services/onec_worker_process.py
+@@ -0,0 +1,153 @@
++"""Single independent COM owner, with an authenticated loopback control interface."""
++import hmac
++import json
++import os
++import sys
++import threading
++import time
++from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
++from pathlib import Path
++
++ROOT = Path(__file__).resolve().parents[1]
++sys.path.insert(0, str(ROOT))
++if hasattr(sys.stdout, 'reconfigure'): sys.stdout.reconfigure(encoding='utf-8')
++
++# Only read operations may become resumable jobs. Writes use the synchronous path.
++READ_ACTIONS = frozenset(('audit_history', 'get_audit_list', 'get_audit_diff', 'get_audit_events',
++    'get_documents_list', 'get_document_details', 'universal_report', 'universal_sales',
++    'generate', 'order_analysis'))
++
++
++def main():
++    from managed_runtime import runtime_lock
++    from services.job_store import JobStore
++    from services.onec_worker import OneCService
++    import database
++    port = int(os.environ.get('REPORTER_WORKER_PORT', 5052))
++    lock = runtime_lock(port)
++    if lock is None: return 0
++    database.init_db()
++    key = (ROOT/'logs'/f'worker-{port}.key').read_text(encoding='ascii').strip()
++    store = JobStore(ROOT/'data'/f'connection_jobs-{port}.db')
++    store.interrupt_pending()
++    worker = OneCService()
++    worker.on_action_start = store.running
++    stopping = threading.Event()
++
++    def fragments(job_id, sequence, kind, value):
++        text = json.dumps(value, ensure_ascii=False, default=str)
++        for offset in range(0, len(text), 16000):
++            store.chunk(job_id, sequence, {'kind': kind, 'fragment': text[offset:offset+16000],
++                'complete': offset+16000 >= len(text)})
++            sequence += 1
++        return sequence
++
++    def perform(job_id, action, payload):
++        try:
++            if action == 'audit_history':
++                from services.documents.base import parse_query_datetime
++                first = parse_query_datetime(payload.get('date_from'))
++                last = parse_query_datetime(payload.get('date_to'), is_end=True)
++                if not first or not last or first > last: raise ValueError('Audit üçün düzgün tarix aralığı seçin.')
++                data = dict(payload, _job_id=job_id)
++                snapshot = worker.execute('get_audit_diff', dict(data, include_events=False), retry=0)
++                sequence = fragments(job_id, 0, 'snapshot-fragment', snapshot)
++                cursor, count = '', 0
++                while True:
++                    page = worker.execute('get_audit_events', dict(data, cursor=cursor), retry=0)
++                    count += len(page['events'])
++                    # Fragment even a very busy day into bounded network responses.
++                    sequence = fragments(job_id, sequence, 'events-fragment', {**page, 'total_count': count})
++                    following = page['next_cursor']
++                    if not following: break
++                    if following == cursor: raise RuntimeError('Audit cursor did not advance')
++                    cursor = following
++                result = {'event_count': count, 'scanned_to': page['scanned_to']}
++            else:
++                result = worker.execute(action, dict(payload, _job_id=job_id), retry=0)
++                fragments(job_id, 0, 'result-fragment', result)
++                result = {'chunked': True}
++            store.finish(job_id, result=result)
++        except Exception as error:
++            store.finish(job_id, error=str(error))
++
++    class Handler(BaseHTTPRequestHandler):
++        def log_message(self, *_): pass
++
++        def reply(self, status, body):
++            encoded = json.dumps(body, ensure_ascii=False, default=str).encode('utf-8')
++            try:
++                self.send_response(status)
++                self.send_header('Content-Type', 'application/json; charset=utf-8')
++                self.send_header('Content-Length', str(len(encoded)))
++                self.end_headers()
++                self.wfile.write(encoded)
++            except (BrokenPipeError, ConnectionResetError): pass
++
++        def do_POST(self):
++            if not hmac.compare_digest(self.headers.get('X-Worker-Key', ''), key):
++                return self.reply(403, {'success': False, 'error': 'Access denied'})
++            try:
++                length = int(self.headers.get('Content-Length', 0))
++                if not 0 <= length <= 16*1024*1024: raise ValueError('Invalid request size')
++                self.connection.settimeout(10)
++                data = json.loads(self.rfile.read(length) or b'{}')
++                if not isinstance(data, dict): raise ValueError('Invalid request')
++                if self.path == '/status':
++                    status = {'available': True, 'pid': os.getpid(), 'busy': worker.busy,
++                        'worker_alive': worker.is_alive(),
++                        'queued': worker.req_q.qsize(), 'session_count': len(worker.connections),
++                        'connection_generation': worker.connection_generation,
++                        'session_tokens': [f'{os.getpid()}:{id(conn)}' for conn in list(worker.connections.values())],
++                        'current_action': getattr(worker, 'current_action', ''),
++                        'action_age': max(0, time.monotonic()-getattr(worker, 'action_started', time.monotonic())) if worker.busy else 0}
++                    return self.reply(200, {'success': True, 'status': status})
++                if stopping.is_set(): raise RuntimeError('Worker is shutting down')
++                if self.path == '/execute':
++                    if not worker.is_alive(): raise RuntimeError('COM işçisi dayanıb; təsdiqli əlaqə bərpasını istifadə edin.')
++                    timeout = min(max(float(data.get('timeout', 300)), .01), 3600)
++                    result = worker.execute(data['action'], data.get('payload') or {},
++                        retry=min(max(int(data.get('retry', 0)), 0), 2), timeout=timeout)
++                    return self.reply(200, {'success': True, 'result': result})
++                if self.path == '/jobs/start':
++                    if not worker.is_alive(): raise RuntimeError('COM işçisi dayanıb; təsdiqli əlaqə bərpasını istifadə edin.')
++                    action, payload = data.get('action'), data.get('payload') or {}
++                    if action not in READ_ACTIONS: raise ValueError('This operation cannot be retried as a job')
++                    if not isinstance(payload, dict): raise ValueError('Invalid job payload')
++                    # Freeze the target at acceptance, not when a delayed job reaches COM.
++                    active = database.get_active_base() or {}
++                    payload = dict(payload)
++                    for field in ('server', 'ref', 'user'):
++                        if not payload.get(field): payload[field] = active.get(field)
++                    if 'password' not in payload: payload['password'] = active.get('password', '')
++                    if not all(payload.get(field) for field in ('server','ref','user')):
++                        raise ValueError('İş üçün server, baza və istifadəçi seçilməlidir.')
++                    job_id, created = store.create(data.get('request_id'), data.get('token'), action, payload)
++                    if created:
++                        threading.Thread(target=perform, args=(job_id, action, payload), daemon=True).start()
++                    return self.reply(200, {'success': True, 'job_id': job_id, 'created': created})
++                if self.path == '/jobs/status':
++                    return self.reply(200, {'success': True, 'job': store.get(data['job_id'], data['token'], data.get('after', -1))})
++                if self.path == '/shutdown':
++                    if data.get('confirmed') is not True: raise PermissionError('Explicit confirmation is required')
++                    stopping.set()
++                    self.reply(200, {'success': True})
++                    def stop():
++                        store.interrupt_pending()
++                        worker.close_all()
++                        os._exit(0)
++                    threading.Thread(target=stop, daemon=True).start()
++                    return
++                raise ValueError('Unknown worker operation')
++            except Exception as error:
++                self.reply(400, {'success': False, 'error': str(error), 'error_type': type(error).__name__})
++
++    server = ThreadingHTTPServer(('127.0.0.1', port), Handler)
++    server.daemon_threads = True
++    print(f'Persistent 1C worker ready on loopback port {port}', flush=True)
++    try: server.serve_forever()
++    finally: worker.close_all(); server.server_close(); lock.close()
++    return 0
++
++
++if __name__ == '__main__': raise SystemExit(main())
+--- /dev/null
++++ b/services/onec_result_queue.py
+@@ -0,0 +1,17 @@
++"""Materialize results on the owning STA thread before crossing a thread/process boundary."""
++import json
++import queue
++
++
++class ResultQueue(queue.Queue):
++    def put(self, item, *args, **kwargs):
++        ok, result = item
++        if ok:
++            try:
++                result = json.loads(json.dumps(result, ensure_ascii=False, default=str))
++            except Exception as error:
++                ok, result = False, RuntimeError('1C nəticəsi çevrilmədi: ' + str(error))
++        else:
++            # Native COM error objects must also remain on the apartment that owns them.
++            result = RuntimeError(str(result))
++        return super().put((ok, result), *args, **kwargs)
+--- /dev/null
++++ b/services/action_queue.py
+@@ -0,0 +1,21 @@
++"""Short control calls are serviced before queued background report chunks."""
++import itertools
++import queue
++
++
++class ActionQueue:
++    def __init__(self):
++        self.queue = queue.PriorityQueue()
++        self.sequence = itertools.count()
++
++    def put(self, value):
++        action, payload, _ = value
++        if action == 'shutdown': priority = -1
++        elif action in ('ping', 'connection_probe', 'get_users') or payload.get('_login'): priority = 0
++        elif action in ('get_audit_events', 'universal_report', 'order_analysis', 'generate'): priority = 3
++        else: priority = 1
++        self.queue.put((priority, next(self.sequence), value))
++
++    def get(self, *args, **kwargs): return self.queue.get(*args, **kwargs)[2]
++    def empty(self): return self.queue.empty()
++    def qsize(self): return self.queue.qsize()
+--- /dev/null
++++ b/services/job_store.py
+@@ -0,0 +1,101 @@
++"""Durable read-job results; credentials and access tokens are never stored."""
++import hashlib
++import json
++import sqlite3
++import time
++from contextlib import contextmanager
++from pathlib import Path
++
++
++def digest(value):
++    return hashlib.sha256(value.encode('utf-8')).hexdigest()
++
++
++def request_fingerprint(action, payload):
++    safe = {k: v for k, v in payload.items() if k not in ('password', 'Pwd', '_job_id')}
++    return digest(json.dumps([action, safe], sort_keys=True, ensure_ascii=False, default=str))
++
++
++class JobStore:
++    def __init__(self, path):
++        self.path = Path(path)
++        self.path.parent.mkdir(parents=True, exist_ok=True)
++        with self.connect() as db:
++            db.execute('PRAGMA journal_mode=WAL')
++            db.execute('''CREATE TABLE IF NOT EXISTS jobs (
++                id TEXT PRIMARY KEY, token_hash TEXT NOT NULL, fingerprint TEXT NOT NULL,
++                action TEXT NOT NULL, state TEXT NOT NULL, result TEXT, error TEXT,
++                created REAL NOT NULL, updated REAL NOT NULL)''')
++            db.execute('''CREATE TABLE IF NOT EXISTS chunks (
++                job_id TEXT NOT NULL, sequence INTEGER NOT NULL, data TEXT NOT NULL,
++                PRIMARY KEY(job_id, sequence))''')
++
++    @contextmanager
++    def connect(self):
++        db = sqlite3.connect(self.path, timeout=10)
++        db.row_factory = sqlite3.Row
++        try:
++            with db: yield db
++        finally: db.close()
++
++    def create(self, request_id, token, action, payload):
++        if not isinstance(request_id, str) or not 16 <= len(request_id) <= 128:
++            raise ValueError('Invalid request ID')
++        if not isinstance(token, str) or not 32 <= len(token) <= 256:
++            raise ValueError('Invalid job access token')
++        job_id = digest(request_id)
++        fingerprint = request_fingerprint(action, payload)
++        token_hash = digest(token)
++        with self.connect() as db:
++            db.execute('BEGIN IMMEDIATE')
++            old = db.execute('SELECT * FROM jobs WHERE id=?', (job_id,)).fetchone()
++            if old:
++                if old['token_hash'] != token_hash or old['fingerprint'] != fingerprint:
++                    raise ValueError('Request ID belongs to a different request')
++                if old['state'] != 'interrupted':
++                    return job_id, False
++                db.execute("UPDATE jobs SET state='queued',error=NULL,result=NULL,updated=? WHERE id=?", (time.time(), job_id))
++                db.execute('DELETE FROM chunks WHERE job_id=?', (job_id,))
++                return job_id, True
++            now = time.time()
++            db.execute('INSERT INTO jobs VALUES (?,?,?,?,?,NULL,NULL,?,?)',
++                       (job_id, token_hash, fingerprint, action, 'queued', now, now))
++        return job_id, True
++
++    def get(self, job_id, token, after=-1):
++        with self.connect() as db:
++            row = db.execute('SELECT * FROM jobs WHERE id=?', (job_id,)).fetchone()
++        if row is None or row['token_hash'] != digest(token):
++            raise PermissionError('Job not found or access denied')
++        with self.connect() as db:
++            chunks = db.execute('SELECT sequence,data FROM chunks WHERE job_id=? AND sequence>? ORDER BY sequence LIMIT 21', (job_id, int(after))).fetchall()
++        selected, size = [], 0
++        for chunk in chunks:
++            length = len(chunk['data'].encode('utf-8'))
++            if selected and (len(selected) >= 20 or size + length > 128*1024): break
++            selected.append(chunk)
++            size += length
++        return {'job_id': row['id'], 'state': row['state'], 'action': row['action'],
++                'result': json.loads(row['result']) if row['result'] is not None else None,
++                'error': row['error'], 'updated': row['updated'],
++                'chunks': [{'sequence': c['sequence'], 'data': json.loads(c['data'])} for c in selected],
++                'has_more': len(chunks) > len(selected)}
++
++    def chunk(self, job_id, sequence, data):
++        with self.connect() as db:
++            db.execute('INSERT INTO chunks VALUES (?,?,?)', (job_id, sequence, json.dumps(data, ensure_ascii=False, default=str)))
++            db.execute('UPDATE jobs SET updated=? WHERE id=?', (time.time(), job_id))
++
++    def running(self, job_id):
++        with self.connect() as db:
++            db.execute("UPDATE jobs SET state='running',updated=? WHERE id=? AND state='queued'", (time.time(), job_id))
++
++    def finish(self, job_id, result=None, error=None):
++        encoded = json.dumps(result, ensure_ascii=False, default=str) if error is None else None
++        with self.connect() as db:
++            db.execute('UPDATE jobs SET state=?,result=?,error=?,updated=? WHERE id=?',
++                       ('failed' if error is not None else 'succeeded', encoded, str(error) if error is not None else None, time.time(), job_id))
++
++    def interrupt_pending(self):
++        with self.connect() as db:
++            db.execute("UPDATE jobs SET state='interrupted',error='Bağlantı prosesi yeniləndi; oxuma işini yenidən başladın.',updated=? WHERE state IN ('queued','running')", (time.time(),))
+--- a/services/audit_service.py
++++ b/services/audit_service.py
+@@ -812,6 +812,7 @@
+             "title": action,
+             "comment": ev_comment
+         })
++    event_timeline.sort(key=lambda event: parse_query_datetime(event["date"]) or datetime.datetime.min)
+     return event_timeline
+ 
+ def get_audit_event_page(conn, payload):
+--- a/services/cluster_gui.py
++++ b/services/cluster_gui.py
+@@ -199,7 +199,8 @@
+             reuse_frame = tk.Frame(self.root, padx=14, pady=4, bg='#f8fafc')
+             reuse_frame.pack(fill=tk.X)
+             tk.Button(reuse_frame, text="Mövcud bağlantı ilə davam et", command=self._on_reuse,
+-                      font=("Segoe UI", 10, 'bold'), padx=8, pady=6).pack(fill=tk.X)
++                      font=("Segoe UI", 10, 'bold'), padx=8, pady=6).pack(side=tk.LEFT, fill=tk.X, expand=True)
++            tk.Button(reuse_frame, text='İlişmiş əlaqəni bərpa et', command=self._on_recover, padx=8,pady=6).pack(side=tk.RIGHT,padx=8)
+ 
+         # 5. Status Bar
+         self.status_bar = tk.Label(
+@@ -335,6 +336,16 @@
+         if not result.get('success'): raise RuntimeError(result.get('error') or 'Sessiya əməliyyatı alınmadı.')
+         return result
+ 
++    def _on_recover(self):
++        if not messagebox.askyesno('Təsdiq', 'Bu proqramın saxladığı 1C bağlantısı bağlanıb yenidən qurulacaq. Davam edilsin?', parent=self.root): return
++        try:
++            self._backend('api/connection/worker-recover', {'confirmed':True})
++            self._backend('api/ping_connection')
++            self.action = 'reuse'
++            self.root.destroy()
++        except Exception as error:
++            messagebox.showerror('Əlaqə bərpası', str(error), parent=self.root)
++
+     def _on_reuse(self):
+         try:
+             self._backend('api/connection/resume')
+--- a/routes/base_routes.py
++++ b/routes/base_routes.py
+@@ -183,8 +183,11 @@
+ @base_bp.route('/api/connection/status', methods=['POST'])
+ def connection_status_endpoint():
+     """A probe never opens a session or replaces another user's connection."""
++    state = one_c.status()
++    if state.get('available') and state.get('worker_alive') is False:
++        return jsonify(success=False, connected=False, error='COM işçisi dayanıb. Təsdiqli əlaqə bərpasını istifadə edin.')
+     if getattr(one_c, 'busy', False) or not one_c.req_q.empty():
+-        return jsonify(success=True, connected=None, busy=True)
++        return jsonify(success=True, connected=None, busy=True, worker_stalled=state.get('action_age',0)>180)
+     data = request.get_json(silent=True) or {}
+     try:
+         result = one_c.execute('connection_probe', data, retry=0)
+--- /dev/null
++++ b/routes/job_routes.py
+@@ -0,0 +1,39 @@
++"""Durable read jobs with per-job access tokens."""
++from flask import Blueprint, jsonify, request
++from services.onec_service import one_c
++
++job_bp = Blueprint('jobs', __name__)
++
++
++@job_bp.post('/api/jobs/start')
++def start_job():
++    data = request.get_json(silent=True) or {}
++    try:
++        return jsonify(one_c.start_job(data.get('action'), data.get('payload') or {}, data.get('request_id'), data.get('token')))
++    except (ValueError, PermissionError) as error:
++        return jsonify(success=False, error=str(error)), 400
++    except Exception as error:
++        return jsonify(success=False, error=str(error)), 503
++
++
++@job_bp.post('/api/jobs/status')
++def job_status():
++    data = request.get_json(silent=True) or {}
++    try:
++        return jsonify(success=True, job=one_c.job(data.get('job_id'), data.get('token', ''), data.get('after', -1)))
++    except PermissionError as error:
++        return jsonify(success=False, error=str(error)), 403
++    except Exception as error:
++        return jsonify(success=False, error=str(error)), 503
++
++
++@job_bp.post('/api/connection/worker-recover')
++def worker_recover():
++    data = request.get_json(silent=True) or {}
++    if data.get('confirmed') is not True:
++        return jsonify(success=False, error='İşləyən sessiyanı bağlamaq üçün təsdiq tələb olunur.'), 403
++    try:
++        one_c.shutdown_worker(confirmed=True)
++        return jsonify(success=True)
++    except Exception as error:
++        return jsonify(success=False, error=str(error)), 503
+--- /dev/null
++++ b/static/js/job_client.js
+@@ -0,0 +1,107 @@
++/* Read jobs survive API reloads and temporary WARP loss. No write request retries. */
++window.JobClient = {
++  prefix: 'reporter_job_v1_',
++  pending: new Map(),
++  memory: new Map(),
++  routes: {
++    '/api/universal_report':'universal_report', '/api/universal_sales':'universal_sales',
++    '/api/generate_report':'generate', '/api/order_analysis/generate':'order_analysis'
++  },
++  random() { return Array.from(crypto.getRandomValues(new Uint8Array(24)), x=>x.toString(16).padStart(2,'0')).join(''); },
++  async storageKey(action, payload) {
++    const clean = {...payload}; delete clean.password;
++    const canonical = value => Array.isArray(value) ? value.map(canonical) :
++      value && typeof value === 'object' ? Object.fromEntries(Object.keys(value).sort().map(k=>[k,canonical(value[k])])) : value;
++    const input = JSON.stringify([action,canonical(clean)]);
++    if (crypto.subtle) {
++      const bytes = await crypto.subtle.digest('SHA-256',new TextEncoder().encode(input));
++      return this.prefix+Array.from(new Uint8Array(bytes),x=>x.toString(16).padStart(2,'0')).join('');
++    }
++    // LocalStorage index only; access authorization uses the independent random token.
++    return this.prefix+encodeURIComponent(input);
++  },
++  read(key) { try {return JSON.parse(localStorage.getItem(key)) || this.memory.get(key);} catch (_) {return this.memory.get(key);} },
++  save(key, value) { this.memory.set(key,value); try {localStorage.setItem(key,JSON.stringify(value));} catch (_) {} },
++  forget(key) {this.memory.delete(key);try {localStorage.removeItem(key);} catch (_) {}},
++  abortError() {return new DOMException('Client stopped waiting; the office job remains available.','AbortError');},
++  async delay(ms, signal) {
++    if (signal?.aborted) throw this.abortError();
++    await new Promise((resolve,reject)=>{
++      const abort=()=>{clearTimeout(timer);reject(this.abortError());};
++      const timer=setTimeout(()=>{signal?.removeEventListener('abort',abort);resolve();},ms);
++      signal?.addEventListener('abort',abort,{once:true});
++    });
++  },
++  async request(url, body, options) {
++    let failures=0;
++    while (true) {
++      if(options.signal?.aborted)throw this.abortError();
++      const controller=new AbortController();
++      const abort=()=>controller.abort();
++      options.signal?.addEventListener('abort',abort,{once:true});
++      const timer=setTimeout(()=>controller.abort(),30000);
++      try {
++        const response=await fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body),signal:controller.signal});
++        if(response.status>=500 || response.status===429)throw new TypeError('Office API temporarily unavailable');
++        if(response.status===401 || response.status===403)throw new Error('Ofis serverinə giriş icazəsi tələb olunur.');
++        const result=await response.json();
++        if(!response.ok || !result.success)throw new Error(result.error || 'Job request rejected');
++        return result;
++      } catch(error) {
++        if(options.signal?.aborted)throw this.abortError();
++        if(!(error instanceof TypeError) && !(error instanceof SyntaxError) && error.name!=='AbortError')throw error;
++        options.onProgress?.({state:'waiting_connection',message:'Bağlantı gözlənilir; ofisdə iş saxlanılır.'});
++        failures++;
++      } finally {clearTimeout(timer);options.signal?.removeEventListener('abort',abort);}
++      await this.delay(Math.min(1000*2**Math.min(failures,5),15000),options.signal);
++    }
++  },
++  async run(action, payload, options={}) {
++    if(window.SessionManager?.getCredentials)payload={...window.SessionManager.getCredentials(),...payload};
++    const key=await this.storageKey(action,payload);
++    if(this.pending.has(key))return this.pending.get(key);
++    const execute=async()=>{
++      let checkpoint=this.read(key);
++      if(!checkpoint){checkpoint={request_id:this.random(),token:this.random()};this.save(key,checkpoint);}
++      try {
++        const started=await this.request('/api/jobs/start',{action,payload,...checkpoint},options);
++        checkpoint.job_id=started.job_id;this.save(key,checkpoint);
++        let after=-1, snapshotText='', eventText='', resultText='', assembled=null;
++        while(true){
++          const {job}=await this.request('/api/jobs/status',{job_id:checkpoint.job_id,token:checkpoint.token,after},options);
++          if(options.signal?.aborted)throw this.abortError();
++          for(const chunk of job.chunks || []){
++            if(options.signal?.aborted)throw this.abortError();
++            const data=chunk.data;
++            if(data.kind==='snapshot-fragment'){
++              snapshotText+=data.fragment;
++              if(data.complete){options.onChunk?.({kind:'snapshot',snapshot:JSON.parse(snapshotText)});snapshotText='';}
++            } else if(data.kind==='events-fragment'){
++              eventText+=data.fragment;
++              if(data.complete){options.onChunk?.({kind:'events',...JSON.parse(eventText)});eventText='';}
++            } else if(data.kind==='result-fragment'){
++              resultText+=data.fragment;
++              if(data.complete){assembled=JSON.parse(resultText);resultText='';}
++            } else options.onChunk?.(data);
++            after=chunk.sequence;
++          }
++          options.onProgress?.({state:job.state});
++          if(options.signal?.aborted)throw this.abortError();
++          if(job.state==='succeeded' && !job.has_more){this.forget(key);return assembled ?? job.result;}
++          if(['failed','interrupted'].includes(job.state)){this.forget(key);throw new Error(job.error || 'İş dayandı; yenidən yoxlayın.');}
++          await this.delay(job.has_more ? 0 : 800,options.signal);
++        }
++      } catch(error) {
++        if(error.name!=='AbortError' && !(error instanceof TypeError))this.forget(key);
++        throw error;
++      }
++    };
++    const task=execute().finally(()=>this.pending.delete(key));this.pending.set(key,task);return task;
++  },
++  async fetch(url, options={}) {
++    const action=this.routes[url];
++    if(!action)return fetch(url,options);
++    const result=await this.run(action,JSON.parse(options.body || '{}'),{signal:options.signal});
++    return new Response(JSON.stringify({success:true,...result}),{status:200,headers:{'Content-Type':'application/json'}});
++  }
++};
+--- a/static/js/session.js
++++ b/static/js/session.js
+@@ -40,7 +40,7 @@
+     this._monitorTimer = setTimeout(() => this.checkConnection(), 15000);
+   },
+ 
+-  showConnectionWarning(message) {
++  showConnectionWarning(message, prefix = "Bağlantı kəsilib") {
+     let banner = document.getElementById('connectionWarning');
+     if (!banner) {
+       banner = document.createElement('div');
+@@ -55,14 +55,31 @@
+       retry.textContent = 'Yenidən qoşul';
+       retry.onclick = () => this.warmupConnection();
+       banner.appendChild(retry);
++      const recover = document.createElement('button');
++      recover.textContent = 'İlişmiş əlaqəni bərpa et';
++      recover.onclick = () => this.recoverConnection();
++      banner.appendChild(recover);
+       document.body.appendChild(banner);
+     }
+-    banner.querySelector('.connection-warning-text').textContent = 'Bağlantı kəsilib: ' + message;
++    banner.querySelector('.connection-warning-text').textContent = prefix + ': ' + message;
+     banner.style.display = 'flex';
+   },
+ 
++  async recoverConnection() {
++    if (this._recovering) return;
++    if (!confirm('Bu proqramın 1C bağlantısı bağlanıb yenidən qurulacaq. Davam edən oxuma işləri yarımçıq qala bilər. Davam edilsin?')) return;
++    this._recovering = true;
++    try {
++      const response = await fetch('/api/connection/worker-recover', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({confirmed:true})});
++      const result = await response.json();
++      if (!result.success) throw new Error(result.error || 'Əlaqə bərpası alınmadı.');
++      await this.warmupConnection();
++    } catch(error) {this.showConnectionWarning(error.message);}
++    finally {this._recovering=false;}
++  },
++
+   async checkConnection() {
+-    if (this._checkingConnection || this._warmingConnection) { this.startConnectionMonitor(); return; }
++    if (this._checkingConnection || this._warmingConnection || this._recovering) { this.startConnectionMonitor(); return; }
+     this._checkingConnection = true;
+     const credentials = this.getCredentials();
+     const identity = JSON.stringify(credentials);
+@@ -79,6 +96,12 @@
+         const message = result.error || 'Ofis serveri və ya 1C sessiyası əlçatan deyil.';
+         this.setConnectionStatus('error', message);
+         this.showConnectionWarning(message);
++      } else if (result.worker_stalled) {
++        this.showConnectionWarning('1C sorğusu uzun müddətdir bitmir. Bərpa yalnız sənin təsdiqinlə ediləcək.','Sorğu gözləyir');
++      } else if (result.busy && this.connectionStatus === 'error') {
++        this.setConnectionStatus('connecting');
++        const warning = document.getElementById('connectionWarning');
++        if (warning) warning.style.display = 'none';
+       } else if (result.connected === true) {
+         this.setConnectionStatus('connected');
+       }
+--- a/static/js/audit_journal.js
++++ b/static/js/audit_journal.js
+@@ -838,6 +838,7 @@
+   },
+ 
+   loadDiff: function(docType, docNumber) {
++    if (window.JobClient) return this.loadAuditJob(docType, docNumber);
+     if (this._loadingDetails) return this._detailsPromise;
+     this._loadingDetails = true;
+     if (docType) this.currentDocType = docType;
+@@ -881,6 +882,44 @@
+       alert(timedOut ? 'Audit detalları vaxtında cavab vermədi. Yenidən yoxlayın.' : err.message);
+     })
+     .finally(() => { clearTimeout(deadline); this._loadingDetails = false; });
++    return this._detailsPromise;
++  },
++
++  loadAuditJob: function(docType, docNumber) {
++    if (this._loadingDetails) return this._detailsPromise;
++    this.currentDocType = docType || this.currentDocType;
++    this.currentDocNumber = docNumber || this.currentDocNumber;
++    this._loadingDetails = true;
++    const controller = new AbortController();
++    this._currentAbortCtrl = controller;
++    const period = this.buildListPayload();
++    const payload = {...(window.SessionManager ? SessionManager.getCredentials() : {}),
++      doc_type:this.currentDocType,number:this.currentDocNumber,date_from:period.date_from,date_to:period.date_to};
++    let snapshot = null, events = [], renderTimer = null;
++    const render = () => {
++      clearTimeout(renderTimer);renderTimer=null;
++      if(snapshot && !controller.signal.aborted)this.populateDiffData({...snapshot,event_timeline:events,event_timeline_scoped:true});
++    };
++    this._detailsPromise = JobClient.run('audit_history',payload,{
++      signal:controller.signal,
++      onChunk:chunk=>{
++        if(controller.signal.aborted)return;
++        if(chunk.kind==='snapshot')snapshot=chunk.snapshot;
++        else if(chunk.kind==='events')for(const event of chunk.events)events.push(event);
++        if(renderTimer===null)renderTimer=setTimeout(render,150);
++        const status=document.getElementById('ajEventProgress');
++        if(status)status.textContent=chunk.kind==='events' ? `Tarixçə yüklənir: ${chunk.scanned_to} — ${events.length} hadisə` : 'Versiyalar hazırdır; tarixçə yüklənir...';
++      },
++      onProgress:progress=>{
++        const status=document.getElementById('ajEventProgress');
++        if(status && progress.message)status.textContent=progress.message;
++      }
++    }).then(result=>{
++      render();
++      const status=document.getElementById('ajEventProgress');
++      if(status)status.textContent=`Tarixçə hazırdır: ${result.event_count} hadisə`;
++    }).catch(error=>{if(error.name!=='AbortError')alert(error.message);})
++      .finally(()=>{clearTimeout(renderTimer);this._loadingDetails=false;if(this._currentAbortCtrl===controller)this._currentAbortCtrl=null;});
+     return this._detailsPromise;
+   },
+ 
+@@ -1517,7 +1556,7 @@
+ 
+     // Normalize Chronological Timeline
+     let timeline = data.event_timeline || [];
+-    if (!timeline || timeline.length === 0) {
++    if ((!timeline || timeline.length === 0) && !data.event_timeline_scoped) {
+       // Synthesize timeline from normalized versions
+       timeline = [];
+       normalizedVersions.forEach((v, idx) => {
+@@ -1596,7 +1635,7 @@
+         }
+ 
+         return {
+-          order: ev.order || (idx + 1),
++          order: idx + 1,
+           datetime: ev.datetime || ev.date || "—",
+           user: ev.user || "İstifadəçi",
+           action: act,
+@@ -1610,6 +1649,8 @@
+ 
+     this.currentDiffData.normalizedTimeline = timeline;
+ 
++    const headerBadge = document.getElementById("mDocEventsBadge");
++    if (headerBadge) headerBadge.textContent = `${timeline.length} Hadisə`;
+     // Update Counts in UI
+     const tBadge = document.getElementById("ajTimelineBadgeCount");
+     if (tBadge) tBadge.textContent = String(timeline.length);
+--- a/static/js/report_engine.js
++++ b/static/js/report_engine.js
+@@ -93,7 +93,7 @@
+         filters: config.filters
+       };
+ 
+-      const res = await fetch("/api/universal_report", {
++      const res = await (window.JobClient ? JobClient.fetch.bind(JobClient) : fetch)("/api/universal_report", {
+         method: "POST",
+         headers: { "Content-Type": "application/json" },
+         body: JSON.stringify(payload),
+--- a/static/js/order_analysis_report.js
++++ b/static/js/order_analysis_report.js
+@@ -199,7 +199,7 @@
+     const tStart = performance.now();
+ 
+     try {
+-      const resp = await fetch("/api/order_analysis/generate", {
++      const resp = await (window.JobClient ? JobClient.fetch.bind(JobClient) : fetch)("/api/order_analysis/generate", {
+         method: "POST",
+         headers: { "Content-Type": "application/json" },
+         body: JSON.stringify(payload),
+--- a/templates/index.html
++++ b/templates/index.html
+@@ -753,7 +753,8 @@
+   <script src="/static/js/components/filter/filter_manager.js?v=1.0"></script>
+ 
+   <script src="/static/js/mdi_manager.js?v=10.7"></script>
+-  <script src="/static/js/session.js?v=4.5"></script>
++  <script src="/static/js/job_client.js?v=1"></script>
++  <script src="/static/js/session.js?v=5.0"></script>
+   <script src="/static/js/catalog_selector.js?v=7.1"></script>
+   <script src="/static/js/user_passwords.js"></script>
+   <script src="/static/js/value_list_modal.js?v=4.9"></script>
+@@ -778,7 +779,7 @@
+   <script src="/static/js/price_doc_editor.js?v=3.8"></script>
+   <script src="/static/js/sales_doc_editor.js?v=3.6"></script>
+   <script src="/static/js/pogruzka_doc_editor.js?v=1.3"></script>
+-  <script src="/static/js/audit_journal.js?v=4.8"></script>
++  <script src="/static/js/audit_journal.js?v=5.0"></script>
+   <script src="/static/js/c1_table_selection.js?v=3.3"></script>
+   <script src="/static/js/components/c1_textbox.js?v=1.1"></script>
+   <script src="/static/js/components/report_settings/universal_report_settings.js?v=2.0"></script>
+--- /dev/null
++++ b/tests/test_persistent_jobs.py
+@@ -0,0 +1,111 @@
++import json
++import tempfile
++import unittest
++import threading
++from unittest.mock import Mock
++from concurrent.futures import ThreadPoolExecutor
++from pathlib import Path
++from services.job_store import JobStore
++from services.action_queue import ActionQueue
++from services.onec_gateway import OneCGateway
++from services.onec_result_queue import ResultQueue
++
++
++class DurableJobsTests(unittest.TestCase):
++    def setUp(self):
++        self.directory = tempfile.TemporaryDirectory(dir=Path(__file__).parent)
++        self.addCleanup(self.directory.cleanup)
++        self.path = Path(self.directory.name)/'jobs.db'
++        self.store = JobStore(self.path)
++        self.args = ('request-identifier-1', 'x'*48, 'get_audit_diff', {'server':'Test1C','ref':'Aztrade_test3','user':'test','password':'private'})
++
++    def test_lost_reply_does_not_create_second_job(self):
++        with ThreadPoolExecutor(max_workers=4) as pool:
++            results = list(pool.map(lambda _: self.store.create(*self.args), range(8)))
++        self.assertEqual(sum(created for _,created in results),1)
++        self.assertEqual(len({job_id for job_id,_ in results}),1)
++
++    def test_api_restart_preserves_result_and_chunks(self):
++        job_id,_=self.store.create(*self.args)
++        self.store.running(job_id)
++        self.store.chunk(job_id,0,{'kind':'snapshot'})
++        self.store.chunk(job_id,1,{'kind':'events','events':[{}]*150})
++        self.store.finish(job_id,result={'event_count':150})
++        reopened=JobStore(self.path).get(job_id,'x'*48)
++        self.assertEqual(reopened['state'],'succeeded')
++        self.assertEqual(reopened['result']['event_count'],150)
++        self.assertEqual(len(reopened['chunks'][1]['data']['events']),150)
++        self.assertNotIn(b'private',self.path.read_bytes())
++        self.assertNotIn(b'x'*48,self.path.read_bytes())
++
++    def test_access_token_required(self):
++        job_id,_=self.store.create(*self.args)
++        with self.assertRaises(PermissionError):self.store.get(job_id,'wrong')
++
++    def test_request_identity_cannot_change(self):
++        self.store.create(*self.args)
++        with self.assertRaises(ValueError):self.store.create(*self.args[:3],{'ref':'different'})
++
++    def test_partial_results_have_no_total_cap(self):
++        job_id,_=self.store.create(*self.args)
++        for i in range(25):self.store.chunk(job_id,i,{'events':[i]*10})
++        first=self.store.get(job_id,'x'*48)
++        self.assertTrue(first['has_more'])
++        second=self.store.get(job_id,'x'*48,after=19)
++        self.assertEqual(len(first['chunks'])+len(second['chunks']),25)
++        self.assertFalse(second['has_more'])
++
++    def test_recovery_marks_pending_jobs_not_completed_ones(self):
++        job_id,_=self.store.create(*self.args)
++        self.store.running(job_id)
++        self.store.interrupt_pending()
++        self.assertEqual(self.store.get(job_id,'x'*48)['state'],'interrupted')
++        job_id,created=self.store.create(*self.args)
++        self.assertTrue(created)
++        self.store.finish(job_id,result={})
++        self.store.interrupt_pending()
++        self.assertEqual(self.store.get(job_id,'x'*48)['state'],'succeeded')
++
++    def test_control_calls_precede_queued_bulk_work(self):
++        queue=ActionQueue()
++        queue.put(('get_audit_events',{},None))
++        queue.put(('get_users',{},None))
++        self.assertEqual(queue.get()[0],'get_users')
++        self.assertEqual(queue.get()[0],'get_audit_events')
++
++    def test_api_close_does_not_shutdown_worker(self):
++        gateway=OneCGateway(auto_start=False)
++        gateway.request=lambda *_args,**_kwargs:self.fail('API close must not call the worker')
++        gateway.close_all()
++        with self.assertRaises(PermissionError):gateway.shutdown_worker()
++
++    def test_native_result_is_materialized_on_owner_thread(self):
++        response=ResultQueue();owner=[]
++        class NativeValue:
++            def __init__(self):self.owner=threading.get_ident()
++            def __str__(self):
++                if threading.get_ident()!=self.owner:raise RuntimeError('Wrong apartment')
++                owner.append(self.owner)
++                return 'resolved-on-worker'
++        thread=threading.Thread(target=lambda:response.put((True,{'value':NativeValue()})))
++        thread.start();thread.join()
++        ok,result=response.get_nowait()
++        self.assertTrue(ok);self.assertEqual(result,{'value':'resolved-on-worker'})
++        self.assertNotEqual(owner[0],threading.get_ident())
++
++    def test_writes_are_never_automatically_retried(self):
++        gateway=OneCGateway(auto_start=False)
++        gateway.ensure_worker=lambda:None
++        gateway.request=Mock(return_value={'result':True})
++        gateway.execute('save_price_document',{},retry=2)
++        self.assertEqual(gateway.request.call_args.args[1]['retry'],0)
++
++    def test_large_cached_results_are_bounded_per_response(self):
++        job_id,_=self.store.create(*self.args)
++        for i in range(6):self.store.chunk(job_id,i,{'fragment':'a'*60000})
++        result=self.store.get(job_id,'x'*48)
++        self.assertLessEqual(len(json.dumps(result['chunks']).encode()),130*1024)
++        self.assertTrue(result['has_more'])
++
++
++if __name__=='__main__':unittest.main()
+--- /dev/null
++++ b/tests/test_job_routes.py
+@@ -0,0 +1,38 @@
++import unittest
++from unittest.mock import Mock, patch
++from flask import Flask
++from routes.job_routes import job_bp
++from services.onec_worker_process import READ_ACTIONS
++
++
++class JobRoutesTests(unittest.TestCase):
++    def setUp(self):
++        app=Flask(__name__)
++        app.register_blueprint(job_bp)
++        self.client=app.test_client()
++
++    def test_recovery_never_runs_without_confirmation(self):
++        with patch('routes.job_routes.one_c') as gateway:
++            response=self.client.post('/api/connection/worker-recover',json={})
++            self.assertEqual(response.status_code,403)
++            gateway.shutdown_worker.assert_not_called()
++
++    def test_confirmed_recovery_is_explicit(self):
++        with patch('routes.job_routes.one_c') as gateway:
++            response=self.client.post('/api/connection/worker-recover',json={'confirmed':True})
++            self.assertTrue(response.json['success'])
++            gateway.shutdown_worker.assert_called_once_with(confirmed=True)
++
++    def test_invalid_access_token_is_not_retryable(self):
++        with patch('routes.job_routes.one_c') as gateway:
++            gateway.job.side_effect=PermissionError('denied')
++            response=self.client.post('/api/jobs/status',json={'job_id':'job','token':'wrong'})
++            self.assertEqual(response.status_code,403)
++
++    def test_only_read_actions_are_resumable(self):
++        for action in ('save_price_document','change_user_password','delete_document'):
++            self.assertNotIn(action,READ_ACTIONS)
++        self.assertIn('audit_history',READ_ACTIONS)
++
++
++if __name__=='__main__':unittest.main()
+--- a/tests/test_onec_reconnect.py
++++ b/tests/test_onec_reconnect.py
+@@ -1,4 +1,4 @@
+-import queue, threading, unittest
++import queue, threading, unittest, hashlib
+ from unittest.mock import patch
+ from services.onec_service import OneCService
+ class Probe:
+@@ -16,8 +16,8 @@
+     def check(self,alive):
+         connector=Connector();worker=OneCService.__new__(OneCService)
+         threading.Thread.__init__(worker,daemon=True)
+-        worker.req_q=queue.Queue();worker.busy=False
+-        existing=Connection(alive);key='test1c_aztrade_test3_nesib_demo'
++        worker.req_q=queue.Queue();worker.busy=False;worker.connection_generation=0
++        existing=Connection(alive);key='test1c_aztrade_test3_nesib_'+hashlib.sha256(b'demo').hexdigest()
+         worker.connections={key:existing}
+         with patch('services.onec_service.win32com.client.Dispatch',return_value=connector), patch('services.onec_service.database.get_active_base',return_value={}), patch('services.onec_service.pythoncom.CoInitialize'), patch('services.onec_service.pythoncom.CoUninitialize'):
+             worker.start()
+--- /dev/null
++++ b/tests/performance/job_client.test.cjs
+@@ -0,0 +1,58 @@
++const assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm');
++const storage=new Map();
++function client(fetch){
++  const context=vm.createContext({console,window:{},Map,crypto:require('node:crypto').webcrypto,
++    TextEncoder,Uint8Array,DOMException,AbortController,TypeError,SyntaxError,
++    setTimeout:()=>1,clearTimeout(){},fetch,
++    localStorage:{getItem:key=>storage.get(key)||null,setItem:(key,value)=>storage.set(key,value),removeItem:key=>storage.delete(key)}});
++  vm.runInContext(fs.readFileSync('static/js/job_client.js','utf8'),context);
++  context.window.JobClient.delay=async(_ms,signal)=>{if(signal?.aborted)throw new DOMException('stopped','AbortError');};
++  return context.window.JobClient;
++}
++const reply=body=>({ok:true,status:200,json:async()=>body});
++(async()=>{
++  let starts=[],created=new Set(),lost=true;
++  const api=async(url,opts)=>{
++    const body=JSON.parse(opts.body);
++    if(url.endsWith('/start')){
++      starts.push(body);created.add(body.request_id);
++      if(lost){lost=false;throw new TypeError('WARP dropped after server accepted job');}
++      return reply({success:true,job_id:'durable-job'});
++    }
++    return reply({success:true,job:{state:'succeeded',result:{count:250},chunks:[{sequence:0,data:{events:Array(250).fill({})}}],has_more:false}});
++  };
++  const first=client(api),chunks=[];
++  const result=await first.run('audit_history',{server:'Test1C',ref:'Aztrade_test3',password:'secret'},{onChunk:data=>chunks.push(data)});
++  assert.equal(created.size,1,'lost reply must not create a second office job');
++  assert.equal(starts[0].token,starts[1].token);assert.equal(result.count,250);assert.equal(chunks[0].events.length,250);
++  assert.equal(storage.size,0);
++
++  let originalId,aborted=false;
++  const controller=new AbortController();
++  const stopped=client(async(url,opts)=>{
++    const body=JSON.parse(opts.body);
++    if(url.endsWith('/start')){originalId=body.request_id;return reply({success:true,job_id:'persisted'});}
++    controller.abort();aborted=true;
++    return reply({success:true,job:{state:'running',chunks:[],has_more:false}});
++  });
++  await assert.rejects(stopped.run('audit_history',{ref:'test'},{signal:controller.signal}),error=>error.name==='AbortError');
++  assert.ok(aborted);assert.equal(storage.size,1,'closing the client must retain the checkpoint');
++  let resumedId;
++  const resumed=client(async(url,opts)=>{
++    const body=JSON.parse(opts.body);
++    if(url.endsWith('/start')){resumedId=body.request_id;return reply({success:true,job_id:'persisted',created:false});}
++    return reply({success:true,job:{state:'succeeded',result:{count:3},chunks:[],has_more:false}});
++  });
++  await resumed.run('audit_history',{ref:'test'});
++  assert.equal(resumedId,originalId,'new client instance resumes the existing office job');
++  assert.equal(storage.size,0);
++  const text=JSON.stringify({rows:[{name:'ƏDV və qiymət',amount:42}],success:true});
++  const fragmented=client(async(url)=>url.endsWith('/start') ? reply({success:true,job_id:'fragmented'}) :
++    reply({success:true,job:{state:'succeeded',result:{chunked:true},has_more:false,chunks:[
++      {sequence:0,data:{kind:'result-fragment',fragment:text.slice(0,12),complete:false}},
++      {sequence:1,data:{kind:'result-fragment',fragment:text.slice(12),complete:true}}
++    ]}}));
++  const restored=await fragmented.run('universal_report',{ref:'test'});
++  assert.equal(restored.rows[0].name,'ƏDV və qiymət');assert.equal(restored.rows[0].amount,42);
++  console.log('Job client: WARP loss, lost start response, 250 rows, client close and resume passed.');
++})().catch(error=>{console.error(error);process.exitCode=1;});
+--- /dev/null
++++ b/tests/performance/stable_server_browser.test.cjs
+@@ -0,0 +1,44 @@
++const fs=require('node:fs'),assert=require('node:assert/strict');const {chromium}=require('playwright');
++(async()=>{
++ const browser=await chromium.launch({headless:true,channel:'msedge'});const page=await browser.newPage({viewport:{width:1600,height:950}});
++ const errors=[];page.on('pageerror',e=>errors.push(e.message));
++ const css=['1c_base','1c_toolbar','1c_mdi','list_appearance'].map(n=>fs.readFileSync(`static/css/${n}.css`,'utf8')).join('\n');
++ const html=['audit_journal_window','universal_journal_filter_window'].map(n=>fs.readFileSync(`templates/components/${n}.html`,'utf8')).join('\n');
++ await page.setContent(`<style>${css}body{margin:0;background:#ece9d8}</style>${html}`);
++ await page.evaluate(()=>{
++  const storage=new Map();Object.defineProperty(window,'localStorage',{value:{getItem:k=>storage.get(k)||null,setItem:(k,v)=>storage.set(k,v),removeItem:k=>storage.delete(k)}});
++  window.starts=0;window.polls=0;window.confirm=()=>false;window.alerts=[];window.alert=m=>alerts.push(m);
++  const snapshot={success:true,number:'TEST-C001',date:'09.10.2026 11:34:06',amount:85,kontragent:'Sınaq müştərisi',warehouse:'Sınaq anbarı',contract:'Sınaq müqaviləsi',raw_versions:[
++   {version:1,doc_date:'09.10.2026 11:34:06',change_date:'09.10.2026 12:00:00',amount:100,items:[{code:'TEST-A',name:'Sınaq malı',qty:1,price:100,total:100,discount_manual:0}]},
++   {version:2,doc_date:'09.10.2026 11:34:06',change_date:'13.10.2026 10:00:00',amount:85,posted:true,items:[{code:'TEST-A',name:'Sınaq malı',qty:1,price:100,total:85,discount_manual:15}]}
++  ]};
++  const events=[{date:'09.10.2026 12:00:00',user:'Sınaq istifadəçisi',event:'_$Data$_.New',action:'Yaradıldı'},{date:'13.10.2026 10:00:00',user:'Sınaq istifadəçisi',event:'_$Data$_.Update',action:'Dəyişdirildi'}];
++  window.fetch=async(url,options)=>{
++   if(url==='/api/jobs/start'){starts++;return {ok:true,status:200,json:async()=>({success:true,job_id:'browser-test'})};}
++   if(url==='/api/jobs/status'){
++    polls++;const done=polls>1;
++    const chunks=done ? [{sequence:1,data:{kind:'events-fragment',fragment:JSON.stringify({events,scanned_to:'13.10.2026 23:59:59'}),complete:true}}] : [{sequence:0,data:{kind:'snapshot-fragment',fragment:JSON.stringify(snapshot),complete:true}}];
++    return {ok:true,status:200,json:async()=>({success:true,job:{state:done?'succeeded':'running',result:{event_count:2},chunks,has_more:false}})};
++   }
++   return {ok:true,status:200,json:async()=>({success:true,connected:true})};
++  };
++ });
++ for(const file of ['form_action','mdi_manager','session','c1_filter_component','list_appearance','universal_journal','job_client','audit_journal'])await page.addScriptTag({content:fs.readFileSync(`static/js/${file}.js`,'utf8')});
++ await page.evaluate(()=>{
++  window.SessionManager=SessionManager;SessionManager.state.password='demo';
++  MdiManager.init();AuditJournal.init();AuditJournal.startDateStr='06.10.2026';AuditJournal.endDateStr='13.10.2026';
++  AuditJournal.openForDocument('ВозвратТоваровОтПокупателя','TEST-C001',{doc_type:'ВозвратТоваровОтПокупателя',doc_type_title:'Qaytarma',number:'TEST-C001',amount:85,posted:true});
++  AuditJournal.switchTab('timeline');AuditJournal.loadDiff('ВозвратТоваровОтПокупателя','TEST-C001');
++ });
++ await page.waitForFunction(()=>!AuditJournal._loadingDetails);
++ assert.equal(await page.evaluate(()=>starts),1);
++ assert.ok((await page.locator('#ajEventProgress').textContent()).includes('2 hadisə'));
++ assert.equal(await page.locator('#auditProtocolWindow').isVisible(),true);
++ assert.deepEqual(await page.evaluate(()=>alerts),[]);assert.deepEqual(errors,[]);
++ await page.screenshot({path:'logs/stable-audit-browser.png'});
++ await page.evaluate(()=>SessionManager.showConnectionWarning('Ofis serverinə çıxış yoxdur.'));
++ await page.getByRole('button',{name:'İlişmiş əlaqəni bərpa et',exact:true}).click();
++ assert.equal(await page.evaluate(()=>starts),1,'declined recovery cannot restart the worker');
++ console.log('Browser: async Audit, snapshot/event fragments, F5 guard, progress and declined recovery passed.');
++ await browser.close();
++})().catch(e=>{console.error(e);process.exitCode=1;});
+--- a/tests/performance/audit_version_snapshots.test.cjs
++++ b/tests/performance/audit_version_snapshots.test.cjs
+@@ -53,3 +53,6 @@
+ assert.equal(a.currentDiffData.normalizedVersions[0].isInitial,true);
+ assert.equal(a.currentDiffData.normalizedVersions[1].modifiedCount,1);
+ console.log('Creation event, missing initial snapshot and real initial snapshot classification checks passed.');
++
++a.normalizeAuditData({event_timeline_scoped:true,event_timeline:[],raw_versions:[{version:1,change_date:'01.01.2020 12:00:00',items:[]}]});
++assert.equal(a.currentDiffData.normalizedTimeline.length,0,'no out-of-period synthetic events in a scoped Audit job');

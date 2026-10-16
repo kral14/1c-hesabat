@@ -1,0 +1,60 @@
+[
+  {
+    "action": "Office load 200",
+    "api_requests": 1,
+    "server_timing": "onec;dur=1331.18, serialize;dur=1.25, gzip;dur=6.14",
+    "render_sync_ms": 11.9,
+    "backend_timings_ms": {
+      "primary_query": 302.26,
+      "related_lookup": 82.38,
+      "row_decode": 31.68,
+      "total": 417.06
+    },
+    "to_dom_ms": 1377.3,
+    "to_paint_opportunity_ms": 1422.1,
+    "loaded_rows": 200,
+    "visible_dom_rows": 37,
+    "cached_lists": 1,
+    "cached_rows": 200,
+    "js_heap_mb": 10.76,
+    "table_visible": true,
+    "overlay_hidden": true
+  },
+  {
+    "action": "Office load 2000",
+    "api_requests": 1,
+    "server_timing": "onec;dur=1995.47, serialize;dur=12.65, gzip;dur=57.61",
+    "render_sync_ms": 15.9,
+    "backend_timings_ms": {
+      "primary_query": 1537.82,
+      "related_lookup": 196.43,
+      "row_decode": 256.13,
+      "total": 1992.03
+    },
+    "to_dom_ms": 2118.8,
+    "to_paint_opportunity_ms": 2151.4,
+    "loaded_rows": 2000,
+    "visible_dom_rows": 37,
+    "cached_lists": 1,
+    "cached_rows": 2000,
+    "js_heap_mb": 14.24,
+    "table_visible": true,
+    "overlay_hidden": true
+  },
+  {
+    "action": "Cache reopen 2000",
+    "api_requests": 0,
+    "server_timing": null,
+    "render_sync_ms": 14.1,
+    "backend_timings_ms": null,
+    "to_dom_ms": 25.2,
+    "to_paint_opportunity_ms": 63.4,
+    "loaded_rows": 2000,
+    "visible_dom_rows": 37,
+    "cached_lists": 1,
+    "cached_rows": 2000,
+    "js_heap_mb": 12.69,
+    "table_visible": true,
+    "overlay_hidden": true
+  }
+]

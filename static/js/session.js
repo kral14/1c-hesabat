@@ -373,6 +373,8 @@ const SessionManager = {
     if (select) select.innerHTML = "<option value=''>İstifadəçilər yüklənir...</option>";
 
     const controller = new AbortController();
+    this._usersController?.abort();
+    this._usersController=controller;
     const deadline = setTimeout(() => controller.abort(), 35000);
     try {
       const res = await fetch("/api/users", {
@@ -381,6 +383,7 @@ const SessionManager = {
         body: JSON.stringify(this.getCredentials()), signal:controller.signal
       });
       const data = await res.json();
+      if (controller.signal.aborted) return;
       if (!data.success) throw new Error(data.error || "İstifadəçilər yüklənmədi");
       if (data.success && data.users) {
         if (!select) return;
@@ -408,6 +411,7 @@ const SessionManager = {
         });
       }
     } catch (err) {
+      if (controller.signal.aborted) return;
       console.error("Failed to load users:", err);
       if (select) {
         select.innerHTML = '';
@@ -418,7 +422,7 @@ const SessionManager = {
       }
       const status = document.getElementById('modalConnStatus');
       if (status) status.textContent = err.name === 'AbortError' ? '1C serveri vaxtında cavab vermədi.' : err.message;
-    } finally { clearTimeout(deadline); }
+    } finally { clearTimeout(deadline); if(this._usersController===controller)this._usersController=null; }
   },
 
   async authenticate(user, password, server, ref, title) {
@@ -631,6 +635,49 @@ function reloadModalUsersForCustomDb() {
   }).catch(() => {});
 
   SessionManager.loadUsers();
+}
+
+async function renewComFromLogin() {
+  if (SessionManager._recovering || SessionManager._authenticating) return;
+  const button = document.getElementById("modalBtnRenewCom");
+  const status = document.getElementById("modalConnStatus");
+  const read = (id,fallback) => document.getElementById(id)?.value ?? fallback;
+  const server = read("modalCustomServer",SessionManager.state.server).trim();
+  const ref = read("modalCustomRef",SessionManager.state.ref).trim();
+  const title = read("modalCustomTitle",SessionManager.state.dbTitle).trim();
+  let user = read("modalUserSelect",SessionManager.state.user) || SessionManager.state.user;
+  const password = read("modalPasswordInput",SessionManager.state.password);
+  if (!server || !ref || !user) {
+    if (status) status.textContent = "Server, baza və istifadəçini seçin.";
+    return;
+  }
+  if (["nesib admin","nesibadmin","nəsib"].includes(user.toLowerCase())) user="Nesib";
+  SessionManager._recovering = true;
+  SessionManager._usersController?.abort();
+  const controls = Array.from(document.getElementById("loginModalOverlay")?.querySelectorAll("input,select,button") || []);
+  const previous = controls.map(control=>[control,control.disabled]);
+  controls.forEach(control=>{control.disabled=true;});
+  const label = button?.textContent;
+  if (button) {button.disabled=true;button.textContent="⏳ COM yenilənir...";}
+  if (status) status.textContent="COM yenilənir...";
+  SessionManager.setConnectionStatus("connecting");
+  try {
+    const response = await fetch("/api/connection/worker-restart", {
+      method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({confirmed:true})
+    });
+    const result = await response.json();
+    if (!response.ok || !result.success) throw new Error(result.error || "COM yenilənmədi.");
+    if (status) status.textContent="COM yeniləndi, bazaya qoşulur...";
+    const connected = await SessionManager.authenticate(user,password,server,ref,title);
+    if (connected && status) status.textContent=`COM yeniləndi və bağlıdır${result.details?.pid ? ' · PID '+result.details.pid : ''}`;
+  } catch (error) {
+    SessionManager.setConnectionStatus("error",error.message);
+    if (status) status.textContent="COM yenilənmədi: "+error.message;
+  } finally {
+    previous.forEach(([control,disabled])=>{control.disabled=disabled;});
+    if (button) {button.disabled=false;button.textContent=label;}
+    SessionManager._recovering=false;
+  }
 }
 
 async function submitLoginModal() {

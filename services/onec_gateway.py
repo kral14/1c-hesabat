@@ -23,7 +23,9 @@ class QueueView:
 class OneCGateway:
     def __init__(self, port=None, root=None, auto_start=True):
         self.root = Path(root or ROOT)
-        self.port = int(port or os.environ.get('REPORTER_WORKER_PORT', 5052))
+        from services.worker_endpoint import resolve_port
+        self._explicit_port = port
+        self.port = resolve_port(self.root,port)
         self.url = f'http://127.0.0.1:{self.port}'
         self.auto_start = auto_start
         self.req_q = QueueView(self)
@@ -31,6 +33,15 @@ class OneCGateway:
         self._http = threading.local()
         self._status = None
         self._status_at = 0
+
+    def _sync_endpoint(self):
+        from services.worker_endpoint import resolve_port
+        port=resolve_port(self.root,self._explicit_port)
+        if port!=self.port:
+            self.port=port
+            self.url=f'http://127.0.0.1:{port}'
+            self._status=None
+            self._status_at=0
 
     def key(self):
         path = self.root / 'logs' / f'worker-{self.port}.key'
@@ -44,6 +55,7 @@ class OneCGateway:
         return key
 
     def request(self, path, data=None, timeout=5):
+        self._sync_endpoint()
         try:
             if not hasattr(self._http, 'session'):
                 self._http.session = requests.Session()
@@ -61,6 +73,7 @@ class OneCGateway:
         return body
 
     def status(self, refresh=False):
+        self._sync_endpoint()
         if not refresh and self._status is not None and time.monotonic()-self._status_at < .2:
             return self._status
         try: status = self.request('/status', timeout=2)['status']

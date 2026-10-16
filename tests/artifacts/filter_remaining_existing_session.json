@@ -1,0 +1,1299 @@
+{
+  "database": "Test1C / Aztrade_test3",
+  "coverage": {
+    "receipt_goods_nonempty_fixture": true,
+    "receipt_complete": true,
+    "positive_driver_fixture": true,
+    "combined_complete": true
+  },
+  "cases": [
+    {
+      "phase": "receipt",
+      "fields": [
+        "date"
+      ],
+      "operators": [
+        "Больше"
+      ],
+      "status": "pass",
+      "rows": 0
+    },
+    {
+      "phase": "receipt",
+      "fields": [
+        "date"
+      ],
+      "operators": [
+        "Больше или равно"
+      ],
+      "status": "pass",
+      "rows": 1
+    },
+    {
+      "phase": "receipt",
+      "fields": [
+        "date"
+      ],
+      "operators": [
+        "Заполнено"
+      ],
+      "status": "pass",
+      "rows": 2
+    },
+    {
+      "phase": "receipt",
+      "fields": [
+        "date"
+      ],
+      "operators": [
+        "Интервал (>, <)"
+      ],
+      "status": "pass",
+      "rows": 0
+    },
+    {
+      "phase": "receipt",
+      "fields": [
+        "date"
+      ],
+      "operators": [
+        "Интервал (>, <=)"
+      ],
+      "status": "pass",
+      "rows": 0
+    },
+    {
+      "phase": "receipt",
+      "fields": [
+        "date"
+      ],
+      "operators": [
+        "Интервал (>=, <)"
+      ],
+      "status": "pass",
+      "rows": 0
+    },
+    {
+      "phase": "receipt",
+      "fields": [
+        "date"
+      ],
+      "operators": [
+        "Интервал (>=, <=)"
+      ],
+      "status": "pass",
+      "rows": 1
+    },
+    {
+      "phase": "receipt",
+      "fields": [
+        "date"
+      ],
+      "operators": [
+        "Меньше"
+      ],
+      "status": "pass",
+      "rows": 2
+    },
+    {
+      "phase": "receipt",
+      "fields": [
+        "date"
+      ],
+      "operators": [
+        "Меньше или равно"
+      ],
+      "status": "pass",
+      "rows": 2
+    },
+    {
+      "phase": "receipt",
+      "fields": [
+        "date"
+      ],
+      "operators": [
+        "Не заполнено"
+      ],
+      "status": "pass",
+      "rows": 0
+    },
+    {
+      "phase": "receipt",
+      "fields": [
+        "date"
+      ],
+      "operators": [
+        "Не равно"
+      ],
+      "status": "pass",
+      "rows": 2
+    },
+    {
+      "phase": "receipt",
+      "fields": [
+        "date"
+      ],
+      "operators": [
+        "Равно"
+      ],
+      "status": "pass",
+      "rows": 1
+    },
+    {
+      "phase": "receipt",
+      "fields": [
+        "number"
+      ],
+      "operators": [
+        "Равно"
+      ],
+      "status": "pass",
+      "rows": 1
+    },
+    {
+      "phase": "receipt",
+      "fields": [
+        "number"
+      ],
+      "operators": [
+        "Не равно"
+      ],
+      "status": "pass",
+      "rows": 2
+    },
+    {
+      "phase": "receipt",
+      "fields": [
+        "number"
+      ],
+      "operators": [
+        "В списке"
+      ],
+      "status": "pass",
+      "rows": 1
+    },
+    {
+      "phase": "receipt",
+      "fields": [
+        "number"
+      ],
+      "operators": [
+        "Не в списке"
+      ],
+      "status": "pass",
+      "rows": 2
+    },
+    {
+      "phase": "receipt",
+      "fields": [
+        "number"
+      ],
+      "operators": [
+        "Содержит"
+      ],
+      "status": "pass",
+      "rows": 1
+    },
+    {
+      "phase": "receipt",
+      "fields": [
+        "number"
+      ],
+      "operators": [
+        "Не содержит"
+      ],
+      "status": "pass",
+      "rows": 2
+    },
+    {
+      "phase": "receipt",
+      "fields": [
+        "number"
+      ],
+      "operators": [
+        "Начинается с"
+      ],
+      "status": "pass",
+      "rows": 1
+    },
+    {
+      "phase": "receipt",
+      "fields": [
+        "number"
+      ],
+      "operators": [
+        "Заполнено"
+      ],
+      "status": "pass",
+      "rows": 2
+    },
+    {
+      "phase": "receipt",
+      "fields": [
+        "number"
+      ],
+      "operators": [
+        "Не заполнено"
+      ],
+      "status": "pass",
+      "rows": 0
+    },
+    {
+      "phase": "receipt",
+      "fields": [
+        "number"
+      ],
+      "operators": [
+        "В группе из списка"
+      ],
+      "status": "pass",
+      "rows": 1
+    },
+    {
+      "phase": "receipt",
+      "fields": [
+        "kontragent"
+      ],
+      "operators": [
+        "Равно"
+      ],
+      "status": "pass",
+      "rows": 2
+    },
+    {
+      "phase": "receipt",
+      "fields": [
+        "kontragent"
+      ],
+      "operators": [
+        "Не равно"
+      ],
+      "status": "pass",
+      "rows": 2
+    },
+    {
+      "phase": "receipt",
+      "fields": [
+        "kontragent"
+      ],
+      "operators": [
+        "В списке"
+      ],
+      "status": "pass",
+      "rows": 2
+    },
+    {
+      "phase": "receipt",
+      "fields": [
+        "kontragent"
+      ],
+      "operators": [
+        "Не в списке"
+      ],
+      "status": "pass",
+      "rows": 2
+    },
+    {
+      "phase": "receipt",
+      "fields": [
+        "kontragent"
+      ],
+      "operators": [
+        "Заполнено"
+      ],
+      "status": "pass",
+      "rows": 2
+    },
+    {
+      "phase": "receipt",
+      "fields": [
+        "kontragent"
+      ],
+      "operators": [
+        "Не заполнено"
+      ],
+      "status": "pass",
+      "rows": 0
+    },
+    {
+      "phase": "receipt",
+      "fields": [
+        "golovnoy_kontragent"
+      ],
+      "operators": [
+        "Равно"
+      ],
+      "status": "pass",
+      "rows": 2
+    },
+    {
+      "phase": "receipt",
+      "fields": [
+        "golovnoy_kontragent"
+      ],
+      "operators": [
+        "Не равно"
+      ],
+      "status": "pass",
+      "rows": 2
+    },
+    {
+      "phase": "receipt",
+      "fields": [
+        "golovnoy_kontragent"
+      ],
+      "operators": [
+        "В списке"
+      ],
+      "status": "pass",
+      "rows": 2
+    },
+    {
+      "phase": "receipt",
+      "fields": [
+        "golovnoy_kontragent"
+      ],
+      "operators": [
+        "Не в списке"
+      ],
+      "status": "pass",
+      "rows": 2
+    },
+    {
+      "phase": "receipt",
+      "fields": [
+        "golovnoy_kontragent"
+      ],
+      "operators": [
+        "Заполнено"
+      ],
+      "status": "pass",
+      "rows": 2
+    },
+    {
+      "phase": "receipt",
+      "fields": [
+        "golovnoy_kontragent"
+      ],
+      "operators": [
+        "Не заполнено"
+      ],
+      "status": "pass",
+      "rows": 0
+    },
+    {
+      "phase": "receipt",
+      "fields": [
+        "agent"
+      ],
+      "operators": [
+        "Равно"
+      ],
+      "status": "pass",
+      "rows": 0
+    },
+    {
+      "phase": "receipt",
+      "fields": [
+        "agent"
+      ],
+      "operators": [
+        "Не равно"
+      ],
+      "status": "pass",
+      "rows": 2
+    },
+    {
+      "phase": "receipt",
+      "fields": [
+        "agent"
+      ],
+      "operators": [
+        "В списке"
+      ],
+      "status": "pass",
+      "rows": 0
+    },
+    {
+      "phase": "receipt",
+      "fields": [
+        "agent"
+      ],
+      "operators": [
+        "Не в списке"
+      ],
+      "status": "pass",
+      "rows": 2
+    },
+    {
+      "phase": "receipt",
+      "fields": [
+        "agent"
+      ],
+      "operators": [
+        "Заполнено"
+      ],
+      "status": "pass",
+      "rows": 0
+    },
+    {
+      "phase": "receipt",
+      "fields": [
+        "agent"
+      ],
+      "operators": [
+        "Не заполнено"
+      ],
+      "status": "pass",
+      "rows": 2
+    },
+    {
+      "phase": "receipt",
+      "fields": [
+        "amount"
+      ],
+      "operators": [
+        "Больше"
+      ],
+      "status": "pass",
+      "rows": 0
+    },
+    {
+      "phase": "receipt",
+      "fields": [
+        "amount"
+      ],
+      "operators": [
+        "Больше или равно"
+      ],
+      "status": "pass",
+      "rows": 1
+    },
+    {
+      "phase": "receipt",
+      "fields": [
+        "amount"
+      ],
+      "operators": [
+        "Заполнено"
+      ],
+      "status": "pass",
+      "rows": 2
+    },
+    {
+      "phase": "receipt",
+      "fields": [
+        "amount"
+      ],
+      "operators": [
+        "Интервал (>, <)"
+      ],
+      "status": "pass",
+      "rows": 0
+    },
+    {
+      "phase": "receipt",
+      "fields": [
+        "amount"
+      ],
+      "operators": [
+        "Интервал (>, <=)"
+      ],
+      "status": "pass",
+      "rows": 0
+    },
+    {
+      "phase": "receipt",
+      "fields": [
+        "amount"
+      ],
+      "operators": [
+        "Интервал (>=, <)"
+      ],
+      "status": "pass",
+      "rows": 0
+    },
+    {
+      "phase": "receipt",
+      "fields": [
+        "amount"
+      ],
+      "operators": [
+        "Интервал (>=, <=)"
+      ],
+      "status": "pass",
+      "rows": 1
+    },
+    {
+      "phase": "receipt",
+      "fields": [
+        "amount"
+      ],
+      "operators": [
+        "Меньше"
+      ],
+      "status": "pass",
+      "rows": 2
+    },
+    {
+      "phase": "receipt",
+      "fields": [
+        "amount"
+      ],
+      "operators": [
+        "Меньше или равно"
+      ],
+      "status": "pass",
+      "rows": 2
+    },
+    {
+      "phase": "receipt",
+      "fields": [
+        "amount"
+      ],
+      "operators": [
+        "Не заполнено"
+      ],
+      "status": "pass",
+      "rows": 0
+    },
+    {
+      "phase": "receipt",
+      "fields": [
+        "amount"
+      ],
+      "operators": [
+        "Не равно"
+      ],
+      "status": "pass",
+      "rows": 2
+    },
+    {
+      "phase": "receipt",
+      "fields": [
+        "amount"
+      ],
+      "operators": [
+        "Равно"
+      ],
+      "status": "pass",
+      "rows": 1
+    },
+    {
+      "phase": "receipt",
+      "fields": [
+        "warehouse"
+      ],
+      "operators": [
+        "Равно"
+      ],
+      "status": "pass",
+      "rows": 2
+    },
+    {
+      "phase": "receipt",
+      "fields": [
+        "warehouse"
+      ],
+      "operators": [
+        "Не равно"
+      ],
+      "status": "pass",
+      "rows": 2
+    },
+    {
+      "phase": "receipt",
+      "fields": [
+        "warehouse"
+      ],
+      "operators": [
+        "В списке"
+      ],
+      "status": "pass",
+      "rows": 2
+    },
+    {
+      "phase": "receipt",
+      "fields": [
+        "warehouse"
+      ],
+      "operators": [
+        "Не в списке"
+      ],
+      "status": "pass",
+      "rows": 2
+    },
+    {
+      "phase": "receipt",
+      "fields": [
+        "warehouse"
+      ],
+      "operators": [
+        "Заполнено"
+      ],
+      "status": "pass",
+      "rows": 2
+    },
+    {
+      "phase": "receipt",
+      "fields": [
+        "warehouse"
+      ],
+      "operators": [
+        "Не заполнено"
+      ],
+      "status": "pass",
+      "rows": 0
+    },
+    {
+      "phase": "receipt",
+      "fields": [
+        "deal"
+      ],
+      "operators": [
+        "Равно"
+      ],
+      "status": "pass",
+      "rows": 0
+    },
+    {
+      "phase": "receipt",
+      "fields": [
+        "deal"
+      ],
+      "operators": [
+        "Не равно"
+      ],
+      "status": "pass",
+      "rows": 2
+    },
+    {
+      "phase": "receipt",
+      "fields": [
+        "deal"
+      ],
+      "operators": [
+        "В списке"
+      ],
+      "status": "pass",
+      "rows": 0
+    },
+    {
+      "phase": "receipt",
+      "fields": [
+        "deal"
+      ],
+      "operators": [
+        "Не в списке"
+      ],
+      "status": "pass",
+      "rows": 2
+    },
+    {
+      "phase": "receipt",
+      "fields": [
+        "deal"
+      ],
+      "operators": [
+        "Заполнено"
+      ],
+      "status": "pass",
+      "rows": 0
+    },
+    {
+      "phase": "receipt",
+      "fields": [
+        "deal"
+      ],
+      "operators": [
+        "Не заполнено"
+      ],
+      "status": "pass",
+      "rows": 2
+    },
+    {
+      "phase": "receipt",
+      "fields": [
+        "contract"
+      ],
+      "operators": [
+        "Равно"
+      ],
+      "status": "pass",
+      "rows": 1
+    },
+    {
+      "phase": "receipt",
+      "fields": [
+        "contract"
+      ],
+      "operators": [
+        "Не равно"
+      ],
+      "status": "pass",
+      "rows": 2
+    },
+    {
+      "phase": "receipt",
+      "fields": [
+        "contract"
+      ],
+      "operators": [
+        "В списке"
+      ],
+      "status": "pass",
+      "rows": 1
+    },
+    {
+      "phase": "receipt",
+      "fields": [
+        "contract"
+      ],
+      "operators": [
+        "Не в списке"
+      ],
+      "status": "pass",
+      "rows": 2
+    },
+    {
+      "phase": "receipt",
+      "fields": [
+        "contract"
+      ],
+      "operators": [
+        "Заполнено"
+      ],
+      "status": "pass",
+      "rows": 2
+    },
+    {
+      "phase": "receipt",
+      "fields": [
+        "contract"
+      ],
+      "operators": [
+        "Не заполнено"
+      ],
+      "status": "pass",
+      "rows": 0
+    },
+    {
+      "phase": "receipt",
+      "fields": [
+        "responsible"
+      ],
+      "operators": [
+        "Равно"
+      ],
+      "status": "pass",
+      "rows": 2
+    },
+    {
+      "phase": "receipt",
+      "fields": [
+        "responsible"
+      ],
+      "operators": [
+        "Не равно"
+      ],
+      "status": "pass",
+      "rows": 0
+    },
+    {
+      "phase": "receipt",
+      "fields": [
+        "responsible"
+      ],
+      "operators": [
+        "В списке"
+      ],
+      "status": "pass",
+      "rows": 2
+    },
+    {
+      "phase": "receipt",
+      "fields": [
+        "responsible"
+      ],
+      "operators": [
+        "Не в списке"
+      ],
+      "status": "pass",
+      "rows": 0
+    },
+    {
+      "phase": "receipt",
+      "fields": [
+        "responsible"
+      ],
+      "operators": [
+        "Заполнено"
+      ],
+      "status": "pass",
+      "rows": 2
+    },
+    {
+      "phase": "receipt",
+      "fields": [
+        "responsible"
+      ],
+      "operators": [
+        "Не заполнено"
+      ],
+      "status": "pass",
+      "rows": 0
+    },
+    {
+      "phase": "receipt",
+      "fields": [
+        "comment"
+      ],
+      "operators": [
+        "Равно"
+      ],
+      "status": "pass",
+      "rows": 1
+    },
+    {
+      "phase": "receipt",
+      "fields": [
+        "comment"
+      ],
+      "operators": [
+        "Не равно"
+      ],
+      "status": "pass",
+      "rows": 2
+    },
+    {
+      "phase": "receipt",
+      "fields": [
+        "comment"
+      ],
+      "operators": [
+        "В списке"
+      ],
+      "status": "pass",
+      "rows": 1
+    },
+    {
+      "phase": "receipt",
+      "fields": [
+        "comment"
+      ],
+      "operators": [
+        "Не в списке"
+      ],
+      "status": "pass",
+      "rows": 2
+    },
+    {
+      "phase": "receipt",
+      "fields": [
+        "comment"
+      ],
+      "operators": [
+        "Содержит"
+      ],
+      "status": "pass",
+      "rows": 1
+    },
+    {
+      "phase": "receipt",
+      "fields": [
+        "comment"
+      ],
+      "operators": [
+        "Не содержит"
+      ],
+      "status": "pass",
+      "rows": 2
+    },
+    {
+      "phase": "receipt",
+      "fields": [
+        "comment"
+      ],
+      "operators": [
+        "Начинается с"
+      ],
+      "status": "pass",
+      "rows": 1
+    },
+    {
+      "phase": "receipt",
+      "fields": [
+        "comment"
+      ],
+      "operators": [
+        "Заполнено"
+      ],
+      "status": "pass",
+      "rows": 2
+    },
+    {
+      "phase": "receipt",
+      "fields": [
+        "comment"
+      ],
+      "operators": [
+        "Не заполнено"
+      ],
+      "status": "pass",
+      "rows": 0
+    },
+    {
+      "phase": "receipt",
+      "fields": [
+        "posted"
+      ],
+      "operators": [
+        "Равно"
+      ],
+      "status": "pass",
+      "rows": 2
+    },
+    {
+      "phase": "receipt",
+      "fields": [
+        "posted"
+      ],
+      "operators": [
+        "Не равно"
+      ],
+      "status": "pass",
+      "rows": 0
+    },
+    {
+      "phase": "receipt",
+      "fields": [
+        "deleted"
+      ],
+      "operators": [
+        "Равно"
+      ],
+      "status": "pass",
+      "rows": 2
+    },
+    {
+      "phase": "receipt",
+      "fields": [
+        "deleted"
+      ],
+      "operators": [
+        "Не равно"
+      ],
+      "status": "pass",
+      "rows": 0
+    },
+    {
+      "phase": "receipt_goods",
+      "fields": [
+        "nomenclature"
+      ],
+      "operators": [
+        "Равно"
+      ],
+      "status": "pass",
+      "rows": 2
+    },
+    {
+      "phase": "receipt_goods",
+      "fields": [
+        "nomenclature"
+      ],
+      "operators": [
+        "Не равно"
+      ],
+      "status": "pass",
+      "rows": 2
+    },
+    {
+      "phase": "receipt_goods",
+      "fields": [
+        "nomenclature"
+      ],
+      "operators": [
+        "В списке"
+      ],
+      "status": "pass",
+      "rows": 2
+    },
+    {
+      "phase": "receipt_goods",
+      "fields": [
+        "nomenclature"
+      ],
+      "operators": [
+        "Не в списке"
+      ],
+      "status": "pass",
+      "rows": 2
+    },
+    {
+      "phase": "receipt_goods",
+      "fields": [
+        "nomenclature"
+      ],
+      "operators": [
+        "Содержит"
+      ],
+      "status": "pass",
+      "rows": 2
+    },
+    {
+      "phase": "receipt_goods",
+      "fields": [
+        "nomenclature"
+      ],
+      "operators": [
+        "Не содержит"
+      ],
+      "status": "pass",
+      "rows": 2
+    },
+    {
+      "phase": "receipt_goods",
+      "fields": [
+        "nomenclature"
+      ],
+      "operators": [
+        "Начинается с"
+      ],
+      "status": "pass",
+      "rows": 2
+    },
+    {
+      "phase": "receipt_goods",
+      "fields": [
+        "nomenclature"
+      ],
+      "operators": [
+        "Заполнено"
+      ],
+      "status": "pass",
+      "rows": 2
+    },
+    {
+      "phase": "receipt_goods",
+      "fields": [
+        "nomenclature"
+      ],
+      "operators": [
+        "Не заполнено"
+      ],
+      "status": "pass",
+      "rows": 0
+    },
+    {
+      "phase": "receipt_goods",
+      "fields": [
+        "nomenclature"
+      ],
+      "operators": [
+        "В группе из списка"
+      ],
+      "status": "pass",
+      "rows": 2
+    },
+    {
+      "phase": "positive_driver",
+      "fields": [
+        "pogruzka_voditel"
+      ],
+      "operators": [
+        "Равно"
+      ],
+      "status": "pass",
+      "rows": 1
+    },
+    {
+      "phase": "positive_driver",
+      "fields": [
+        "pogruzka_voditel"
+      ],
+      "operators": [
+        "Не равно"
+      ],
+      "status": "pass",
+      "rows": 0
+    },
+    {
+      "phase": "positive_driver",
+      "fields": [
+        "pogruzka_voditel"
+      ],
+      "operators": [
+        "В списке"
+      ],
+      "status": "pass",
+      "rows": 1
+    },
+    {
+      "phase": "positive_driver",
+      "fields": [
+        "pogruzka_voditel"
+      ],
+      "operators": [
+        "Не в списке"
+      ],
+      "status": "pass",
+      "rows": 0
+    },
+    {
+      "phase": "positive_driver",
+      "fields": [
+        "pogruzka_voditel"
+      ],
+      "operators": [
+        "Содержит"
+      ],
+      "status": "pass",
+      "rows": 1
+    },
+    {
+      "phase": "positive_driver",
+      "fields": [
+        "pogruzka_voditel"
+      ],
+      "operators": [
+        "Не содержит"
+      ],
+      "status": "pass",
+      "rows": 0
+    },
+    {
+      "phase": "positive_driver",
+      "fields": [
+        "pogruzka_voditel"
+      ],
+      "operators": [
+        "Начинается с"
+      ],
+      "status": "pass",
+      "rows": 1
+    },
+    {
+      "phase": "positive_driver",
+      "fields": [
+        "pogruzka_voditel"
+      ],
+      "operators": [
+        "Заполнено"
+      ],
+      "status": "pass",
+      "rows": 1
+    },
+    {
+      "phase": "positive_driver",
+      "fields": [
+        "pogruzka_voditel"
+      ],
+      "operators": [
+        "Не заполнено"
+      ],
+      "status": "pass",
+      "rows": 0
+    },
+    {
+      "phase": "combined",
+      "fields": [
+        "number",
+        "date"
+      ],
+      "operators": [
+        "Равно",
+        "Равно"
+      ],
+      "status": "pass",
+      "rows": 1
+    },
+    {
+      "phase": "combined",
+      "fields": [
+        "number",
+        "posted"
+      ],
+      "operators": [
+        "Равно",
+        "Равно"
+      ],
+      "status": "pass",
+      "rows": 1
+    },
+    {
+      "phase": "combined",
+      "fields": [
+        "date",
+        "vms_status"
+      ],
+      "operators": [
+        "Равно",
+        "Не заполнено"
+      ],
+      "status": "pass",
+      "rows": 1
+    },
+    {
+      "phase": "combined",
+      "fields": [
+        "vms_status",
+        "pogruzka_voditel"
+      ],
+      "operators": [
+        "Не заполнено",
+        "Заполнено"
+      ],
+      "status": "pass",
+      "rows": 1
+    },
+    {
+      "phase": "combined",
+      "fields": [
+        "date",
+        "vms_status",
+        "pogruzka_voditel"
+      ],
+      "operators": [
+        "Равно",
+        "Не заполнено",
+        "Заполнено"
+      ],
+      "status": "pass",
+      "rows": 1
+    },
+    {
+      "phase": "combined",
+      "fields": [
+        "number",
+        "date",
+        "posted",
+        "vms_status",
+        "pogruzka_voditel"
+      ],
+      "operators": [
+        "Равно",
+        "Равно",
+        "Равно",
+        "Не заполнено",
+        "Заполнено"
+      ],
+      "status": "pass",
+      "rows": 1
+    },
+    {
+      "phase": "combined",
+      "fields": [
+        "number",
+        "number"
+      ],
+      "operators": [
+        "Равно",
+        "Не равно"
+      ],
+      "status": "pass",
+      "rows": 0
+    }
+  ],
+  "session_preserved": true
+}

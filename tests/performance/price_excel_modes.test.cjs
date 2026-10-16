@@ -1,0 +1,31 @@
+const assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm');
+const elements={pdeExcelPtSelect:{value:'P1'},pdeExcelOnlyExistingPricesChk:{checked:false},pdeExcelDontAddNewItemsChk:{checked:true},pdeExcelClearBeforeLoadChk:{checked:false},pdeExcelIdTypeSelect:{value:'code'},pdeExcelPasteArea:{value:''},pdeExcelModeHint:{textContent:''}};
+const alerts=[];
+const ctx=vm.createContext({console,window:{},document:{getElementById:id=>elements[id]||null,addEventListener(){}},alert:msg=>alerts.push(msg)});ctx.window=ctx;
+vm.runInContext(fs.readFileSync('static/js/price_doc_editor.js','utf8')+';globalThis.p=PriceDocEditor;',ctx);
+const p=ctx.p;
+for(const fn of ['renderTable','updateRowCount','closeExcelImportModal','renderExcelPreview','resolveMissingNomenclature'])p[fn]=()=>{};
+p.priceTypes=Array.from({length:10},(_,i)=>'P'+(i+1));
+function fixture(){return {code:'A',name:'A',prices:{P1:2,P2:'',P3:0,P4:null,P5:4,P6:undefined,P7:7,P8:'',P9:9,P10:10}};}
+const row=(price,code='A')=>({rawCode:code,price});
+let item=fixture();p.items=[item];p.excelParsedRows=[row(8)];
+elements.pdeExcelPtSelect.value='P2';p.onExcelTargetChanged();p.excelParsedRows=[row(8)];p.applyExcelImport();
+assert.equal(item.prices.P2,8,'selected type can fill previously blank value');assert.equal(item.prices.P1,2,'other columns stay unchanged');
+item=fixture();const untouched={code:'B',prices:{P1:25,P2:''}};p.items=[item,untouched];
+elements.pdeExcelPtSelect.value='__all_active__';p.onExcelTargetChanged();
+assert.equal(elements.pdeExcelOnlyExistingPricesChk.disabled,true);
+assert.equal(elements.pdeExcelClearBeforeLoadChk.disabled,true);
+// Policy must preserve blanks even if checkbox state is altered programmatically.
+elements.pdeExcelOnlyExistingPricesChk.checked=false;elements.pdeExcelDontAddNewItemsChk.checked=false;elements.pdeExcelClearBeforeLoadChk.checked=true;
+p.excelParsedRows=[row(11),row(12,'NEW')];p.applyExcelImport();
+for(const pt of ['P1','P5','P7','P9','P10'])assert.equal(item.prices[pt],11,pt+' filled value updates');
+assert.equal(item.prices.P2,'');assert.equal(item.prices.P3,0);assert.equal(item.prices.P4,null);assert.equal(item.prices.P6,undefined);assert.equal(item.prices.P8,'');
+assert.equal(p.items.length,2,'reference mode never invents a new item');assert.equal(untouched.prices.P1,25,'products absent from Excel stay unchanged');
+item=fixture();p.items=[item];p.excelParsedRows=[row(0),row(6)];p.applyExcelImport();
+assert.equal(item.prices.P1,6,'reference eligibility is based on original prices even with duplicate rows');assert.equal(item.prices.P2,'');
+elements.pdeExcelPtSelect.value='P1';p.onExcelTargetChanged();assert.equal(elements.pdeExcelOnlyExistingPricesChk.disabled,false);
+elements.pdeExcelClearBeforeLoadChk.checked=true;elements.pdeExcelOnlyExistingPricesChk.checked=true;
+p.items=[fixture()];p.excelParsedRows=[row(30)];p.applyExcelImport();assert.equal(p.items[0].prices.P1,2,'conflicting clear/reference options must not erase prices');
+p.parseExcelText('A\t\nA\tInfinity\nA\t12wrong\nA\t0\nA\t3,50');
+assert.deepEqual(Array.from(p.excelParsedRows,r=>r.price),[0,3.5],'blank and invalid Excel prices are ignored; explicit zero is valid');
+console.log('Excel modes: 10 price types, selected-column fill, preserved blanks, missing products, duplicate rows and numeric validation passed.');

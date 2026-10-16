@@ -1,7 +1,7 @@
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const vm = require('node:vm');
-const context = vm.createContext({window:{},console});
+const context = vm.createContext({window:{addEventListener(){}},console});
 vm.runInContext(fs.readFileSync('static/js/c1_filter_component.js','utf8'),context);
 const filter = context.window.C1FilterComponent;
 const criterion = {fieldKey:'pogruzka_duplicate',operator:'Равно',value:'Да'};

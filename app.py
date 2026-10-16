@@ -44,7 +44,8 @@ app.config['TEMPLATES_AUTO_RELOAD'] = True
 @app.get('/api/runtime/status')
 def runtime_status():
     return {'auto_reload': os.environ.get('REPORTER_AUTO_RELOAD') == '1', 'pid': os.getpid(),
-            'independent_worker': True, 'worker': one_c.status()}
+            'independent_worker': True,
+            'worker': one_c.status() if request.args.get('worker') != '0' else None}
 app.config['SEND_FILE_MAX_AGE_DEFAULT'] = 0
 
 @app.after_request

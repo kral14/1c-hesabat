@@ -1,0 +1,53 @@
+{
+  "database": "Test1C / Aztrade_test3",
+  "document": "РеализацияТоваровУслуг",
+  "field": "pogruzka_voditel",
+  "seed_found": false,
+  "cases": [
+    {
+      "operator": "Заполнено",
+      "status": "pass",
+      "rows": 0
+    },
+    {
+      "operator": "Не заполнено",
+      "status": "pass",
+      "rows": 1
+    },
+    {
+      "operator": "Равно",
+      "status": "pass",
+      "rows": 0
+    },
+    {
+      "operator": "Не равно",
+      "status": "pass",
+      "rows": 1
+    },
+    {
+      "operator": "В списке",
+      "status": "pass",
+      "rows": 0
+    },
+    {
+      "operator": "Не в списке",
+      "status": "pass",
+      "rows": 1
+    },
+    {
+      "operator": "Содержит",
+      "status": "pass",
+      "rows": 0
+    },
+    {
+      "operator": "Не содержит",
+      "status": "pass",
+      "rows": 1
+    },
+    {
+      "operator": "Начинается с",
+      "status": "pass",
+      "rows": 0
+    }
+  ]
+}

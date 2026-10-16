@@ -1,0 +1,83 @@
+{
+  "database": "Test1C / Aztrade_test3",
+  "period": {
+    "date_from": "2026-07-09 00:00:00",
+    "date_to": "2026-07-15 23:59:59"
+  },
+  "baseline_count": 4,
+  "cases": [
+    {
+      "field": "agent_sales_type",
+      "operator": "Равно",
+      "rows": 1,
+      "status": "pass"
+    },
+    {
+      "field": "agent_sales_type",
+      "operator": "Не равно",
+      "rows": 3,
+      "status": "pass"
+    },
+    {
+      "field": "agent_sales_type",
+      "operator": "В списке",
+      "rows": 1,
+      "status": "pass"
+    },
+    {
+      "field": "agent_sales_type",
+      "operator": "Не в списке",
+      "rows": 3,
+      "status": "pass"
+    },
+    {
+      "field": "agent_sales_type",
+      "operator": "Заполнено",
+      "rows": 4,
+      "status": "pass"
+    },
+    {
+      "field": "agent_sales_type",
+      "operator": "Не заполнено",
+      "rows": 0,
+      "status": "pass"
+    },
+    {
+      "field": "agent_sales_group",
+      "operator": "Равно",
+      "rows": 1,
+      "status": "pass"
+    },
+    {
+      "field": "agent_sales_group",
+      "operator": "Не равно",
+      "rows": 3,
+      "status": "pass"
+    },
+    {
+      "field": "agent_sales_group",
+      "operator": "В списке",
+      "rows": 1,
+      "status": "pass"
+    },
+    {
+      "field": "agent_sales_group",
+      "operator": "Не в списке",
+      "rows": 3,
+      "status": "pass"
+    },
+    {
+      "field": "agent_sales_group",
+      "operator": "Заполнено",
+      "rows": 4,
+      "status": "pass"
+    },
+    {
+      "field": "agent_sales_group",
+      "operator": "Не заполнено",
+      "rows": 0,
+      "status": "pass"
+    }
+  ],
+  "session_preserved": true
+}

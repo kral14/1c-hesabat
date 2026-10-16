@@ -1,0 +1,345 @@
+{
+  "database": "Test1C / Aztrade_test3",
+  "document": "realization",
+  "mode": "query_execution",
+  "cases": [
+    {
+      "field": "number",
+      "operator": "Равно",
+      "status": "fail",
+      "error": "1. number: Tam sənəd nömrəsini yazın, məsələn C0000476122",
+      "seconds": 0.0
+    },
+    {
+      "field": "number",
+      "operator": "Не равно",
+      "status": "fail",
+      "error": "1. number: Tam sənəd nömrəsini yazın, məsələn C0000476122",
+      "seconds": 0.0
+    },
+    {
+      "field": "number",
+      "operator": "В списке",
+      "status": "fail",
+      "error": "1. number: Tam sənəd nömrəsini yazın, məsələn C0000476122",
+      "seconds": 0.0
+    },
+    {
+      "field": "number",
+      "operator": "Не в списке",
+      "status": "fail",
+      "error": "1. number: Tam sənəd nömrəsini yazın, məsələn C0000476122",
+      "seconds": 0.0
+    },
+    {
+      "field": "number",
+      "operator": "Содержит",
+      "status": "pass",
+      "rows": 0,
+      "row_present": true,
+      "seconds": 4.204
+    },
+    {
+      "field": "number",
+      "operator": "Не содержит",
+      "status": "pass",
+      "rows": 0,
+      "row_present": true,
+      "seconds": 1.703
+    },
+    {
+      "field": "number",
+      "operator": "Начинается с",
+      "status": "pass",
+      "rows": 0,
+      "row_present": true,
+      "seconds": 0.031
+    },
+    {
+      "field": "number",
+      "operator": "Заполнено",
+      "status": "pass",
+      "rows": 0,
+      "row_present": true,
+      "seconds": 1.828
+    },
+    {
+      "field": "number",
+      "operator": "Не заполнено",
+      "status": "pass",
+      "rows": 0,
+      "row_present": false,
+      "seconds": 0.109
+    },
+    {
+      "field": "number",
+      "operator": "В группе из списка",
+      "status": "fail",
+      "error": "1. number: Tam sənəd nömrəsini yazın, məsələn C0000476122",
+      "seconds": 0.0
+    },
+    {
+      "field": "vms_status",
+      "operator": "Равно",
+      "status": "pass",
+      "rows": 0,
+      "row_present": false,
+      "seconds": 3.047
+    },
+    {
+      "field": "vms_status",
+      "operator": "Не равно",
+      "status": "pass",
+      "rows": 0,
+      "row_present": true,
+      "seconds": 1.75
+    },
+    {
+      "field": "vms_status",
+      "operator": "В списке",
+      "status": "pass",
+      "rows": 0,
+      "row_present": false,
+      "seconds": 1.86
+    },
+    {
+      "field": "vms_status",
+      "operator": "Не в списке",
+      "status": "pass",
+      "rows": 0,
+      "row_present": true,
+      "seconds": 0.25
+    },
+    {
+      "field": "vms_status",
+      "operator": "Заполнено",
+      "status": "pass",
+      "rows": 0,
+      "row_present": true,
+      "seconds": 3.172
+    },
+    {
+      "field": "vms_status",
+      "operator": "Не заполнено",
+      "status": "pass",
+      "rows": 0,
+      "row_present": true,
+      "seconds": 1.781
+    },
+    {
+      "field": "pogruzka_voditel",
+      "operator": "Равно",
+      "status": "fail",
+      "error": "(-2147352567, 'Exception occurred.', (1001, '1C:Enterprise 8.3.17.1549', '{(31, 27)}: Неверные параметры \"ПОДСТРОКА\"\\nПОДСТРОКА(<<?>>ПРЕДСТАВЛЕНИЕ(МАКСИМУМ(ВЫБОР КОГДА НЕ П.Ссылка.ПометкаУдаления ТОГДА П.Ссылка.Водитель ИНАЧЕ НЕОПРЕДЕЛЕНО КОНЕЦ)), 1, 150) КАК ActiveVoditel,', None, 0, 0), None)",
+      "seconds": 0.015
+    },
+    {
+      "field": "pogruzka_voditel",
+      "operator": "Не равно",
+      "status": "fail",
+      "error": "(-2147352567, 'Exception occurred.', (1001, '1C:Enterprise 8.3.17.1549', '{(31, 27)}: Неверные параметры \"ПОДСТРОКА\"\\nПОДСТРОКА(<<?>>ПРЕДСТАВЛЕНИЕ(МАКСИМУМ(ВЫБОР КОГДА НЕ П.Ссылка.ПометкаУдаления ТОГДА П.Ссылка.Водитель ИНАЧЕ НЕОПРЕДЕЛЕНО КОНЕЦ)), 1, 150) КАК ActiveVoditel,', None, 0, 0), None)",
+      "seconds": 0.0
+    },
+    {
+      "field": "pogruzka_voditel",
+      "operator": "В списке",
+      "status": "fail",
+      "error": "(-2147352567, 'Exception occurred.', (1001, '1C:Enterprise 8.3.17.1549', '{(31, 27)}: Неверные параметры \"ПОДСТРОКА\"\\nПОДСТРОКА(<<?>>ПРЕДСТАВЛЕНИЕ(МАКСИМУМ(ВЫБОР КОГДА НЕ П.Ссылка.ПометкаУдаления ТОГДА П.Ссылка.Водитель ИНАЧЕ НЕОПРЕДЕЛЕНО КОНЕЦ)), 1, 150) КАК ActiveVoditel,', None, 0, 0), None)",
+      "seconds": 0.016
+    },
+    {
+      "field": "pogruzka_voditel",
+      "operator": "Не в списке",
+      "status": "fail",
+      "error": "(-2147352567, 'Exception occurred.', (1001, '1C:Enterprise 8.3.17.1549', '{(31, 27)}: Неверные параметры \"ПОДСТРОКА\"\\nПОДСТРОКА(<<?>>ПРЕДСТАВЛЕНИЕ(МАКСИМУМ(ВЫБОР КОГДА НЕ П.Ссылка.ПометкаУдаления ТОГДА П.Ссылка.Водитель ИНАЧЕ НЕОПРЕДЕЛЕНО КОНЕЦ)), 1, 150) КАК ActiveVoditel,', None, 0, 0), None)",
+      "seconds": 0.0
+    },
+    {
+      "field": "pogruzka_voditel",
+      "operator": "Содержит",
+      "status": "fail",
+      "error": "(-2147352567, 'Exception occurred.', (1001, '1C:Enterprise 8.3.17.1549', '{(31, 27)}: Неверные параметры \"ПОДСТРОКА\"\\nПОДСТРОКА(<<?>>ПРЕДСТАВЛЕНИЕ(МАКСИМУМ(ВЫБОР КОГДА НЕ П.Ссылка.ПометкаУдаления ТОГДА П.Ссылка.Водитель ИНАЧЕ НЕОПРЕДЕЛЕНО КОНЕЦ)), 1, 150) КАК ActiveVoditel,', None, 0, 0), None)",
+      "seconds": 0.0
+    },
+    {
+      "field": "pogruzka_voditel",
+      "operator": "Не содержит",
+      "status": "fail",
+      "error": "(-2147352567, 'Exception occurred.', (1001, '1C:Enterprise 8.3.17.1549', '{(31, 27)}: Неверные параметры \"ПОДСТРОКА\"\\nПОДСТРОКА(<<?>>ПРЕДСТАВЛЕНИЕ(МАКСИМУМ(ВЫБОР КОГДА НЕ П.Ссылка.ПометкаУдаления ТОГДА П.Ссылка.Водитель ИНАЧЕ НЕОПРЕДЕЛЕНО КОНЕЦ)), 1, 150) КАК ActiveVoditel,', None, 0, 0), None)",
+      "seconds": 0.016
+    },
+    {
+      "field": "pogruzka_voditel",
+      "operator": "Начинается с",
+      "status": "fail",
+      "error": "(-2147352567, 'Exception occurred.', (1001, '1C:Enterprise 8.3.17.1549', '{(31, 27)}: Неверные параметры \"ПОДСТРОКА\"\\nПОДСТРОКА(<<?>>ПРЕДСТАВЛЕНИЕ(МАКСИМУМ(ВЫБОР КОГДА НЕ П.Ссылка.ПометкаУдаления ТОГДА П.Ссылка.Водитель ИНАЧЕ НЕОПРЕДЕЛЕНО КОНЕЦ)), 1, 150) КАК ActiveVoditel,', None, 0, 0), None)",
+      "seconds": 0.0
+    },
+    {
+      "field": "pogruzka_voditel",
+      "operator": "Заполнено",
+      "status": "fail",
+      "error": "(-2147352567, 'Exception occurred.', (1001, '1C:Enterprise 8.3.17.1549', '{(31, 27)}: Неверные параметры \"ПОДСТРОКА\"\\nПОДСТРОКА(<<?>>ПРЕДСТАВЛЕНИЕ(МАКСИМУМ(ВЫБОР КОГДА НЕ П.Ссылка.ПометкаУдаления ТОГДА П.Ссылка.Водитель ИНАЧЕ НЕОПРЕДЕЛЕНО КОНЕЦ)), 1, 150) КАК ActiveVoditel,', None, 0, 0), None)",
+      "seconds": 0.015
+    },
+    {
+      "field": "pogruzka_voditel",
+      "operator": "Не заполнено",
+      "status": "fail",
+      "error": "(-2147352567, 'Exception occurred.', (1001, '1C:Enterprise 8.3.17.1549', '{(31, 27)}: Неверные параметры \"ПОДСТРОКА\"\\nПОДСТРОКА(<<?>>ПРЕДСТАВЛЕНИЕ(МАКСИМУМ(ВЫБОР КОГДА НЕ П.Ссылка.ПометкаУдаления ТОГДА П.Ссылка.Водитель ИНАЧЕ НЕОПРЕДЕЛЕНО КОНЕЦ)), 1, 150) КАК ActiveVoditel,', None, 0, 0), None)",
+      "seconds": 0.0
+    },
+    {
+      "field": "comment",
+      "operator": "Равно",
+      "status": "pass",
+      "rows": 0,
+      "row_present": true,
+      "seconds": 1.375
+    },
+    {
+      "field": "comment",
+      "operator": "Не равно",
+      "status": "pass",
+      "rows": 0,
+      "row_present": true,
+      "seconds": 1.36
+    },
+    {
+      "field": "comment",
+      "operator": "В списке",
+      "status": "pass",
+      "rows": 0,
+      "row_present": true,
+      "seconds": 1.359
+    },
+    {
+      "field": "comment",
+      "operator": "Не в списке",
+      "status": "pass",
+      "rows": 0,
+      "row_present": true,
+      "seconds": 0.266
+    },
+    {
+      "field": "comment",
+      "operator": "Содержит",
+      "status": "pass",
+      "rows": 0,
+      "row_present": true,
+      "seconds": 0.218
+    },
+    {
+      "field": "comment",
+      "operator": "Не содержит",
+      "status": "pass",
+      "rows": 0,
+      "row_present": true,
+      "seconds": 0.282
+    },
+    {
+      "field": "comment",
+      "operator": "Начинается с",
+      "status": "pass",
+      "rows": 0,
+      "row_present": true,
+      "seconds": 0.203
+    },
+    {
+      "field": "comment",
+      "operator": "Заполнено",
+      "status": "pass",
+      "rows": 0,
+      "row_present": true,
+      "seconds": 1.312
+    },
+    {
+      "field": "comment",
+      "operator": "Не заполнено",
+      "status": "pass",
+      "rows": 0,
+      "row_present": true,
+      "seconds": 1.687
+    },
+    {
+      "field": "nomenclature",
+      "operator": "Равно",
+      "status": "pass",
+      "rows": 0,
+      "row_present": false,
+      "seconds": 7.188
+    },
+    {
+      "field": "nomenclature",
+      "operator": "Не равно",
+      "status": "pass",
+      "rows": 0,
+      "row_present": true,
+      "seconds": 2.516
+    },
+    {
+      "field": "nomenclature",
+      "operator": "В списке",
+      "status": "pass",
+      "rows": 0,
+      "row_present": false,
+      "seconds": 2.781
+    },
+    {
+      "field": "nomenclature",
+      "operator": "Не в списке",
+      "status": "pass",
+      "rows": 0,
+      "row_present": true,
+      "seconds": 0.25
+    },
+    {
+      "field": "nomenclature",
+      "operator": "Содержит",
+      "status": "pass",
+      "rows": 0,
+      "row_present": false,
+      "seconds": 3.562
+    },
+    {
+      "field": "nomenclature",
+      "operator": "Не содержит",
+      "status": "pass",
+      "rows": 0,
+      "row_present": true,
+      "seconds": 2.032
+    },
+    {
+      "field": "nomenclature",
+      "operator": "Начинается с",
+      "status": "pass",
+      "rows": 0,
+      "row_present": false,
+      "seconds": 0.89
+    },
+    {
+      "field": "nomenclature",
+      "operator": "Заполнено",
+      "status": "pass",
+      "rows": 0,
+      "row_present": true,
+      "seconds": 1.985
+    },
+    {
+      "field": "nomenclature",
+      "operator": "Не заполнено",
+      "status": "pass",
+      "rows": 0,
+      "row_present": true,
+      "seconds": 2.531
+    },
+    {
+      "field": "nomenclature",
+      "operator": "В группе из списка",
+      "status": "pass",
+      "rows": 0,
+      "row_present": false,
+      "seconds": 7.203
+    }
+  ]
+}

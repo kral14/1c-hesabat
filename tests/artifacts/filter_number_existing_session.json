@@ -1,0 +1,55 @@
+{
+  "database": "Test1C / Aztrade_test3",
+  "cases": [
+    {
+      "operator": "Равно",
+      "status": "pass",
+      "rows": 1
+    },
+    {
+      "operator": "Не равно",
+      "status": "pass",
+      "rows": 0
+    },
+    {
+      "operator": "В списке",
+      "status": "pass",
+      "rows": 1
+    },
+    {
+      "operator": "Не в списке",
+      "status": "pass",
+      "rows": 0
+    },
+    {
+      "operator": "В группе из списка",
+      "status": "pass",
+      "rows": 1
+    },
+    {
+      "operator": "Содержит",
+      "status": "pass",
+      "rows": 1
+    },
+    {
+      "operator": "Не содержит",
+      "status": "pass",
+      "rows": 0
+    },
+    {
+      "operator": "Начинается с",
+      "status": "pass",
+      "rows": 1
+    },
+    {
+      "operator": "Заполнено",
+      "status": "pass",
+      "rows": 1
+    },
+    {
+      "operator": "Не заполнено",
+      "status": "pass",
+      "rows": 0
+    }
+  ]
+}

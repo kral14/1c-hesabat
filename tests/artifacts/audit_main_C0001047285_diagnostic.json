@@ -1,0 +1,56 @@
+[
+  {
+    "version": 1,
+    "type": "CDispatch",
+    "xml_or_bytes_prefix": "77u/PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0iVVRGLTgiPz4NCjxEb2N1\r\nbWVudE9iamVjdC7QktC+0LfQstGA0LDRgt",
+    "bytes_prefix": "efbbbf3c3f786d6c2076657273696f6e3d22312e",
+    "bytes_length": 11389,
+    "parsed": {
+      "amount": 20.16,
+      "posted": false,
+      "deleted": false,
+      "doc_date": "11.10.2026 00:00:10"
+    },
+    "items": [
+      {
+        "code": "J4058650",
+        "qty": 6.0,
+        "total": 10.08,
+        "discount_manual": 15.0
+      },
+      {
+        "code": "J4058648",
+        "qty": 6.0,
+        "total": 10.08,
+        "discount_manual": 15.0
+      }
+    ]
+  },
+  {
+    "version": 2,
+    "type": "CDispatch",
+    "xml_or_bytes_prefix": "77u/PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0iVVRGLTgiPz4NCjxEb2N1\r\nbWVudE9iamVjdC7QktC+0LfQstGA0LDRgt",
+    "bytes_prefix": "efbbbf3c3f786d6c2076657273696f6e3d22312e",
+    "bytes_length": 11394,
+    "parsed": {
+      "amount": 20.16,
+      "posted": true,
+      "deleted": false,
+      "doc_date": "12.10.2026 00:00:10"
+    },
+    "items": [
+      {
+        "code": "J4058650",
+        "qty": 6.0,
+        "total": 10.08,
+        "discount_manual": 15.0
+      },
+      {
+        "code": "J4058648",
+        "qty": 6.0,
+        "total": 10.08,
+        "discount_manual": 15.0
+      }
+    ]
+  }
+]

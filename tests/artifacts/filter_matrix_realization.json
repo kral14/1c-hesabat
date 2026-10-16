@@ -1,0 +1,1098 @@
+{
+  "database": "Test1C / Aztrade_test3",
+  "document": "realization",
+  "cases": [
+    {
+      "field": "date",
+      "operator": "Больше",
+      "status": "pass",
+      "rows": 0,
+      "seconds": 0.329
+    },
+    {
+      "field": "date",
+      "operator": "Больше или равно",
+      "status": "pass",
+      "rows": 1,
+      "seconds": 0.234
+    },
+    {
+      "field": "date",
+      "operator": "Заполнено",
+      "status": "pass",
+      "rows": 2,
+      "seconds": 2.0
+    },
+    {
+      "field": "date",
+      "operator": "Интервал (>, <)",
+      "status": "pass",
+      "rows": 0,
+      "seconds": 0.156
+    },
+    {
+      "field": "date",
+      "operator": "Интервал (>, <=)",
+      "status": "pass",
+      "rows": 0,
+      "seconds": 0.141
+    },
+    {
+      "field": "date",
+      "operator": "Интервал (>=, <)",
+      "status": "pass",
+      "rows": 0,
+      "seconds": 0.141
+    },
+    {
+      "field": "date",
+      "operator": "Интервал (>=, <=)",
+      "status": "pass",
+      "rows": 1,
+      "seconds": 0.203
+    },
+    {
+      "field": "date",
+      "operator": "Меньше",
+      "status": "pass",
+      "rows": 2,
+      "seconds": 1.844
+    },
+    {
+      "field": "date",
+      "operator": "Меньше или равно",
+      "status": "pass",
+      "rows": 2,
+      "seconds": 1.828
+    },
+    {
+      "field": "date",
+      "operator": "Не заполнено",
+      "status": "pass",
+      "rows": 0,
+      "seconds": 0.125
+    },
+    {
+      "field": "date",
+      "operator": "Не равно",
+      "status": "pass",
+      "rows": 2,
+      "seconds": 0.281
+    },
+    {
+      "field": "date",
+      "operator": "Равно",
+      "status": "pass",
+      "rows": 1,
+      "seconds": 0.078
+    },
+    {
+      "field": "number",
+      "operator": "Равно",
+      "status": "fail",
+      "error": "1. number: Tam sənəd nömrəsini yazın, məsələn C0000476122",
+      "seconds": 0.0
+    },
+    {
+      "field": "number",
+      "operator": "Не равно",
+      "status": "fail",
+      "error": "1. number: Tam sənəd nömrəsini yazın, məsələn C0000476122",
+      "seconds": 0.0
+    },
+    {
+      "field": "number",
+      "operator": "В списке",
+      "status": "fail",
+      "error": "1. number: Tam sənəd nömrəsini yazın, məsələn C0000476122",
+      "seconds": 0.0
+    },
+    {
+      "field": "number",
+      "operator": "Не в списке",
+      "status": "fail",
+      "error": "1. number: Tam sənəd nömrəsini yazın, məsələn C0000476122",
+      "seconds": 0.0
+    },
+    {
+      "field": "number",
+      "operator": "Содержит",
+      "status": "pass",
+      "rows": 1,
+      "seconds": 4.36
+    },
+    {
+      "field": "number",
+      "operator": "Не содержит",
+      "status": "pass",
+      "rows": 2,
+      "seconds": 1.765
+    },
+    {
+      "field": "number",
+      "operator": "Начинается с",
+      "status": "pass",
+      "rows": 1,
+      "seconds": 0.094
+    },
+    {
+      "field": "number",
+      "operator": "Заполнено",
+      "status": "pass",
+      "rows": 2,
+      "seconds": 1.922
+    },
+    {
+      "field": "number",
+      "operator": "Не заполнено",
+      "status": "pass",
+      "rows": 0,
+      "seconds": 0.109
+    },
+    {
+      "field": "number",
+      "operator": "В группе из списка",
+      "status": "fail",
+      "error": "1. number: Tam sənəd nömrəsini yazın, məsələn C0000476122",
+      "seconds": 0.0
+    },
+    {
+      "field": "kontragent",
+      "operator": "Равно",
+      "status": "pass",
+      "rows": 2,
+      "seconds": 1.86
+    },
+    {
+      "field": "kontragent",
+      "operator": "Не равно",
+      "status": "pass",
+      "rows": 2,
+      "seconds": 1.672
+    },
+    {
+      "field": "kontragent",
+      "operator": "В списке",
+      "status": "pass",
+      "rows": 2,
+      "seconds": 0.422
+    },
+    {
+      "field": "kontragent",
+      "operator": "Не в списке",
+      "status": "pass",
+      "rows": 2,
+      "seconds": 1.688
+    },
+    {
+      "field": "kontragent",
+      "operator": "Заполнено",
+      "status": "pass",
+      "rows": 2,
+      "seconds": 1.781
+    },
+    {
+      "field": "kontragent",
+      "operator": "Не заполнено",
+      "status": "pass",
+      "rows": 2,
+      "seconds": 1.609
+    },
+    {
+      "field": "golovnoy_kontragent",
+      "operator": "Равно",
+      "status": "pass",
+      "rows": 2,
+      "seconds": 5.563
+    },
+    {
+      "field": "golovnoy_kontragent",
+      "operator": "Не равно",
+      "status": "pass",
+      "rows": 2,
+      "seconds": 1.781
+    },
+    {
+      "field": "golovnoy_kontragent",
+      "operator": "В списке",
+      "status": "pass",
+      "rows": 2,
+      "seconds": 2.422
+    },
+    {
+      "field": "golovnoy_kontragent",
+      "operator": "Не в списке",
+      "status": "pass",
+      "rows": 2,
+      "seconds": 1.734
+    },
+    {
+      "field": "golovnoy_kontragent",
+      "operator": "Заполнено",
+      "status": "pass",
+      "rows": 2,
+      "seconds": 2.281
+    },
+    {
+      "field": "golovnoy_kontragent",
+      "operator": "Не заполнено",
+      "status": "pass",
+      "rows": 2,
+      "seconds": 1.719
+    },
+    {
+      "field": "agent",
+      "operator": "Равно",
+      "status": "pass",
+      "rows": 2,
+      "seconds": 5.031
+    },
+    {
+      "field": "agent",
+      "operator": "Не равно",
+      "status": "pass",
+      "rows": 2,
+      "seconds": 0.531
+    },
+    {
+      "field": "agent",
+      "operator": "В списке",
+      "status": "pass",
+      "rows": 2,
+      "seconds": 1.563
+    },
+    {
+      "field": "agent",
+      "operator": "Не в списке",
+      "status": "pass",
+      "rows": 2,
+      "seconds": 0.547
+    },
+    {
+      "field": "agent",
+      "operator": "Заполнено",
+      "status": "pass",
+      "rows": 2,
+      "seconds": 0.593
+    },
+    {
+      "field": "agent",
+      "operator": "Не заполнено",
+      "status": "pass",
+      "rows": 2,
+      "seconds": 1.25
+    },
+    {
+      "field": "kontragent_code",
+      "operator": "Равно",
+      "status": "pass",
+      "rows": 2,
+      "seconds": 1.75
+    },
+    {
+      "field": "kontragent_code",
+      "operator": "Не равно",
+      "status": "pass",
+      "rows": 2,
+      "seconds": 1.797
+    },
+    {
+      "field": "kontragent_code",
+      "operator": "В списке",
+      "status": "pass",
+      "rows": 2,
+      "seconds": 0.407
+    },
+    {
+      "field": "kontragent_code",
+      "operator": "Не в списке",
+      "status": "pass",
+      "rows": 2,
+      "seconds": 1.718
+    },
+    {
+      "field": "kontragent_code",
+      "operator": "Содержит",
+      "status": "pass",
+      "rows": 2,
+      "seconds": 1.578
+    },
+    {
+      "field": "kontragent_code",
+      "operator": "Не содержит",
+      "status": "pass",
+      "rows": 2,
+      "seconds": 2.0
+    },
+    {
+      "field": "kontragent_code",
+      "operator": "Начинается с",
+      "status": "pass",
+      "rows": 2,
+      "seconds": 0.422
+    },
+    {
+      "field": "kontragent_code",
+      "operator": "Заполнено",
+      "status": "pass",
+      "rows": 2,
+      "seconds": 0.297
+    },
+    {
+      "field": "kontragent_code",
+      "operator": "Не заполнено",
+      "status": "pass",
+      "rows": 2,
+      "seconds": 0.406
+    },
+    {
+      "field": "portfolio",
+      "operator": "Равно",
+      "status": "pass",
+      "rows": 2,
+      "seconds": 5.64
+    },
+    {
+      "field": "portfolio",
+      "operator": "Не равно",
+      "status": "pass",
+      "rows": 2,
+      "seconds": 2.297
+    },
+    {
+      "field": "portfolio",
+      "operator": "В списке",
+      "status": "pass",
+      "rows": 2,
+      "seconds": 2.516
+    },
+    {
+      "field": "portfolio",
+      "operator": "Не в списке",
+      "status": "pass",
+      "rows": 2,
+      "seconds": 2.313
+    },
+    {
+      "field": "portfolio",
+      "operator": "Заполнено",
+      "status": "pass",
+      "rows": 2,
+      "seconds": 2.469
+    },
+    {
+      "field": "portfolio",
+      "operator": "Не заполнено",
+      "status": "pass",
+      "rows": 2,
+      "seconds": 5.265
+    },
+    {
+      "field": "amount",
+      "operator": "Больше",
+      "status": "pass",
+      "rows": 2,
+      "seconds": 1.797
+    },
+    {
+      "field": "amount",
+      "operator": "Больше или равно",
+      "status": "pass",
+      "rows": 2,
+      "seconds": 1.766
+    },
+    {
+      "field": "amount",
+      "operator": "Заполнено",
+      "status": "pass",
+      "rows": 2,
+      "seconds": 1.765
+    },
+    {
+      "field": "amount",
+      "operator": "Интервал (>, <)",
+      "status": "pass",
+      "rows": 0,
+      "seconds": 1.329
+    },
+    {
+      "field": "amount",
+      "operator": "Интервал (>, <=)",
+      "status": "pass",
+      "rows": 0,
+      "seconds": 1.343
+    },
+    {
+      "field": "amount",
+      "operator": "Интервал (>=, <)",
+      "status": "pass",
+      "rows": 0,
+      "seconds": 1.344
+    },
+    {
+      "field": "amount",
+      "operator": "Интервал (>=, <=)",
+      "status": "pass",
+      "rows": 2,
+      "seconds": 1.453
+    },
+    {
+      "field": "amount",
+      "operator": "Меньше",
+      "status": "pass",
+      "rows": 2,
+      "seconds": 1.875
+    },
+    {
+      "field": "amount",
+      "operator": "Меньше или равно",
+      "status": "pass",
+      "rows": 2,
+      "seconds": 1.859
+    },
+    {
+      "field": "amount",
+      "operator": "Не заполнено",
+      "status": "pass",
+      "rows": 2,
+      "seconds": 1.313
+    },
+    {
+      "field": "amount",
+      "operator": "Не равно",
+      "status": "pass",
+      "rows": 2,
+      "seconds": 1.797
+    },
+    {
+      "field": "amount",
+      "operator": "Равно",
+      "status": "pass",
+      "rows": 2,
+      "seconds": 1.39
+    },
+    {
+      "field": "warehouse",
+      "operator": "Равно",
+      "status": "pass",
+      "rows": 2,
+      "seconds": 0.875
+    },
+    {
+      "field": "warehouse",
+      "operator": "Не равно",
+      "status": "pass",
+      "rows": 2,
+      "seconds": 0.61
+    },
+    {
+      "field": "warehouse",
+      "operator": "В списке",
+      "status": "pass",
+      "rows": 2,
+      "seconds": 0.312
+    },
+    {
+      "field": "warehouse",
+      "operator": "Не в списке",
+      "status": "pass",
+      "rows": 2,
+      "seconds": 0.625
+    },
+    {
+      "field": "warehouse",
+      "operator": "Заполнено",
+      "status": "pass",
+      "rows": 2,
+      "seconds": 0.609
+    },
+    {
+      "field": "warehouse",
+      "operator": "Не заполнено",
+      "status": "pass",
+      "rows": 1,
+      "seconds": 0.641
+    },
+    {
+      "field": "deal",
+      "operator": "Равно",
+      "status": "pass",
+      "rows": 1,
+      "seconds": 2.563
+    },
+    {
+      "field": "deal",
+      "operator": "Не равно",
+      "status": "pass",
+      "rows": 2,
+      "seconds": 0.562
+    },
+    {
+      "field": "deal",
+      "operator": "В списке",
+      "status": "pass",
+      "rows": 1,
+      "seconds": 2.25
+    },
+    {
+      "field": "deal",
+      "operator": "Не в списке",
+      "status": "pass",
+      "rows": 2,
+      "seconds": 0.594
+    },
+    {
+      "field": "deal",
+      "operator": "Заполнено",
+      "status": "pass",
+      "rows": 2,
+      "seconds": 0.579
+    },
+    {
+      "field": "deal",
+      "operator": "Не заполнено",
+      "status": "pass",
+      "rows": 2,
+      "seconds": 0.796
+    },
+    {
+      "field": "obrabotka_number",
+      "operator": "Равно",
+      "status": "pass",
+      "rows": 1,
+      "seconds": 26.266
+    },
+    {
+      "field": "obrabotka_number",
+      "operator": "Не равно",
+      "status": "pass",
+      "rows": 2,
+      "seconds": 1.797
+    },
+    {
+      "field": "obrabotka_number",
+      "operator": "В списке",
+      "status": "pass",
+      "rows": 1,
+      "seconds": 4.875
+    },
+    {
+      "field": "obrabotka_number",
+      "operator": "Не в списке",
+      "status": "pass",
+      "rows": 2,
+      "seconds": 1.796
+    },
+    {
+      "field": "obrabotka_number",
+      "operator": "Содержит",
+      "status": "pass",
+      "rows": 1,
+      "seconds": 6.375
+    },
+    {
+      "field": "obrabotka_number",
+      "operator": "Не содержит",
+      "status": "pass",
+      "rows": 2,
+      "seconds": 1.922
+    },
+    {
+      "field": "obrabotka_number",
+      "operator": "Начинается с",
+      "status": "pass",
+      "rows": 1,
+      "seconds": 5.328
+    },
+    {
+      "field": "obrabotka_number",
+      "operator": "Заполнено",
+      "status": "pass",
+      "rows": 2,
+      "seconds": 6.61
+    },
+    {
+      "field": "obrabotka_number",
+      "operator": "Не заполнено",
+      "status": "pass",
+      "rows": 2,
+      "seconds": 4.672
+    },
+    {
+      "field": "vms_status",
+      "operator": "Равно",
+      "status": "pass",
+      "rows": 0,
+      "seconds": 4.235
+    },
+    {
+      "field": "vms_status",
+      "operator": "Не равно",
+      "status": "pass",
+      "rows": 2,
+      "seconds": 2.547
+    },
+    {
+      "field": "vms_status",
+      "operator": "В списке",
+      "status": "pass",
+      "rows": 0,
+      "seconds": 1.468
+    },
+    {
+      "field": "vms_status",
+      "operator": "Не в списке",
+      "status": "pass",
+      "rows": 2,
+      "seconds": 1.391
+    },
+    {
+      "field": "vms_status",
+      "operator": "Заполнено",
+      "status": "pass",
+      "rows": 2,
+      "seconds": 2.516
+    },
+    {
+      "field": "vms_status",
+      "operator": "Не заполнено",
+      "status": "pass",
+      "rows": 2,
+      "seconds": 1.766
+    },
+    {
+      "field": "contract",
+      "operator": "Равно",
+      "status": "pass",
+      "rows": 1,
+      "seconds": 1.156
+    },
+    {
+      "field": "contract",
+      "operator": "Не равно",
+      "status": "pass",
+      "rows": 2,
+      "seconds": 0.547
+    },
+    {
+      "field": "contract",
+      "operator": "В списке",
+      "status": "pass",
+      "rows": 1,
+      "seconds": 0.594
+    },
+    {
+      "field": "contract",
+      "operator": "Не в списке",
+      "status": "pass",
+      "rows": 2,
+      "seconds": 0.532
+    },
+    {
+      "field": "contract",
+      "operator": "Заполнено",
+      "status": "pass",
+      "rows": 2,
+      "seconds": 0.531
+    },
+    {
+      "field": "contract",
+      "operator": "Не заполнено",
+      "status": "pass",
+      "rows": 2,
+      "seconds": 1.109
+    },
+    {
+      "field": "contract_price_type",
+      "operator": "Равно",
+      "status": "pass",
+      "rows": 2,
+      "seconds": 2.766
+    },
+    {
+      "field": "contract_price_type",
+      "operator": "Не равно",
+      "status": "pass",
+      "rows": 2,
+      "seconds": 1.078
+    },
+    {
+      "field": "contract_price_type",
+      "operator": "В списке",
+      "status": "pass",
+      "rows": 2,
+      "seconds": 0.954
+    },
+    {
+      "field": "contract_price_type",
+      "operator": "Не в списке",
+      "status": "pass",
+      "rows": 2,
+      "seconds": 1.109
+    },
+    {
+      "field": "contract_price_type",
+      "operator": "Содержит",
+      "status": "pass",
+      "rows": 2,
+      "seconds": 2.359
+    },
+    {
+      "field": "contract_price_type",
+      "operator": "Не содержит",
+      "status": "pass",
+      "rows": 2,
+      "seconds": 1.203
+    },
+    {
+      "field": "contract_price_type",
+      "operator": "Начинается с",
+      "status": "pass",
+      "rows": 2,
+      "seconds": 0.328
+    },
+    {
+      "field": "contract_price_type",
+      "operator": "Заполнено",
+      "status": "pass",
+      "rows": 2,
+      "seconds": 0.297
+    },
+    {
+      "field": "contract_price_type",
+      "operator": "Не заполнено",
+      "status": "pass",
+      "rows": 2,
+      "seconds": 0.656
+    },
+    {
+      "field": "pogruzka_marshrut",
+      "operator": "Равно",
+      "status": "pass",
+      "rows": 0,
+      "seconds": 2.313
+    },
+    {
+      "field": "pogruzka_marshrut",
+      "operator": "Не равно",
+      "status": "pass",
+      "rows": 2,
+      "seconds": 2.219
+    },
+    {
+      "field": "pogruzka_marshrut",
+      "operator": "В списке",
+      "status": "pass",
+      "rows": 0,
+      "seconds": 0.594
+    },
+    {
+      "field": "pogruzka_marshrut",
+      "operator": "Не в списке",
+      "status": "pass",
+      "rows": 2,
+      "seconds": 2.125
+    },
+    {
+      "field": "pogruzka_marshrut",
+      "operator": "Содержит",
+      "status": "pass",
+      "rows": 0,
+      "seconds": 1.906
+    },
+    {
+      "field": "pogruzka_marshrut",
+      "operator": "Не содержит",
+      "status": "pass",
+      "rows": 2,
+      "seconds": 2.391
+    },
+    {
+      "field": "pogruzka_marshrut",
+      "operator": "Начинается с",
+      "status": "pass",
+      "rows": 0,
+      "seconds": 0.594
+    },
+    {
+      "field": "pogruzka_marshrut",
+      "operator": "Заполнено",
+      "status": "pass",
+      "rows": 2,
+      "seconds": 2.468
+    },
+    {
+      "field": "pogruzka_marshrut",
+      "operator": "Не заполнено",
+      "status": "pass",
+      "rows": 2,
+      "seconds": 0.735
+    },
+    {
+      "field": "pogruzka_voditel",
+      "operator": "Равно",
+      "status": "fail",
+      "error": "(-2147352567, 'Exception occurred.', (1001, '1C:Enterprise 8.3.17.1549', '{(37, 112)}: Неверные параметры в операции сравнения. Нельзя сравнивать поля\\n неограниченной длины и поля несовместимых типов.\\nГДЕ Т.Дата >= &DateFrom И Т.Дата <= &DateTo И ЕСТЬNULL(ЕСТЬNULL(ВЫБОР КОГДА ЕСТЬNULL(ПФ.ActiveVoditel, \"\") <<?>><> \"\" ТОГДА ПФ.ActiveVoditel ИНАЧЕ ПФ.AnyVoditel КОНЕЦ, \"\"), \"\") = &p_crit_0_0', None, 0, 0), None)",
+      "seconds": 0.015
+    },
+    {
+      "field": "pogruzka_voditel",
+      "operator": "Не равно",
+      "status": "fail",
+      "error": "(-2147352567, 'Exception occurred.', (1001, '1C:Enterprise 8.3.17.1549', '{(37, 112)}: Неверные параметры в операции сравнения. Нельзя сравнивать поля\\n неограниченной длины и поля несовместимых типов.\\nГДЕ Т.Дата >= &DateFrom И Т.Дата <= &DateTo И ЕСТЬNULL(ЕСТЬNULL(ВЫБОР КОГДА ЕСТЬNULL(ПФ.ActiveVoditel, \"\") <<?>><> \"\" ТОГДА ПФ.ActiveVoditel ИНАЧЕ ПФ.AnyVoditel КОНЕЦ, \"\"), \"\") <> &p_crit_0_0', None, 0, 0), None)",
+      "seconds": 0.0
+    },
+    {
+      "field": "pogruzka_voditel",
+      "operator": "В списке",
+      "status": "fail",
+      "error": "(-2147352567, 'Exception occurred.', (1001, '1C:Enterprise 8.3.17.1549', '{(37, 113)}: Неверные параметры в операции сравнения. Нельзя сравнивать поля\\n неограниченной длины и поля несовместимых типов.\\nГДЕ Т.Дата >= &DateFrom И Т.Дата <= &DateTo И (ЕСТЬNULL(ЕСТЬNULL(ВЫБОР КОГДА ЕСТЬNULL(ПФ.ActiveVoditel, \"\") <<?>><> \"\" ТОГДА ПФ.ActiveVoditel ИНАЧЕ ПФ.AnyVoditel КОНЕЦ, \"\"), \"\") = &p_crit_0_0)', None, 0, 0), None)",
+      "seconds": 0.0
+    },
+    {
+      "field": "pogruzka_voditel",
+      "operator": "Не в списке",
+      "status": "fail",
+      "error": "(-2147352567, 'Exception occurred.', (1001, '1C:Enterprise 8.3.17.1549', '{(37, 116)}: Неверные параметры в операции сравнения. Нельзя сравнивать поля\\n неограниченной длины и поля несовместимых типов.\\nГДЕ Т.Дата >= &DateFrom И Т.Дата <= &DateTo И НЕ (ЕСТЬNULL(ЕСТЬNULL(ВЫБОР КОГДА ЕСТЬNULL(ПФ.ActiveVoditel, \"\") <<?>><> \"\" ТОГДА ПФ.ActiveVoditel ИНАЧЕ ПФ.AnyVoditel КОНЕЦ, \"\"), \"\") = &p_crit_0_0)', None, 0, 0), None)",
+      "seconds": 0.0
+    },
+    {
+      "field": "pogruzka_voditel",
+      "operator": "Содержит",
+      "status": "fail",
+      "error": "(-2147352567, 'Exception occurred.', (1001, '1C:Enterprise 8.3.17.1549', '{(37, 112)}: Неверные параметры в операции сравнения. Нельзя сравнивать поля\\n неограниченной длины и поля несовместимых типов.\\nГДЕ Т.Дата >= &DateFrom И Т.Дата <= &DateTo И ЕСТЬNULL(ЕСТЬNULL(ВЫБОР КОГДА ЕСТЬNULL(ПФ.ActiveVoditel, \"\") <<?>><> \"\" ТОГДА ПФ.ActiveVoditel ИНАЧЕ ПФ.AnyVoditel КОНЕЦ, \"\"), \"\") ПОДОБНО &p_crit_0_0', None, 0, 0), None)",
+      "seconds": 0.0
+    },
+    {
+      "field": "pogruzka_voditel",
+      "operator": "Не содержит",
+      "status": "fail",
+      "error": "(-2147352567, 'Exception occurred.', (1001, '1C:Enterprise 8.3.17.1549', '{(37, 116)}: Неверные параметры в операции сравнения. Нельзя сравнивать поля\\n неограниченной длины и поля несовместимых типов.\\nГДЕ Т.Дата >= &DateFrom И Т.Дата <= &DateTo И НЕ (ЕСТЬNULL(ЕСТЬNULL(ВЫБОР КОГДА ЕСТЬNULL(ПФ.ActiveVoditel, \"\") <<?>><> \"\" ТОГДА ПФ.ActiveVoditel ИНАЧЕ ПФ.AnyVoditel КОНЕЦ, \"\"), \"\") ПОДОБНО &p_crit_0_0)', None, 0, 0), None)",
+      "seconds": 0.0
+    },
+    {
+      "field": "pogruzka_voditel",
+      "operator": "Начинается с",
+      "status": "fail",
+      "error": "(-2147352567, 'Exception occurred.', (1001, '1C:Enterprise 8.3.17.1549', '{(37, 112)}: Неверные параметры в операции сравнения. Нельзя сравнивать поля\\n неограниченной длины и поля несовместимых типов.\\nГДЕ Т.Дата >= &DateFrom И Т.Дата <= &DateTo И ЕСТЬNULL(ЕСТЬNULL(ВЫБОР КОГДА ЕСТЬNULL(ПФ.ActiveVoditel, \"\") <<?>><> \"\" ТОГДА ПФ.ActiveVoditel ИНАЧЕ ПФ.AnyVoditel КОНЕЦ, \"\"), \"\") ПОДОБНО &p_crit_0_0', None, 0, 0), None)",
+      "seconds": 0.016
+    },
+    {
+      "field": "pogruzka_voditel",
+      "operator": "Заполнено",
+      "status": "fail",
+      "error": "(-2147352567, 'Exception occurred.', (1001, '1C:Enterprise 8.3.17.1549', '{(37, 112)}: Неверные параметры в операции сравнения. Нельзя сравнивать поля\\n неограниченной длины и поля несовместимых типов.\\nГДЕ Т.Дата >= &DateFrom И Т.Дата <= &DateTo И ЕСТЬNULL(ЕСТЬNULL(ВЫБОР КОГДА ЕСТЬNULL(ПФ.ActiveVoditel, \"\") <<?>><> \"\" ТОГДА ПФ.ActiveVoditel ИНАЧЕ ПФ.AnyVoditel КОНЕЦ, \"\"), \"\") <> \"\"', None, 0, 0), None)",
+      "seconds": 0.0
+    },
+    {
+      "field": "pogruzka_voditel",
+      "operator": "Не заполнено",
+      "status": "fail",
+      "error": "(-2147352567, 'Exception occurred.', (1001, '1C:Enterprise 8.3.17.1549', '{(37, 112)}: Неверные параметры в операции сравнения. Нельзя сравнивать поля\\n неограниченной длины и поля несовместимых типов.\\nГДЕ Т.Дата >= &DateFrom И Т.Дата <= &DateTo И ЕСТЬNULL(ЕСТЬNULL(ВЫБОР КОГДА ЕСТЬNULL(ПФ.ActiveVoditel, \"\") <<?>><> \"\" ТОГДА ПФ.ActiveVoditel ИНАЧЕ ПФ.AnyVoditel КОНЕЦ, \"\"), \"\") = \"\"', None, 0, 0), None)",
+      "seconds": 0.0
+    },
+    {
+      "field": "responsible",
+      "operator": "Равно",
+      "status": "pass",
+      "rows": 1,
+      "seconds": 4.828
+    },
+    {
+      "field": "responsible",
+      "operator": "Не равно",
+      "status": "pass",
+      "rows": 2,
+      "seconds": 2.437
+    },
+    {
+      "field": "responsible",
+      "operator": "В списке",
+      "status": "pass",
+      "rows": 1,
+      "seconds": 2.438
+    },
+    {
+      "field": "responsible",
+      "operator": "Не в списке",
+      "status": "pass",
+      "rows": 2,
+      "seconds": 2.453
+    },
+    {
+      "field": "responsible",
+      "operator": "Заполнено",
+      "status": "pass",
+      "rows": 2,
+      "seconds": 2.5
+    },
+    {
+      "field": "responsible",
+      "operator": "Не заполнено",
+      "status": "pass",
+      "rows": 0,
+      "seconds": 5.844
+    },
+    {
+      "field": "comment",
+      "operator": "Равно",
+      "status": "fail",
+      "error": "(-2147352567, 'Exception occurred.', (1001, '1C:Enterprise 8.3.17.1549', '{(27, 79)}: Неверные параметры в операции сравнения. Нельзя сравнивать поля\\n неограниченной длины и поля несовместимых типов.\\nГДЕ Т.Дата >= &DateFrom И Т.Дата <= &DateTo И ЕСТЬNULL(Т.Комментарий, \"\") <<?>>= &p_crit_0_0', None, 0, 0), None)",
+      "seconds": 0.0
+    },
+    {
+      "field": "comment",
+      "operator": "Не равно",
+      "status": "fail",
+      "error": "(-2147352567, 'Exception occurred.', (1001, '1C:Enterprise 8.3.17.1549', '{(27, 79)}: Неверные параметры в операции сравнения. Нельзя сравнивать поля\\n неограниченной длины и поля несовместимых типов.\\nГДЕ Т.Дата >= &DateFrom И Т.Дата <= &DateTo И ЕСТЬNULL(Т.Комментарий, \"\") <<?>><> &p_crit_0_0', None, 0, 0), None)",
+      "seconds": 0.015
+    },
+    {
+      "field": "comment",
+      "operator": "В списке",
+      "status": "fail",
+      "error": "(-2147352567, 'Exception occurred.', (1001, '1C:Enterprise 8.3.17.1549', '{(27, 80)}: Неверные параметры в операции сравнения. Нельзя сравнивать поля\\n неограниченной длины и поля несовместимых типов.\\nГДЕ Т.Дата >= &DateFrom И Т.Дата <= &DateTo И (ЕСТЬNULL(Т.Комментарий, \"\") <<?>>= &p_crit_0_0)', None, 0, 0), None)",
+      "seconds": 0.0
+    },
+    {
+      "field": "comment",
+      "operator": "Не в списке",
+      "status": "fail",
+      "error": "(-2147352567, 'Exception occurred.', (1001, '1C:Enterprise 8.3.17.1549', '{(27, 83)}: Неверные параметры в операции сравнения. Нельзя сравнивать поля\\n неограниченной длины и поля несовместимых типов.\\nГДЕ Т.Дата >= &DateFrom И Т.Дата <= &DateTo И НЕ (ЕСТЬNULL(Т.Комментарий, \"\") <<?>>= &p_crit_0_0)', None, 0, 0), None)",
+      "seconds": 0.0
+    },
+    {
+      "field": "comment",
+      "operator": "Содержит",
+      "status": "pass",
+      "rows": 1,
+      "seconds": 1.406
+    },
+    {
+      "field": "comment",
+      "operator": "Не содержит",
+      "status": "pass",
+      "rows": 2,
+      "seconds": 1.375
+    },
+    {
+      "field": "comment",
+      "operator": "Начинается с",
+      "status": "pass",
+      "rows": 1,
+      "seconds": 0.297
+    },
+    {
+      "field": "comment",
+      "operator": "Заполнено",
+      "status": "fail",
+      "error": "(-2147352567, 'Exception occurred.', (1001, '1C:Enterprise 8.3.17.1549', '{(27, 79)}: Неверные параметры в операции сравнения. Нельзя сравнивать поля\\n неограниченной длины и поля несовместимых типов.\\nГДЕ Т.Дата >= &DateFrom И Т.Дата <= &DateTo И ЕСТЬNULL(Т.Комментарий, \"\") <<?>><> \"\"', None, 0, 0), None)",
+      "seconds": 0.016
+    },
+    {
+      "field": "comment",
+      "operator": "Не заполнено",
+      "status": "fail",
+      "error": "(-2147352567, 'Exception occurred.', (1001, '1C:Enterprise 8.3.17.1549', '{(27, 79)}: Неверные параметры в операции сравнения. Нельзя сравнивать поля\\n неограниченной длины и поля несовместимых типов.\\nГДЕ Т.Дата >= &DateFrom И Т.Дата <= &DateTo И ЕСТЬNULL(Т.Комментарий, \"\") <<?>>= \"\"', None, 0, 0), None)",
+      "seconds": 0.0
+    },
+    {
+      "field": "posted",
+      "operator": "Равно",
+      "status": "pass",
+      "rows": 2,
+      "seconds": 1.829
+    },
+    {
+      "field": "posted",
+      "operator": "Не равно",
+      "status": "pass",
+      "rows": 2,
+      "seconds": 1.312
+    },
+    {
+      "field": "deleted",
+      "operator": "Равно",
+      "status": "pass",
+      "rows": 2,
+      "seconds": 0.25
+    },
+    {
+      "field": "deleted",
+      "operator": "Не равно",
+      "status": "pass",
+      "rows": 2,
+      "seconds": 1.828
+    },
+    {
+      "field": "nomenclature",
+      "operator": "Равно",
+      "status": "pass",
+      "rows": 0,
+      "seconds": 50.828
+    },
+    {
+      "field": "nomenclature",
+      "operator": "Не равно",
+      "status": "pass",
+      "rows": 2,
+      "seconds": 1.828
+    },
+    {
+      "field": "nomenclature",
+      "operator": "В списке",
+      "status": "pass",
+      "rows": 0,
+      "seconds": 2.484
+    },
+    {
+      "field": "nomenclature",
+      "operator": "Не в списке",
+      "status": "pass",
+      "rows": 2,
+      "seconds": 0.297
+    },
+    {
+      "field": "nomenclature",
+      "operator": "Содержит",
+      "status": "pass",
+      "rows": 0,
+      "seconds": 3.219
+    },
+    {
+      "field": "nomenclature",
+      "operator": "Не содержит",
+      "status": "pass",
+      "rows": 2,
+      "seconds": 1.922
+    },
+    {
+      "field": "nomenclature",
+      "operator": "Начинается с",
+      "status": "pass",
+      "rows": 0,
+      "seconds": 0.875
+    },
+    {
+      "field": "nomenclature",
+      "operator": "Заполнено",
+      "status": "pass",
+      "rows": 2,
+      "seconds": 2.0
+    },
+    {
+      "field": "nomenclature",
+      "operator": "Не заполнено",
+      "status": "pass",
+      "rows": 2,
+      "seconds": 1.813
+    },
+    {
+      "field": "nomenclature",
+      "operator": "В группе из списка",
+      "status": "pass",
+      "rows": 0,
+      "seconds": 5.828
+    }
+  ]
+}

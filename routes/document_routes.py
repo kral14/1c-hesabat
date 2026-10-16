@@ -82,6 +82,8 @@ def documents_list_endpoint():
             "limit": res.get("limit", 0),
             "last_date": res.get("last_date", ""),
             "last_number": res.get("last_number", ""),
+            "server_filter_fields": res.get("server_filter_fields", []),
+            "supported_filter_fields": res.get("supported_filter_fields"),
             "debug_info": res.get("debug_info")
         })
         if data.get('profile'):
@@ -215,6 +217,7 @@ def download_excel_template_endpoint():
 
 @document_bp.route("/api/documents/parse_excel_file", methods=["POST"])
 def parse_excel_file_endpoint():
+    import math
     try:
         if "file" not in request.files:
             return jsonify({"success": False, "error": "Fayl seçilməyib"})
@@ -332,7 +335,7 @@ def parse_excel_file_endpoint():
             p_str = str(r[price_col]).replace(",", ".").replace(" ", "").replace("\xa0", "").strip()
             try:
                 p_val = float(p_str)
-                if p_val >= 0:
+                if math.isfinite(p_val) and p_val >= 0:
                     rows.append({"code": c_val, "price": p_val})
             except Exception:
                 continue

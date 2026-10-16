@@ -4,6 +4,8 @@ services/documents/realization.py
 Handler for 'РеализацияТоваровУслуг' (Sales Invoice) documents.
 High-performance batch querying without full-table scans.
 """
+from services.filter_policy_loader import normalize_filters, validate_supported_fields, DOCUMENT_FIELDS
+from services.document_filter_metadata import reference_filter_fields
 from services.onec_dates import as_1c_date
 from services.documents.base import format_1c_datetime, parse_query_datetime, build_filter_conditions, narrow_search_to_column
 from time import perf_counter
@@ -16,7 +18,10 @@ def get_realization_list(conn, payload):
     search_str = payload.get("search", "").strip()
     offset = int(payload.get("offset", 0))
     limit_count = int(payload.get("limit", 0))
-    filters = payload.get("filters", [])
+    filters = normalize_filters(payload.get("filters", []))
+    optional_field_map = reference_filter_fields(conn, "РеализацияТоваровУслуг")
+    supported_fields = set(DOCUMENT_FIELDS["РеализацияТоваровУслуг"]) | set(optional_field_map) | {"artikul", "barcode"}
+    validate_supported_fields(filters, supported_fields)
     last_date = payload.get("last_date", "").strip()
     last_number = payload.get("last_number", "").strip()
 
@@ -88,6 +93,7 @@ def get_realization_list(conn, payload):
         "warehouse": "Т.Склад.Наименование",
         "responsible": "Т.Ответственный.Наименование"
     }
+    field_map.update(optional_field_map)
     related_selection_join = ""
     related_period = []
     if dt_from: related_period.append('П.Накладная.Дата >= &DateFrom')
@@ -158,7 +164,7 @@ def get_realization_list(conn, payload):
         )"""
         where_parts.append(duplicate_condition if wanted else f"НЕ ({duplicate_condition})")
         debug_params[crit.get('fieldKey') or crit.get('field')] = wanted
-    build_filter_conditions(other_filters, q_doc, where_parts, debug_params, field_map)
+    build_filter_conditions(other_filters, q_doc, where_parts, debug_params, field_map, conn=conn)
 
     # Keyset pagination when no filters
     if last_date and not search_str and not filters:
@@ -363,6 +369,7 @@ def get_realization_list(conn, payload):
     return {
         "items": items,
         "columns": columns,
+        "supported_filter_fields": sorted(supported_fields),
         "total_count": len(items),
         "doc_title": "Реализация товаров и услуг",
         "has_more": (len(items) >= limit_count) if limit_count else False,

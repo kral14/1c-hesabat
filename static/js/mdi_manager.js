@@ -692,7 +692,9 @@ const MdiManager = {
         } else if (w.id === "settingsWindowModal") {
           transTitle = window.C1I18n.t("rep_set.title", "Настройка: Товары на складах");
         } else if (w.id === "ujFilterWindow") {
-          transTitle = window.C1I18n.t("filter.window_title", "Настройка списка");
+          transTitle = window.C1FilterComponent && typeof C1FilterComponent.getListSettingsWindowTitle === 'function'
+            ? C1FilterComponent.getListSettingsWindowTitle()
+            : window.C1I18n.t("filter.window_title", "Настройка списка");
         } else if (w.id === "mdiWindow-1") {
           transTitle = window.C1I18n.t("menu.reports.stock", "Товары на складах");
         } else if (w.title) {
@@ -1125,6 +1127,9 @@ const MdiManager = {
         winObj.element.classList.add("active");
         winObj.element.style.display = "flex";
         winObj.element.style.zIndex = this.topZIndex;
+        if (window.C1I18n && typeof window.C1I18n.applyTranslations === "function") {
+          window.C1I18n.applyTranslations(winObj.element);
+        }
       }
       if (typeof UniversalJournal !== "undefined") UniversalJournal.onWindowActivityChange(id);
 

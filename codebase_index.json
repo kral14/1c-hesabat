@@ -20,14 +20,15 @@
         "routes.catalog_routes.catalog_bp",
         "routes.document_routes.document_bp",
         "routes.order_analysis_routes.order_analysis_bp",
+        "routes.job_routes.job_bp",
         "os"
       ],
       "functions": {
         "runtime_status": {
           "name": "runtime_status",
           "args": [],
-          "start_line": 44,
-          "end_line": 45,
+          "start_line": 45,
+          "end_line": 47,
           "docstring": "",
           "decorators": []
         },
@@ -36,8 +37,8 @@
           "args": [
             "response"
           ],
-          "start_line": 49,
-          "end_line": 86,
+          "start_line": 51,
+          "end_line": 88,
           "docstring": "",
           "decorators": [
             "app.after_request"
@@ -62,6 +63,7 @@
         "queue",
         "argparse",
         "urllib.parse.urlparse",
+        "services.cluster_gui.open_cluster_gui",
         "tkinter",
         "tkinter.ttk"
       ],
@@ -144,22 +146,45 @@
           "docstring": "",
           "decorators": []
         },
+        "ensure_1c_connection": {
+          "name": "ensure_1c_connection",
+          "args": [
+            "target_url",
+            "credentials"
+          ],
+          "start_line": 169,
+          "end_line": 182,
+          "docstring": "Verify the selected backend's 1C connection before opening Electron.",
+          "decorators": []
+        },
         "prepare_mode": {
           "name": "prepare_mode",
           "args": [
             "mode",
-            "office_url"
+            "office_url",
+            "check_connection"
           ],
-          "start_line": 169,
-          "end_line": 181,
+          "start_line": 184,
+          "end_line": 198,
+          "docstring": "",
+          "decorators": []
+        },
+        "manage_startup_sessions": {
+          "name": "manage_startup_sessions",
+          "args": [
+            "target_url",
+            "parent"
+          ],
+          "start_line": 200,
+          "end_line": 208,
           "docstring": "",
           "decorators": []
         },
         "show_mode_selector": {
           "name": "show_mode_selector",
           "args": [],
-          "start_line": 183,
-          "end_line": 245,
+          "start_line": 210,
+          "end_line": 287,
           "docstring": "",
           "decorators": []
         },
@@ -168,8 +193,8 @@
           "args": [
             "argv"
           ],
-          "start_line": 247,
-          "end_line": 265,
+          "start_line": 289,
+          "end_line": 312,
           "docstring": "",
           "decorators": []
         }
@@ -425,7 +450,9 @@
         "datetime",
         "re",
         "zipfile",
-        "json"
+        "json",
+        "win32com.client",
+        "pythoncom"
       ],
       "functions": {
         "safe_print": {
@@ -620,16 +647,16 @@
           "args": [
             "payload"
           ],
-          "start_line": 1266,
-          "end_line": 1334,
+          "start_line": 1269,
+          "end_line": 1337,
           "docstring": "",
           "decorators": []
         },
         "get_portfolio_catalog_filters": {
           "name": "get_portfolio_catalog_filters",
           "args": [],
-          "start_line": 1337,
-          "end_line": 1361,
+          "start_line": 1340,
+          "end_line": 1364,
           "docstring": "",
           "decorators": []
         },
@@ -638,8 +665,8 @@
           "args": [
             "payload"
           ],
-          "start_line": 1364,
-          "end_line": 1423,
+          "start_line": 1367,
+          "end_line": 1426,
           "docstring": "",
           "decorators": []
         },
@@ -648,8 +675,8 @@
           "args": [
             "payload"
           ],
-          "start_line": 1426,
-          "end_line": 1478,
+          "start_line": 1429,
+          "end_line": 1481,
           "docstring": "",
           "decorators": []
         },
@@ -658,8 +685,8 @@
           "args": [
             "payload"
           ],
-          "start_line": 1481,
-          "end_line": 1677,
+          "start_line": 1484,
+          "end_line": 1680,
           "docstring": "",
           "decorators": []
         },
@@ -668,8 +695,8 @@
           "args": [
             "payload"
           ],
-          "start_line": 1684,
-          "end_line": 1839,
+          "start_line": 1687,
+          "end_line": 1842,
           "docstring": "",
           "decorators": []
         },
@@ -678,9 +705,40 @@
           "args": [
             "payload"
           ],
-          "start_line": 1842,
-          "end_line": 2195,
+          "start_line": 1845,
+          "end_line": 2198,
           "docstring": "",
+          "decorators": []
+        },
+        "fetch_counterparty_1c_contracts": {
+          "name": "fetch_counterparty_1c_contracts",
+          "args": [
+            "conn",
+            "c_code"
+          ],
+          "start_line": 2200,
+          "end_line": 2315,
+          "docstring": "Fetches authentic 1C contracts with exact attributes from 1C:\nCode, Name, SettlementType, ContractKind, Agent, Schedule, Number, Date, Portfolio, Org, Deactivated, IsMain",
+          "decorators": []
+        },
+        "get_kontragent_card": {
+          "name": "get_kontragent_card",
+          "args": [
+            "payload"
+          ],
+          "start_line": 2318,
+          "end_line": 2724,
+          "docstring": "Returns authentic 1C Counterparty card details, contracts, bank accounts,\ncredit terms, contact persons, turnover metrics, and completeness audit.",
+          "decorators": []
+        },
+        "get_kontragenty_list": {
+          "name": "get_kontragenty_list",
+          "args": [
+            "payload"
+          ],
+          "start_line": 2727,
+          "end_line": 3140,
+          "docstring": "Returns filtered, paginated counterparties with audit stats.",
           "decorators": []
         }
       },
@@ -729,6 +787,67 @@
         }
       },
       "classes": {},
+      "endpoints": []
+    },
+    "services/action_queue.py": {
+      "file_path": "services/action_queue.py",
+      "type": "backend_python",
+      "docstring": "Short control calls are serviced before queued background report chunks.",
+      "imports": [
+        "itertools",
+        "queue"
+      ],
+      "functions": {},
+      "classes": {
+        "ActionQueue": {
+          "name": "ActionQueue",
+          "start_line": 6,
+          "end_line": 21,
+          "methods": {
+            "__init__": {
+              "name": "__init__",
+              "args": [
+                "self"
+              ],
+              "start_line": 7,
+              "end_line": 9
+            },
+            "put": {
+              "name": "put",
+              "args": [
+                "self",
+                "value"
+              ],
+              "start_line": 11,
+              "end_line": 17
+            },
+            "get": {
+              "name": "get",
+              "args": [
+                "self"
+              ],
+              "start_line": 19,
+              "end_line": 19
+            },
+            "empty": {
+              "name": "empty",
+              "args": [
+                "self"
+              ],
+              "start_line": 20,
+              "end_line": 20
+            },
+            "qsize": {
+              "name": "qsize",
+              "args": [
+                "self"
+              ],
+              "start_line": 21,
+              "end_line": 21
+            }
+          }
+        }
+      },
       "endpoints": []
     },
     "services/audit_filters.py": {
@@ -845,7 +964,7 @@
             "payload"
           ],
           "start_line": 15,
-          "end_line": 281,
+          "end_line": 306,
           "docstring": "Returns list of modified documents with version counts, last modified date, and last author.",
           "decorators": []
         },
@@ -857,8 +976,8 @@
             "guid_str",
             "cache"
           ],
-          "start_line": 284,
-          "end_line": 301,
+          "start_line": 309,
+          "end_line": 326,
           "docstring": "",
           "decorators": []
         },
@@ -870,8 +989,8 @@
             "guid_str",
             "cache"
           ],
-          "start_line": 304,
-          "end_line": 317,
+          "start_line": 329,
+          "end_line": 342,
           "docstring": "",
           "decorators": []
         },
@@ -883,8 +1002,8 @@
             "guid_str",
             "cache"
           ],
-          "start_line": 320,
-          "end_line": 338,
+          "start_line": 345,
+          "end_line": 363,
           "docstring": "",
           "decorators": []
         },
@@ -895,8 +1014,8 @@
             "guid_str",
             "cache"
           ],
-          "start_line": 341,
-          "end_line": 355,
+          "start_line": 366,
+          "end_line": 380,
           "docstring": "",
           "decorators": []
         },
@@ -905,8 +1024,8 @@
           "args": [
             "raw_vat"
           ],
-          "start_line": 358,
-          "end_line": 375,
+          "start_line": 383,
+          "end_line": 400,
           "docstring": "",
           "decorators": []
         },
@@ -923,9 +1042,32 @@
             "contract_cache",
             "acc_cache"
           ],
-          "start_line": 378,
-          "end_line": 716,
+          "start_line": 403,
+          "end_line": 741,
           "docstring": "Unpacks version object from 1C Storage.\nSupports both BinaryData (Base64 UTF-8 XML) and direct DocumentObject COM objects.\nExtracts line items with auto/manual discounts, VAT rates, and BU chart of accounts.",
+          "decorators": []
+        },
+        "get_event_timeline": {
+          "name": "get_event_timeline",
+          "args": [
+            "conn",
+            "doc_ref",
+            "payload"
+          ],
+          "start_line": 744,
+          "end_line": 816,
+          "docstring": "",
+          "decorators": []
+        },
+        "get_audit_event_page": {
+          "name": "get_audit_event_page",
+          "args": [
+            "conn",
+            "payload"
+          ],
+          "start_line": 818,
+          "end_line": 839,
+          "docstring": "",
           "decorators": []
         },
         "get_document_version_diff": {
@@ -934,8 +1076,8 @@
             "conn",
             "payload"
           ],
-          "start_line": 719,
-          "end_line": 1289,
+          "start_line": 841,
+          "end_line": 1345,
           "docstring": "Returns full chronological version history and granular line-by-line diff\nfor a specific document.",
           "decorators": []
         }
@@ -1130,20 +1272,25 @@
         "tkinter",
         "tkinter.ttk",
         "tkinter.messagebox",
+        "json",
+        "threading",
+        "queue",
+        "urllib.request",
         "services.cluster_service.get_cluster_sessions",
         "services.cluster_service.terminate_cluster_session",
-        "services.cluster_service.auto_cleanup_hanging_sessions",
-        "services.cluster_service.terminate_all_com_sessions"
+        "services.cluster_service.auto_cleanup_hanging_sessions"
       ],
       "functions": {
         "open_cluster_gui": {
           "name": "open_cluster_gui",
           "args": [
             "server_agent",
-            "target_base"
+            "target_base",
+            "backend_url",
+            "parent"
           ],
-          "start_line": 282,
-          "end_line": 288,
+          "start_line": 369,
+          "end_line": 376,
           "docstring": "Pəncərəni açır və istifadəçi bağlayana və ya 'Keç' edənə qədər gözləyir.",
           "decorators": []
         }
@@ -1151,74 +1298,111 @@
       "classes": {
         "ClusterSessionsGUI": {
           "name": "ClusterSessionsGUI",
-          "start_line": 20,
-          "end_line": 280,
+          "start_line": 24,
+          "end_line": 367,
           "methods": {
             "__init__": {
               "name": "__init__",
               "args": [
                 "self",
                 "server_agent",
-                "target_base"
+                "target_base",
+                "backend_url",
+                "parent"
               ],
-              "start_line": 21,
-              "end_line": 42
+              "start_line": 25,
+              "end_line": 49
             },
             "_apply_styles": {
               "name": "_apply_styles",
               "args": [
                 "self"
               ],
-              "start_line": 44,
-              "end_line": 60
+              "start_line": 51,
+              "end_line": 67
             },
             "_build_ui": {
               "name": "_build_ui",
               "args": [
                 "self"
               ],
-              "start_line": 62,
-              "end_line": 200
+              "start_line": 69,
+              "end_line": 216
             },
             "_load_sessions": {
               "name": "_load_sessions",
               "args": [
                 "self"
               ],
-              "start_line": 202,
+              "start_line": 218,
               "end_line": 241
+            },
+            "_display_sessions": {
+              "name": "_display_sessions",
+              "args": [
+                "self",
+                "sessions"
+              ],
+              "start_line": 243,
+              "end_line": 275
             },
             "_on_terminate": {
               "name": "_on_terminate",
               "args": [
                 "self"
               ],
-              "start_line": 243,
-              "end_line": 266
+              "start_line": 278,
+              "end_line": 308
             },
             "_on_auto_clean": {
               "name": "_on_auto_clean",
               "args": [
                 "self"
               ],
-              "start_line": 268,
-              "end_line": 274
+              "start_line": 310,
+              "end_line": 328
+            },
+            "_backend": {
+              "name": "_backend",
+              "args": [
+                "self",
+                "path",
+                "extra"
+              ],
+              "start_line": 330,
+              "end_line": 337
+            },
+            "_on_recover": {
+              "name": "_on_recover",
+              "args": [
+                "self"
+              ],
+              "start_line": 339,
+              "end_line": 347
+            },
+            "_on_reuse": {
+              "name": "_on_reuse",
+              "args": [
+                "self"
+              ],
+              "start_line": 349,
+              "end_line": 355
             },
             "_on_skip": {
               "name": "_on_skip",
               "args": [
                 "self"
               ],
-              "start_line": 276,
-              "end_line": 277
+              "start_line": 357,
+              "end_line": 359
             },
             "show": {
               "name": "show",
               "args": [
                 "self"
               ],
-              "start_line": 279,
-              "end_line": 280
+              "start_line": 361,
+              "end_line": 367
             }
           }
         }
@@ -1241,10 +1425,11 @@
           "name": "get_cluster_sessions",
           "args": [
             "server_agent",
-            "target_base"
+            "target_base",
+            "raise_errors"
           ],
           "start_line": 16,
-          "end_line": 63,
+          "end_line": 65,
           "docstring": "Returns list of active sessions in the specified infobase.\nDoes not consume a 1C client license.",
           "decorators": []
         },
@@ -1253,10 +1438,11 @@
           "args": [
             "session_id",
             "server_agent",
-            "target_base"
+            "target_base",
+            "only_hanging"
           ],
-          "start_line": 65,
-          "end_line": 105,
+          "start_line": 67,
+          "end_line": 111,
           "docstring": "Terminates a specific session by its session_id.",
           "decorators": []
         },
@@ -1266,8 +1452,8 @@
             "server_agent",
             "target_base"
           ],
-          "start_line": 107,
-          "end_line": 146,
+          "start_line": 113,
+          "end_line": 153,
           "docstring": "Automatically terminates orphaned COM sessions (Connection is None)\nwhich block client licenses.",
           "decorators": []
         },
@@ -1277,8 +1463,8 @@
             "server_agent",
             "target_base"
           ],
-          "start_line": 148,
-          "end_line": 183,
+          "start_line": 155,
+          "end_line": 191,
           "docstring": "Terminates all COMConnection sessions for the given base.",
           "decorators": []
         },
@@ -1287,8 +1473,8 @@
           "args": [
             "sessions"
           ],
-          "start_line": 185,
-          "end_line": 201,
+          "start_line": 193,
+          "end_line": 209,
           "docstring": "Returns a formatted string table of sessions.\nSafe for Windows cp1251/cp1252/cp1254 consoles.",
           "decorators": []
         }
@@ -1401,8 +1587,357 @@
       "classes": {},
       "endpoints": []
     },
+    "services/job_store.py": {
+      "file_path": "services/job_store.py",
+      "type": "backend_python",
+      "docstring": "Durable read-job results; credentials and access tokens are never stored.",
+      "imports": [
+        "hashlib",
+        "json",
+        "sqlite3",
+        "time",
+        "contextlib.contextmanager",
+        "pathlib.Path"
+      ],
+      "functions": {
+        "digest": {
+          "name": "digest",
+          "args": [
+            "value"
+          ],
+          "start_line": 10,
+          "end_line": 11,
+          "docstring": "",
+          "decorators": []
+        },
+        "request_fingerprint": {
+          "name": "request_fingerprint",
+          "args": [
+            "action",
+            "payload"
+          ],
+          "start_line": 14,
+          "end_line": 16,
+          "docstring": "",
+          "decorators": []
+        }
+      },
+      "classes": {
+        "JobStore": {
+          "name": "JobStore",
+          "start_line": 19,
+          "end_line": 101,
+          "methods": {
+            "__init__": {
+              "name": "__init__",
+              "args": [
+                "self",
+                "path"
+              ],
+              "start_line": 20,
+              "end_line": 31
+            },
+            "connect": {
+              "name": "connect",
+              "args": [
+                "self"
+              ],
+              "start_line": 34,
+              "end_line": 39
+            },
+            "create": {
+              "name": "create",
+              "args": [
+                "self",
+                "request_id",
+                "token",
+                "action",
+                "payload"
+              ],
+              "start_line": 41,
+              "end_line": 63
+            },
+            "get": {
+              "name": "get",
+              "args": [
+                "self",
+                "job_id",
+                "token",
+                "after"
+              ],
+              "start_line": 65,
+              "end_line": 82
+            },
+            "chunk": {
+              "name": "chunk",
+              "args": [
+                "self",
+                "job_id",
+                "sequence",
+                "data"
+              ],
+              "start_line": 84,
+              "end_line": 87
+            },
+            "running": {
+              "name": "running",
+              "args": [
+                "self",
+                "job_id"
+              ],
+              "start_line": 89,
+              "end_line": 91
+            },
+            "finish": {
+              "name": "finish",
+              "args": [
+                "self",
+                "job_id",
+                "result",
+                "error"
+              ],
+              "start_line": 93,
+              "end_line": 97
+            },
+            "interrupt_pending": {
+              "name": "interrupt_pending",
+              "args": [
+                "self"
+              ],
+              "start_line": 99,
+              "end_line": 101
+            }
+          }
+        }
+      },
+      "endpoints": []
+    },
+    "services/onec_gateway.py": {
+      "file_path": "services/onec_gateway.py",
+      "type": "backend_python",
+      "docstring": "HTTP process facade for the independent, loopback-only COM owner.",
+      "imports": [
+        "os",
+        "secrets",
+        "subprocess",
+        "sys",
+        "threading",
+        "time",
+        "pathlib.Path",
+        "requests"
+      ],
+      "functions": {},
+      "classes": {
+        "WorkerUnavailable": {
+          "name": "WorkerUnavailable",
+          "start_line": 14,
+          "end_line": 15,
+          "methods": {}
+        },
+        "QueueView": {
+          "name": "QueueView",
+          "start_line": 18,
+          "end_line": 20,
+          "methods": {
+            "__init__": {
+              "name": "__init__",
+              "args": [
+                "self",
+                "gateway"
+              ],
+              "start_line": 19,
+              "end_line": 19
+            },
+            "empty": {
+              "name": "empty",
+              "args": [
+                "self"
+              ],
+              "start_line": 20,
+              "end_line": 20
+            }
+          }
+        },
+        "OneCGateway": {
+          "name": "OneCGateway",
+          "start_line": 23,
+          "end_line": 127,
+          "methods": {
+            "__init__": {
+              "name": "__init__",
+              "args": [
+                "self",
+                "port",
+                "root",
+                "auto_start"
+              ],
+              "start_line": 24,
+              "end_line": 33
+            },
+            "key": {
+              "name": "key",
+              "args": [
+                "self"
+              ],
+              "start_line": 35,
+              "end_line": 44
+            },
+            "request": {
+              "name": "request",
+              "args": [
+                "self",
+                "path",
+                "data",
+                "timeout"
+              ],
+              "start_line": 46,
+              "end_line": 61
+            },
+            "status": {
+              "name": "status",
+              "args": [
+                "self",
+                "refresh"
+              ],
+              "start_line": 63,
+              "end_line": 69
+            },
+            "busy": {
+              "name": "busy",
+              "args": [
+                "self"
+              ],
+              "start_line": 72,
+              "end_line": 72
+            },
+            "connections": {
+              "name": "connections",
+              "args": [
+                "self"
+              ],
+              "start_line": 75,
+              "end_line": 77
+            },
+            "ensure_worker": {
+              "name": "ensure_worker",
+              "args": [
+                "self"
+              ],
+              "start_line": 79,
+              "end_line": 94
+            },
+            "execute": {
+              "name": "execute",
+              "args": [
+                "self",
+                "action",
+                "payload",
+                "retry",
+                "timeout"
+              ],
+              "start_line": 96,
+              "end_line": 103
+            },
+            "start_job": {
+              "name": "start_job",
+              "args": [
+                "self",
+                "action",
+                "payload",
+                "request_id",
+                "token"
+              ],
+              "start_line": 105,
+              "end_line": 107
+            },
+            "job": {
+              "name": "job",
+              "args": [
+                "self",
+                "job_id",
+                "token",
+                "after"
+              ],
+              "start_line": 109,
+              "end_line": 111
+            },
+            "shutdown_worker": {
+              "name": "shutdown_worker",
+              "args": [
+                "self",
+                "confirmed"
+              ],
+              "start_line": 113,
+              "end_line": 123
+            },
+            "close_all": {
+              "name": "close_all",
+              "args": [
+                "self"
+              ],
+              "start_line": 125,
+              "end_line": 127
+            }
+          }
+        }
+      },
+      "endpoints": []
+    },
+    "services/onec_result_queue.py": {
+      "file_path": "services/onec_result_queue.py",
+      "type": "backend_python",
+      "docstring": "Materialize results on the owning STA thread before crossing a thread/process boundary.",
+      "imports": [
+        "json",
+        "queue"
+      ],
+      "functions": {},
+      "classes": {
+        "ResultQueue": {
+          "name": "ResultQueue",
+          "start_line": 6,
+          "end_line": 17,
+          "methods": {
+            "put": {
+              "name": "put",
+              "args": [
+                "self",
+                "item"
+              ],
+              "start_line": 7,
+              "end_line": 17
+            }
+          }
+        }
+      },
+      "endpoints": []
+    },
     "services/onec_service.py": {
       "file_path": "services/onec_service.py",
+      "type": "backend_python",
+      "docstring": "API facade: API restart never owns or closes the persistent COM session.",
+      "imports": [
+        "services.onec_gateway.OneCGateway",
+        "services.onec_worker"
+      ],
+      "functions": {
+        "__getattr__": {
+          "name": "__getattr__",
+          "args": [
+            "name"
+          ],
+          "start_line": 6,
+          "end_line": 10,
+          "docstring": "",
+          "decorators": []
+        }
+      },
+      "classes": {},
+      "endpoints": [],
+      "role_and_purpose": "1C COM bağlantı hovuzu (connection pool), sessiya idarəsi və sorğuların icrası."
+    },
+    "services/onec_worker.py": {
+      "file_path": "services/onec_worker.py",
       "type": "backend_python",
       "docstring": "",
       "imports": [
@@ -1412,6 +1947,11 @@
         "queue",
         "threading",
         "atexit",
+        "hashlib",
+        "datetime",
+        "services.action_queue.ActionQueue",
+        "services.onec_result_queue.ResultQueue",
+        "services.documents.base.parse_query_datetime",
         "win32com.client",
         "pythoncom",
         "database",
@@ -1437,24 +1977,24 @@
       "classes": {
         "OneCService": {
           "name": "OneCService",
-          "start_line": 19,
-          "end_line": 273,
+          "start_line": 24,
+          "end_line": 353,
           "methods": {
             "__init__": {
               "name": "__init__",
               "args": [
                 "self"
               ],
-              "start_line": 20,
-              "end_line": 24
+              "start_line": 25,
+              "end_line": 31
             },
             "run": {
               "name": "run",
               "args": [
                 "self"
               ],
-              "start_line": 26,
-              "end_line": 238
+              "start_line": 33,
+              "end_line": 314
             },
             "execute": {
               "name": "execute",
@@ -1462,24 +2002,57 @@
                 "self",
                 "action",
                 "payload",
-                "retry"
+                "retry",
+                "timeout"
               ],
-              "start_line": 240,
-              "end_line": 265
+              "start_line": 316,
+              "end_line": 345
             },
             "close_all": {
               "name": "close_all",
               "args": [
                 "self"
               ],
-              "start_line": 267,
-              "end_line": 273
+              "start_line": 347,
+              "end_line": 353
             }
           }
         }
       },
-      "endpoints": [],
-      "role_and_purpose": "1C COM bağlantı hovuzu (connection pool), sessiya idarəsi və sorğuların icrası."
+      "endpoints": []
+    },
+    "services/onec_worker_process.py": {
+      "file_path": "services/onec_worker_process.py",
+      "type": "backend_python",
+      "docstring": "Single independent COM owner, with an authenticated loopback control interface.",
+      "imports": [
+        "hmac",
+        "json",
+        "os",
+        "sys",
+        "threading",
+        "time",
+        "http.server.BaseHTTPRequestHandler",
+        "http.server.ThreadingHTTPServer",
+        "pathlib.Path",
+        "managed_runtime.runtime_lock",
+        "services.job_store.JobStore",
+        "services.onec_worker.OneCService",
+        "database",
+        "services.documents.base.parse_query_datetime"
+      ],
+      "functions": {
+        "main": {
+          "name": "main",
+          "args": [],
+          "start_line": 21,
+          "end_line": 150,
+          "docstring": "",
+          "decorators": []
+        }
+      },
+      "classes": {},
+      "endpoints": []
     },
     "services/order_analysis_service.py": {
       "file_path": "services/order_analysis_service.py",
@@ -1542,7 +2115,7 @@
             "resp_q"
           ],
           "start_line": 191,
-          "end_line": 748,
+          "end_line": 749,
           "docstring": "1C-də Sifariş vs Realizasiya vs Qaytarma müqayisəli hesabatını icra edir.",
           "decorators": []
         },
@@ -1552,8 +2125,8 @@
             "report_data",
             "output_path"
           ],
-          "start_line": 751,
-          "end_line": 897,
+          "start_line": 752,
+          "end_line": 898,
           "docstring": "Müqayisəli hesabat nəticələrini 1C dizaynında tam detallı Excel faylına ixrac edir.",
           "decorators": []
         },
@@ -1562,8 +2135,8 @@
           "args": [
             "payload"
           ],
-          "start_line": 900,
-          "end_line": 1278,
+          "start_line": 901,
+          "end_line": 1279,
           "docstring": "Offline SQLite bazasından (data/offline_1c_data.db) Müştəri Sifarişləri Analizi hesabatını formalaşdırır.\nİstənilən sətir qruplaşmalarını (Заказ покупателя, Контрагент, Номенклатура və s.) tam dəstəkləyir.",
           "decorators": []
         }
@@ -2298,6 +2871,8 @@
         "offline_service",
         "services.common.print_server_error",
         "services.onec_service.one_c",
+        "services.cluster_service.get_cluster_sessions",
+        "services.cluster_service.terminate_cluster_session",
         "win32gui",
         "win32con"
       ],
@@ -2384,7 +2959,7 @@
           "name": "ping_connection_endpoint",
           "args": [],
           "start_line": 162,
-          "end_line": 189,
+          "end_line": 181,
           "docstring": "",
           "decorators": [],
           "endpoint": {
@@ -2395,11 +2970,77 @@
             ]
           }
         },
+        "connection_status_endpoint": {
+          "name": "connection_status_endpoint",
+          "args": [],
+          "start_line": 184,
+          "end_line": 196,
+          "docstring": "A probe never opens a session or replaces another user's connection.",
+          "decorators": [],
+          "endpoint": {
+            "url": "/api/connection/status",
+            "methods": [
+              "POST"
+            ]
+          }
+        },
+        "cluster_target": {
+          "name": "cluster_target",
+          "args": [
+            "data"
+          ],
+          "start_line": 198,
+          "end_line": 203,
+          "docstring": "",
+          "decorators": []
+        },
+        "cluster_sessions_endpoint": {
+          "name": "cluster_sessions_endpoint",
+          "args": [],
+          "start_line": 207,
+          "end_line": 213,
+          "docstring": "",
+          "decorators": [],
+          "endpoint": {
+            "url": "/api/cluster/sessions",
+            "methods": [
+              "POST"
+            ]
+          }
+        },
+        "cluster_terminate_endpoint": {
+          "name": "cluster_terminate_endpoint",
+          "args": [],
+          "start_line": 217,
+          "end_line": 227,
+          "docstring": "",
+          "decorators": [],
+          "endpoint": {
+            "url": "/api/cluster/terminate",
+            "methods": [
+              "POST"
+            ]
+          }
+        },
+        "resume_connection_endpoint": {
+          "name": "resume_connection_endpoint",
+          "args": [],
+          "start_line": 231,
+          "end_line": 240,
+          "docstring": "",
+          "decorators": [],
+          "endpoint": {
+            "url": "/api/connection/resume",
+            "methods": [
+              "POST"
+            ]
+          }
+        },
         "user_login": {
           "name": "user_login",
           "args": [],
-          "start_line": 192,
-          "end_line": 208,
+          "start_line": 243,
+          "end_line": 259,
           "docstring": "",
           "decorators": [],
           "endpoint": {
@@ -2412,8 +3053,8 @@
         "get_presets_endpoint": {
           "name": "get_presets_endpoint",
           "args": [],
-          "start_line": 211,
-          "end_line": 217,
+          "start_line": 262,
+          "end_line": 268,
           "docstring": "",
           "decorators": [],
           "endpoint": {
@@ -2426,8 +3067,8 @@
         "save_presets_endpoint": {
           "name": "save_presets_endpoint",
           "args": [],
-          "start_line": 220,
-          "end_line": 235,
+          "start_line": 271,
+          "end_line": 286,
           "docstring": "",
           "decorators": [],
           "endpoint": {
@@ -2440,8 +3081,8 @@
         "delete_preset_endpoint": {
           "name": "delete_preset_endpoint",
           "args": [],
-          "start_line": 238,
-          "end_line": 247,
+          "start_line": 289,
+          "end_line": 298,
           "docstring": "",
           "decorators": [],
           "endpoint": {
@@ -2454,8 +3095,8 @@
         "rename_preset_endpoint": {
           "name": "rename_preset_endpoint",
           "args": [],
-          "start_line": 250,
-          "end_line": 260,
+          "start_line": 301,
+          "end_line": 311,
           "docstring": "",
           "decorators": [],
           "endpoint": {
@@ -2468,8 +3109,8 @@
         "duplicate_preset_endpoint": {
           "name": "duplicate_preset_endpoint",
           "args": [],
-          "start_line": 263,
-          "end_line": 273,
+          "start_line": 314,
+          "end_line": 324,
           "docstring": "",
           "decorators": [],
           "endpoint": {
@@ -2482,8 +3123,8 @@
         "set_startup_endpoint": {
           "name": "set_startup_endpoint",
           "args": [],
-          "start_line": 276,
-          "end_line": 284,
+          "start_line": 327,
+          "end_line": 335,
           "docstring": "",
           "decorators": [],
           "endpoint": {
@@ -2496,8 +3137,8 @@
         "set_save_on_close_endpoint": {
           "name": "set_save_on_close_endpoint",
           "args": [],
-          "start_line": 287,
-          "end_line": 295,
+          "start_line": 338,
+          "end_line": 346,
           "docstring": "",
           "decorators": [],
           "endpoint": {
@@ -2510,8 +3151,8 @@
         "current_settings_endpoint": {
           "name": "current_settings_endpoint",
           "args": [],
-          "start_line": 298,
-          "end_line": 310,
+          "start_line": 349,
+          "end_line": 361,
           "docstring": "",
           "decorators": [],
           "endpoint": {
@@ -2525,8 +3166,8 @@
         "app_minimize_endpoint": {
           "name": "app_minimize_endpoint",
           "args": [],
-          "start_line": 313,
-          "end_line": 323,
+          "start_line": 364,
+          "end_line": 374,
           "docstring": "",
           "decorators": [],
           "endpoint": {
@@ -2540,8 +3181,8 @@
         "app_close_endpoint": {
           "name": "app_close_endpoint",
           "args": [],
-          "start_line": 326,
-          "end_line": 331,
+          "start_line": 377,
+          "end_line": 382,
           "docstring": "",
           "decorators": [],
           "endpoint": {
@@ -2605,12 +3246,44 @@
           "start_line": 162
         },
         {
+          "url": "/api/connection/status",
+          "methods": [
+            "POST"
+          ],
+          "handler": "connection_status_endpoint",
+          "start_line": 184
+        },
+        {
+          "url": "/api/cluster/sessions",
+          "methods": [
+            "POST"
+          ],
+          "handler": "cluster_sessions_endpoint",
+          "start_line": 207
+        },
+        {
+          "url": "/api/cluster/terminate",
+          "methods": [
+            "POST"
+          ],
+          "handler": "cluster_terminate_endpoint",
+          "start_line": 217
+        },
+        {
+          "url": "/api/connection/resume",
+          "methods": [
+            "POST"
+          ],
+          "handler": "resume_connection_endpoint",
+          "start_line": 231
+        },
+        {
           "url": "/api/login",
           "methods": [
             "POST"
           ],
           "handler": "user_login",
-          "start_line": 192
+          "start_line": 243
         },
         {
           "url": "/api/presets",
@@ -2618,7 +3291,7 @@
             "GET"
           ],
           "handler": "get_presets_endpoint",
-          "start_line": 211
+          "start_line": 262
         },
         {
           "url": "/api/presets/save",
@@ -2626,7 +3299,7 @@
             "POST"
           ],
           "handler": "save_presets_endpoint",
-          "start_line": 220
+          "start_line": 271
         },
         {
           "url": "/api/presets/delete",
@@ -2634,7 +3307,7 @@
             "POST"
           ],
           "handler": "delete_preset_endpoint",
-          "start_line": 238
+          "start_line": 289
         },
         {
           "url": "/api/presets/rename",
@@ -2642,7 +3315,7 @@
             "POST"
           ],
           "handler": "rename_preset_endpoint",
-          "start_line": 250
+          "start_line": 301
         },
         {
           "url": "/api/presets/duplicate",
@@ -2650,7 +3323,7 @@
             "POST"
           ],
           "handler": "duplicate_preset_endpoint",
-          "start_line": 263
+          "start_line": 314
         },
         {
           "url": "/api/presets/set_startup",
@@ -2658,7 +3331,7 @@
             "POST"
           ],
           "handler": "set_startup_endpoint",
-          "start_line": 276
+          "start_line": 327
         },
         {
           "url": "/api/presets/set_save_on_close",
@@ -2666,7 +3339,7 @@
             "POST"
           ],
           "handler": "set_save_on_close_endpoint",
-          "start_line": 287
+          "start_line": 338
         },
         {
           "url": "/api/current_settings",
@@ -2675,7 +3348,7 @@
             "POST"
           ],
           "handler": "current_settings_endpoint",
-          "start_line": 298
+          "start_line": 349
         },
         {
           "url": "/api/app/minimize",
@@ -2684,7 +3357,7 @@
             "GET"
           ],
           "handler": "app_minimize_endpoint",
-          "start_line": 313
+          "start_line": 364
         },
         {
           "url": "/api/app/close",
@@ -2693,7 +3366,7 @@
             "GET"
           ],
           "handler": "app_close_endpoint",
-          "start_line": 326
+          "start_line": 377
         }
       ],
       "role_and_purpose": "Əsas səhifələr, autentifikasiya və sessiya marşrutları."
@@ -2712,7 +3385,9 @@
         "services.common.PORTFOLIO_EXCEL",
         "services.common.print_server_error",
         "services.onec_service.one_c",
-        "excel_generator"
+        "excel_generator",
+        "offline_service",
+        "offline_service"
       ],
       "functions": {
         "_password_request_allowed": {
@@ -2978,6 +3653,36 @@
               "POST"
             ]
           }
+        },
+        "get_kontragent_card_endpoint": {
+          "name": "get_kontragent_card_endpoint",
+          "args": [],
+          "start_line": 228,
+          "end_line": 249,
+          "docstring": "",
+          "decorators": [],
+          "endpoint": {
+            "url": "/api/documents/kontragent_card",
+            "methods": [
+              "POST",
+              "GET"
+            ]
+          }
+        },
+        "get_kontragenty_list_endpoint": {
+          "name": "get_kontragenty_list_endpoint",
+          "args": [],
+          "start_line": 252,
+          "end_line": 267,
+          "docstring": "",
+          "decorators": [],
+          "endpoint": {
+            "url": "/api/kontragenty/list",
+            "methods": [
+              "POST",
+              "GET"
+            ]
+          }
         }
       },
       "classes": {},
@@ -3127,6 +3832,24 @@
           ],
           "handler": "get_nomenclature_stock_endpoint",
           "start_line": 215
+        },
+        {
+          "url": "/api/documents/kontragent_card",
+          "methods": [
+            "POST",
+            "GET"
+          ],
+          "handler": "get_kontragent_card_endpoint",
+          "start_line": 228
+        },
+        {
+          "url": "/api/kontragenty/list",
+          "methods": [
+            "POST",
+            "GET"
+          ],
+          "handler": "get_kontragenty_list_endpoint",
+          "start_line": 252
         }
       ],
       "role_and_purpose": "/api/catalog_data, /api/search_* API endpointləri və frontend-ə cavab yönləndirmələri."
@@ -3293,11 +4016,25 @@
             ]
           }
         },
+        "audit_events_endpoint": {
+          "name": "audit_events_endpoint",
+          "args": [],
+          "start_line": 301,
+          "end_line": 306,
+          "docstring": "",
+          "decorators": [],
+          "endpoint": {
+            "url": "/api/audit/events",
+            "methods": [
+              "POST"
+            ]
+          }
+        },
         "audit_details_endpoint": {
           "name": "audit_details_endpoint",
           "args": [],
-          "start_line": 301,
-          "end_line": 330,
+          "start_line": 309,
+          "end_line": 338,
           "docstring": "",
           "decorators": [],
           "endpoint": {
@@ -3391,14 +4128,61 @@
           "start_line": 288
         },
         {
+          "url": "/api/audit/events",
+          "methods": [
+            "POST"
+          ],
+          "handler": "audit_events_endpoint",
+          "start_line": 301
+        },
+        {
           "url": "/api/audit/details",
           "methods": [
             "POST"
           ],
           "handler": "audit_details_endpoint",
-          "start_line": 301
+          "start_line": 309
         }
       ]
+    },
+    "routes/job_routes.py": {
+      "file_path": "routes/job_routes.py",
+      "type": "backend_python",
+      "docstring": "Durable read jobs with per-job access tokens.",
+      "imports": [
+        "flask.Blueprint",
+        "flask.jsonify",
+        "flask.request",
+        "services.onec_service.one_c"
+      ],
+      "functions": {
+        "start_job": {
+          "name": "start_job",
+          "args": [],
+          "start_line": 9,
+          "end_line": 16,
+          "docstring": "",
+          "decorators": []
+        },
+        "job_status": {
+          "name": "job_status",
+          "args": [],
+          "start_line": 20,
+          "end_line": 27,
+          "docstring": "",
+          "decorators": []
+        },
+        "worker_recover": {
+          "name": "worker_recover",
+          "args": [],
+          "start_line": 31,
+          "end_line": 39,
+          "docstring": "",
+          "decorators": []
+        }
+      },
+      "classes": {},
+      "endpoints": []
     },
     "routes/order_analysis_routes.py": {
       "file_path": "routes/order_analysis_routes.py",
@@ -3770,19 +4554,26 @@
     "static/js/audit_journal.js": {
       "file_path": "static/js/audit_journal.js",
       "type": "frontend_javascript",
-      "total_lines": 2532,
+      "total_lines": 2655,
       "objects": {
         "AuditJournal": {
           "name": "AuditJournal",
           "kind": "object_literal",
           "start_line": 7,
           "methods": {}
+        },
+        "payload": {
+          "name": "payload",
+          "kind": "object_literal",
+          "start_line": 896,
+          "methods": {}
         }
       },
       "functions": {},
       "api_calls": [
         "/api/audit/list",
-        "/api/audit/details"
+        "/api/audit/details",
+        "/api/audit/events"
       ],
       "event_listeners": []
     },
@@ -3805,7 +4596,7 @@
     "static/js/c1_filter_component.js": {
       "file_path": "static/js/c1_filter_component.js",
       "type": "frontend_javascript",
-      "total_lines": 2422,
+      "total_lines": 2447,
       "objects": {
         "C1FilterComponent": {
           "name": "C1FilterComponent",
@@ -3822,7 +4613,7 @@
         "presetObj": {
           "name": "presetObj",
           "kind": "object_literal",
-          "start_line": 1841,
+          "start_line": 1866,
           "methods": {}
         }
       },
@@ -4467,6 +5258,84 @@
       "api_calls": [],
       "event_listeners": []
     },
+    "static/js/job_client.js": {
+      "file_path": "static/js/job_client.js",
+      "type": "frontend_javascript",
+      "total_lines": 107,
+      "objects": {
+        "clean": {
+          "name": "clean",
+          "kind": "object_literal",
+          "start_line": 12,
+          "methods": {
+            "read": {
+              "name": "read",
+              "args": [
+                "key"
+              ],
+              "line": 23
+            },
+            "save": {
+              "name": "save",
+              "args": [
+                "key",
+                "value"
+              ],
+              "line": 24
+            },
+            "forget": {
+              "name": "forget",
+              "args": [
+                "key"
+              ],
+              "line": 25
+            },
+            "abortError": {
+              "name": "abortError",
+              "args": [],
+              "line": 26
+            },
+            "delay": {
+              "name": "delay",
+              "args": [
+                "ms",
+                "signal"
+              ],
+              "line": 27
+            },
+            "request": {
+              "name": "request",
+              "args": [
+                "url",
+                "body",
+                "options"
+              ],
+              "line": 35
+            },
+            "run": {
+              "name": "run",
+              "args": [
+                "action",
+                "payload",
+                "options={}"
+              ],
+              "line": 59
+            },
+            "fetch": {
+              "name": "fetch",
+              "args": [
+                "url",
+                "options={}"
+              ],
+              "line": 101
+            }
+          }
+        }
+      },
+      "functions": {},
+      "api_calls": [],
+      "event_listeners": []
+    },
     "static/js/journal_perf.js": {
       "file_path": "static/js/journal_perf.js",
       "type": "frontend_javascript",
@@ -4483,6 +5352,70 @@
         }
       },
       "api_calls": [],
+      "event_listeners": []
+    },
+    "static/js/kontragenty_journal.js": {
+      "file_path": "static/js/kontragenty_journal.js",
+      "type": "frontend_javascript",
+      "total_lines": 627,
+      "objects": {
+        "KontragentyJournal": {
+          "name": "KontragentyJournal",
+          "kind": "object_literal",
+          "start_line": 28,
+          "methods": {}
+        },
+        "newRule": {
+          "name": "newRule",
+          "kind": "object_literal",
+          "start_line": 236,
+          "methods": {}
+        },
+        "payload": {
+          "name": "payload",
+          "kind": "object_literal",
+          "start_line": 389,
+          "methods": {}
+        }
+      },
+      "functions": {
+        "escapeHtml": {
+          "name": "escapeHtml",
+          "args": [
+            "str"
+          ],
+          "line": 18
+        }
+      },
+      "api_calls": [
+        "/api/kontragenty/list"
+      ],
+      "event_listeners": []
+    },
+    "static/js/kontragent_card.js": {
+      "file_path": "static/js/kontragent_card.js",
+      "type": "frontend_javascript",
+      "total_lines": 707,
+      "objects": {
+        "KontragentCard": {
+          "name": "KontragentCard",
+          "kind": "object_literal",
+          "start_line": 27,
+          "methods": {}
+        }
+      },
+      "functions": {
+        "escapeHtml": {
+          "name": "escapeHtml",
+          "args": [
+            "str"
+          ],
+          "line": 17
+        }
+      },
+      "api_calls": [
+        "/api/kontragent/card"
+      ],
       "event_listeners": []
     },
     "static/js/list_appearance.js": {
@@ -4663,7 +5596,7 @@
     "static/js/mdi_manager.js": {
       "file_path": "static/js/mdi_manager.js",
       "type": "frontend_javascript",
-      "total_lines": 2961,
+      "total_lines": 2993,
       "objects": {
         "MdiManager": {
           "name": "MdiManager",
@@ -4703,36 +5636,36 @@
                 "id",
                 "options = {}"
               ],
-              "line": 94
+              "line": 96
             },
             "saveOpenWindowsSession": {
               "name": "saveOpenWindowsSession",
               "args": [],
-              "line": 119
+              "line": 121
             },
             "restoreOpenWindowsSession": {
               "name": "restoreOpenWindowsSession",
               "args": [],
-              "line": 171
+              "line": 173
             },
             "auditStack": {
               "name": "auditStack",
               "args": [
                 "trigger"
               ],
-              "line": 266
+              "line": 268
             },
             "init": {
               "name": "init",
               "args": [],
-              "line": 314
+              "line": 316
             },
             "createWindowShell": {
               "name": "createWindowShell",
               "args": [
                 "config = {}"
               ],
-              "line": 657
+              "line": 689
             },
             "registerWindow": {
               "name": "registerWindow",
@@ -4740,45 +5673,45 @@
                 "id",
                 "options = {}"
               ],
-              "line": 734
+              "line": 766
             }
           }
         },
         "winObj": {
           "name": "winObj",
           "kind": "object_literal",
-          "start_line": 747,
+          "start_line": 779,
           "methods": {
             "setupWindowDragging": {
               "name": "setupWindowDragging",
               "args": [
                 "winObj"
               ],
-              "line": 796
+              "line": 828
             },
             "formatTaskbarLabel": {
               "name": "formatTaskbarLabel",
               "args": [
                 "title"
               ],
-              "line": 867
+              "line": 899
             },
             "showDashboard": {
               "name": "showDashboard",
               "args": [],
-              "line": 883
+              "line": 915
             },
             "createTaskbarTab": {
               "name": "createTaskbarTab",
               "args": [
                 "winObj"
               ],
-              "line": 936
+              "line": 968
             },
             "renderTaskbar": {
               "name": "renderTaskbar",
               "args": [],
-              "line": 978
+              "line": 1010
             },
             "activateWindow": {
               "name": "activateWindow",
@@ -4786,14 +5719,14 @@
                 "id",
                 "options = {}"
               ],
-              "line": 988
+              "line": 1020
             },
             "toggleMaximize": {
               "name": "toggleMaximize",
               "args": [
                 "id"
               ],
-              "line": 1114
+              "line": 1146
             },
             "maximizeWindow": {
               "name": "maximizeWindow",
@@ -4801,7 +5734,7 @@
                 "id",
                 "doActivate = true"
               ],
-              "line": 1125
+              "line": 1157
             },
             "restoreWindow": {
               "name": "restoreWindow",
@@ -4809,28 +5742,28 @@
                 "id",
                 "doActivate = true"
               ],
-              "line": 1164
+              "line": 1196
             },
             "minimizeWindow": {
               "name": "minimizeWindow",
               "args": [
                 "id"
               ],
-              "line": 1202
+              "line": 1234
             },
             "restoreFromMinimize": {
               "name": "restoreFromMinimize",
               "args": [
                 "id"
               ],
-              "line": 1246
+              "line": 1278
             },
             "closeWindow": {
               "name": "closeWindow",
               "args": [
                 "id"
               ],
-              "line": 1256
+              "line": 1288
             },
             "openWindow": {
               "name": "openWindow",
@@ -4838,12 +5771,12 @@
                 "id",
                 "options = {}"
               ],
-              "line": 1361
+              "line": 1393
             },
             "openOrRestoreReportWindow": {
               "name": "openOrRestoreReportWindow",
               "args": [],
-              "line": 1365
+              "line": 1397
             },
             "setWindowTitle": {
               "name": "setWindowTitle",
@@ -4851,84 +5784,84 @@
                 "id",
                 "title"
               ],
-              "line": 1384
+              "line": 1416
             },
             "updateWindowTitlebar": {
               "name": "updateWindowTitlebar",
               "args": [
                 "id"
               ],
-              "line": 1403
+              "line": 1435
             },
             "createNewReportWindow": {
               "name": "createNewReportWindow",
               "args": [
                 "presetToLoad = null"
               ],
-              "line": 1421
+              "line": 1453
             },
             "attachNewWindowButton": {
               "name": "attachNewWindowButton",
               "args": [
                 "winObj"
               ],
-              "line": 1486
+              "line": 1518
             },
             "duplicateWindow": {
               "name": "duplicateWindow",
               "args": [
                 "id"
               ],
-              "line": 1508
+              "line": 1540
             },
             "createDuplicateCatalogWindow": {
               "name": "createDuplicateCatalogWindow",
               "args": [
                 "catName"
               ],
-              "line": 1537
+              "line": 1569
             },
             "createDuplicatePortfolioWindow": {
               "name": "createDuplicatePortfolioWindow",
               "args": [],
-              "line": 1596
+              "line": 1628
             },
             "createGenericDuplicateWindow": {
               "name": "createGenericDuplicateWindow",
               "args": [
                 "id"
               ],
-              "line": 1635
+              "line": 1667
             },
             "cascadeWindows": {
               "name": "cascadeWindows",
               "args": [],
-              "line": 1680
+              "line": 1712
             },
             "tileHorizontal": {
               "name": "tileHorizontal",
               "args": [],
-              "line": 1696
+              "line": 1728
             },
             "tileVertical": {
               "name": "tileVertical",
               "args": [],
-              "line": 1712
+              "line": 1744
             },
             "closeAllWindows": {
               "name": "closeAllWindows",
               "args": [],
-              "line": 1728
+              "line": 1760
             },
             "updateWindowMenu": {
               "name": "updateWindowMenu",
               "args": [],
-              "line": 1735
+              "line": 1767
             },
             "getNextZIndex": {
               "name": "getNextZIndex",
               "args": [],
-              "line": 1774
+              "line": 1806
             },
             "bringModalToFront": {
               "name": "bringModalToFront",
@@ -4936,7 +5869,7 @@
                 "modalEl",
                 "options = {}"
               ],
-              "line": 1779
+              "line": 1811
             },
             "createModalTaskbarTab": {
               "name": "createModalTaskbarTab",
@@ -4946,68 +5879,68 @@
                 "icon",
                 "closeFn"
               ],
-              "line": 1787
+              "line": 1819
             },
             "removeModalTaskbarTab": {
               "name": "removeModalTaskbarTab",
               "args": [
                 "modalId"
               ],
-              "line": 1797
+              "line": 1829
             },
             "getTopmostVisibleWindow": {
               "name": "getTopmostVisibleWindow",
               "args": [],
-              "line": 1802
+              "line": 1834
             },
             "handleEscape": {
               "name": "handleEscape",
               "args": [],
-              "line": 1820
+              "line": 1852
             },
             "handleConfirm": {
               "name": "handleConfirm",
               "args": [],
-              "line": 1960
+              "line": 1992
             },
             "showToast": {
               "name": "showToast",
               "args": [
                 "msg"
               ],
-              "line": 2150
+              "line": 2182
             },
             "handleRefresh": {
               "name": "handleRefresh",
               "args": [],
-              "line": 2173
+              "line": 2205
             },
             "handleSearch": {
               "name": "handleSearch",
               "args": [],
-              "line": 2369
+              "line": 2401
             },
             "handleCancelSearch": {
               "name": "handleCancelSearch",
               "args": [],
-              "line": 2475
+              "line": 2507
             },
             "bindGlobalEvents": {
               "name": "bindGlobalEvents",
               "args": [],
-              "line": 2567
+              "line": 2599
             }
           }
         },
         "SnapLayoutHelper": {
           "name": "SnapLayoutHelper",
           "kind": "object_literal",
-          "start_line": 2656,
+          "start_line": 2688,
           "methods": {
             "init": {
               "name": "init",
               "args": [],
-              "line": 2662
+              "line": 2694
             },
             "onMaxButtonHover": {
               "name": "onMaxButtonHover",
@@ -5015,7 +5948,7 @@
                 "winId",
                 "btnEl"
               ],
-              "line": 2716
+              "line": 2748
             },
             "show": {
               "name": "show",
@@ -5023,24 +5956,24 @@
                 "winId",
                 "btnEl"
               ],
-              "line": 2726
+              "line": 2758
             },
             "hide": {
               "name": "hide",
               "args": [],
-              "line": 2755
+              "line": 2787
             },
             "scheduleHide": {
               "name": "scheduleHide",
               "args": [
                 "delay = 200"
               ],
-              "line": 2764
+              "line": 2796
             },
             "cancelHide": {
               "name": "cancelHide",
               "args": [],
-              "line": 2772
+              "line": 2804
             },
             "applyRect": {
               "name": "applyRect",
@@ -5051,7 +5984,7 @@
                 "width",
                 "height"
               ],
-              "line": 2779
+              "line": 2811
             },
             "applySnap": {
               "name": "applySnap",
@@ -5059,14 +5992,14 @@
                 "layoutType",
                 "zoneIdx"
               ],
-              "line": 2803
+              "line": 2835
             },
             "quickAction": {
               "name": "quickAction",
               "args": [
                 "action"
               ],
-              "line": 2913
+              "line": 2945
             }
           }
         }
@@ -5085,7 +6018,7 @@
             "e",
             "menuId"
           ],
-          "line": 2947
+          "line": 2979
         }
       },
       "api_calls": [],
@@ -5322,7 +6255,6 @@
         }
       },
       "api_calls": [
-        "/api/order_analysis/generate",
         "/api/order_analysis/export_excel"
       ],
       "event_listeners": []
@@ -5396,6 +6328,15 @@
           "line": 247
         }
       },
+      "api_calls": [],
+      "event_listeners": []
+    },
+    "static/js/order_batch_editor.js": {
+      "file_path": "static/js/order_batch_editor.js",
+      "type": "frontend_javascript",
+      "total_lines": 157,
+      "objects": {},
+      "functions": {},
       "api_calls": [],
       "event_listeners": []
     },
@@ -5702,7 +6643,6 @@
         }
       },
       "api_calls": [
-        "/api/universal_report",
         "/api/export_universal_report_excel"
       ],
       "event_listeners": [],
@@ -5741,7 +6681,7 @@
     "static/js/session.js": {
       "file_path": "static/js/session.js",
       "type": "frontend_javascript",
-      "total_lines": 560,
+      "total_lines": 674,
       "objects": {
         "SessionManager": {
           "name": "SessionManager",
@@ -5753,15 +6693,38 @@
               "args": [],
               "line": 21
             },
+            "startConnectionMonitor": {
+              "name": "startConnectionMonitor",
+              "args": [],
+              "line": 38
+            },
+            "showConnectionWarning": {
+              "name": "showConnectionWarning",
+              "args": [
+                "message",
+                "prefix = \"Bağlantı kəsilib\""
+              ],
+              "line": 43
+            },
+            "recoverConnection": {
+              "name": "recoverConnection",
+              "args": [],
+              "line": 68
+            },
+            "checkConnection": {
+              "name": "checkConnection",
+              "args": [],
+              "line": 81
+            },
             "save": {
               "name": "save",
               "args": [],
-              "line": 38
+              "line": 122
             },
             "getCredentials": {
               "name": "getCredentials",
               "args": [],
-              "line": 49
+              "line": 133
             },
             "setConnectionStatus": {
               "name": "setConnectionStatus",
@@ -5769,39 +6732,39 @@
                 "status",
                 "message"
               ],
-              "line": 58
+              "line": 142
             },
             "markConnected": {
               "name": "markConnected",
               "args": [],
-              "line": 129
+              "line": 217
             },
             "warmupConnection": {
               "name": "warmupConnection",
               "args": [],
-              "line": 135
+              "line": 223
             },
             "updateUI": {
               "name": "updateUI",
               "args": [],
-              "line": 168
+              "line": 265
             },
             "loadBases": {
               "name": "loadBases",
               "args": [
                 "preferredBase"
               ],
-              "line": 200
+              "line": 297
             },
             "syncInputs": {
               "name": "syncInputs",
               "args": [],
-              "line": 247
+              "line": 345
             },
             "loadUsers": {
               "name": "loadUsers",
               "args": [],
-              "line": 273
+              "line": 371
             },
             "authenticate": {
               "name": "authenticate",
@@ -5812,7 +6775,7 @@
                 "ref",
                 "title"
               ],
-              "line": 315
+              "line": 424
             }
           }
         }
@@ -5821,40 +6784,42 @@
         "openLoginModal": {
           "name": "openLoginModal",
           "args": [],
-          "line": 354
+          "line": 468
         },
         "closeLoginModal": {
           "name": "closeLoginModal",
           "args": [],
-          "line": 384
+          "line": 498
         },
         "onModalBaseChange": {
           "name": "onModalBaseChange",
           "args": [],
-          "line": 395
+          "line": 509
         },
         "addCustomBase": {
           "name": "addCustomBase",
           "args": [],
-          "line": 425
+          "line": 539
         },
         "deleteCurrentBase": {
           "name": "deleteCurrentBase",
           "args": [],
-          "line": 464
+          "line": 578
         },
         "reloadModalUsersForCustomDb": {
           "name": "reloadModalUsersForCustomDb",
           "args": [],
-          "line": 499
+          "line": 613
         },
         "submitLoginModal": {
           "name": "submitLoginModal",
           "args": [],
-          "line": 522
+          "line": 636
         }
       },
       "api_calls": [
+        "/api/connection/worker-recover",
+        "/api/connection/status",
         "/api/ping_connection",
         "/api/bases",
         "/api/users",
@@ -6406,7 +7371,7 @@
     "static/js/universal_journal.js": {
       "file_path": "static/js/universal_journal.js",
       "type": "frontend_javascript",
-      "total_lines": 4279,
+      "total_lines": 4304,
       "objects": {
         "JournalLoadSettings": {
           "name": "JournalLoadSettings",
@@ -6429,19 +7394,19 @@
         "payload": {
           "name": "payload",
           "kind": "object_literal",
-          "start_line": 1329,
+          "start_line": 1348,
           "methods": {}
         },
         "newCrit": {
           "name": "newCrit",
           "kind": "object_literal",
-          "start_line": 2675,
+          "start_line": 2694,
           "methods": {}
         },
         "criterion": {
           "name": "criterion",
           "kind": "object_literal",
-          "start_line": 3378,
+          "start_line": 3403,
           "methods": {
             "get": {
               "name": "get",
@@ -6450,7 +7415,7 @@
                 "prop",
                 "receiver"
               ],
-              "line": 4122
+              "line": 4147
             },
             "set": {
               "name": "set",
@@ -6460,7 +7425,7 @@
                 "value",
                 "receiver"
               ],
-              "line": 4135
+              "line": 4160
             }
           }
         }
@@ -7379,13 +8344,13 @@
     "templates/index.html": {
       "file_path": "templates/index.html",
       "type": "html_template",
-      "size_bytes": 49189,
+      "size_bytes": 50670,
       "role_and_purpose": "Əsas tətbiq interfeysi: MDI iş masası, menyu, alətlər paneli və bütün komponentlərin skript birləşmələri."
     },
     "templates/components/audit_journal_window.html": {
       "file_path": "templates/components/audit_journal_window.html",
       "type": "html_template",
-      "size_bytes": 37096
+      "size_bytes": 38118
     },
     "templates/components/catalog_selector_modal.html": {
       "file_path": "templates/components/catalog_selector_modal.html",
@@ -7412,6 +8377,16 @@
       "type": "html_template",
       "size_bytes": 9025
     },
+    "templates/components/kontragenty_journal_window.html": {
+      "file_path": "templates/components/kontragenty_journal_window.html",
+      "type": "html_template",
+      "size_bytes": 18328
+    },
+    "templates/components/kontragent_card_window.html": {
+      "file_path": "templates/components/kontragent_card_window.html",
+      "type": "html_template",
+      "size_bytes": 80919
+    },
     "templates/components/login_modal.html": {
       "file_path": "templates/components/login_modal.html",
       "type": "html_template",
@@ -7436,6 +8411,11 @@
       "file_path": "templates/components/order_analysis_window.html",
       "type": "html_template",
       "size_bytes": 16859
+    },
+    "templates/components/order_batch_editor_window.html": {
+      "file_path": "templates/components/order_batch_editor_window.html",
+      "type": "html_template",
+      "size_bytes": 2186
     },
     "templates/components/period_picker_modal.html": {
       "file_path": "templates/components/period_picker_modal.html",
@@ -7465,7 +8445,7 @@
     "templates/components/sales_doc_editor_window.html": {
       "file_path": "templates/components/sales_doc_editor_window.html",
       "type": "html_template",
-      "size_bytes": 29796
+      "size_bytes": 29891
     },
     "templates/components/settings_dialog.html": {
       "file_path": "templates/components/settings_dialog.html",
@@ -7495,7 +8475,7 @@
     "templates/components/universal_journal_window.html": {
       "file_path": "templates/components/universal_journal_window.html",
       "type": "html_template",
-      "size_bytes": 22592
+      "size_bytes": 23308
     },
     "templates/components/value_list_modal.html": {
       "file_path": "templates/components/value_list_modal.html",
@@ -7547,61 +8527,89 @@
       ],
       "line": 162
     },
+    "/api/connection/status": {
+      "handler": "routes/base_routes.py:connection_status_endpoint",
+      "methods": [
+        "POST"
+      ],
+      "line": 184
+    },
+    "/api/cluster/sessions": {
+      "handler": "routes/base_routes.py:cluster_sessions_endpoint",
+      "methods": [
+        "POST"
+      ],
+      "line": 207
+    },
+    "/api/cluster/terminate": {
+      "handler": "routes/base_routes.py:cluster_terminate_endpoint",
+      "methods": [
+        "POST"
+      ],
+      "line": 217
+    },
+    "/api/connection/resume": {
+      "handler": "routes/base_routes.py:resume_connection_endpoint",
+      "methods": [
+        "POST"
+      ],
+      "line": 231
+    },
     "/api/login": {
       "handler": "routes/base_routes.py:user_login",
       "methods": [
         "POST"
       ],
-      "line": 192
+      "line": 243
     },
     "/api/presets": {
       "handler": "routes/base_routes.py:get_presets_endpoint",
       "methods": [
         "GET"
       ],
-      "line": 211
+      "line": 262
     },
     "/api/presets/save": {
       "handler": "routes/base_routes.py:save_presets_endpoint",
       "methods": [
         "POST"
       ],
-      "line": 220
+      "line": 271
     },
     "/api/presets/delete": {
       "handler": "routes/base_routes.py:delete_preset_endpoint",
       "methods": [
         "POST"
       ],
-      "line": 238
+      "line": 289
     },
     "/api/presets/rename": {
       "handler": "routes/base_routes.py:rename_preset_endpoint",
       "methods": [
         "POST"
       ],
-      "line": 250
+      "line": 301
     },
     "/api/presets/duplicate": {
       "handler": "routes/base_routes.py:duplicate_preset_endpoint",
       "methods": [
         "POST"
       ],
-      "line": 263
+      "line": 314
     },
     "/api/presets/set_startup": {
       "handler": "routes/base_routes.py:set_startup_endpoint",
       "methods": [
         "POST"
       ],
-      "line": 276
+      "line": 327
     },
     "/api/presets/set_save_on_close": {
       "handler": "routes/base_routes.py:set_save_on_close_endpoint",
       "methods": [
         "POST"
       ],
-      "line": 287
+      "line": 338
     },
     "/api/current_settings": {
       "handler": "routes/base_routes.py:current_settings_endpoint",
@@ -7609,7 +8617,7 @@
         "GET",
         "POST"
       ],
-      "line": 298
+      "line": 349
     },
     "/api/app/minimize": {
       "handler": "routes/base_routes.py:app_minimize_endpoint",
@@ -7617,7 +8625,7 @@
         "POST",
         "GET"
       ],
-      "line": 313
+      "line": 364
     },
     "/api/app/close": {
       "handler": "routes/base_routes.py:app_close_endpoint",
@@ -7625,7 +8633,7 @@
         "POST",
         "GET"
       ],
-      "line": 326
+      "line": 377
     },
     "/api/users/accounts": {
       "handler": "routes/catalog_routes.py:user_accounts_endpoint",
@@ -7755,6 +8763,22 @@
       ],
       "line": 215
     },
+    "/api/documents/kontragent_card": {
+      "handler": "routes/catalog_routes.py:get_kontragent_card_endpoint",
+      "methods": [
+        "POST",
+        "GET"
+      ],
+      "line": 228
+    },
+    "/api/kontragenty/list": {
+      "handler": "routes/catalog_routes.py:get_kontragenty_list_endpoint",
+      "methods": [
+        "POST",
+        "GET"
+      ],
+      "line": 252
+    },
     "/api/documents/list": {
       "handler": "routes/document_routes.py:documents_list_endpoint",
       "methods": [
@@ -7825,12 +8849,19 @@
       ],
       "line": 288
     },
+    "/api/audit/events": {
+      "handler": "routes/document_routes.py:audit_events_endpoint",
+      "methods": [
+        "POST"
+      ],
+      "line": 301
+    },
     "/api/audit/details": {
       "handler": "routes/document_routes.py:audit_details_endpoint",
       "methods": [
         "POST"
       ],
-      "line": 301
+      "line": 309
     },
     "/api/order_analysis/generate": {
       "handler": "routes/order_analysis_routes.py:generate_order_analysis",
@@ -7923,6 +8954,10 @@
       {
         "calls_api": "/api/audit/details",
         "handled_by": "routes/document_routes.py:audit_details_endpoint"
+      },
+      {
+        "calls_api": "/api/audit/events",
+        "handled_by": "routes/document_routes.py:audit_events_endpoint"
       }
     ],
     "static/js/c1_filter_component.js": [
@@ -7937,11 +8972,13 @@
         "handled_by": "routes/catalog_routes.py:catalog_data_endpoint"
       }
     ],
-    "static/js/order_analysis_report.js": [
+    "static/js/kontragenty_journal.js": [
       {
-        "calls_api": "/api/order_analysis/generate",
-        "handled_by": "routes/order_analysis_routes.py:generate_order_analysis"
-      },
+        "calls_api": "/api/kontragenty/list",
+        "handled_by": "routes/catalog_routes.py:get_kontragenty_list_endpoint"
+      }
+    ],
+    "static/js/order_analysis_report.js": [
       {
         "calls_api": "/api/order_analysis/export_excel",
         "handled_by": "routes/order_analysis_routes.py:export_excel"
@@ -8003,10 +9040,6 @@
     ],
     "static/js/report_engine.js": [
       {
-        "calls_api": "/api/universal_report",
-        "handled_by": "routes/report_routes.py:universal_report_endpoint"
-      },
-      {
         "calls_api": "/api/export_universal_report_excel",
         "handled_by": "routes/report_routes.py:export_universal_report_excel_endpoint"
       }
@@ -8018,6 +9051,10 @@
       }
     ],
     "static/js/session.js": [
+      {
+        "calls_api": "/api/connection/status",
+        "handled_by": "routes/base_routes.py:connection_status_endpoint"
+      },
       {
         "calls_api": "/api/ping_connection",
         "handled_by": "routes/base_routes.py:ping_connection_endpoint"

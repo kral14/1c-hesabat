@@ -1,0 +1,60 @@
+[
+  {
+    "limit": 0,
+    "rows": 24860,
+    "http_ms": 44155.73,
+    "wire_bytes": 1601467,
+    "json_bytes": 18730768,
+    "decode_json_ms": 154.61,
+    "server_timing": "onec;dur=43144.90, serialize;dur=139.99, gzip;dur=725.70",
+    "pipeline": {
+      "primary_query": 13432.28,
+      "related_lookup": 2751.6,
+      "row_decode": 2883.69,
+      "total": 19090.6
+    },
+    "gzip_levels": {
+      "1": {
+        "ms": 98.39,
+        "bytes": 2477208
+      },
+      "6": {
+        "ms": 228.07,
+        "bytes": 1754385
+      },
+      "9": {
+        "ms": 716.06,
+        "bytes": 1601467
+      }
+    }
+  },
+  {
+    "limit": 0,
+    "rows": 24860,
+    "http_ms": 9460.25,
+    "wire_bytes": 1601467,
+    "json_bytes": 18730768,
+    "decode_json_ms": 176.16,
+    "server_timing": "onec;dur=8494.25, serialize;dur=136.86, gzip;dur=707.49",
+    "pipeline": {
+      "primary_query": 4417.15,
+      "related_lookup": 1178.08,
+      "row_decode": 2865.39,
+      "total": 8461.57
+    },
+    "gzip_levels": {
+      "1": {
+        "ms": 96.67,
+        "bytes": 2477189
+      },
+      "6": {
+        "ms": 230.41,
+        "bytes": 1754381
+      },
+      "9": {
+        "ms": 709.63,
+        "bytes": 1601467
+      }
+    }
+  }
+]

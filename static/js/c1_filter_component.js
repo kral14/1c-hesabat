@@ -28,6 +28,8 @@ const C1FilterComponent = {
     { key: "portfolio", label: "Портфель", type: "text", category: "Основные" },
     { key: "kontragent", label: "Контрагент", type: "text", category: "Контрагенты" },
     { key: "golovnoy_kontragent", label: "Головной контрагент", type: "text", category: "Контрагенты" },
+    { key: "golovnoy_kontragent_code", label: "Код головного контрагента", type: "text", category: "Контрагенты" },
+    { key: "currency", label: "Валюта", type: "text", category: "Основные" },
     { key: "kontragent_code", label: "Код контрагента", type: "text", category: "Контрагенты" },
     { key: "contract", label: "Договор контрагента", type: "text", category: "Договоры" },
     { key: "contract_price_type", label: "Тип цен", type: "text", category: "Договоры" },
@@ -39,13 +41,14 @@ const C1FilterComponent = {
     { key: "barcode", label: "Штрихкод", type: "text", category: "Номенклатура" },
     { key: "responsible", label: "Ответственный", type: "text", category: "Основные" },
     { key: "agent", label: "Агент", type: "text", category: "Основные" },
+    { key: "agent_sales_type", label: "Вид реализации", type: "text", category: "Основные" },
+    { key: "agent_sales_group", label: "Группа реализации", type: "text", category: "Основные" },
     { key: "deal", label: "Сделка / Заказ", type: "text", category: "Документы" },
     { key: "comment", label: "Комментарий", type: "text", category: "Основные" },
     { key: "date", label: "Дата", type: "date", category: "Основные" },
     { key: "number", label: "Номер", type: "text", category: "Основные" },
     { key: "amount", label: "Сумма", type: "number", category: "Основные" },
     { key: "vms_status", label: "Статус ВМС", type: "select", options: ["Выгружен", "Подтвержден WMS", "Есть расхождение"], category: "Логистика / WMS" },
-    { key: "wms_status", label: "Статус ВМС", type: "select", options: ["Выгружен", "Подтвержден WMS", "Есть расхождение"], category: "Логистика / WMS" },
     { key: "pogruzka_marshrut", label: "Погрузка машины: Маршрут", type: "text", category: "Логистика / WMS" },
     { key: "pogruzka_voditel", label: "Погрузка машины: Водитель", type: "text", category: "Логистика / WMS" },
     { key: "pogruzka_duplicate", label: "Погрузка машины: есть дубликаты", type: "boolean", category: "Логистика / WMS" },
@@ -80,10 +83,10 @@ const C1FilterComponent = {
   ],
 
   getOperatorsForField: function(field) {
-    const key = field.key || field.fieldKey;
+    const key = this.canonicalFieldKey(field.key || field.fieldKey);
     if (key === "number") return ["Равно", "Не равно", "В списке", "Не в списке", "В группе из списка", "Содержит", "Не содержит", "Начинается с", "Заполнено", "Не заполнено"];
-    if (["warehouse", "portfolio", "kontragent", "golovnoy_kontragent", "contract", "organization", "division", "responsible", "agent", "currency", "deal"].includes(key)) return ["Равно", "Не равно", "В списке", "Не в списке", "Заполнено", "Не заполнено"];
-    const type = ["posted", "deleted", "pogruzka_duplicate", "pogruzka_active_duplicate"].includes(key) ? "boolean" : (key === "date" ? "date" : field.type);
+    if (["warehouse", "portfolio", "kontragent", "golovnoy_kontragent", "contract", "contract_price_type", "organization", "division", "responsible", "agent", "agent_sales_type", "agent_sales_group", "currency", "deal"].includes(key)) return ["Равно", "Не равно", "В списке", "Не в списке", "Заполнено", "Не заполнено"];
+    const type = ["posted", "deleted", "pogruzka_duplicate", "pogruzka_active_duplicate"].includes(key) ? "boolean" : (key === "date" ? "date" : (["amount", "realization_count"].includes(key) ? "number" : (key === "vms_status" ? "select" : field.type)));
     if (type === "boolean") return ["Равно", "Не равно"];
     if (type === "date" || type === "number") return this.filterOperators.filter(op =>
       ["Равно", "Не равно", "Меньше", "Меньше или равно", "Больше", "Больше или равно", "Заполнено", "Не заполнено"].includes(op) || op.startsWith("Интервал"));
@@ -96,6 +99,7 @@ const C1FilterComponent = {
   // ==========================================
   open: function(options = {}) {
     this.contextKey = options.docType || options.contextKey || "default";
+    this.supportedFilterFields = Array.isArray(options.supportedFilterFields) ? options.supportedFilterFields.map(key => this.canonicalFieldKey(key)) : null;
     this.docTitle = options.docTitle || options.docType || "Настройка списка";
     this._initialAvailableFields = Array.isArray(options.availableFields) ? JSON.parse(JSON.stringify(options.availableFields)) : [];
     this.availableFields = this.loadPersistedAvailableFields(this._initialAvailableFields);
@@ -118,6 +122,7 @@ const C1FilterComponent = {
 
     this.tempFilterCriteria = JSON.parse(JSON.stringify(this.activeFilters || []));
     this.tempFilterCriteria.forEach(c => {
+      c.fieldKey = this.canonicalFieldKey(c.fieldKey);
       if (c.enabled === undefined) {
         c.enabled = Boolean(c.value || c.valueFrom || c.valueTo || c.structuredFilter);
       }
@@ -154,10 +159,7 @@ const C1FilterComponent = {
       this.filterSelectedFieldKey = this.availableFields[0].key;
     }
 
-    const titleEl = document.getElementById("ujFilterWindowTitle");
-    if (titleEl) {
-      titleEl.textContent = `Настройка списка: ${this.docTitle}`;
-    }
+    this.updateListSettingsWindowTitle();
 
     this.switchFilterTab("otbor");
     this.renderFilterAvailableFields();
@@ -167,7 +169,7 @@ const C1FilterComponent = {
 
     if (window.MdiManager) {
       MdiManager.activateWindow("ujFilterWindow", {
-        title: "Настройка списка",
+        title: this.getListSettingsWindowTitle(),
         icon: "📑",
         isDialog: false,
         closeFn: () => {
@@ -274,12 +276,13 @@ const C1FilterComponent = {
   getAvailableFieldTree: function() {
     const groups = [
       {id:"kontragent",label:"Контрагент",parent:"kontragent",keys:["kontragent","golovnoy_kontragent","kontragent_code","golovnoy_kontragent_code"]},
+      {id:"agent",label:"Агент",parent:"agent",keys:["agent","agent_sales_type","agent_sales_group"]},
       {id:"contract",label:"Договор контрагента",parent:"contract",keys:["contract","contract_price_type"]},
       {id:"pogruzka",label:"Погрузка машины",keys:["pogruzka_marshrut","pogruzka_voditel","pogruzka_duplicate","pogruzka_active_duplicate"]}
     ];
     const emitted = new Set();
     const nodes = [];
-    for (const field of this.availableFields) {
+    for (const field of this.uniqueFields(this.availableFields)) {
       const group = groups.find(g=>g.keys.includes(field.key));
       if (!group) { nodes.push({field}); continue; }
       if (emitted.has(group.id)) continue;
@@ -351,6 +354,12 @@ const C1FilterComponent = {
   loadPersistedAvailableFields: function(initialFields) {
     const contextKey = this.contextKey || "default";
     let fields = Array.isArray(initialFields) ? initialFields.slice() : [];
+    if (fields.some(f=>f.key === "agent")) {
+      for (const [key,label] of [["agent_sales_type","Вид реализации"],["agent_sales_group","Группа реализации"]]) {
+        if (!fields.some(f=>f.key===key)) fields.push({key,label,type:"text",category:"Основные"});
+      }
+    }
+
 
     try {
       // 1. Filter out previously removed fields
@@ -358,8 +367,8 @@ const C1FilterComponent = {
       if (removedRaw) {
         const removedKeys = JSON.parse(removedRaw);
         if (Array.isArray(removedKeys) && removedKeys.length > 0) {
-          const removedSet = new Set(removedKeys);
-          fields = fields.filter(f => !removedSet.has(f.key));
+          const removedSet = new Set(removedKeys.map(key => this.canonicalFieldKey(key)));
+          fields = fields.filter(f => !removedSet.has(this.canonicalFieldKey(f.key)));
         }
       }
 
@@ -379,14 +388,14 @@ const C1FilterComponent = {
       console.warn("Failed to load persisted available fields:", e);
     }
 
-    return fields;
+    return this.uniqueFields(fields);
   },
 
   savePersistedAvailableFields: function() {
     const contextKey = this.contextKey || "default";
     try {
       const initialKeys = new Set((this._initialAvailableFields || []).map(f => f.key));
-      const currentKeys = new Set((this.availableFields || []).map(f => f.key));
+      const currentKeys = new Set((this.availableFields || []).map(f => this.canonicalFieldKey(f.key)));
 
       // Removed keys = present in initial baseline, but deleted by user
       const removedKeys = (this._initialAvailableFields || [])
@@ -404,7 +413,8 @@ const C1FilterComponent = {
 
   isFieldInCurrentDoc: function(fieldKey) {
     if (!fieldKey) return false;
-    const normKey = (fieldKey === "wms_status") ? "vms_status" : fieldKey;
+    const normKey = this.canonicalFieldKey(fieldKey);
+    if (Array.isArray(this.supportedFilterFields)) return this.supportedFilterFields.includes(normKey);
 
     // 1. Standard base fields always present in any 1C document
     if (["deleted", "posted", "date", "number"].includes(normKey)) return true;
@@ -422,23 +432,39 @@ const C1FilterComponent = {
     // 4. Document-specific schema checks
     const docType = this.contextKey || (window.UniversalJournal && UniversalJournal.activeDocType) || "";
     if (docType === "РеализацияТоваровУслуг") {
-      const allowed = ["vms_status", "pogruzka_marshrut", "pogruzka_voditel", "pogruzka_duplicate", "pogruzka_active_duplicate", "obrabotka_number", "deal", "portfolio", "contract", "contract_price_type", "warehouse", "nomenclature", "responsible", "amount", "kontragent", "golovnoy_kontragent", "kontragent_code", "agent", "comment"];
+      const allowed = ["vms_status", "pogruzka_marshrut", "pogruzka_voditel", "pogruzka_duplicate", "pogruzka_active_duplicate", "obrabotka_number", "deal", "portfolio", "contract", "contract_price_type", "warehouse", "nomenclature", "responsible", "amount", "kontragent", "golovnoy_kontragent", "kontragent_code", "agent", "agent_sales_type", "agent_sales_group", "comment"];
       return allowed.includes(normKey);
     } else if (docType === "ВозвратТоваровОтПокупателя") {
-      const allowed = ["vms_status", "kontragent", "golovnoy_kontragent", "agent", "amount", "warehouse", "deal", "contract", "responsible", "comment", "nomenclature", "portfolio"];
+      const allowed = ["vms_status", "kontragent", "golovnoy_kontragent", "agent", "agent_sales_type", "agent_sales_group", "amount", "warehouse", "deal", "contract", "responsible", "comment", "nomenclature", "portfolio"];
       if (allowed.includes(normKey)) return true;
       if (normKey.startsWith("pogruzka") || normKey === "marshrut" || normKey === "voditel" || normKey === "realization_count") {
         return false;
       }
     } else if (docType === "ЗаказПокупателя") {
-      const allowed = ["kontragent", "golovnoy_kontragent", "amount", "warehouse", "deal", "contract", "responsible", "comment", "portfolio", "agent", "nomenclature"];
+      const allowed = ["kontragent", "golovnoy_kontragent", "amount", "warehouse", "deal", "contract", "responsible", "comment", "portfolio", "agent", "agent_sales_type", "agent_sales_group", "nomenclature"];
       if (allowed.includes(normKey)) return true;
       if (normKey.startsWith("pogruzka") || normKey === "vms_status") return false;
+    } else if (docType === "СписаниеТоваров" && normKey === "nomenclature") {
+      return true;
     } else if (docType === "ПогрузкаМашин" || docType === "ПогрузкиМашин") {
       return ["marshrut", "voditel", "realization_count"].includes(normKey);
     }
 
     return false;
+  },
+
+  canonicalFieldKey: function(key) {
+    return key === "wms_status" ? "vms_status" : key;
+  },
+
+  uniqueFields: function(fields) {
+    const result = new Map();
+    (fields || []).forEach(field => {
+      if (!field || !field.key) return;
+      const key = this.canonicalFieldKey(field.key);
+      if (!result.has(key)) result.set(key, { ...field, key });
+    });
+    return Array.from(result.values());
   },
 
   getAllKnownFields: function() {
@@ -474,7 +500,42 @@ const C1FilterComponent = {
       });
     }
 
-    return Array.from(map.values());
+    return this.uniqueFields(Array.from(map.values()));
+  },
+
+  getFilterSourceTitle: function() {
+    const i18n = window.C1I18n;
+    const typeTitle = i18n ? i18n.translateDocType(this.contextKey) : this.contextKey;
+    return typeTitle && typeTitle !== this.contextKey ? typeTitle :
+      (i18n ? i18n.translatePhrase(this.docTitle || '') : this.docTitle);
+  },
+
+  getListSettingsWindowTitle: function() {
+    const label = window.C1I18n ? C1I18n.t('filter.window_title', 'Настройка списка') : 'Настройка списка';
+    const source = this.getFilterSourceTitle();
+    return source ? `${source} — ${label}` : label;
+  },
+
+  updateListSettingsWindowTitle: function() {
+    const title = this.getListSettingsWindowTitle();
+    const element = document.getElementById('ujFilterWindowTitle');
+    if (element) element.textContent = title;
+    if (typeof MdiManager !== 'undefined') MdiManager.setWindowTitle('ujFilterWindow', title);
+  },
+
+  getAddFieldWindowTitle: function() {
+    const label = window.C1I18n ? C1I18n.t('filter.add_field_dialog_title', 'Выбор поля для отбора') : 'Выбор поля для отбора';
+    const source = this.getFilterSourceTitle();
+    return source ? `${source} — ${label}` : label;
+  },
+
+  updateAddFieldWindowTitle: function() {
+    const title = this.getAddFieldWindowTitle();
+    const text = document.getElementById('ujAddAvailFieldTitleText');
+    if (text) text.textContent = title;
+    document.getElementById('ujAddAvailFieldWindow')?.setAttribute('aria-label', title);
+    if (typeof MdiManager !== 'undefined') MdiManager.setWindowTitle('ujAddAvailFieldModalOverlay', title);
+    return title;
   },
 
   openAddAvailableFieldDialog: function() {
@@ -490,12 +551,34 @@ const C1FilterComponent = {
 
     this.renderAddAvailableFieldList("");
 
-    overlay.style.display = "flex";
+    const workspace = document.getElementById('mdiWorkspace');
+    if (workspace && !overlay.dataset.fieldWindow) {
+      workspace.appendChild(overlay);
+      overlay.dataset.fieldWindow = 'true';
+      overlay.removeAttribute('onclick');
+      overlay.classList.remove('modal-overlay-1c');
+      overlay.classList.add('mdi-window');
+      Object.assign(overlay.style, {position:'absolute',inset:'auto',top:'45px',left:'55px',
+        width:'min(980px, calc(100% - 80px))',height:'min(680px, calc(100% - 85px))',
+        minWidth:'560px',minHeight:'320px',background:'transparent',resize:'both',overflow:'hidden',
+        zIndex:'',alignItems:'stretch',justifyContent:'flex-start'});
+      const content = document.getElementById('ujAddAvailFieldWindow');
+      Object.assign(content.style,{width:'100%',height:'100%',maxWidth:'none',maxHeight:'none',minHeight:'0',boxSizing:'border-box'});
+      document.getElementById('ujAddAvailFieldTitlebar').classList.add('mdi-window-header');
+      if (typeof MdiManager !== 'undefined') {
+        MdiManager.registerWindow('ujAddAvailFieldModalOverlay',{element:overlay,title:this.getAddFieldWindowTitle(),icon:'➕',isDefault:true,startHidden:true,
+          closeFn:()=>{overlay.style.display='none';overlay.classList.remove('active');}});
+        overlay.addEventListener('mousedown',()=>MdiManager.activateWindow('ujAddAvailFieldModalOverlay'));
+      }
+    }
+    if (typeof MdiManager !== 'undefined' && overlay.dataset.fieldWindow) MdiManager.activateWindow('ujAddAvailFieldModalOverlay');
+    else overlay.style.display = "flex";
     overlay.classList.add("active");
 
+    this.updateAddFieldWindowTitle();
     const win = document.getElementById("ujAddAvailFieldWindow");
     const title = document.getElementById("ujAddAvailFieldTitlebar");
-    if (win && title && !title.dataset.bound) {
+    if (win && title && !title.dataset.bound && typeof MdiManager === "undefined") {
       title.dataset.bound = "1";
       title.onpointerdown = e => {
         if (e.button !== 0 || e.target.closest("button")) return;
@@ -519,6 +602,7 @@ const C1FilterComponent = {
   closeAddAvailableFieldDialog: function() {
     const overlay = document.getElementById("ujAddAvailFieldModalOverlay");
     if (overlay) {
+      if (typeof MdiManager !== 'undefined' && overlay.dataset.fieldWindow) MdiManager.closeWindow('ujAddAvailFieldModalOverlay');
       overlay.classList.remove("active");
       overlay.style.display = "none";
     }
@@ -529,76 +613,83 @@ const C1FilterComponent = {
     const countEl = document.getElementById("ujAddAvailFieldCount");
     if (!listEl) return;
 
-    const allFields = this.getAllKnownFields();
-    const currentKeys = new Set((this.availableFields || []).map(f => f.key));
+    const allFields = this.getAllKnownFields().map(field => {
+      const f = { ...field };
+      if (["pogruzka_marshrut", "pogruzka_voditel", "pogruzka_duplicate", "pogruzka_active_duplicate"].includes(f.key)) {
+        f.category = "Погрузка, связанная с продажей";
+      } else if (["marshrut", "voditel", "realization_count"].includes(f.key)) {
+        f.category = "Документ погрузки";
+        if (f.key === "voditel") f.label = "Водитель";
+      }
+      return f;
+    });
+    const currentKeys = new Set((this.availableFields || []).map(f => this.canonicalFieldKey(f.key)));
 
+    const isAz = window.C1I18n && window.C1I18n.getLanguage() === 'az';
+    const labels = {
+      'Основные': 'Əsas sahələr', 'Стандартные': 'Sənədin vəziyyəti',
+      'Контрагенты': 'Kontragentlər', 'Договоры': 'Müqavilələr', 'Склад': 'Anbar',
+      'Номенклатура': 'Nomenklatura', 'Документы': 'Əlaqəli sənədlər',
+      'Логистика / WMS': 'Logistika / WMS', 'Текущий журнал': 'Cari jurnal',
+      'Дополнительные': 'Əlavə sahələr', 'Колонки журнала': 'Jurnal sütunları',
+      'Погрузка, связанная с продажей': 'Satışa bağlı yükləmə', 'Документ погрузки': 'Yükləmə sənədi',
+      'Общие': 'Ümumi', 'Подразделение': 'Bölmə', 'Организация': 'Təşkilat',
+      'Булево': 'Bəli / Xeyr', 'Число': 'Ədəd', 'Дата': 'Tarix', 'Список': 'Siyahı', 'Текст': 'Mətn'
+    };
+    const localize = value => isAz && labels[value] ? labels[value] :
+      (window.C1I18n ? window.C1I18n.translatePhrase(value) : value);
     const q = String(query || "").trim().toLowerCase();
     const filtered = allFields.filter(f => {
       if (!q) return true;
       const displayLabel = window.C1I18n ? window.C1I18n.translateColumn(f.key, f.label) : f.label;
-      return f.label.toLowerCase().includes(q) || f.key.toLowerCase().includes(q) || displayLabel.toLowerCase().includes(q);
+      return f.label.toLowerCase().includes(q) || f.key.toLowerCase().includes(q) || localize(displayLabel).toLowerCase().includes(q) || localize(f.category || "Общие").toLowerCase().includes(q);
     });
 
     if (countEl) {
-      countEl.textContent = `${filtered.length} из ${allFields.length}`;
+      countEl.textContent = isAz ? `${filtered.length} / ${allFields.length} sahə` : `${filtered.length} из ${allFields.length}`;
     }
 
     if (filtered.length === 0) {
-      listEl.innerHTML = `<div style="padding: 30px; text-align: center; color: #888; font-style: italic;">Поле не найдено. Нажмите "Произвольное поле...", чтобы добавить любое нестандартное поле.</div>`;
+      listEl.innerHTML = `<div style="padding: 30px; text-align: center; color: #888; font-style: italic;">${isAz ? 'Sahə tapılmadı. Başqa adla axtarın və ya əlavə sahə yaradın.' : 'Поле не найдено. Нажмите «Произвольное поле...», чтобы добавить нестандартное поле.'}</div>`;
       return;
     }
 
     if (!this.selectedAddAvailKey || !filtered.some(f => f.key === this.selectedAddAvailKey)) {
-      const firstAvailable = filtered.find(f => !currentKeys.has(f.key));
+      const firstAvailable = filtered.find(f => !currentKeys.has(f.key) && this.isFieldInCurrentDoc(f.key)) || filtered.find(f => this.isFieldInCurrentDoc(f.key));
       this.selectedAddAvailKey = firstAvailable ? firstAvailable.key : filtered[0].key;
     }
 
-    let html = "";
+    const headings = isAz ? ['Sahə', 'Bölmə', 'Sənəddə dəstək', 'Tip', 'Seçilib'] : ['Поле', 'Раздел', 'Поддержка в документе', 'Тип', 'Добавлено'];
+    let html = `<table class="c1-field-table" data-i18n-skip><colgroup><col style="width:34%"><col style="width:25%"><col style="width:20%"><col style="width:12%"><col style="width:9%"></colgroup><thead><tr>${headings.map(label => `<th scope="col">${label}</th>`).join('')}</tr></thead><tbody>`;
+    const groups = new Map();
     filtered.forEach(f => {
-      const isAlreadyIn = currentKeys.has(f.key);
-      const isSel = (f.key === this.selectedAddAvailKey);
-      const isInDoc = this.isFieldInCurrentDoc(f.key);
-      const isAz = (window.C1I18n && window.C1I18n.getLanguage() === 'az');
-      const bg = isSel ? "#316ac5" : (isAlreadyIn ? "#fbfaf6" : "#ffffff");
-      const fg = isSel ? "#ffffff" : (isAlreadyIn ? "#666666" : "#111111");
-      const displayLabel = window.C1I18n ? window.C1I18n.translateColumn(f.key, f.label) : f.label;
-      const typeLabel = f.type === "boolean" ? "Булево" : (f.type === "number" ? "Число" : (f.type === "date" ? "Дата" : (f.type === "select" ? "Список" : "Текст")));
-
-      const inDocBadge = isInDoc
-        ? `<span style="font-size: 9px; padding: 1px 5px; border-radius: 2px; background: ${isSel ? 'rgba(46,125,50,0.85)' : '#e8f5e9'}; color: ${isSel ? '#fff' : '#2e7d32'}; font-weight: bold; border: 1px solid ${isSel ? '#2e7d32' : '#c8e6c9'};">${isAz ? '✅ Sənəddə var' : '✅ В документе'}</span>`
-        : `<span style="font-size: 9px; padding: 1px 5px; border-radius: 2px; background: ${isSel ? 'rgba(216,67,21,0.85)' : '#fff3e0'}; color: ${isSel ? '#fff' : '#d84315'}; font-weight: bold; border: 1px solid ${isSel ? '#d84315' : '#ffe0b2'};" title="${isAz ? 'Bu sahə cari sənəddə qeydiyyatda deyil' : 'Этот реквизит не ведется в текущем документе'}">${isAz ? '⚠️ Bu sənəddə yoxdur' : '⚠️ Нет в этом документе'}</span>`;
-
-      html += `
-        <div id="ujAddAvailItem_${f.key}" data-key="${f.key}"
-             style="padding: 5px 8px; font-size: 11px; background: ${bg}; color: ${fg}; cursor: pointer; user-select: none; display: flex; align-items: center; justify-content: space-between; gap: 8px; border-bottom: 1px dotted #e0dec8;"
-             onclick="C1FilterComponent.selectAddAvailItem('${f.key}')"
-             ondblclick="C1FilterComponent.confirmAddAvailableField('${f.key}')">
-          <div style="display: flex; align-items: center; gap: 6px; min-width: 0;">
-            <span style="font-size: 11px; color: ${isSel ? '#ffffff' : (isAlreadyIn ? '#888' : (isInDoc ? '#2e7d32' : '#d84315'))}; font-weight: bold; flex-shrink: 0;">
-              ${isAlreadyIn ? '✓' : (isInDoc ? '➕' : '⚠️')}
-            </span>
-            <div style="display: flex; flex-direction: column; min-width: 0;">
-              <span style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-weight: ${isSel ? 'bold' : 'normal'};">
-                ${this.escapeHtml(displayLabel)}
-              </span>
-              <span style="font-size: 9px; color: ${isSel ? '#e0e8ff' : (isInDoc ? '#888888' : '#d84315')};">
-                ${this.escapeHtml(f.key)} • ${this.escapeHtml(f.category || 'Общие')}
-                ${!isInDoc ? ` • (${isAz ? 'sənəddə qeydiyyatı yoxdur' : 'отсутствует в этом документе'})` : ''}
-              </span>
-            </div>
-          </div>
-          <div style="display: flex; align-items: center; gap: 4px; flex-shrink: 0;">
-            ${inDocBadge}
-            <span style="font-size: 9px; padding: 1px 4px; border-radius: 2px; background: ${isSel ? 'rgba(255,255,255,0.2)' : '#eee'}; color: ${isSel ? '#fff' : '#666'};">
-              ${typeLabel}
-            </span>
-            ${isAlreadyIn ? `<span style="font-size: 10px; color: ${isSel ? '#ffeb3b' : '#388e3c'}; font-style: italic;">${window.C1I18n ? window.C1I18n.translatePhrase('filter.already_added') : 'Уже в списке'}</span>` : ''}
-          </div>
-        </div>
-      `;
+      const category = f.category || 'Общие';
+      if (!groups.has(category)) groups.set(category, []);
+      groups.get(category).push(f);
     });
-
+    this.collapsedAddFieldGroups = this.collapsedAddFieldGroups || new Set();
+    groups.forEach((fields, category) => {
+      const collapsed = !q && this.collapsedAddFieldGroups.has(category);
+      html += `<tr class="c1-field-group"><th colspan="5"><button type="button" data-category="${this.escapeHtml(category)}" aria-expanded="${!collapsed}" onclick="C1FilterComponent.toggleAddFieldGroup(this.dataset.category)">${collapsed ? '▸' : '▾'} ${this.escapeHtml(localize(category))} <span>(${fields.length})</span></button></th></tr>`;
+      fields.forEach(f => {
+        const isAlreadyIn = currentKeys.has(f.key);
+        const isSel = f.key === this.selectedAddAvailKey;
+        const isInDoc = this.isFieldInCurrentDoc(f.key);
+        const displayLabel = localize(window.C1I18n ? C1I18n.translateColumn(f.key, f.label) : f.label);
+        const typeLabel = localize({boolean:'Булево',number:'Число',date:'Дата',select:'Список'}[f.type] || 'Текст');
+        const status = isAz ? (isInDoc ? 'Dəstəklənir' : 'Dəstəklənmir') : (isInDoc ? 'Поддерживается' : 'Не поддерживается');
+        html += `<tr id="ujAddAvailItem_${this.escapeHtml(f.key)}" data-key="${this.escapeHtml(f.key)}" class="c1-field-row${isSel ? ' selected' : ''}" aria-selected="${isSel}" ${collapsed ? 'hidden' : ''}
+          onclick="C1FilterComponent.selectAddAvailItem(this.dataset.key)" ondblclick="C1FilterComponent.confirmAddAvailableField(this.dataset.key)">
+          <td title="${this.escapeHtml(displayLabel)}">${this.escapeHtml(displayLabel)}</td>
+          <td title="${this.escapeHtml(localize(category))}">${this.escapeHtml(localize(category))}</td>
+          <td><span class="c1-field-support ${isInDoc ? 'supported' : 'unsupported'}">${status}</span></td>
+          <td>${this.escapeHtml(typeLabel)}</td>
+          <td class="c1-field-check"><input type="checkbox" aria-label="${isAz ? 'Sahəni seç' : 'Выбрать поле'}: ${this.escapeHtml(displayLabel)}" ${isAlreadyIn ? 'checked' : ''} ${!isAlreadyIn && !isInDoc ? 'disabled' : ''} onclick="event.stopPropagation()" ondblclick="event.stopPropagation()" onchange="C1FilterComponent.toggleAvailableField(this.closest('tr').dataset.key, this.checked)"></td></tr>`;
+      });
+    });
+    html += '</tbody></table>';
     listEl.innerHTML = html;
+    this.updateAddFieldButton();
 
     const activeEl = listEl.querySelector(`[id='ujAddAvailItem_${this.selectedAddAvailKey}']`);
     if (activeEl) {
@@ -614,40 +705,58 @@ const C1FilterComponent = {
     this.selectedAddAvailKey = key;
     const listEl = document.getElementById("ujAddAvailFieldList");
     if (!listEl) return;
-    const currentKeys = new Set((this.availableFields || []).map(f => f.key));
-
     listEl.querySelectorAll("[id^='ujAddAvailItem_']").forEach(el => {
-      const itemKey = el.getAttribute("data-key");
-      const isSel = (itemKey === key);
-      const isAlreadyIn = currentKeys.has(itemKey);
-      el.style.background = isSel ? "#316ac5" : (isAlreadyIn ? "#fbfaf6" : "#ffffff");
-      el.style.color = isSel ? "#ffffff" : (isAlreadyIn ? "#666666" : "#111111");
+      const isSelected = el.getAttribute('data-key') === key;
+      el.classList.toggle('selected', isSelected);
+      el.setAttribute('aria-selected', String(isSelected));
     });
+    this.updateAddFieldButton();
+  },
+
+  updateAddFieldButton: function() {
+    const button = document.getElementById('ujAddAvailFieldAddButton');
+    if (button) button.disabled = !this.selectedAddAvailKey || !this.isFieldInCurrentDoc(this.selectedAddAvailKey) ||
+      this.availableFields.some(f => this.canonicalFieldKey(f.key) === this.selectedAddAvailKey);
+  },
+
+  toggleAddFieldGroup: function(category) {
+    this.collapsedAddFieldGroups = this.collapsedAddFieldGroups || new Set();
+    if (this.collapsedAddFieldGroups.has(category)) this.collapsedAddFieldGroups.delete(category);
+    else this.collapsedAddFieldGroups.add(category);
+    this.renderAddAvailableFieldList(document.getElementById('ujAddAvailFieldSearchInput')?.value || '');
+  },
+
+  toggleAvailableField: function(fieldKey, selected) {
+    const key = this.canonicalFieldKey(fieldKey);
+    const existing = this.availableFields.find(f => this.canonicalFieldKey(f.key) === key);
+    if (selected && !existing) {
+      if (!this.isFieldInCurrentDoc(key)) return false;
+      const definition = this.getAllKnownFields().find(f => f.key === key);
+      if (!definition) return false;
+      this.availableFields.push({ ...definition });
+    } else if (!selected && existing) {
+      this.availableFields = this.availableFields.filter(f => this.canonicalFieldKey(f.key) !== key);
+      // Retain the edited value, but a field removed by the user cannot remain active.
+      (this.tempFilterCriteria || []).forEach(crit => {
+        if (this.canonicalFieldKey(crit.fieldKey) === key) crit.enabled = false;
+      });
+      if (this.filterSelectedFieldKey === key) this.filterSelectedFieldKey = this.availableFields[0]?.key || null;
+      this.syncTempFiltersToStorage();
+    }
+    this.selectedAddAvailKey = key;
+    this.savePersistedAvailableFields();
+    this.renderFilterAvailableFields();
+    this.renderFilterCriteriaRows();
+    const list = document.getElementById('ujAddAvailFieldList');
+    const scrollTop = list?.scrollTop || 0;
+    this.renderAddAvailableFieldList(document.getElementById('ujAddAvailFieldSearchInput')?.value || '');
+    if (list) list.scrollTop = scrollTop;
+    return true;
   },
 
   confirmAddAvailableField: function(targetKey) {
     const key = targetKey || this.selectedAddAvailKey;
     if (!key) return;
-
-    const allKnown = this.getAllKnownFields();
-    const fieldDef = allKnown.find(f => f.key === key) || { key, label: key, type: "text" };
-    const isInDoc = this.isFieldInCurrentDoc(key);
-    const isAz = (window.C1I18n && window.C1I18n.getLanguage() === 'az');
-    const docName = this.docTitle || this.contextKey || "текущем документе";
-
-    if (!isInDoc) {
-      const warnMsg = isAz
-        ? `⚠️ DİQQƏT: "${fieldDef.label}" sahəsi cari "${docName}" sənədində qeydiyyatda yoxdur və cədvəldə mövcud deyil.\n\nƏgər bu sahə üzrə süzgəc qoysanız, heç bir sənəd tapılmayacaq (cədvəl boş çıxacaq).\n\nYenə də süzgəc sahələrinə əlavə edilsin?`
-        : `⚠️ ВНИМАНИЕ: Поле "${fieldDef.label}" (${key}) не поддерживается в документе "${docName}" и отсутствует в таблице.\n\nВ вашей таблице или документе нет записей по этому полю. Если вы включите отбор по нему, список документов будет пустым (0 записей).\n\nВсе равно добавить в список доступных полей?`;
-      if (!confirm(warnMsg)) {
-        return;
-      }
-    } else {
-      // If field IS present in document items/schema, ensure it's also added to the table columns!
-      if (window.UniversalJournal && typeof UniversalJournal.ensureColumnExists === "function") {
-        UniversalJournal.ensureColumnExists(fieldDef.key, fieldDef.label);
-      }
-    }
 
     // Check if already in availableFields
     const existing = this.availableFields.find(f => f.key === key);
@@ -655,6 +764,22 @@ const C1FilterComponent = {
       this.closeAddAvailableFieldDialog();
       this.selectAvailableField(key);
       return;
+    }
+
+    const allKnown = this.getAllKnownFields();
+    const fieldDef = allKnown.find(f => f.key === key) || { key, label: key, type: "text" };
+    const isInDoc = this.isFieldInCurrentDoc(key);
+    const isAz = (window.C1I18n && window.C1I18n.getLanguage() === 'az');
+
+    if (!isInDoc) {
+      const label = window.C1I18n ? C1I18n.translateColumn(key, fieldDef.label) : fieldDef.label;
+      alert(isAz ? `"${label}" sahəsi bu sənəddə dəstəklənmir.` : `Поле «${label}» не поддерживается в этом документе.`);
+      return;
+    } else {
+      // If field IS present in document items/schema, ensure it's also added to the table columns!
+      if (window.UniversalJournal && typeof UniversalJournal.ensureColumnExists === "function") {
+        UniversalJournal.ensureColumnExists(fieldDef.key, fieldDef.label);
+      }
     }
 
     this.availableFields.push({
@@ -730,13 +855,18 @@ const C1FilterComponent = {
     const typeInp = document.getElementById("ujCustomFieldType");
     if (!keyInp || !labelInp) return;
 
-    const key = keyInp.value.trim();
+    const key = this.canonicalFieldKey(keyInp.value.trim());
     const label = labelInp.value.trim() || key;
     const type = typeInp ? typeInp.value : "text";
 
     if (!key) {
       alert("Укажите код поля (например: organization).");
       keyInp.focus();
+      return;
+    }
+
+    if (!this.isFieldInCurrentDoc(key)) {
+      alert(window.C1I18n && C1I18n.getLanguage() === 'az' ? 'Bu sahə cari sənəddə dəstəklənmir.' : 'Поле не поддерживается в этом документе.');
       return;
     }
 
@@ -768,7 +898,7 @@ const C1FilterComponent = {
       e.preventDefault();
       const listEl = document.getElementById("ujAddAvailFieldList");
       if (!listEl) return;
-      const items = Array.from(listEl.querySelectorAll("[id^='ujAddAvailItem_']"));
+      const items = Array.from(listEl.querySelectorAll("[id^='ujAddAvailItem_']")).filter(el => !el.hidden);
       if (items.length === 0) return;
       let currIdx = items.findIndex(el => el.getAttribute("data-key") === this.selectedAddAvailKey);
       if (e.key === "ArrowDown") {
@@ -1236,6 +1366,7 @@ const C1FilterComponent = {
       const field = this.availableFields.find(f => f.key === crit.fieldKey) || {key:crit.fieldKey,type:"text"};
       if (!this.getOperatorsForField(field).includes(newOp)) return;
       crit.operator = newOp;
+      if (!["В списке", "Не в списке", "В группе из списка"].includes(newOp)) delete crit.structuredFilter;
       if (newOp.startsWith("Интервал")) {
         if (!crit.valueFrom && !crit.valueTo && crit.value) {
           const parts = String(crit.value).split(/\s*(?:\.\.\.|—|-)\s*/);
@@ -1261,6 +1392,10 @@ const C1FilterComponent = {
         inputEl.value = inputEl.value.replace(/[^0-9.:\s\/\-,]/g, "");
       }
       crit.value = inputEl.value;
+      delete crit.structuredFilter;
+      delete crit.referenceCode;
+      delete crit.referenceName;
+      if (inputEl.dataset) delete inputEl.dataset.structuredList;
       const valid = this.validateNumberInput(idx, inputEl, false);
       if (!valid) {
         crit.enabled = false;
@@ -1509,13 +1644,17 @@ const C1FilterComponent = {
 
     let catalog = null;
     if (crit.fieldKey === "contract_price_type") catalog = "ТипыЦенНоменклатуры";
+    else if (crit.fieldKey === "agent_sales_type") catalog = "ВидыРеализации";
+    else if (crit.fieldKey === "agent_sales_group") catalog = "ГруппыРеализации";
     else if (crit.fieldKey === "contract") catalog = "ДоговорыКонтрагентов";
     else if (crit.fieldKey === "kontragent" || crit.fieldKey === "kontragent_code") catalog = "Контрагенты";
+    else if (crit.fieldKey === "organization") catalog = "Организации";
+    else if (crit.fieldKey === "currency") catalog = "Валюты";
     else if (crit.fieldKey === "warehouse") catalog = "Склады";
     else if (crit.fieldKey === "responsible") catalog = "Пользователи";
-    else if (crit.fieldKey === "pogruzka_voditel") catalog = "Водители";
+    else if (crit.fieldKey === "pogruzka_voditel" || crit.fieldKey === "voditel") catalog = "Водители";
     else if (crit.fieldKey === "portfolio") catalog = "Портфели";
-    else if (crit.fieldKey === "nomenclature") catalog = "Номенклатура";
+    else if (["nomenclature", "artikul", "barcode"].includes(crit.fieldKey)) catalog = "Номенклатура";
 
     const itemsList = (Array.isArray(this.items) && this.items.length > 0)
       ? this.items
@@ -1580,8 +1719,9 @@ const C1FilterComponent = {
             const mergedMap = new Map();
             filtered.forEach(f => mergedMap.set(f, f));
             data.items.forEach(it => {
-              const label = it.code ? `[${it.code}] ${it.name}` : it.name;
-              mergedMap.set(label, it.name);
+              const attribute = ['artikul', 'barcode'].includes(crit.fieldKey) ? String(it[crit.fieldKey] || '').trim() : '';
+              const label = ['artikul', 'barcode'].includes(crit.fieldKey) ? attribute : (it.code ? `[${it.code}] ${it.name}` : it.name);
+              if (label) mergedMap.set(label, attribute || it.name);
             });
             const mergedList = Array.from(mergedMap.keys());
             this.renderFilterAutocompletePopup(idx, inputEl, mergedList);
@@ -1593,6 +1733,44 @@ const C1FilterComponent = {
     } else if (filtered.length === 0) {
       this.hideFilterAutocomplete();
     }
+  },
+
+  applyValueListSelection: function(idx, data, input) {
+    const crit = this.tempFilterCriteria[idx];
+    if (!crit) return;
+    const structured = data ? { ...data, items: (data.items || []).map(item => ({ ...item })) } : null;
+    if (structured && ['kontragent_code', 'golovnoy_kontragent_code', 'artikul', 'barcode'].includes(crit.fieldKey)) {
+      structured.items.forEach(item => {
+        const value = ['artikul','barcode'].includes(crit.fieldKey) ? item[crit.fieldKey] : item.code;
+        if (item.comp !== 'contains' && value) item.value = value;
+      });
+      structured.displayStr = structured.items.map(item => item.value).join('; ');
+    }
+    crit.value = structured?.displayStr || input?.value || '';
+    crit.structuredFilter = structured;
+    delete crit.referenceCode;
+    delete crit.referenceName;
+    if (input) { input.value = crit.value; input.dataset.structuredList = JSON.stringify(structured); }
+    this.setCritEnabled(idx, Boolean(crit.value));
+  },
+
+  applyCatalogSelection: function(idx, selectedItem, displayValue) {
+    const crit = this.tempFilterCriteria[idx];
+    if (!crit || !selectedItem) return;
+    const code = String(selectedItem.code || selectedItem.Код || '').trim();
+    const name = selectedItem.name || selectedItem.Наименование || displayValue || '';
+    const value = ['kontragent_code', 'golovnoy_kontragent_code'].includes(crit.fieldKey) ? code : (['artikul','barcode'].includes(crit.fieldKey) ? (selectedItem[crit.fieldKey] || '') : (crit.fieldKey === 'nomenclature' && code ? `[${code}] ${name}` : name));
+    const input = document.getElementById(`ujFilterValInput_${idx}`);
+    crit.value = value;
+    delete crit.structuredFilter;
+    delete crit.referenceCode;
+    delete crit.referenceName;
+    if (code && ['kontragent', 'golovnoy_kontragent'].includes(crit.fieldKey)) {
+      crit.referenceCode = code;
+      crit.referenceName = value;
+    }
+    if (input) { input.value = value; if (input.dataset) delete input.dataset.structuredList; }
+    this.setCritEnabled(idx, Boolean(value));
   },
 
   getDistinctFieldValues: function(fieldKey) {
@@ -1631,7 +1809,7 @@ const C1FilterComponent = {
              style="padding: 3px 8px; cursor: pointer; user-select: none; border-bottom: 1px dotted #eee; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: #111111 !important; background: #ffffff !important;"
              onmouseover="this.style.background='#316ac5'; this.style.color='#ffffff';"
              onmouseout="this.style.background='#ffffff'; this.style.color='#111111';"
-             onmousedown="event.preventDefault(); (window.C1FilterComponent || UniversalJournal).selectAutocompleteSuggestion(${idx}, '${escaped}');">
+             onmousedown="event.preventDefault(); (window.C1FilterComponent || UniversalJournal).selectAutocompleteSuggestion(${idx}, this.getAttribute('data-val'));">
           ${escaped}
         </div>
       `;
@@ -1653,7 +1831,12 @@ const C1FilterComponent = {
     const crit = this.tempFilterCriteria[idx];
     if (!crit) return;
 
-    const cleanVal = val.replace(/^\[[^\]]+\]\s*/, "");
+    const bracketCode = String(val).match(/^\[([^\]]+)\]/);
+    const cleanVal = ["kontragent_code", "golovnoy_kontragent_code"].includes(crit.fieldKey) && bracketCode
+      ? bracketCode[1] : (crit.fieldKey === "nomenclature" ? val : val.replace(/^\[[^\]]+\]\s*/, ""));
+    delete crit.structuredFilter;
+    delete crit.referenceCode;
+    delete crit.referenceName;
     const isListOp = (crit.operator === "В группе из списка" || crit.operator === "В списке");
     if (isListOp && inputEl && inputEl.value.includes(";")) {
       const parts = inputEl.value.split(";").map(s => s.trim()).filter(Boolean);
@@ -1748,14 +1931,18 @@ const C1FilterComponent = {
     const isMulti = (op === "В группе из списка" || op === "В списке" || op === "Не в списке");
     let catalog = null;
     if (crit.fieldKey === "contract_price_type") catalog = "ТипыЦенНоменклатуры";
+    else if (crit.fieldKey === "agent_sales_type") catalog = "ВидыРеализации";
+    else if (crit.fieldKey === "agent_sales_group") catalog = "ГруппыРеализации";
     else if (crit.fieldKey === "contract") catalog = "ДоговорыКонтрагентов";
     else if (crit.fieldKey === "kontragent" || crit.fieldKey === "kontragent_code" || crit.fieldKey === "golovnoy_kontragent" || crit.fieldKey === "golovnoy_kontragent_code") catalog = "Контрагенты";
     else if (crit.fieldKey === "agent") catalog = "Агенты";
+    else if (crit.fieldKey === "organization") catalog = "Организации";
+    else if (crit.fieldKey === "currency") catalog = "Валюты";
     else if (crit.fieldKey === "warehouse") catalog = "Склады";
     else if (crit.fieldKey === "responsible") catalog = "Пользователи";
-    else if (crit.fieldKey === "pogruzka_voditel") catalog = "Водители";
+    else if (crit.fieldKey === "pogruzka_voditel" || crit.fieldKey === "voditel") catalog = "Водители";
     else if (crit.fieldKey === "portfolio") catalog = "Портфели";
-    else if (crit.fieldKey === "nomenclature") catalog = "Номенклатура";
+    else if (["nomenclature", "artikul", "barcode"].includes(crit.fieldKey)) catalog = "Номенклатура";
 
     if (catalog) {
       if (isMulti) {
@@ -1765,13 +1952,7 @@ const C1FilterComponent = {
             catalog: catalog,
             structuredFilter: crit.structuredFilter,
             onApply: (data) => {
-              crit.value = (data && data.displayStr) ? data.displayStr : (inputEl ? inputEl.value : "");
-              crit.structuredFilter = data;
-              if (inputEl) {
-                inputEl.value = crit.value;
-                inputEl.dataset.structuredList = JSON.stringify(data);
-              }
-              this.setCritEnabled(idx, true);
+              this.applyValueListSelection(idx, data, inputEl);
             }
           });
         }
@@ -1779,12 +1960,7 @@ const C1FilterComponent = {
         if (window.OneCCatalogPicker && typeof OneCCatalogPicker.open === "function") {
           OneCCatalogPicker.open(catalog, inputEl, {
             onSelect: (selectedItem, valStr) => {
-              if (selectedItem) {
-                const name = valStr || selectedItem.name || selectedItem.Наименование || "";
-                if (inputEl) inputEl.value = name;
-                crit.value = name;
-                this.setCritEnabled(idx, true);
-              }
+              this.applyCatalogSelection(idx, selectedItem, valStr);
             }
           });
         } else if (window.CatalogSelector && typeof CatalogSelector.open === "function") {
@@ -1793,12 +1969,7 @@ const C1FilterComponent = {
             targetInput: inputEl,
             multiSelect: false,
             onSelect: (selectedItem) => {
-              if (selectedItem) {
-                const name = selectedItem.name || selectedItem.Наименование || "";
-                if (inputEl) inputEl.value = name;
-                crit.value = name;
-                this.setCritEnabled(idx, true);
-              }
+              this.applyCatalogSelection(idx, selectedItem);
             }
           });
         }
@@ -2048,6 +2219,7 @@ const C1FilterComponent = {
   validateCriteria: function(criteria) {
     for (let idx = 0; idx < criteria.length; idx++) {
       const c = criteria[idx];
+      if (c) c.fieldKey = this.canonicalFieldKey(c.fieldKey);
       if (!c || c.enabled === false) continue;
       const field = this.availableFields.find(f => f.key === c.fieldKey);
       let error = !field || !this.isFieldInCurrentDoc(c.fieldKey) ? "Sahə bu sənəddə dəstəklənmir" : "";
@@ -2070,7 +2242,13 @@ const C1FilterComponent = {
         const dates = present.map(v => window.C1Dates ? C1Dates.parse(String(v)) : null);
         if (dates.some(v => !v) || (dates.length === 2 && dates[0] > dates[1])) error = "Tarix və ya interval düzgün deyil";
       }
-      if (!error && !noValue && field.type === "select" && ["Равно", "Не равно"].includes(op) && !(field.options || []).some(v => String(typeof v === "object" ? v.value : v) === String(c.value))) error = "Siyahıdan düzgün dəyər seçin";
+      if (!error && !noValue && field.type === "select") {
+        const normalize = value => c.fieldKey === 'vms_status' ? String(value).toLowerCase().replace(/wms/g,'вмс').replace(/[\s_]+/g,'') : String(value);
+        const options = (field.options || []).map(v => normalize(typeof v === 'object' ? v.value : v));
+        const selected = ['В списке','Не в списке'].includes(op)
+          ? (c.structuredFilter?.items?.length ? c.structuredFilter.items.map(item => item.value) : String(c.value || '').split(/[,;\n]+/).map(v=>v.trim()).filter(Boolean)) : [c.value];
+        if (!selected.length || selected.some(v => !options.includes(normalize(v)))) error = "Siyahıdan düzgün dəyər seçin";
+      }
       if (error) {
         const input = document.getElementById(`ujFilterValInput_${idx}`) || document.getElementById(`ujFilterValInput_${idx}_from`);
         if (input) { input.style.border = "1px solid #cc0000"; input.focus?.(); }
@@ -2240,6 +2418,22 @@ const C1FilterComponent = {
   },
 
   openPresetSaveModal: function() {
+    if (window.C1PresetComponent) {
+      window.C1PresetComponent.openSave({
+        context: this.currentJournalKey || "universal_journal",
+        title: "Сохранение настройки отбора",
+        getSettings: () => this.activeFilters,
+        onSaved: (preset) => {
+          this.activePresetName = preset.name;
+          if (preset.isDefault) this.saveActiveFiltersToStorage();
+          if (this.onApplyCallback && !this.explicitGenerate) {
+            this.onApplyCallback(this.activeFilters, this.activePresetName);
+          }
+        }
+      });
+      return;
+    }
+
     let modal = document.getElementById("ujPresetSaveModal");
     if (!modal) {
       modal = document.createElement("div");
@@ -2480,6 +2674,24 @@ const C1FilterComponent = {
 
   // Modal: Restore / Manage Presets (📁⚙️)
   openPresetRestoreModal: function() {
+    if (window.C1PresetComponent) {
+      window.C1PresetComponent.openRestore({
+        context: this.currentJournalKey || "universal_journal",
+        title: "Восстановление / Управление сохраненными настройками",
+        onApply: (data, name) => {
+          this.activePresetName = name;
+          this.activeFilters = Array.isArray(data) ? JSON.parse(JSON.stringify(data)) : [];
+          this.saveActiveFiltersToStorage();
+          this.render();
+          if (this.onApplyCallback) this.onApplyCallback(this.activeFilters, this.activePresetName);
+        },
+        onReset: () => {
+          this.clearFilterAndCloseModal();
+        }
+      });
+      return;
+    }
+
     let modal = document.getElementById("ujPresetRestoreModal");
     if (!modal) {
       modal = document.createElement("div");
@@ -2825,6 +3037,10 @@ const C1FilterComponent = {
         const code = c.code ? c.code.toLowerCase().trim() : "";
         const art = c.artikul ? c.artikul.toLowerCase().trim() : "";
         const bc = c.barcode ? c.barcode.toLowerCase().trim() : "";
+        if (comp === "equal" && code) {
+          if (Array.isArray(item.nom_keys) && item.nom_keys.length) return noms.some(n => n.split("|")[0].trim() === code);
+          if (isServerFiltered) return true;
+        }
         return noms.some(n => {
           if (matchSingleNom(n, val, comp)) return true;
           if (code && matchSingleNom(n, code, "equal")) return true;
@@ -2877,9 +3093,11 @@ const C1FilterComponent = {
       if (op.startsWith("Интервал")) {
         const sFrom = (crit.valueFrom !== undefined && crit.valueFrom !== "") ? String(crit.valueFrom) : (String(targetVal || "").split(/\s*(?:\.\.\.|—|-)\s*/)[0] || "");
         const sTo = (crit.valueTo !== undefined && crit.valueTo !== "") ? String(crit.valueTo) : (String(targetVal || "").split(/\s*(?:\.\.\.|—|-)\s*/)[1] || sFrom);
-        const dtStart = this.parseFullDateTimeMs(sFrom, false);
-        const dtEnd = this.parseFullDateTimeMs(sTo, true);
-        if (dtItem === null || dtStart === null || dtEnd === null) return true;
+        const rawFrom = crit.valueFrom === undefined ? sFrom : String(crit.valueFrom || '').trim();
+        const rawTo = crit.valueTo === undefined ? sTo : String(crit.valueTo || '').trim();
+        const dtStart = rawFrom ? this.parseFullDateTimeMs(rawFrom, false) : -Infinity;
+        const dtEnd = rawTo ? this.parseFullDateTimeMs(rawTo, true) : Infinity;
+        if (dtItem === null || dtStart === null || dtEnd === null) return false;
 
         if (op === "Интервал (>, <)") return dtItem > dtStart && dtItem < dtEnd;
         if (op === "Интервал (>=, <=)") return dtItem >= dtStart && dtItem <= dtEnd;
@@ -3021,6 +3239,12 @@ window.C1FilterComponent = C1FilterComponent;
 
 window.addEventListener('c1-language-changed', () => {
   if (typeof C1FilterComponent !== 'undefined') {
+    C1FilterComponent.updateListSettingsWindowTitle();
+    const picker = document.getElementById('ujAddAvailFieldModalOverlay');
+    if (picker && picker.style.display !== 'none') {
+      C1FilterComponent.updateAddFieldWindowTitle();
+      C1FilterComponent.renderAddAvailableFieldList(document.getElementById('ujAddAvailFieldSearchInput')?.value || '');
+    }
     if (typeof C1FilterComponent.renderFilterAvailableFields === 'function') {
       C1FilterComponent.renderFilterAvailableFields();
     }

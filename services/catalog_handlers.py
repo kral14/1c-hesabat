@@ -143,6 +143,12 @@ def handle_catalog_data(conn, payload, key, resp_q):
     folder_name = str(payload.get("folder") or "").strip()
     search_q = str(payload.get("search") or "").strip()
 
+    classification_catalog = cat_name in ('ВидыРеализации','ГруппыРеализации')
+    if classification_catalog:
+        from services.agent_filters import catalog_name
+        field = 'agent_sales_type' if cat_name == 'ВидыРеализации' else 'agent_sales_group'
+        cat_name = catalog_name(conn,field)
+
     if "портфел" in cat_name.lower():
         q_port = conn.NewObject("Запрос")
         q_port.Text = """
@@ -180,7 +186,9 @@ def handle_catalog_data(conn, payload, key, resp_q):
     # Map user or field catalog name to real 1C metadata catalog name
     cat_lower = str(cat_name or "").lower().strip()
     ref_cat = "Номенклатура"
-    if any(w in cat_lower for w in ["тип цен", "типы цен", "типцен", "типыценноменклатуры", "price_type", "contract_price_type"]):
+    if classification_catalog:
+        ref_cat = cat_name
+    elif any(w in cat_lower for w in ["тип цен", "типы цен", "типцен", "типыценноменклатуры", "price_type", "contract_price_type"]):
         ref_cat = "ТипыЦенНоменклатуры"
     elif any(w in cat_lower for w in ["договор", "договоры", "договорыконтрагентов", "contract"]):
         ref_cat = "ДоговорыКонтрагентов"

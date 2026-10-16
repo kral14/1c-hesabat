@@ -11,6 +11,8 @@ class Query:
         self.Date = '14.10.2026 09:00:00'
         self.Posted = True
         self.DeletionMark = False
+        self.KontragentCode = 'C001'
+        self.GolovnoyKontragentCode = 'C002'
         self.Kontragent = 'Test store'
         self.GolovnoyKontragent = 'Test parent'
         self.Agent = 'Test agent'
@@ -29,7 +31,7 @@ class Query:
 class Connection:
     def __init__(self, warehouse='СкладГруппа'):
         fields = ['Контрагент', 'ДоговорКонтрагента'] + ([warehouse] if warehouse else [])
-        metadata = NS(Синоним='Заказ покупателя', Реквизиты=[NS(Имя=f) for f in fields])
+        metadata = NS(ТабличныеЧасти=NS(Найти=lambda name: NS() if name == 'Товары' else None), Синоним='Заказ покупателя', Реквизиты=[NS(Имя=f) for f in fields])
         self.Метаданные = NS(Документы=NS(Найти=lambda name: metadata))
         self.query = Query()
     def NewObject(self, kind): return self.query

@@ -610,6 +610,8 @@ const _UniversalJournalTarget = {
     this._listReady = false;
     this._listKey = null;
     this.columns = [];
+    this.supportedFilterFields = null;
+    this.serverFilterFields = [];
     this.activeDocType = targetType;
     this.docTitle = meta.title;
 
@@ -860,6 +862,7 @@ const _UniversalJournalTarget = {
       items: this.items.slice(), columns: this.defaultColumns, title: this.docTitle,
       scrollTop: this.getEl("ujTableWrapper")?.scrollTop || 0,
       hasMore: this.hasMoreDocs, lastDate: this.lastDocDate, lastNumber: this.lastDocNumber,
+      supportedFilterFields: this.supportedFilterFields, serverFilterFields: this.serverFilterFields,
       serverFiltered: this.isServerFiltered
     });
     // Bound memory use while keeping recently opened sections available.
@@ -962,6 +965,7 @@ const _UniversalJournalTarget = {
       search_mode: this.searchMatchMode,
       include_nomenclatures: activeCrits.some(c => c.fieldKey === "nomenclature") || Boolean(options.include_nomenclatures) };
     this.isServerFiltered = isFilteredQuery;
+    if (activeCrits.some(c=>["agent_sales_type","agent_sales_group"].includes(c.fieldKey))) options = {...options,force:true};
     const nextKey = this.getListKey(querySearch, activeCrits);
     const keepTableVisible = options.force && this._listKey === nextKey && this.items.length > 0;
     this._listKey = nextKey;
@@ -970,6 +974,8 @@ const _UniversalJournalTarget = {
     if (options.force) this.listCache.delete(this._listKey);
     const cachedList = this.listCache.get(this._listKey);
     if (cachedList && !(activeCrits.length > 0 && cachedList.hasMore)) {
+      this.supportedFilterFields = cachedList.supportedFilterFields || null;
+      this.serverFilterFields = cachedList.serverFilterFields || [];
       this.items = cachedList.items.slice();
       this.selectedRow = null;
       this.docTitle = cachedList.title;
@@ -1120,6 +1126,8 @@ const _UniversalJournalTarget = {
           return true;
         });
       }
+      this.supportedFilterFields = Array.isArray(data.supported_filter_fields) ? data.supported_filter_fields : null;
+      this.serverFilterFields = data.server_filter_fields || [];
       this.items = rawItems;
       this._listReady = true;
       this.filteredItems = rawItems;
@@ -2359,6 +2367,11 @@ const _UniversalJournalTarget = {
       { key: "comment", label: "Комментарий", type: "text" }
     );
 
+    const known = window.C1FilterComponent ? C1FilterComponent.MASTER_1C_FIELDS : [];
+    (this.supportedFilterFields || []).forEach(key => {
+      const definition = known.find(f => f.key === key);
+      if (definition && !fields.some(f => f.key === key)) fields.push({ ...definition });
+    });
     // Merge any other columns present in this.columns
     const existing = new Set(fields.map(f => f.key));
     (this.columns || []).forEach(col => {
@@ -2372,6 +2385,7 @@ const _UniversalJournalTarget = {
       }
     });
 
+    // Keep every existing choice visible; document support is shown separately.
     return fields;
   },
 
@@ -2414,6 +2428,7 @@ const _UniversalJournalTarget = {
       contextKey: this.activeDocType,
       docTitle: this.docTitle || this.activeDocType,
       availableFields: this.getAvailableFields(),
+      supportedFilterFields: this.supportedFilterFields,
       activeFilters: this.activeFilters,
       activePresetName: this.activePresetName,
       isServerFiltered: Boolean(this.isServerFiltered),
@@ -2998,6 +3013,7 @@ const _UniversalJournalTarget = {
   },
 
   matchesCondition: function(item, crit) {
+    if (this.isServerFiltered && this.serverFilterFields?.includes(crit.fieldKey)) return true;
     return C1FilterComponent.matchesCondition(item, crit, this.isServerFiltered);
   },
 

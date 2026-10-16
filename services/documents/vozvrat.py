@@ -3,6 +3,8 @@
 services/documents/vozvrat.py
 Dedicated handler for 'ВозвратТоваровОтПокупателя' (Customer Returns) documents.
 """
+from services.filter_policy_loader import normalize_filters, validate_supported_fields, DOCUMENT_FIELDS
+from services.document_filter_metadata import reference_filter_fields
 from services.onec_dates import as_1c_date
 from services.documents.base import format_1c_datetime, parse_query_datetime, build_filter_conditions, narrow_search_to_column
 
@@ -12,7 +14,10 @@ def get_vozvrat_list(conn, payload):
     search_str = payload.get("search", "").strip()
     offset = int(payload.get("offset", 0))
     limit_count = int(payload.get("limit", 0))
-    filters = payload.get("filters", [])
+    filters = normalize_filters(payload.get("filters", []))
+    optional_field_map = reference_filter_fields(conn, "ВозвратТоваровОтПокупателя")
+    supported_fields = set(DOCUMENT_FIELDS["ВозвратТоваровОтПокупателя"]) | set(optional_field_map) | {"artikul", "barcode"}
+    validate_supported_fields(filters, supported_fields)
     last_date = payload.get("last_date", "").strip()
     last_number = payload.get("last_number", "").strip()
 
@@ -56,6 +61,10 @@ def get_vozvrat_list(conn, payload):
     except Exception:
         wh_attr = "Т.Склад"
 
+    if not wh_attr:
+        supported_fields.discard('warehouse')
+        validate_supported_fields(filters, supported_fields)
+
     wh_sql_field = f"ПРЕДСТАВЛЕНИЕ({wh_attr}) КАК Warehouse," if wh_attr else '"" КАК Warehouse,'
 
     if search_str:
@@ -96,8 +105,9 @@ def get_vozvrat_list(conn, payload):
         "contract": "Т.ДоговорКонтрагента.Наименование",
         "responsible": "Т.Ответственный.Наименование"
     }
+    field_map.update(optional_field_map)
     narrow_search_to_column(payload, where_parts, field_map, q_doc)
-    build_filter_conditions(filters, q_doc, where_parts, debug_params, field_map)
+    build_filter_conditions(filters, q_doc, where_parts, debug_params, field_map, conn=conn)
 
     if last_date and not search_str and not filters:
         try:
@@ -247,6 +257,7 @@ def get_vozvrat_list(conn, payload):
     return {
         "items": items,
         "columns": columns,
+        "supported_filter_fields": sorted(supported_fields),
         "total_count": len(items),
         "doc_title": "Возврат товаров от покупателя",
         "has_more": (len(items) >= limit_count) if limit_count else False,

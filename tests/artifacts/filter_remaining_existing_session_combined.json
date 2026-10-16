@@ -1,0 +1,109 @@
+{
+  "database": "Test1C / Aztrade_test3",
+  "coverage": {
+    "positive_driver_fixture": true,
+    "combined_complete": true
+  },
+  "cases": [
+    {
+      "phase": "combined",
+      "fields": [
+        "number",
+        "date"
+      ],
+      "operators": [
+        "Равно",
+        "Равно"
+      ],
+      "status": "pass",
+      "rows": 1
+    },
+    {
+      "phase": "combined",
+      "fields": [
+        "number",
+        "posted"
+      ],
+      "operators": [
+        "Равно",
+        "Равно"
+      ],
+      "status": "pass",
+      "rows": 1
+    },
+    {
+      "phase": "combined",
+      "fields": [
+        "date",
+        "vms_status"
+      ],
+      "operators": [
+        "Равно",
+        "Не заполнено"
+      ],
+      "status": "pass",
+      "rows": 1
+    },
+    {
+      "phase": "combined",
+      "fields": [
+        "vms_status",
+        "pogruzka_voditel"
+      ],
+      "operators": [
+        "Не заполнено",
+        "Заполнено"
+      ],
+      "status": "pass",
+      "rows": 1
+    },
+    {
+      "phase": "combined",
+      "fields": [
+        "date",
+        "vms_status",
+        "pogruzka_voditel"
+      ],
+      "operators": [
+        "Равно",
+        "Не заполнено",
+        "Заполнено"
+      ],
+      "status": "pass",
+      "rows": 1
+    },
+    {
+      "phase": "combined",
+      "fields": [
+        "number",
+        "date",
+        "posted",
+        "vms_status",
+        "pogruzka_voditel"
+      ],
+      "operators": [
+        "Равно",
+        "Равно",
+        "Равно",
+        "Не заполнено",
+        "Заполнено"
+      ],
+      "status": "pass",
+      "rows": 1
+    },
+    {
+      "phase": "combined",
+      "fields": [
+        "number",
+        "number"
+      ],
+      "operators": [
+        "Равно",
+        "Не равно"
+      ],
+      "status": "pass",
+      "rows": 0
+    }
+  ],
+  "session_preserved": true
+}

@@ -1,0 +1,118 @@
+[
+  {
+    "limit": 200,
+    "rows": 200,
+    "http_ms": 17862.84,
+    "wire_bytes": 13879,
+    "json_bytes": 154422,
+    "decode_json_ms": 2.57,
+    "server_timing": "onec;dur=17820.17, serialize;dur=1.20, gzip;dur=5.23",
+    "pipeline": {
+      "primary_query": 2946.94,
+      "related_lookup": 592.42,
+      "row_decode": 31.19,
+      "total": 3589.84
+    },
+    "gzip_levels": {
+      "1": {
+        "ms": 1.62,
+        "bytes": 19844
+      },
+      "6": {
+        "ms": 2.0,
+        "bytes": 14940
+      },
+      "9": {
+        "ms": 5.81,
+        "bytes": 13879
+      }
+    }
+  },
+  {
+    "limit": 200,
+    "rows": 200,
+    "http_ms": 935.98,
+    "wire_bytes": 13881,
+    "json_bytes": 154419,
+    "decode_json_ms": 1.69,
+    "server_timing": "onec;dur=910.72, serialize;dur=0.91, gzip;dur=7.13",
+    "pipeline": {
+      "primary_query": 795.54,
+      "related_lookup": 86.69,
+      "row_decode": 25.61,
+      "total": 908.46
+    },
+    "gzip_levels": {
+      "1": {
+        "ms": 0.8,
+        "bytes": 19843
+      },
+      "6": {
+        "ms": 1.65,
+        "bytes": 14943
+      },
+      "9": {
+        "ms": 5.49,
+        "bytes": 13881
+      }
+    }
+  },
+  {
+    "limit": 2000,
+    "rows": 2000,
+    "http_ms": 5392.84,
+    "wire_bytes": 127912,
+    "json_bytes": 1523966,
+    "decode_json_ms": 11.88,
+    "server_timing": "onec;dur=5276.25, serialize;dur=11.85, gzip;dur=56.54",
+    "pipeline": {
+      "primary_query": 4800.18,
+      "related_lookup": 202.69,
+      "row_decode": 267.07,
+      "total": 5272.1
+    },
+    "gzip_levels": {
+      "1": {
+        "ms": 9.07,
+        "bytes": 195638
+      },
+      "6": {
+        "ms": 18.49,
+        "bytes": 139377
+      },
+      "9": {
+        "ms": 61.05,
+        "bytes": 127912
+      }
+    }
+  },
+  {
+    "limit": 2000,
+    "rows": 2000,
+    "http_ms": 2225.24,
+    "wire_bytes": 127913,
+    "json_bytes": 1523967,
+    "decode_json_ms": 18.86,
+    "server_timing": "onec;dur=2126.50, serialize;dur=14.88, gzip;dur=59.13",
+    "pipeline": {
+      "primary_query": 1686.48,
+      "related_lookup": 169.75,
+      "row_decode": 264.49,
+      "total": 2122.11
+    },
+    "gzip_levels": {
+      "1": {
+        "ms": 10.35,
+        "bytes": 195619
+      },
+      "6": {
+        "ms": 19.57,
+        "bytes": 139379
+      },
+      "9": {
+        "ms": 61.08,
+        "bytes": 127913
+      }
+    }
+  }
+]

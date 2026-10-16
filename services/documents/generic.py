@@ -8,6 +8,8 @@ Generic fallback handler for standard 1C document types:
 - СписаниеТоваров
 - ОприходованиеТоваров
 """
+from services.filter_policy_loader import normalize_filters, BASE_FIELDS, validate_supported_fields
+from services.document_filter_metadata import reference_filter_fields
 from services.onec_dates import as_1c_date
 from services.documents.base import format_1c_datetime, parse_query_datetime, build_filter_conditions, narrow_search_to_column
 
@@ -18,7 +20,7 @@ def get_generic_documents_list(conn, payload):
     search_str = payload.get("search", "").strip()
     offset = int(payload.get("offset", 0))
     limit_count = int(payload.get("limit", 0))
-    filters = payload.get("filters", [])
+    filters = normalize_filters(payload.get("filters", []))
     last_date = payload.get("last_date", "").strip()
     last_number = payload.get("last_number", "").strip()
 
@@ -28,6 +30,7 @@ def get_generic_documents_list(conn, payload):
 
     doc_synonym = str(doc_meta.Синоним or doc_type)
     req_names = set(str(r.Имя) for r in doc_meta.Реквизиты)
+    has_goods = doc_meta.ТабличныеЧасти.Найти("Товары") is not None
     has_kontr = "Контрагент" in req_names
     has_sum = "СуммаДокумента" in req_names
     sklad_field = next((name for name in ("СкладОрдер", "Склад", "СкладГруппа") if name in req_names), None)
@@ -90,6 +93,15 @@ def get_generic_documents_list(conn, payload):
         sel_parts.append("Т.Комментарий КАК Comment")
         columns.append({"key": "comment", "label": "Комментарий", "width": 200, "align": "left"})
 
+    optional_fields = {key: attr for key, attr in {
+        'organization': 'Организация', 'division': 'Подразделение', 'currency': 'ВалютаДокумента'
+    }.items() if attr in req_names}
+    for key, attr in optional_fields.items():
+        sel_parts.append(f'Т.{attr}.Наименование КАК {key}')
+        columns.append({'key': key, 'label': {'organization': 'Организация', 'division': 'Подразделение', 'currency': 'Валюта'}[key], 'width': 160, 'align': 'left'})
+    if has_kontr:
+        sel_parts.extend(['Т.Контрагент.Код КАК KontragentCode', 'Т.Контрагент.ГоловнойКонтрагент.Код КАК GolovnoyKontragentCode'])
+
     q_doc = conn.NewObject("Запрос")
     where_parts = []
     debug_params = {}
@@ -117,6 +129,8 @@ def get_generic_documents_list(conn, payload):
         "__doc_table": f"Документ.{doc_type}"
     }
     if has_kontr:
+        field_map["kontragent_code"] = "Т.Контрагент.Код"
+        field_map["golovnoy_kontragent_code"] = "Т.Контрагент.ГоловнойКонтрагент.Код"
         field_map["kontragent"] = "Т.Контрагент.Наименование"
         field_map["golovnoy_kontragent"] = "Т.Контрагент.ГоловнойКонтрагент.Наименование"
     if has_sum: field_map["amount"] = "Т.СуммаДокумента"
@@ -129,8 +143,15 @@ def get_generic_documents_list(conn, payload):
     if has_resp: field_map["responsible"] = "Т.Ответственный.Наименование"
     if has_comm: field_map["comment"] = "Т.Комментарий"
 
+    field_map.update({key: f'Т.{attr}.Наименование' for key, attr in optional_fields.items()})
+    field_map.update(reference_filter_fields(conn, doc_type))
+    supported_fields = BASE_FIELDS | {key for key, expression in field_map.items() if not key.startswith('__') and expression}
+    if has_goods: supported_fields.update(('nomenclature', 'artikul', 'barcode'))
+    if has_contract: supported_fields.update(('agent_sales_type', 'agent_sales_group'))
+    field_map['__supported_fields'] = supported_fields
+    validate_supported_fields(filters, supported_fields)
     narrow_search_to_column(payload, where_parts, field_map, q_doc)
-    build_filter_conditions(filters, q_doc, where_parts, debug_params, field_map)
+    build_filter_conditions(filters, q_doc, where_parts, debug_params, field_map, conn=conn)
 
     if last_date and not search_str and not filters:
         try:
@@ -178,6 +199,11 @@ def get_generic_documents_list(conn, payload):
         if has_kontr:
             row_data["kontragent"] = str(res_doc.Kontragent or "").strip()
             row_data["golovnoy_kontragent"] = str(res_doc.GolovnoyKontragent or "").strip()
+        if has_kontr:
+            row_data['kontragent_code'] = str(res_doc.KontragentCode or '').strip()
+            row_data['golovnoy_kontragent_code'] = str(res_doc.GolovnoyKontragentCode or '').strip()
+        for key in optional_fields:
+            row_data[key] = str(getattr(res_doc, key) or '').strip()
         if has_sum: row_data["amount"] = float(res_doc.Amount or 0)
         if has_portfolio: row_data["portfolio"] = str(res_doc.Portfolio or "").strip()
         if has_sklad: row_data["warehouse"] = str(res_doc.Warehouse or "").strip()
@@ -196,6 +222,7 @@ def get_generic_documents_list(conn, payload):
     return {
         "items": items,
         "columns": columns,
+        "supported_filter_fields": sorted(supported_fields),
         "total_count": len(items),
         "doc_title": doc_synonym,
         "has_more": (len(items) >= limit_count) if limit_count else False,
